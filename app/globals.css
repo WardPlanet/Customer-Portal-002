@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* ── Brand color foundations ──────────────────────────────────────────────── */
+:root {
+  --background: #ffffff;
+  --foreground: #000F60;   /* PDDS Dark Blue — all body text */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #ffffff;  /* portal stays light-mode only */
+    --foreground: #000F60;
+  }
+}
+
+/* ── Tailwind theme overrides ─────────────────────────────────────────────── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* PDDS Typography — Plus Jakarta Sans (closest free web equiv. to Eina 03) */
+  --font-sans: var(--font-jakarta), 'Aptos', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', monospace;
+
+  /* ── PDDS Blue palette ──────────────────────────────────────────────────── *
+   *  blue-50  → very light tint (page bg highlights)                         *
+   *  blue-100 → Blue Water #D3E6F5 (secondary bg, callouts)                  *
+   *  blue-500/600 → PDDS Blue #0069DC (primary: headlines, CTAs, buttons)    *
+   *  blue-700 → PDDS Dark Blue #000F60 (body text, wordmark)                 *
+   * ───────────────────────────────────────────────────────────────────────── */
+  --color-blue-50:  #EBF4FC;
+  --color-blue-100: #D3E6F5;
+  --color-blue-200: #B0CFEC;
+  --color-blue-300: #80B3E0;
+  --color-blue-400: #4090D6;
+  --color-blue-500: #0069DC;
+  --color-blue-600: #0069DC;
+  --color-blue-700: #000F60;
+  --color-blue-800: #000B4A;
+  --color-blue-900: #000836;
+  --color-blue-950: #000522;
+
+  /* ── PDDS Orange palette ────────────────────────────────────────────────── *
+   *  orange-500/600 → PDDS Orange #FA4616 (Cloud 9 accent, highlights)       *
+   * ───────────────────────────────────────────────────────────────────────── */
+  --color-orange-50:  #FFF1EC;
+  --color-orange-100: #FDDDD4;
+  --color-orange-200: #FBC5B5;
+  --color-orange-300: #F8A088;
+  --color-orange-400: #F66B4A;
+  --color-orange-500: #FA4616;
+  --color-orange-600: #E03B0E;
+  --color-orange-700: #B83009;
+  --color-orange-800: #8F2507;
+  --color-orange-900: #681B05;
+
+  /* ── Named brand tokens (use directly as bg-pdds-blue etc.) ────────────── */
+  --color-pdds-blue:    #0069DC;
+  --color-pdds-dark:    #000F60;
+  --color-pdds-water:   #D3E6F5;
+  --color-pdds-orange:  #FA4616;
+  --color-pdds-purple:  #833177;
+  --color-pdds-green:   #257226;
+}
+
+/* ── Base styles ──────────────────────────────────────────────────────────── */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
