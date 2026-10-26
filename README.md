@@ -1,0 +1,60 @@
+# Page editor
+
+A web editor for process-documentation pages. A small Node server hosts the page, stores drafts as
+text files, and forwards the AI features to the Anthropic API so the API key never reaches the browser.
+
+This file is for whoever hosts it. `HANDOFF.md` has the product behavior and code layout.
+
+## What it needs
+
+- Node.js 20.12 or later. No build step, no database.
+- Outbound HTTPS to `api.anthropic.com` (only for the AI features).
+- A folder it can write to, for saved drafts.
+- An Anthropic API key (optional: without one everything works except the AI features).
+
+## Run it
+
+```
+npm install
+cp .env.example .env      # then fill in ANTHROPIC_API_KEY
+npm start                 # http://localhost:3000
+```
+
+## Configuration
+
+Set these as environment variables, or in a `.env` file next to `server.js` (real environment
+variables take priority). `.env.example` documents each one.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | none | Enables the AI features. Treat as a secret. |
+| `PORT` | `3000` | Port to listen on. |
+| `DRAFTS_DIR` | `./drafts` | Where saved drafts are stored. |
+| `AI_MODEL`, `AI_MODEL_QUICK` | `claude-opus-5-5` | Models for suggestions and for search keywords. |
+
+## Files
+
+| File | Role |
+| --- | --- |
+| `server.js` | The whole backend: static files, draft storage, AI endpoint, health check. |
+| `index.html`, `styles.css`, `app.js` | The editor. Plain HTML, CSS and JavaScript, served as is. |
+| `drafts/` | Saved drafts, one `.txt` per page. Created on first save. Not in git. |
+
+## Endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /healthz` | Returns `{"ok":true}` when the process is up. For monitoring. |
+| `GET /api/ai/status` | Whether an API key is configured. |
+| `POST /api/ai/json` | Sends one prompt to Claude and returns parsed JSON. |
+| `GET /api/drafts`, `GET/PUT /api/drafts/:name` | List, read and save drafts. |
+
+## Things to decide before going live
+
+- **No login.** Anyone who can reach the server can read and overwrite every draft and use the AI
+  (which spends the API budget). Put it behind your single sign-on or an internal-only network.
+- **Drafts are plain files with no history.** Saving a page with the same title replaces the earlier
+  draft. Put `DRAFTS_DIR` on a backed-up volume.
+- **One instance only.** Drafts live on local disk, so running several copies would give each its own set.
+- **Spend limits.** Set a spend cap on the API key in the Anthropic console.
+- **Logs** go to standard output. The server logs failures only, not draft contents.

@@ -193,6 +193,7 @@ Internal-Only
 ```
 npm install
 ANTHROPIC_API_KEY=your-key npm start      # http://localhost:3000 (set PORT to change)
+# or copy .env.example to .env, fill it in, and run npm start. See README.md for IT.
 ```
 
 `server.js` (Express) serves `index.html`, `styles.css` and `app.js`, and answers the AI requests, so the
@@ -219,7 +220,7 @@ disk behaves the same way.
   work. With no server (page opened from disk), Save draft downloads a file and Open draft uses the file
   picker.
 - There is no login, so anyone who can reach the server can read and overwrite every draft.
-- For IT: this is one Node process (Node 20.6 or later) with one secret, `ANTHROPIC_API_KEY`. It has no
+- For IT: this is one Node process (Node 20.12 or later) with one secret, `ANTHROPIC_API_KEY`. It has no
   login, so host it only where the people who can reach it are allowed to use the AI budget.
 
 ## Not built yet, or placeholders

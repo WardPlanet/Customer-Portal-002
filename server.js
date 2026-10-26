@@ -13,8 +13,16 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
-const PORT = process.env.PORT || 3000;
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+// Optional .env file next to this script (see .env.example). Real environment variables win.
+try {
+  process.loadEnvFile(path.join(here, '.env'));
+} catch (error) {
+  if (error.code !== 'ENOENT') { throw error; }
+}
+
+const PORT = process.env.PORT || 3000;
 
 // Saved drafts are plain .txt files in this folder (created on first save). Back it up or
 // move it by copying the folder; point DRAFTS_DIR somewhere else to store drafts elsewhere.
@@ -48,6 +56,11 @@ app.use('/api/drafts', express.text({ type: 'text/plain', limit: MAX_DRAFT_BYTES
   app.get(file === 'index.html' ? ['/', '/index.html'] : '/' + file, function (req, res) {
     res.sendFile(path.join(here, file));
   });
+});
+
+// For load balancers and monitoring: answers 200 whenever the process is up
+app.get('/healthz', function (req, res) {
+  res.json({ ok: true });
 });
 
 /* ---------- Saved drafts ---------- */
