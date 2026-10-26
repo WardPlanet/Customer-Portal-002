@@ -9,18 +9,10 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import express from 'express';
-import Anthropic from '@anthropic-ai/sdk';
-
-const here = path.dirname(fileURLToPath(import.meta.url));
-
-// Optional .env file next to this script (see .env.example). Real environment variables win.
-try {
-  process.loadEnvFile(path.join(here, '.env'));
-} catch (error) {
-  if (error.code !== 'ENOENT') { throw error; }
-}
+import { here } from './config.js';
+import { AiError, askForJson, hasApiKey } from './ai.js';
+import { importDocument } from './importer.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -31,20 +23,6 @@ const DRAFTS_DIR = path.resolve(process.env.DRAFTS_DIR || path.join(here, 'draft
 // path tricks such as ../ in the URL.
 const DRAFT_NAME = /^[a-z0-9][a-z0-9-]{0,79}-draft\.txt$/;
 const MAX_DRAFT_BYTES = 1024 * 1024;
-
-// 'default' is used for suggestions, 'quick' for the search keywords saved with a draft.
-// Both can be overridden from the environment without touching the code.
-const MODEL_TIERS = {
-  default: { model: process.env.AI_MODEL || 'claude-opus-5-5', effort: 'medium' },
-  quick: { model: process.env.AI_MODEL_QUICK || process.env.AI_MODEL || 'claude-opus-5-5', effort: 'low' }
-};
-
-const MAX_PROMPT_LENGTH = 100000;
-const MAX_OUTPUT_TOKENS = 16000;
-
-// With no key the SDK would only fail on the first request, so check up front.
-const hasApiKey = Boolean(process.env.ANTHROPIC_API_KEY);
-const client = hasApiKey ? new Anthropic() : null;
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -130,63 +108,43 @@ app.get('/api/ai/status', function (req, res) {
   res.json({ available: hasApiKey });
 });
 
-// The prompts ask for JSON only, but models sometimes wrap it in a code fence
-function parseJsonReply(text) {
-  var cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  return JSON.parse(cleaned);
-}
-
 function sendError(res, status, code, message) {
   res.status(status).json({ error: { code: code, message: message } });
 }
 
+function sendAiError(res, error) {
+  if (error instanceof AiError) { return sendError(res, error.status, error.code, error.message); }
+  console.error('Unexpected error:', error);
+  sendError(res, 500, 'server_error', 'Something went wrong on the server.');
+}
+
+const MAX_PROMPT_LENGTH = 100000;
+
 // Body: { prompt: string, modelTier: 'default' | 'quick' }   Reply: { result: <parsed JSON> }
 app.post('/api/ai/json', async function (req, res) {
-  if (!client) {
-    return sendError(res, 503, 'sampling_disabled', 'The server has no Anthropic API key configured.');
-  }
-
   var prompt = req.body && req.body.prompt;
-  var tier = MODEL_TIERS[(req.body && req.body.modelTier) || 'default'];
-  if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > MAX_PROMPT_LENGTH || !tier) {
+  if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > MAX_PROMPT_LENGTH) {
     return sendError(res, 400, 'bad_request', 'Send a prompt (text) and a modelTier of default or quick.');
   }
-
   try {
-    var message = await client.messages.create({
-      model: tier.model,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      output_config: { effort: tier.effort },
-      messages: [{ role: 'user', content: prompt }]
-    });
-
-    if (message.stop_reason === 'refusal') {
-      return sendError(res, 422, 'refused', 'The model declined this request.');
-    }
-
-    var text = message.content
-      .filter(function (block) { return block.type === 'text'; })
-      .map(function (block) { return block.text; })
-      .join('');
-    if (!text.trim()) {
-      return sendError(res, 502, 'empty_completion', 'The model returned no text.');
-    }
-
-    try {
-      return res.json({ result: parseJsonReply(text) });
-    } catch (parseError) {
-      return sendError(res, 502, 'invalid_json', 'The model did not return valid JSON.');
-    }
+    res.json({ result: await askForJson(prompt, req.body.modelTier) });
   } catch (error) {
-    if (error instanceof Anthropic.RateLimitError) {
-      return sendError(res, 429, 'rate_limited', 'Rate limited by the Anthropic API.');
-    }
-    if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-      console.error('Anthropic API rejected the key:', error.message);
-      return sendError(res, 503, 'sampling_disabled', 'The server’s Anthropic API key was rejected.');
-    }
-    console.error('AI request failed:', error);
-    return sendError(res, 502, 'upstream_error', 'The AI request failed.');
+    sendAiError(res, error);
+  }
+});
+
+/* ---------- Import an existing document ----------
+   Body: the raw file bytes. Header X-Filename: the original file name, URL-encoded.
+   Reply: { result: { title, description, summary, blocks, review_notes, source } } */
+app.post('/api/import', express.raw({ type: () => true, limit: '25mb' }), async function (req, res) {
+  var filename = decodeURIComponent(req.get('X-Filename') || '');
+  if (!filename || !Buffer.isBuffer(req.body) || !req.body.length) {
+    return sendError(res, 400, 'bad_request', 'Send a file with an X-Filename header.');
+  }
+  try {
+    res.json({ result: await importDocument(req.body, filename) });
+  } catch (error) {
+    sendAiError(res, error);
   }
 });
 

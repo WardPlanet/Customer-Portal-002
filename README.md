@@ -36,7 +36,11 @@ variables take priority). `.env.example` documents each one.
 
 | File | Role |
 | --- | --- |
-| `server.js` | The whole backend: static files, draft storage, AI endpoint, health check. |
+| `server.js` | The web server: static files, draft storage, and the routes for AI and import. |
+| `ai.js` | The only code that talks to the Anthropic API (models, errors, JSON replies). |
+| `importer.js` | Reads an uploaded document and asks the AI to turn it into a standard page. |
+| `config.js` | Loads the optional `.env` file. |
+| `guidelines/import-guidelines.md` | Plain-text rules for how imported documents are standardized. Edit freely; takes effect on the next import. |
 | `index.html`, `styles.css`, `app.js` | The editor. Plain HTML, CSS and JavaScript, served as is. |
 | `drafts/` | Saved drafts, one `.txt` per page. Created on first save. Not in git. |
 
@@ -47,6 +51,7 @@ variables take priority). `.env.example` documents each one.
 | `GET /healthz` | Returns `{"ok":true}` when the process is up. For monitoring. |
 | `GET /api/ai/status` | Whether an API key is configured. |
 | `POST /api/ai/json` | Sends one prompt to Claude and returns parsed JSON. |
+| `POST /api/import` | Takes an uploaded .docx, .pdf, .txt or .md and returns a standardized page for review. |
 | `GET /api/drafts`, `GET/PUT /api/drafts/:name` | List, read and save drafts. |
 
 ## Things to decide before going live

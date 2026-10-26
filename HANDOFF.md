@@ -112,6 +112,26 @@ Client-Safe).
 **On this page (outline):** live list of the title, headers (indented by level), numbered steps,
 a warning count, and a rough read time.
 
+## Importing existing documents
+
+The **Import document** button (footer) takes a `.docx`, `.pdf`, `.txt` or `.md` file and loads a
+standardized version into the editor for a person to review and save. Nothing is saved automatically.
+
+- Word files are converted to simple HTML on the server (images become an "[image omitted]" marker and a
+  reviewer note). PDFs are sent to Claude as a PDF. Old `.doc` files are refused with a message.
+- The AI follows `guidelines/import-guidelines.md`. That file is where the house rules live (how steps,
+  notes and warnings are used, replacing people's names with job titles, what to leave out). It is read on
+  every import, so edit it and re-import to see the effect. Add a rule whenever the AI repeats a mistake.
+- The reply format is fixed in `importer.js` (`OUTPUT_FORMAT`) and read in `app.js`
+  (`importResultToSections`). Change those two together.
+- After an import a dialog lists **review notes** from the AI: gaps, guesses, omitted images, names
+  replaced by titles, possibly out-of-date content.
+- Imported pages get Page Type "Process Documentation" and Visibility "Internal-Only" for now. Other
+  page types come later, once the existing documentation has been surveyed.
+- The original file name is kept in the draft as `[SOURCE FILE]`, so every page can be traced back.
+- Limits: PDFs up to 20 MB, text up to about 200,000 characters, one file at a time. Longer documents
+  need splitting. There is no batch import yet.
+
 ## Draft file format (plain text, FORMAT 2)
 
 Save draft writes this; Open draft and Paste draft text read it. Everything before the first
@@ -172,8 +192,12 @@ Jordan Mackey
 
 [VISIBILITY]
 Internal-Only
+
+[SOURCE FILE]
+refund-process-v2.docx
 ```
 
+- `SOURCE FILE` is only present on pages created by an import.
 - Block sections are named `BLOCK n` followed by `PARAGRAPH`, `HEADER 1` to `HEADER 5`, `NOTE`,
   `WARNING`, or `STEP NUMBER` / `STEP TITLE` / `STEP TEXT`. A step numbered 1 starts a new step
   section. Blocks are read in `n` order.
@@ -225,6 +249,7 @@ disk behaves the same way.
 
 ## Not built yet, or placeholders
 
+- Batch import, handling of images and screenshots, and page types other than Process Documentation.
 - **Submit to Draft** does nothing (it only highlights missing required fields).
 - **Leave without saving**, the toolbar **Paragraph** dropdown, and the toolbar **image** button
   are visual only.

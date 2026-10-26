@@ -651,6 +651,20 @@
   }
   .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 16px; }
 
+  .review-list {
+    max-height: 320px;
+    margin: 0;
+    padding: 12px 14px 12px 32px;
+    overflow-y: auto;
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .review-list:empty { display: none; }
+  .review-list li + li { margin-top: 6px; }
+
   .draft-list {
     max-height: 320px;
     margin: 0;
