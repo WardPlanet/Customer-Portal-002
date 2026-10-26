@@ -1,0 +1,3366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>New Page – Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Design tokens ---------- */
+  :root {
+    --bg: #f6f6f6;
+    --surface: #ffffff;
+    --surface-muted: #fafafa;
+    --border: #e4e4e7;
+    --border-strong: #d4d4d8;
+    --text: #18181b;
+    --text-muted: #52525b;
+    --text-faint: #8a8a93;
+    --accent: #0a66d8;
+    --accent-soft: #dcebfd;
+    --accent-border: #9cc4f5;
+    --accent-text: #0a66d8;
+    --warn-bg: #fffaeb;
+    --warn-border: #f5d77a;
+    --warn-icon: #d9640a;
+    --success: #1fa65a;
+    --radius-card: 16px;
+    --radius-block: 12px;
+    --radius-pill: 999px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101113;
+      --surface: #18191c;
+      --surface-muted: #1e2024;
+      --border: #2d2f35;
+      --border-strong: #3d4048;
+      --text: #f2f2f4;
+      --text-muted: #b4b4bd;
+      --text-faint: #8a8a95;
+      --accent: #4d94f0;
+      --accent-soft: #14304f;
+      --accent-border: #2c5a94;
+      --accent-text: #8dbcf7;
+      --warn-bg: #2a2410;
+      --warn-border: #6b5a1c;
+      --warn-icon: #f09a4a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #101113;
+    --surface: #18191c;
+    --surface-muted: #1e2024;
+    --border: #2d2f35;
+    --border-strong: #3d4048;
+    --text: #f2f2f4;
+    --text-muted: #b4b4bd;
+    --text-faint: #8a8a95;
+    --accent: #4d94f0;
+    --accent-soft: #14304f;
+    --accent-border: #2c5a94;
+    --accent-text: #8dbcf7;
+    --warn-bg: #2a2410;
+    --warn-border: #6b5a1c;
+    --warn-icon: #f09a4a;
+    color-scheme: dark;
+  }
+
+  /* ---------- Base ---------- */
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  svg { display: block; flex-shrink: 0; }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 16px;
+   padding: 15px 28px;
+   background: var(--surface);
+   border-bottom: 1px solid var(--border);
+ }
+  .topbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .leave-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 2px;
+    background: none;
+    border: 0;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .leave-btn:hover { color: var(--text); }
+  .topbar-divider { width: 3px; height: 3px; border-radius: 50%; background: var(--text-faint); }
+  .page-name {
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  .save-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--surface-muted);
+    color: var(--text-muted);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .save-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+  }
+
+  /* ---------- Workspace ---------- */
+  .workspace {
+   flex: 1;
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) 280px;
+   gap: 25px;
+   align-items: start;
+   padding: 28px;
+   max-width: 1280px;
+   width: 100%;
+   margin: 0 auto;
+ }
+
+  /* ---------- Editor card ---------- */
+  .editor {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tool-group {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .tool-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 5px;
+  }
+  .style-select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-width: 101px;
+    padding: 4px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+    font-size: 13px;
+  }
+  .icon-btn {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 26px;
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    color: var(--text-muted);
+  }
+  .icon-btn:hover { background: var(--surface-muted); color: var(--text); }
+  .block-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 11px;
+    background: var(--surface-muted);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .block-chip:hover { border-color: var(--accent-border); }
+
+  .editor-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+
+  /* ---------- Canvas (content) ---------- */
+  .canvas {
+   padding: 24px 16px 20px;
+   min-width: 0;
+ }
+  /* Every piece of content is its own block: title, subtitle, summary, each step */
+  .text-block {
+   position: relative;
+   padding: 6px 32px 6px 8px;
+   border: 1px solid transparent;
+   border-radius: var(--radius-block);
+ }
+  .text-block:hover { border-color: var(--border); }
+  .text-block:focus-within { border-color: var(--accent-border); }
+  .block-tag {
+    position: absolute;
+    top: -8px;
+    left: 10px;
+    padding: 0 6px;
+    background: var(--surface);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .text-block:hover .block-tag,
+  .text-block:focus-within .block-tag { opacity: 1; }
+  .text-block:focus-within .block-tag { color: var(--accent-text); }
+
+  .canvas-title {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .canvas-subtitle {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--text-muted);
+  }
+  .canvas-summary {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    max-width: 62ch;
+    min-height: 2.4em;
+  }
+  [contenteditable]:focus { outline: none; }
+  [contenteditable]:empty::before { content: attr(data-placeholder); color: var(--text-faint); }
+
+  .blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .block {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-block);
+    background: var(--surface);
+  }
+  .block:focus-within { border-color: var(--accent-border); }
+
+  .step-block {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 11px 38px 11px 14px;
+    border-color: var(--border);
+  }
+  .step-block > div { flex: 1; min-width: 0; }
+  .step-number {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .step-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .step-text {
+    margin: 1px 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+
+  .add-block {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 10px;
+    background: none;
+    border: 1px dashed var(--accent);
+    border-radius: 9px;
+    color: var(--accent-text);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .add-block:hover { background: var(--accent-soft); }
+
+  /* ---------- On this page (outline) ---------- */
+  .outline {
+   padding: 20px 15px;
+   border-left: 1px solid var(--border);
+   background: var(--surface);
+ }
+  .section-label {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .outline-title {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .outline-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .outline-list li {
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .outline-list a { color: inherit; text-decoration: none; }
+  .outline-list a:hover { color: var(--accent-text); }
+  .outline-meta {
+    margin: 14px 0 0;
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  /* ---------- Page setup sidebar ---------- */
+  .setup {
+   background: var(--surface);
+   border: 1px solid var(--border);
+   border-radius: var(--radius-card);
+   padding: 20px;
+   display: flex;
+   flex-direction: column;
+   gap: 20px;
+ }
+  .field-label {
+    display: block;
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .field-label .optional { font-weight: 400; color: var(--text-muted); }
+  .field-hint {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  .select-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 7px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: left;
+    line-height: 1.4;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    padding: 2px 11px;
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--accent-soft);
+    border-color: var(--accent-border);
+    color: var(--accent-text);
+    font-weight: 500;
+  }
+  .chip-add {
+    padding: 1px 11px;
+    background: none;
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius-pill);
+    color: var(--accent-text);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .avatars { display: flex; align-items: center; }
+  .avatar {
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    border: 1.5px solid var(--surface);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: -6px;
+  }
+  .avatar-blue { background: #0a66d8; }
+  .avatar-grey { background: #6b6e76; }
+  .avatar-add {
+    background: var(--surface);
+    border: 1px dashed var(--accent);
+    color: var(--accent-text);
+    font-size: 14px;
+    font-weight: 400;
+  }
+  .avatar-small {
+    width: 21px;
+    height: 21px;
+    font-size: 10px;
+    margin: 0;
+    border: 0;
+  }
+
+  .reviewer-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: left;
+  }
+
+  .segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 2px;
+    background: var(--surface-muted);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+  }
+  .segment {
+    padding: 6px 8px;
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.3;
+  }
+  .segment[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+
+  /* ---------- Footer ---------- */
+  .footer {
+   display: flex;
+   justify-content: flex-end;
+   padding: 15px 28px;
+   padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px));
+   background: var(--surface);
+   border-top: 1px solid var(--border);
+ }
+  .submit-btn {
+    padding: 8px 28px;
+    background: var(--accent);
+    border: 0;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .submit-btn:hover { filter: brightness(1.08); }
+
+  /* ---------- Draft export / import additions ---------- */
+  [contenteditable] { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .outline-title.is-empty { color: var(--text-faint); font-weight: 500; }
+  .save-status.is-unsaved .save-dot { background: var(--text-faint); }
+
+  .select-wrap { position: relative; }
+  .select-wrap svg { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+  select { color: var(--text); }
+  select.select-field {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 36px;
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .reviewer-select {
+    flex: 1;
+    min-width: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .avatar[hidden] { display: none; }
+
+  .chip-input,
+  .inline-input {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--accent-border);
+    font: inherit;
+    font-size: 13px;
+  }
+  .chip-input {
+    width: 130px;
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+  }
+  .inline-input {
+    width: 100%;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
+  .inline-input[hidden] { display: none; }
+
+  .footer { justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .footer-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .footer-message {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .secondary-btn {
+    padding: 8px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .secondary-btn:hover { background: var(--surface-muted); }
+  .link-btn {
+    padding: 6px 4px;
+    background: none;
+    border: 0;
+    color: var(--accent-text);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .link-btn:hover { text-decoration: underline; }
+
+  .draft-dialog {
+    width: min(640px, calc(100vw - 32px));
+    padding: 20px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+  }
+  .draft-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+  .dialog-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+  }
+  .dialog-hint {
+    margin: 0 0 14px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .dialog-text {
+    width: 100%;
+    min-height: 240px;
+    padding: 14px;
+    background: var(--surface-muted);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+
+  /* ---------- Required fields + insert lines ---------- */
+  :root { --danger: #c62828; --danger-soft: #fdf0ef; --danger-border: #f0b4b0; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --danger: #f2766f; --danger-soft: #2e1816; --danger-border: #7a3330; }
+  }
+  :root[data-theme="dark"] { --danger: #f2766f; --danger-soft: #2e1816; --danger-border: #7a3330; }
+
+  .text-block.has-error,
+  .step-block.has-error { border-color: var(--danger); background: var(--danger-soft); }
+  .text-block.has-error .block-tag { opacity: 1; color: var(--danger); }
+  .field-error {
+    margin: 8px 0 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--danger);
+  }
+
+  /* A thin line with a + between neighbouring sections (visual only for now) */
+  .section-insert {
+   position: relative;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   height: 16px;
+   margin: -8px 0;
+ }
+  .section-insert::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: var(--border);
+  }
+  .section-insert-btn {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
+    color: var(--text-faint);
+  }
+  .section-insert:hover::before,
+  .section-insert:focus-within::before { background: var(--accent-border); }
+  .section-insert-btn:hover,
+  .section-insert-btn:focus-visible {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* ---------- Required markers + disabled actions ---------- */
+  .step-block { position: relative; }
+  .required-mark {
+    position: absolute;
+    left: -4px;
+    top: 5px;
+    color: var(--danger);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .required-legend {
+    margin: 0 0 8px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .required-legend span { color: var(--danger); font-weight: 700; }
+
+  .submit-btn[aria-disabled="true"],
+  .secondary-btn[aria-disabled="true"],
+  .submit-btn[aria-disabled="true"]:hover,
+  .secondary-btn[aria-disabled="true"]:hover {
+    background: var(--surface-muted);
+    color: var(--text-faint);
+    box-shadow: inset 0 0 0 1px var(--border);
+    cursor: not-allowed;
+    filter: none;
+  }
+
+  /* ---------- Remove button on optional blocks ---------- */
+  .remove-block {
+   position: absolute;
+   top: -8px;
+   right: -8px;
+   display: grid;
+   place-items: center;
+   width: 20px;
+   height: 20px;
+   padding: 0;
+   background: var(--surface);
+   border: 1px solid var(--danger);
+   border-radius: 50%;
+   color: var(--danger);
+ }
+  .remove-block:hover,
+  .remove-block:focus-visible { background: var(--danger); color: #fff; }
+
+  /* ---------- Add-block menu + optional content blocks ---------- */
+  .block-menu {
+   position: fixed;
+   z-index: 50;
+   width: 230px;
+   padding: 4px;
+   background: var(--surface);
+   border: 1px solid var(--border-strong);
+   border-radius: 10px;
+   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+ }
+  .block-menu[hidden] { display: none; }
+  .block-menu button {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 10px;
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    text-align: left;
+  }
+  .block-menu button:hover,
+  .block-menu button:focus-visible { background: var(--accent-soft); }
+  .menu-title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .menu-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .block-menu button[hidden] { display: none; }
+  .menu-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .block-menu svg { color: var(--text-muted); }
+  .block-menu button:hover svg,
+  .block-menu button:focus-visible svg { color: var(--accent-text); }
+
+  /* Note (yellow) and Warning (red) callouts: tinted block with the symbol in the corner */
+  .note-block,
+  .warning-block {
+   padding: 10px 36px 10px 40px;
+ }
+  .note-block { background: var(--warn-bg); border-color: var(--warn-border); }
+  .warning-block { background: var(--danger-soft); border-color: var(--danger-border); }
+  .text-block.note-block:hover,
+  .text-block.note-block:focus-within { border-color: var(--warn-icon); }
+  .text-block.warning-block:hover,
+  .text-block.warning-block:focus-within { border-color: var(--danger); }
+  .callout-icon {
+    position: absolute;
+    top: 11px;
+    left: 14px;
+    display: grid;
+  }
+  .callout-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .note-block .callout-icon { color: var(--warn-icon); }
+  .warning-block .callout-icon { color: var(--danger); }
+  .block-callout {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+    min-height: 1.45em;
+  }
+  .outline-list svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .block-paragraph {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    min-height: 2.4em;
+  }
+  .block-header {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.3;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+  }
+  .outline-list li.outline-header { color: var(--text); font-weight: 600; }
+
+  /* ---------- Header levels (H1 to H5) and the header submenu ---------- */
+  .block-header.level-1 {
+   font-size: 22px;
+ }
+  .block-header.level-2 {
+    font-size: 18px;
+  }
+  .block-header.level-3 {
+    font-size: 16px;
+  }
+  .block-header.level-4 {
+    font-size: 15px;
+  }
+  .block-header.level-5 {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
+  .menu-panel[hidden] { display: none; }
+  .menu-chevron { margin-left: auto; }
+  .menu-back {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .header-sample { font-weight: 700; line-height: 1.25; color: var(--text); }
+  .sample-1 {
+    font-size: 20px;
+  }
+  .sample-2 {
+    font-size: 17px;
+  }
+  .sample-3 {
+    font-size: 15px;
+  }
+  .sample-4 {
+    font-size: 13px;
+  }
+  .sample-5 {
+    font-size: 12px;
+  }
+  .level-hint { margin-left: auto; }
+
+  /* ---------- Rich text (paragraph blocks only), step sections, link popover ---------- */
+  [data-rich] ul,
+  [data-rich] ol { margin: 6px 0; padding-left: 1.5em; }
+  [data-rich] a { color: var(--accent-text); text-decoration: underline; }
+  .toolbar .icon-btn[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
+  .toolbar .icon-btn[aria-disabled="true"]:hover { background: none; color: var(--text-muted); }
+  .toolbar .icon-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
+
+  .step-actions {
+    align-self: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: -2px 0 0 2px;
+  }
+  /* Rounded boxes. Add step matches the selected "Tools & Access" chip; Warning and Note match their blocks. */
+  .step-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 11px;
+    border: 1px solid;
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .step-actions .step-add { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }
+  .step-actions .step-add:hover { border-color: var(--accent); }
+  .step-actions .step-warning { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+  .step-actions .step-warning:hover { border-color: var(--danger); }
+  .step-actions .step-note { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-icon); }
+  .step-actions .step-note:hover { border-color: var(--warn-icon); }
+  .step-actions svg { width: 13px; height: 13px; }
+
+  .link-popover {
+    position: fixed;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  }
+  .link-popover[hidden] { display: none; }
+  .link-popover input {
+    width: 200px;
+    padding: 6px 8px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 13px;
+  }
+  .link-popover button {
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .link-popover .link-apply { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ---------- AI assist ---------- */
+  :root { --ai: #6d3fd9; --ai-soft: #f4effe; --ai-border: #cdb8f6; --ai-contrast: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ai: #b79af5; --ai-soft: #25193d; --ai-border: #5b3f94; --ai-contrast: #1b1230; }
+  }
+  :root[data-theme="dark"] { --ai: #b79af5; --ai-soft: #25193d; --ai-border: #5b3f94; --ai-contrast: #1b1230; }
+
+  .ai-chip { margin-left: auto; color: var(--ai); background: var(--ai-soft); border-color: var(--ai-border); }
+  .ai-chip:hover { border-color: var(--ai); }
+  .ai-chip[aria-disabled="true"],
+  .ai-chip[aria-disabled="true"]:hover {
+    background: var(--surface-muted);
+    color: var(--text-faint);
+    border-color: var(--border);
+    cursor: not-allowed;
+  }
+  .ai-chip.is-busy { cursor: progress; }
+  .ai-chip.is-busy svg { animation: ai-pulse 1s ease-in-out infinite; }
+  @keyframes ai-pulse { 50% { opacity: 0.3; } }
+
+  .ai-suggestion {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--ai-soft);
+    border: 1px dashed var(--ai-border);
+    border-radius: 8px;
+    color: var(--text);
+  }
+  .ai-suggestion-body { flex: 1; min-width: 0; }
+  .ai-suggestion-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ai);
+  }
+  .ai-suggestion-reason {
+    margin: 1px 0 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .ai-suggestion-text {
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .ai-suggestion-text ul,
+  .ai-suggestion-text ol { margin: 4px 0; padding-left: 1.4em; }
+  .ai-suggestion-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .ai-accept,
+  .ai-dismiss {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  .ai-accept { background: var(--ai); border: 1px solid var(--ai); color: var(--ai-contrast); }
+  .ai-accept:hover { filter: brightness(1.12); }
+  .ai-dismiss { background: var(--surface); border: 1px solid var(--danger); color: var(--danger); }
+  .ai-dismiss:hover { background: var(--danger); color: #fff; }
+
+  /* ---------- Icon sizes (matched to the reference design) ---------- */
+  .leave-btn svg { width: 14px; height: 14px; }
+  .toolbar .icon-btn svg { width: 15px; height: 15px; }
+  .style-select svg { width: 12px; height: 12px; }
+  .block-chip svg { width: 13px; height: 13px; }
+  .select-wrap svg { width: 14px; height: 14px; right: 12px; }
+  .block-menu svg { width: 16px; height: 16px; }
+  .block-menu .menu-chevron { width: 12px; height: 12px; }
+  .section-insert-btn svg,
+  .remove-block svg,
+  .ai-accept svg,
+  .ai-dismiss svg { width: 10px; height: 10px; }
+
+  /* ---------- AI assist button in the corner of each section ---------- */
+  .section-ai {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: var(--ai-soft);
+    border: 1px solid var(--ai-border);
+    border-radius: 50%;
+    color: var(--ai);
+    opacity: 0.55;
+  }
+  .section-ai[hidden] { display: none; }
+  .text-block:hover > .section-ai,
+  .text-block:focus-within > .section-ai,
+  .step-block:hover > .section-ai,
+  .step-block:focus-within > .section-ai,
+  .section-ai:focus-visible,
+  .section-ai.is-busy { opacity: 1; }
+  .section-ai:hover { border-color: var(--ai); }
+  .section-ai svg { width: 12px; height: 12px; }
+  .section-ai.is-busy { cursor: progress; }
+  .section-ai.is-busy svg { animation: ai-pulse 1s ease-in-out infinite; }
+
+  /* A section with no text still shows the button, greyed out */
+  .text-block .section-ai[aria-disabled="true"],
+  .step-block .section-ai[aria-disabled="true"],
+  .section-ai[aria-disabled="true"]:hover {
+    background: var(--surface-muted);
+    border-color: var(--border);
+    color: var(--text-faint);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  /* Header levels that would break the hierarchy */
+  .block-menu button[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
+  .block-menu button[aria-disabled="true"]:hover { background: none; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 1100px) {
+    .workspace { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 820px) {
+    .editor-body { grid-template-columns: minmax(0, 1fr); }
+    .outline { display: none; }
+    .canvas { padding: 20px 12px; }
+    .workspace { padding: 16px; }
+    .topbar { padding: 14px 16px; }
+    .save-status span:last-child { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="leave-btn" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Leave without saving
+      </button>
+      <span class="topbar-divider" aria-hidden="true"></span>
+      <span class="page-name">New Page</span>
+    </div>
+    <div class="save-status is-unsaved" id="save-status" role="status">
+      <span class="save-dot" aria-hidden="true"></span>
+      <span id="save-status-text">Draft not saved yet</span>
+    </div>
+  </header>
+
+  <main class="workspace">
+
+    <!-- Editor -->
+    <section class="editor" aria-label="Page editor">
+
+      <!-- Toolbar -->
+      <div class="toolbar" role="toolbar" aria-label="Formatting">
+        <button class="style-select" type="button" aria-label="Text style">
+          Paragraph
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <span class="tool-sep" aria-hidden="true"></span>
+        <div class="tool-group">
+          <button class="icon-btn" type="button" aria-label="Bold" data-format="bold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+          <button class="icon-btn" type="button" aria-label="Italic" data-format="italic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4h-9M14 20H5M15 4L9 20"/></svg></button>
+          <button class="icon-btn" type="button" aria-label="Underline" data-format="underline"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v7a6 6 0 0 0 12 0V4M4 21h16"/></svg></button>
+        </div>
+        <span class="tool-sep" aria-hidden="true"></span>
+        <div class="tool-group">
+          <button class="icon-btn" type="button" aria-label="Bulleted list" data-format="insertUnorderedList"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></button>
+          <button class="icon-btn" type="button" aria-label="Numbered list" data-format="insertOrderedList"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h11M10 12h11M10 18h11M4 5l1-1v4M3.5 14h2l-2 3h2.5"/></svg></button>
+        </div>
+        <span class="tool-sep" aria-hidden="true"></span>
+        <div class="tool-group">
+          <button class="icon-btn" type="button" aria-label="Insert link" data-format="link"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg></button>
+          <button class="icon-btn" type="button" aria-label="Insert image"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg></button>
+        </div>
+        <span class="tool-sep" aria-hidden="true"></span>
+        <div class="tool-group" style="gap: 8px; flex-wrap: wrap;">
+          <button class="block-chip" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4v16M17 4v16M19 4H9.5a4.5 4.5 0 0 0 0 9H13"/></svg>
+            Text
+          </button>
+          <button class="block-chip" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6h10M11 12h10M11 18h10M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></svg>
+            Step
+          </button>
+          <button class="block-chip" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5M12 8h.01"/></svg>
+            Note
+          </button>
+          <button class="block-chip" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>
+            Warning
+          </button>
+        </div>
+        <button class="block-chip ai-chip" id="ai-assist" type="button" aria-disabled="true" title="Fill in the required fields (*) first">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
+          <span class="ai-label">AI assist</span>
+        </button>
+      </div>
+
+      <div class="editor-body">
+
+        <!-- Canvas -->
+        <article class="canvas">
+          <p class="required-legend"><span>*</span> Required to save a draft</p>
+          <div class="blocks">
+            <div class="text-block">
+              <span class="block-tag">Page title</span>
+              <span class="required-mark" aria-hidden="true">*</span>
+              <h1 class="canvas-title" id="field-title" data-single-line contenteditable="true" spellcheck="true" data-placeholder="Page title (required)"></h1>
+            </div>
+
+            <div class="text-block">
+              <span class="block-tag">Description</span>
+              <span class="required-mark" aria-hidden="true">*</span>
+              <p class="canvas-subtitle" id="field-subtitle" data-single-line contenteditable="true" spellcheck="true" data-placeholder="Description (required)"></p>
+            </div>
+
+            <div class="text-block">
+              <span class="block-tag">Opening paragraph</span>
+              <span class="required-mark" aria-hidden="true">*</span>
+              <p class="canvas-summary" id="field-summary" data-rich contenteditable="true" spellcheck="true" data-placeholder="Opening paragraph (required): what this page covers and when to use it"></p>
+            </div>
+
+            <!-- Paragraph, header and step blocks are created by the script, in page order -->
+            <div class="steps" id="content-blocks"></div>
+          </div>
+        </article>
+
+        <!-- On this page -->
+        <aside class="outline" aria-label="On this page">
+          <h2 class="section-label">On this page</h2>
+          <p class="outline-title is-empty" id="outline-title">Untitled page</p>
+          <ul class="outline-list" id="outline-list"></ul>
+          <p class="outline-meta" id="outline-meta">No steps yet</p>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- Page setup -->
+    <aside class="setup" aria-label="Page setup">
+      <h2 class="section-label" style="margin: 0;">Page setup</h2>
+
+      <div>
+        <label class="field-label" for="page-type">Page Type</label>
+        <div class="select-wrap">
+          <select class="select-field" id="page-type"></select>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <div>
+        <span class="field-label">Where This Lives</span>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div>
+        <span class="field-label">Linked Team Members</span>
+        <div class="avatars" id="members"></div>
+        <input class="inline-input" id="member-input" type="text" placeholder="Full name, then Enter" aria-label="Add a team member" hidden>
+      </div>
+
+      <div>
+        <label class="field-label" for="reviewer">Reviewer <span class="optional">(optional)</span></label>
+        <div class="reviewer-field">
+          <span class="avatar avatar-blue avatar-small" id="reviewer-avatar" hidden></span>
+          <select class="reviewer-select" id="reviewer"></select>
+        </div>
+        <p class="field-hint">Only used if this page is Client-Safe</p>
+      </div>
+
+      <div>
+        <span class="field-label">Visibility</span>
+        <div class="segmented" role="group" aria-label="Visibility">
+          <button class="segment" type="button" data-value="Internal-Only" aria-pressed="true">Internal-Only</button>
+          <button class="segment" type="button" data-value="Client-Safe" aria-pressed="false">Client-Safe</button>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-group">
+      <button class="secondary-btn" type="button" id="open-draft">Open draft</button>
+      <button class="link-btn" type="button" id="paste-draft">Paste draft text</button>
+      <input type="file" id="draft-file" accept=".txt,text/plain" hidden>
+    </div>
+    <span class="footer-message" id="footer-message" role="status"></span>
+    <div class="footer-group">
+      <button class="secondary-btn" type="button" id="save-draft" aria-disabled="true">Save draft</button>
+      <button class="submit-btn" type="button" id="submit-draft" aria-disabled="true">Submit to Draft</button>
+    </div>
+  </footer>
+
+</div>
+
+<div class="block-menu" id="block-menu" role="menu" aria-label="Add a block" hidden>
+  <div class="menu-panel" id="menu-main">
+  <button type="button" role="menuitem" data-type="header" data-submenu="headers" aria-haspopup="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v16M18 4v16M6 12h12"/></svg>
+    <span class="menu-text"><span class="menu-title">Header</span><span class="menu-hint">A section heading (H1 to H5)</span></span>
+    <svg class="menu-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
+  <button type="button" role="menuitem" data-type="paragraph">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 4v16M17 4v16M19 4H9.5a4.5 4.5 0 0 0 0 9H13"/></svg>
+    <span class="menu-text"><span class="menu-title">Text</span><span class="menu-hint">Free-form text</span></span>
+  </button>
+  <button type="button" role="menuitem" data-type="step">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 6h10M11 12h10M11 18h10M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></svg>
+    <span class="menu-text"><span class="menu-title">Step</span><span class="menu-hint">A numbered step</span></span>
+  </button>
+  <button type="button" role="menuitem" data-type="note">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5M12 8h.01"/></svg>
+    <span class="menu-text"><span class="menu-title">Note</span><span class="menu-hint">A highlighted tip or aside</span></span>
+  </button>
+  <button type="button" role="menuitem" data-type="warning">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>
+    <span class="menu-text"><span class="menu-title">Warning</span><span class="menu-hint">A caution to call out</span></span>
+  </button>
+  </div>
+
+  <!-- Header submenu: each sample is sized to match its level -->
+  <div class="menu-panel" id="menu-headers" hidden>
+    <button type="button" role="menuitem" class="menu-back" id="menu-back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      Header
+    </button>
+    <button type="button" role="menuitem" data-type="header" data-level="1"><span class="header-sample sample-1">Heading 1</span><span class="menu-hint level-hint">H1</span></button>
+    <button type="button" role="menuitem" data-type="header" data-level="2"><span class="header-sample sample-2">Heading 2</span><span class="menu-hint level-hint">H2</span></button>
+    <button type="button" role="menuitem" data-type="header" data-level="3"><span class="header-sample sample-3">Heading 3</span><span class="menu-hint level-hint">H3</span></button>
+    <button type="button" role="menuitem" data-type="header" data-level="4"><span class="header-sample sample-4">Heading 4</span><span class="menu-hint level-hint">H4</span></button>
+    <button type="button" role="menuitem" data-type="header" data-level="5"><span class="header-sample sample-5">Heading 5</span><span class="menu-hint level-hint">H5</span></button>
+  </div>
+</div>
+
+<div class="link-popover" id="link-popover" role="dialog" aria-label="Add a link" hidden>
+  <input type="text" id="link-input" placeholder="https://example.com" aria-label="Link address" autocomplete="off">
+  <button type="button" class="link-apply" id="link-apply">Apply</button>
+  <button type="button" id="link-cancel">Cancel</button>
+</div>
+
+<dialog id="draft-dialog" class="draft-dialog" aria-labelledby="draft-dialog-title">
+  <h2 id="draft-dialog-title" class="dialog-title">Draft text</h2>
+  <p class="dialog-hint" id="draft-dialog-hint"></p>
+  <textarea id="draft-dialog-text" class="dialog-text" spellcheck="false" aria-label="Draft text"></textarea>
+  <div class="dialog-actions">
+    <button class="secondary-btn" type="button" id="draft-dialog-close">Close</button>
+    <button class="submit-btn" type="button" id="draft-dialog-load">Load into editor</button>
+  </div>
+</dialog>
+
+<script>
+  (function () {
+    'use strict';
+
+    /* =====================================================================
+       Draft file format (plain text)
+
+         PAGE EDITOR DRAFT
+         FORMAT: 1
+         SAVED: <timestamp>
+
+         [TITLE]
+         ...text...
+         [BLOCK 1 PARAGRAPH]   (or HEADER, or STEP TITLE + STEP TEXT)
+         ...
+
+       Each [SECTION] header starts a section. Everything before the first
+       header is ignored. A content line that begins with [ or ~ is saved
+       with a leading ~ so it can never be mistaken for a header.
+       ===================================================================== */
+
+    var NL = '\n';
+    var FORMAT_VERSION = '2';
+    var ESCAPE = '~';
+
+    var BASE_PAGE_TYPES = ['Process Documentation', 'Policy', 'Reference Guide', 'How-To Guide'];
+    var BASE_LOCATIONS = ['Tools & Access', 'Billing Team'];
+    var KNOWN_SECTIONS = ['TITLE', 'SUBTITLE', 'SUMMARY', 'PAGE TYPE', 'WHERE THIS LIVES', 'LINKED TEAM MEMBERS', 'REVIEWER', 'VISIBILITY'];
+
+    /* ---------- State for the Page Setup sidebar (text fields live in the DOM) ---------- */
+    var state = {
+      pageTypes: BASE_PAGE_TYPES.slice(),
+      pageType: 'Process Documentation',
+      locations: [{ name: 'Tools & Access', on: true }, { name: 'Billing Team', on: false }],
+      members: ['Jordan Mackey', 'Riley Torres'],
+      reviewer: 'Jordan Mackey',
+      visibility: 'Internal-Only',
+      keywords: []   // search keywords, generated by AI each time a draft is saved
+    };
+
+    function byId(id) { return document.getElementById(id); }
+
+    var titleEl = byId('field-title');
+    var subtitleEl = byId('field-subtitle');
+    var summaryEl = byId('field-summary');
+    var contentEl = byId('content-blocks');
+
+    /* ---------- Small helpers ---------- */
+    function readText(el) {
+      // Paragraph fields hold formatting, so they are read back as formatted plain text
+      if (el.hasAttribute('data-rich')) { return htmlToMarkdown(el).trim(); }
+      return el.innerText.replace(/\r/g, '').trim();
+    }
+
+    function initials(name) {
+      var parts = name.trim().split(/\s+/).filter(Boolean);
+      if (!parts.length) { return '?'; }
+      var first = parts[0].charAt(0);
+      var last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+      return (first + last).toUpperCase();
+    }
+
+    function addOption(select, value, label) {
+      var option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      select.appendChild(option);
+    }
+
+    /* ---------- Save status + notices ---------- */
+    function setStatus(text, isSaved) {
+      byId('save-status-text').textContent = text;
+      byId('save-status').classList.toggle('is-unsaved', !isSaved);
+    }
+
+    function markDirty() { setStatus('Unsaved changes', false); }
+
+    var noticeTimer = null;
+    function showNotice(message) {
+      var el = byId('footer-message');
+      el.textContent = message;
+      clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(function () { el.textContent = ''; }, 7000);
+    }
+
+    /* ---------- Steps ---------- */
+    /* ---------- Content blocks (paragraph, header, step) ---------- */
+
+    // Adds a step at the very end of the page (used when a draft has no steps at all)
+    function addStep(title, text) {
+      return addBlock('step', { title: title, text: text }, null, null);
+    }
+
+    function buildBlockElement(type, values) {
+      return type === 'step'
+        ? buildStepBlock(values.title, values.text)
+        : buildTextBlock(type, values.text, values.level);
+    }
+
+    // Inserts a block before beforeNode (null means the end), followed by its own insert line.
+    // inserterTypes limits what that new insert line offers (null offers every block type).
+    function addBlock(type, values, beforeNode, inserterTypes) {
+      var block = buildBlockElement(type, values);
+      contentEl.insertBefore(block, beforeNode || null);
+      if (inserterTypes !== false) { block.after(createInserter(inserterTypes || null)); }
+      refreshBlocks();
+      return block;
+    }
+
+    // Header levels run from 1 (largest) to 5 (smallest); anything else becomes 2
+    function clampHeaderLevel(level) {
+      var n = Math.round(Number(level));
+      return n >= 1 && n <= 5 ? n : 2;
+    }
+
+    // Settings for every block type that is a single editable text field
+    var TEXT_BLOCKS = {
+      paragraph: { blockClass: 'paragraph-block', fieldClass: 'block-paragraph', element: 'p', label: 'Text', placeholder: 'Write some text', rich: true },
+      header: { blockClass: 'header-block', fieldClass: 'block-header', element: 'h2', label: 'Header', placeholder: 'Header' },
+      note: { blockClass: 'note-block', fieldClass: 'block-callout', element: 'p', label: 'Note', placeholder: 'Write a note' },
+      warning: { blockClass: 'warning-block', fieldClass: 'block-callout', element: 'p', label: 'Warning', placeholder: 'Write a warning' }
+    };
+
+    function buildTextBlock(type, text, level) {
+      var config = TEXT_BLOCKS[type] || TEXT_BLOCKS.paragraph;
+      var headerLevel = type === 'header' ? clampHeaderLevel(level) : 0;
+
+      var block = document.createElement('div');
+      block.className = 'text-block ' + config.blockClass;
+      if (headerLevel) { block.setAttribute('data-level', String(headerLevel)); }
+
+      var tag = document.createElement('span');
+      tag.className = 'block-tag';
+      tag.textContent = headerLevel ? 'H' + headerLevel : config.label;
+      block.appendChild(tag);
+
+      // Notes and warnings carry their symbol in the top-left corner
+      if (type === 'note' || type === 'warning') {
+        var icon = document.createElement('span');
+        icon.className = 'callout-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.innerHTML = type === 'note' ? NOTE_ICON : WARNING_ICON;
+        block.appendChild(icon);
+      }
+
+      var field = document.createElement(headerLevel ? 'h' + headerLevel : config.element);
+      field.className = config.fieldClass + (headerLevel ? ' level-' + headerLevel : '');
+      field.contentEditable = 'true';
+      field.spellcheck = true;
+      field.setAttribute('data-placeholder', config.placeholder);
+      if (type === 'header') { field.setAttribute('data-single-line', ''); }
+      if (config.rich) {
+        field.setAttribute('data-rich', '');
+        field.innerHTML = markdownToHtml(text || '');
+      } else {
+        field.textContent = text || '';
+      }
+      block.appendChild(field);
+
+      return block;
+    }
+
+    function createRequiredMark() {
+      var mark = document.createElement('span');
+      mark.className = 'required-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = '*';
+      return mark;
+    }
+
+    // Removes a block together with the insert line (or "+ Add step" button) that belongs to it
+    function removeBlockAndLines(block) {
+      var next = block.nextElementSibling;
+      var previous = block.previousElementSibling;
+      if (next && next.classList.contains('step-actions')) {
+        var isOnlyStepInSection = !(previous && previous.classList.contains('step-block'));
+        if (isOnlyStepInSection) {
+          var lineAfterButton = next.nextElementSibling;
+          next.remove();
+          if (lineAfterButton && lineAfterButton.classList.contains('section-insert')) { lineAfterButton.remove(); }
+        }
+      } else if (next && next.classList.contains('section-insert')) {
+        next.remove();
+      }
+      block.remove();
+    }
+
+    function createRemoveButton(block) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'remove-block';
+      button.setAttribute('aria-label', 'Remove this block');
+      button.title = 'Remove this block';
+      button.innerHTML = CLOSE_ICON;
+      button.addEventListener('click', function () {
+        removeBlockAndLines(block);
+        refreshBlocks();
+        markDirty();
+      });
+      return button;
+    }
+
+    // The first step is required (red *). Every other block can be removed (red x).
+    function setRequiredDecoration(block, isRequired) {
+      var mark = block.querySelector('.required-mark');
+      var removeButton = block.querySelector('.remove-block');
+      if (isRequired) {
+        if (removeButton) { removeButton.remove(); }
+        if (!mark) { block.appendChild(createRequiredMark()); }
+      } else {
+        if (mark) { mark.remove(); }
+        if (!removeButton) { block.appendChild(createRemoveButton(block)); }
+      }
+    }
+
+    // Re-numbers steps and refreshes which block is required, after any add or remove
+    // Steps that sit together form a step section. Numbering restarts at 1 in each section, each
+    // section ends with a "+ Add step" button, and the first step on the page is the required one.
+    function refreshBlocks() {
+      Array.prototype.slice.call(contentEl.querySelectorAll(':scope > .step-actions')).forEach(function (row) {
+        row.remove();
+      });
+
+      var stepNumber = 0;
+      var sawFirstStep = false;
+      var children = Array.prototype.slice.call(contentEl.children);
+
+      children.forEach(function (child, index) {
+        var isStep = child.classList.contains('step-block');
+        if (!isStep && !child.classList.contains('text-block')) { return; }
+
+        var isRequired = false;
+        if (isStep) {
+          var previous = children[index - 1];
+          var next = children[index + 1];
+          var startsSection = !(previous && previous.classList.contains('step-block'));
+          var endsSection = !(next && next.classList.contains('step-block'));
+
+          stepNumber = startsSection ? 1 : stepNumber + 1;
+          isRequired = !sawFirstStep;
+          sawFirstStep = true;
+
+          child.querySelector('.step-number').textContent = String(stepNumber);
+          child.querySelector('.step-title').setAttribute('data-placeholder', isRequired ? 'Step title (required)' : 'Step title');
+          if (endsSection) { child.after(createStepActions()); }
+        }
+        setRequiredDecoration(child, isRequired);
+      });
+
+      enforceHeaderHierarchy();
+      removeRedundantInserters();
+      refreshOutline();
+    }
+
+    /* ---------- Header hierarchy ----------
+       Headers step down one level at a time. The first header on the page is an H1, and every
+       later header is at most one level deeper than the header before it: after an H1 you can use
+       H1 or H2, after an H2 you can use H1, H2 or H3, and so on. */
+
+    // The deepest header level allowed at an insertion point (beforeNode null means the end)
+    function deepestAllowedHeaderLevel(beforeNode) {
+      var levelAbove = 0;
+      contentBlocks().forEach(function (block) {
+        var isAbove = !beforeNode || (beforeNode.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_PRECEDING);
+        if (isAbove && block.classList.contains('header-block')) {
+          levelAbove = Number(block.getAttribute('data-level')) || 2;
+        }
+      });
+      return Math.min(levelAbove + 1, 5);
+    }
+
+    function setHeaderLevel(block, level) {
+      var field = block.querySelector('[contenteditable]');
+      var replacement = document.createElement('h' + level);
+      Array.prototype.forEach.call(field.attributes, function (attribute) {
+        replacement.setAttribute(attribute.name, attribute.value);
+      });
+      replacement.className = 'block-header level-' + level;
+      replacement.textContent = field.textContent;
+      block.replaceChild(replacement, field);
+      block.setAttribute('data-level', String(level));
+      block.querySelector('.block-tag').textContent = 'H' + level;
+    }
+
+    // Adding, removing or loading headers can leave one too deep; pull it up to the deepest level allowed
+    function enforceHeaderHierarchy() {
+      var previous = 0;
+      contentBlocks().forEach(function (block) {
+        if (!block.classList.contains('header-block')) { return; }
+        var level = Number(block.getAttribute('data-level')) || 2;
+        var allowed = Math.min(previous + 1, 5);
+        if (level > allowed) {
+          setHeaderLevel(block, allowed);
+          level = allowed;
+        }
+        previous = level;
+      });
+    }
+
+    // No + line sits directly above or below "+ Add a block" (the button covers that spot), and two
+    // + lines never sit side by side. The + under the opening paragraph always stays.
+    function removeRedundantInserters() {
+      var addButton = byId('add-block');
+      var topLine = contentEl.firstElementChild;
+      if (addButton) {
+        [addButton.previousElementSibling, addButton.nextElementSibling].forEach(function (neighbour) {
+          if (neighbour && neighbour !== topLine && neighbour.classList.contains('section-insert')) { neighbour.remove(); }
+        });
+      }
+      Array.prototype.slice.call(contentEl.querySelectorAll(':scope > .section-insert')).forEach(function (line) {
+        var before = line.previousElementSibling;
+        if (before && before.classList.contains('section-insert')) { line.remove(); }
+      });
+    }
+
+    // Every block in page order: { type: 'paragraph' | 'header' | 'step', title?, text }
+    function readBlocks() {
+      return contentBlocks().map(function (block) {
+        if (block.classList.contains('step-block')) {
+          return {
+            type: 'step',
+            number: Number(block.querySelector('.step-number').textContent),
+            title: readText(block.querySelector('.step-title')),
+            text: readText(block.querySelector('.step-text'))
+          };
+        }
+        var type = Object.keys(TEXT_BLOCKS).filter(function (key) {
+          return block.classList.contains(TEXT_BLOCKS[key].blockClass);
+        })[0] || 'paragraph';
+        var result = { type: type, text: readText(block.querySelector('[contenteditable]')) };
+        if (type === 'header') { result.level = Number(block.getAttribute('data-level')) || 2; }
+        return result;
+      });
+    }
+
+    function buildStepBlock(title, text) {
+      var block = document.createElement('div');
+      block.className = 'block step-block';
+
+      var number = document.createElement('span');
+      number.className = 'step-number';
+
+      var body = document.createElement('div');
+
+      var heading = document.createElement('h2');
+      heading.className = 'step-title';
+      heading.contentEditable = 'true';
+      heading.spellcheck = true;
+      heading.setAttribute('data-single-line', '');
+      heading.setAttribute('data-placeholder', 'Step title');
+      heading.textContent = title || '';
+
+      var paragraph = document.createElement('p');
+      paragraph.className = 'step-text';
+      paragraph.contentEditable = 'true';
+      paragraph.spellcheck = true;
+      paragraph.setAttribute('data-placeholder', 'Describe this step');
+      paragraph.textContent = text || '';
+
+      body.appendChild(heading);
+      body.appendChild(paragraph);
+      block.appendChild(number);
+      block.appendChild(body);
+      return block;
+    }
+
+    function readSteps() {
+      return stepBlocks().map(function (block) {
+        return {
+          title: readText(block.querySelector('.step-title')),
+          text: readText(block.querySelector('.step-text'))
+        };
+      });
+    }
+
+    // Real content blocks only. The container also holds the insert lines and the "+ Add a block" button.
+    function contentBlocks() {
+      return Array.prototype.filter.call(contentEl.children, function (child) {
+        return child.classList.contains('step-block') || child.classList.contains('text-block');
+      });
+    }
+
+    // Step blocks only (paragraph and header blocks share the same container)
+    function stepBlocks() {
+      return Array.prototype.filter.call(contentEl.children, function (child) {
+        return child.classList.contains('step-block');
+      });
+    }
+
+    /* ---------- Insert lines between sections (visual only, no behavior yet) ---------- */
+    var PLUS_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+
+    var CLOSE_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+    var NOTE_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5M12 8h.01"/></svg>';
+    var WARNING_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>';
+
+    function createInserter(allowedTypes) {
+      var line = document.createElement('div');
+      line.className = 'section-insert';
+
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'section-insert-btn';
+      button.setAttribute('aria-label', 'Add a block here');
+      button.title = 'Add a block here';
+      button.innerHTML = PLUS_ICON;
+      button.addEventListener('click', function () {
+        // New blocks go directly below this line, each with its own insert line below it
+        openBlockMenu(button, function () { return line.nextSibling; }, allowedTypes);
+      });
+
+      line.appendChild(button);
+      return line;
+    }
+
+    /* ---------- Page layout: blocks, insert lines and the "+ Add a block" button ---------- */
+    // The row under each step section. "Add step" adds another step to the section (no insert
+    // line in between); "+ Warning" and "+ Note" add that callout directly below the section.
+    function createStepActions() {
+      var row = document.createElement('div');
+      row.className = 'step-actions';
+
+      function addAction(label, className, iconHtml, onClick) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = className;
+        // A plus, then the block's symbol (Warning and Note), then the label
+        var plus = document.createElement('span');
+        plus.textContent = '+';
+        var text = document.createElement('span');
+        text.textContent = label;
+        button.appendChild(plus);
+        if (iconHtml) { button.insertAdjacentHTML('beforeend', iconHtml); }
+        button.appendChild(text);
+        button.addEventListener('click', onClick);
+        row.appendChild(button);
+      }
+
+      addAction('Add step', 'step-add', '', function () {
+        var block = addBlock('step', {}, row, false);
+        markDirty();
+        block.querySelector('.step-title').focus();
+      });
+      addAction('Warning', 'step-warning', WARNING_ICON, function () { addCalloutBelow(row, 'warning'); });
+      addAction('Note', 'step-note', NOTE_ICON, function () { addCalloutBelow(row, 'note'); });
+      return row;
+    }
+
+    function addCalloutBelow(row, type) {
+      var block = addBlock(type, {}, row.nextSibling, null);
+      markDirty();
+      block.querySelector('[contenteditable]').focus();
+    }
+
+    function createAddBlockButton() {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'add-block';
+      button.id = 'add-block';
+      button.textContent = '+ Add a block';
+      button.addEventListener('click', function () {
+        // Full menu; the new block goes directly below this button
+        openBlockMenu(button, function () { return button.nextSibling; }, null);
+      });
+      return button;
+    }
+
+    // Insert lines sit below the opening paragraph and below every block that is added later.
+    // There are none directly above or below "+ Add a block"; the button covers that spot.
+    // The title and description are single fields, so they get no insert line.
+    // aboveButton is how many blocks sit above the "+ Add a block" button.
+    function layoutContent(blocks, aboveButton) {
+      var count = Math.max(0, Math.min(aboveButton, blocks.length));
+      contentEl.textContent = '';
+      contentEl.appendChild(createInserter(null));
+
+      function appendAddButton() {
+        contentEl.appendChild(createAddBlockButton());
+      }
+
+      if (count === 0) { appendAddButton(); }
+      blocks.forEach(function (values, index) {
+        var isLastAboveButton = index === count - 1;
+        var next = blocks[index + 1];
+        // Steps in the same section sit together, and a Note or Warning that follows a step section
+        // belongs to it, so neither gets an insert line in between
+        var skipsInserter = !isLastAboveButton && values.type === 'step' && next
+          && ((next.type === 'step' && next.continues) || next.type === 'note' || next.type === 'warning');
+
+        contentEl.appendChild(buildBlockElement(values.type, values));
+        // The last block above the button needs no insert line: "+ Add a block" sits right below it
+        if (!skipsInserter && !isLastAboveButton) {
+          contentEl.appendChild(createInserter(null));
+        }
+        if (isLastAboveButton) { appendAddButton(); }
+      });
+
+      refreshBlocks();
+    }
+
+    /* ---------- Required fields ---------- */
+    function clearBlockError(block) {
+      block.classList.remove('has-error');
+      var message = block.querySelector('.field-error');
+      if (message) { message.remove(); }
+    }
+
+    function flagBlock(block, message, container) {
+      block.classList.add('has-error');
+      var note = document.createElement('p');
+      note.className = 'field-error';
+      note.setAttribute('role', 'alert');
+      note.textContent = message;
+      (container || block).appendChild(note);
+    }
+
+    var REQUIRED_FIELDS = [
+      { el: titleEl, label: 'page title', message: 'Add a page title to save a draft.' },
+      { el: subtitleEl, label: 'description', message: 'Add a description to save a draft.' },
+      { el: summaryEl, label: 'opening paragraph', message: 'Add an opening paragraph to save a draft.' }
+    ];
+
+    function anyStepHasTitle() {
+      return stepBlocks().some(function (block) {
+        return readText(block.querySelector('.step-title')) !== '';
+      });
+    }
+
+    function isDraftComplete() {
+      var fieldsFilled = REQUIRED_FIELDS.every(function (field) { return readText(field.el) !== ''; });
+      return fieldsFilled && anyStepHasTitle();
+    }
+
+    // Grey out Save draft and Submit until every required field is filled in
+    function updateSaveState() {
+      var complete = isDraftComplete();
+      ['save-draft', 'submit-draft'].forEach(function (id) {
+        var button = byId(id);
+        button.setAttribute('aria-disabled', String(!complete));
+        button.title = complete ? '' : 'Fill in the required fields (*) first';
+      });
+
+      // AI assist unlocks under the same rule: every required field is filled in
+      var aiAssist = byId('ai-assist');
+      aiAssist.setAttribute('aria-disabled', String(!complete || aiUnavailable));
+      if (aiUnavailable) { aiAssist.title = 'AI assist isn\u2019t available in this view'; }
+      else { aiAssist.title = complete ? 'Scan this page and suggest improvements' : 'Fill in the required fields (*) first'; }
+    }
+
+    // Returns the list of missing required items (empty when the draft can be saved)
+    function validateRequired() {
+      document.querySelectorAll('.has-error').forEach(function (block) { clearBlockError(block); });
+      var missing = [];
+
+      REQUIRED_FIELDS.forEach(function (field) {
+        if (readText(field.el) === '') {
+          flagBlock(field.el.closest('.text-block'), field.message);
+          missing.push({ label: field.label, target: field.el });
+        }
+      });
+
+      var steps = stepBlocks();
+      if (!steps.length) {
+        addStep('', '');
+        steps = stepBlocks();
+      }
+      var hasStepTitle = steps.some(function (block) {
+        return readText(block.querySelector('.step-title')) !== '';
+      });
+      if (!hasStepTitle) {
+        var firstTitle = steps[0].querySelector('.step-title');
+        flagBlock(steps[0], 'Add at least one step with a title to save a draft.', firstTitle.parentNode);
+        missing.push({ label: 'at least one step', target: firstTitle });
+      }
+
+      return missing;
+    }
+
+    // Adds a block (before beforeNode, or at the end when null) and puts the cursor in it
+    function insertBlockAndFocus(type, beforeNode, level, inserterTypes) {
+      var block = addBlock(type, { level: level }, beforeNode, inserterTypes);
+      markDirty();
+      block.querySelector('[contenteditable]').focus();
+    }
+
+    /* ---------- On this page (outline) ---------- */
+    function refreshOutline() {
+      var title = readText(titleEl);
+      var outlineTitle = byId('outline-title');
+      outlineTitle.textContent = title || 'Untitled page';
+      outlineTitle.classList.toggle('is-empty', !title);
+
+      var steps = readSteps();
+      var list = byId('outline-list');
+      list.textContent = '';
+      var allText = [title, readText(subtitleEl), readText(summaryEl)];
+      var warningCount = 0;
+      readBlocks().forEach(function (block) {
+        var item = document.createElement('li');
+        if (block.type === 'step') {
+          item.textContent = block.number + '. ' + (block.title || 'Untitled step');
+          allText.push(block.title, block.text);
+        } else if (block.type === 'header') {
+          item.textContent = block.text || 'Untitled header';
+          item.className = 'outline-header';
+          item.style.marginLeft = ((block.level || 2) - 1) * 8 + 'px';
+          allText.push(block.text);
+        } else {
+          allText.push(block.text);
+          if (block.type === 'warning') { warningCount += 1; }
+          return;
+        }
+        list.appendChild(item);
+      });
+
+      if (warningCount) {
+        var warningItem = document.createElement('li');
+        warningItem.innerHTML = WARNING_ICON;
+        warningItem.appendChild(document.createTextNode(warningCount + (warningCount === 1 ? ' warning' : ' warnings')));
+        list.appendChild(warningItem);
+      }
+      var wordCount = allText.join(' ').split(/\s+/).filter(Boolean).length;
+      var minutes = Math.max(1, Math.round(wordCount / 200));
+
+      byId('outline-meta').textContent = steps.length
+        ? '~' + minutes + ' min read \u00b7 ' + steps.length + (steps.length === 1 ? ' step' : ' steps')
+        : 'No steps yet';
+
+      updateSaveState();
+      ensureSectionAiButtons();
+    }
+
+    /* ---------- Page Setup: page type ---------- */
+    function renderPageType() {
+      var select = byId('page-type');
+      select.textContent = '';
+      addOption(select, '', 'Select a page type');
+      state.pageTypes.forEach(function (type) { addOption(select, type, type); });
+      select.value = state.pageType;
+    }
+
+    /* ---------- Page Setup: where this lives (chips) ---------- */
+    function renderChips() {
+      var box = byId('chips');
+      box.textContent = '';
+
+      state.locations.forEach(function (location) {
+        var chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'chip';
+        chip.textContent = location.name;
+        chip.setAttribute('aria-pressed', String(location.on));
+        chip.addEventListener('click', function () {
+          location.on = !location.on;
+          chip.setAttribute('aria-pressed', String(location.on));
+          markDirty();
+        });
+        box.appendChild(chip);
+      });
+
+      var add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'chip-add';
+      add.textContent = '+ Add';
+      add.addEventListener('click', function () { showChipInput(box, add); });
+      box.appendChild(add);
+    }
+
+    function showChipInput(box, addButton) {
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'chip-input';
+      input.placeholder = 'Name, then Enter';
+      input.setAttribute('aria-label', 'Add a location');
+      box.replaceChild(input, addButton);
+      input.focus();
+
+      var finished = false;
+      function finish(commit) {
+        if (finished) { return; }
+        finished = true;
+        var name = input.value.trim();
+        if (commit && name) { addLocation(name); } else { renderChips(); }
+      }
+
+      input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+        if (event.key === 'Escape') { finish(false); }
+      });
+      input.addEventListener('blur', function () { finish(true); });
+    }
+
+    function addLocation(name) {
+      var existing = state.locations.filter(function (location) {
+        return location.name.toLowerCase() === name.toLowerCase();
+      })[0];
+      if (existing) { existing.on = true; } else { state.locations.push({ name: name, on: true }); }
+      renderChips();
+      markDirty();
+    }
+
+    /* ---------- Page Setup: linked team members + reviewer ---------- */
+    function renderMembers() {
+      var box = byId('members');
+      box.textContent = '';
+
+      state.members.forEach(function (name, index) {
+        var avatar = document.createElement('span');
+        avatar.className = 'avatar ' + (index === 0 ? 'avatar-blue' : 'avatar-grey');
+        avatar.title = name;
+        avatar.textContent = initials(name);
+        box.appendChild(avatar);
+      });
+
+      var add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'avatar avatar-add';
+      add.setAttribute('aria-label', 'Link a team member');
+      add.textContent = '+';
+      add.addEventListener('click', function () {
+        var input = byId('member-input');
+        input.hidden = false;
+        input.focus();
+      });
+      box.appendChild(add);
+    }
+
+    function closeMemberInput() {
+      var input = byId('member-input');
+      input.value = '';
+      input.hidden = true;
+    }
+
+    function renderReviewer() {
+      var select = byId('reviewer');
+      if (state.reviewer && state.members.indexOf(state.reviewer) < 0) { state.reviewer = ''; }
+
+      select.textContent = '';
+      addOption(select, '', 'No reviewer');
+      state.members.forEach(function (name) { addOption(select, name, name); });
+      select.value = state.reviewer;
+
+      var avatar = byId('reviewer-avatar');
+      var index = state.members.indexOf(state.reviewer);
+      avatar.hidden = index < 0;
+      avatar.textContent = index < 0 ? '' : initials(state.reviewer);
+      avatar.className = 'avatar avatar-small ' + (index === 0 ? 'avatar-blue' : 'avatar-grey');
+    }
+
+    /* ---------- Page Setup: visibility ---------- */
+    function renderVisibility() {
+      document.querySelectorAll('.segment').forEach(function (segment) {
+        segment.setAttribute('aria-pressed', String(segment.getAttribute('data-value') === state.visibility));
+      });
+    }
+
+    function renderSidebar() {
+      renderPageType();
+      renderChips();
+      renderMembers();
+      renderReviewer();
+      renderVisibility();
+    }
+
+    /* ---------- Export: editor state -> plain text ---------- */
+    function escapeLine(line) {
+      var first = line.charAt(0);
+      return (first === '[' || first === ESCAPE) ? ESCAPE + line : line;
+    }
+
+    function unescapeLine(line) {
+      return line.charAt(0) === ESCAPE ? line.slice(1) : line;
+    }
+
+    function serializeDraft() {
+      var out = [];
+
+      function section(name, lines) {
+        out.push('[' + name + ']');
+        lines.forEach(function (line) { out.push(escapeLine(line)); });
+        out.push('');
+      }
+
+      function textLines(value) { return value ? value.split(NL) : []; }
+
+      out.push('PAGE EDITOR DRAFT');
+      out.push('FORMAT: ' + FORMAT_VERSION);
+      out.push('SAVED: ' + new Date().toISOString());
+      out.push('Open this file with "Open draft" in the page editor to fill in every section.');
+      out.push('');
+
+      section('TITLE', textLines(readText(titleEl)));
+      section('SUBTITLE', textLines(readText(subtitleEl)));
+      section('SUMMARY', textLines(readText(summaryEl)));
+
+      readBlocks().forEach(function (block, index) {
+        var prefix = 'BLOCK ' + (index + 1) + ' ';
+        if (block.type === 'step') {
+          section(prefix + 'STEP NUMBER', [String(block.number)]);
+          section(prefix + 'STEP TITLE', textLines(block.title));
+          section(prefix + 'STEP TEXT', textLines(block.text));
+        } else if (block.type === 'header') {
+          section(prefix + 'HEADER ' + block.level, textLines(block.text));
+        } else {
+          section(prefix + block.type.toUpperCase(), textLines(block.text));
+        }
+      });
+
+      // Remember how many blocks sit above the "+ Add a block" button so the layout reopens the same way
+      var addButton = byId('add-block');
+      var aboveButton = contentBlocks().filter(function (block) {
+        return block.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING;
+      }).length;
+      section('ADD BLOCK BUTTON', [String(aboveButton)]);
+      section('KEYWORDS', state.keywords);
+
+      section('PAGE TYPE', textLines(state.pageType));
+      section('WHERE THIS LIVES', state.locations.filter(function (l) { return l.on; }).map(function (l) { return l.name; }));
+      section('LINKED TEAM MEMBERS', state.members);
+      section('REVIEWER', textLines(state.reviewer));
+      section('VISIBILITY', textLines(state.visibility));
+
+      return out.join(NL);
+    }
+
+    function draftFilename() {
+      var slug = readText(titleEl).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+      return (slug || 'untitled-page') + '-draft.txt';
+    }
+
+    /* ---------- Import: plain text -> editor state ---------- */
+    function parseDraft(text) {
+      var sections = {};
+      var current = null;
+      text.replace(/\r\n?/g, NL).split(NL).forEach(function (line) {
+        var header = /^\[([A-Z0-9 ]+)\]$/.exec(line);
+        if (header) {
+          current = header[1];
+          sections[current] = [];
+        } else if (current !== null) {
+          sections[current].push(unescapeLine(line));
+        }
+      });
+      return sections;
+    }
+
+    function looksLikeDraft(sections) {
+      return Object.keys(sections).some(function (name) {
+        return KNOWN_SECTIONS.indexOf(name) >= 0 || /^BLOCK \d+ /.test(name) || /^STEP \d+ (TITLE|TEXT)$/.test(name);
+      });
+    }
+
+    // Turns the BLOCK n ... sections (or the older STEP n ... sections) into an ordered list of blocks
+    function readDraftBlocks(sections, body) {
+      var blocks = [];
+      var numbers = {};
+      Object.keys(sections).forEach(function (name) {
+        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|STEP TITLE|STEP TEXT|STEP NUMBER)$/.exec(name);
+        if (match) { numbers[Number(match[1])] = true; }
+      });
+
+      var ordered = Object.keys(numbers).map(Number).sort(function (a, b) { return a - b; });
+      ordered.forEach(function (n) {
+        var prefix = 'BLOCK ' + n + ' ';
+        var headerLevel = [1, 2, 3, 4, 5].filter(function (level) {
+          return sections[prefix + 'HEADER ' + level];
+        })[0];
+        var textType = ['paragraph', 'header', 'note', 'warning'].filter(function (type) {
+          return sections[prefix + type.toUpperCase()];
+        })[0];
+        if (headerLevel) {
+          blocks.push({ type: 'header', level: headerLevel, text: body(prefix + 'HEADER ' + headerLevel) });
+        } else if (textType) {
+          blocks.push({ type: textType, text: body(prefix + textType.toUpperCase()) });
+        } else {
+          blocks.push({
+            type: 'step',
+            number: parseInt(body(prefix + 'STEP NUMBER'), 10),
+            title: body(prefix + 'STEP TITLE'),
+            text: body(prefix + 'STEP TEXT')
+          });
+        }
+      });
+
+      if (!ordered.length) {
+        var legacySteps = {};
+        Object.keys(sections).forEach(function (name) {
+          var match = /^STEP (\d+) (TITLE|TEXT)$/.exec(name);
+          if (match) { legacySteps[Number(match[1])] = true; }
+        });
+        Object.keys(legacySteps).map(Number).sort(function (a, b) { return a - b; }).forEach(function (n) {
+          blocks.push({ type: 'step', title: body('STEP ' + n + ' TITLE'), text: body('STEP ' + n + ' TEXT') });
+        });
+      }
+
+      // A step starts a new section when it is numbered 1, or when it does not follow another step
+      blocks.forEach(function (block, index) {
+        if (block.type !== 'step') { return; }
+        var previous = blocks[index - 1];
+        var followsStep = !!previous && previous.type === 'step';
+        block.continues = followsStep && (isNaN(block.number) || block.number > 1);
+      });
+
+      return blocks;
+    }
+
+    function applyDraft(sections) {
+      function body(name) { return sections[name] ? sections[name].join(NL).trim() : ''; }
+      function list(name) {
+        return sections[name] ? sections[name].map(function (l) { return l.trim(); }).filter(Boolean) : [];
+      }
+
+      titleEl.textContent = body('TITLE');
+      subtitleEl.textContent = body('SUBTITLE');
+      summaryEl.innerHTML = markdownToHtml(body('SUMMARY'));
+
+      var blocks = readDraftBlocks(sections, body);
+      var aboveButton = parseInt(body('ADD BLOCK BUTTON'), 10);
+      layoutContent(blocks, isNaN(aboveButton) ? blocks.length : aboveButton);
+      clearSuggestions();
+      resetRichSelection();
+
+      var pageType = body('PAGE TYPE');
+      state.pageTypes = BASE_PAGE_TYPES.slice();
+      if (pageType && state.pageTypes.indexOf(pageType) < 0) { state.pageTypes.push(pageType); }
+      state.pageType = pageType;
+
+      var selected = list('WHERE THIS LIVES');
+      state.locations = BASE_LOCATIONS.map(function (name) {
+        return { name: name, on: selected.indexOf(name) >= 0 };
+      });
+      selected.forEach(function (name) {
+        if (BASE_LOCATIONS.indexOf(name) < 0) { state.locations.push({ name: name, on: true }); }
+      });
+
+      state.members = list('LINKED TEAM MEMBERS');
+      var reviewer = body('REVIEWER');
+      if (reviewer && state.members.indexOf(reviewer) < 0) { state.members.push(reviewer); }
+      state.reviewer = reviewer;
+
+      state.visibility = body('VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only';
+      state.keywords = list('KEYWORDS').slice(0, 20);
+
+      renderSidebar();
+      refreshOutline();
+    }
+
+    function loadDraftText(text) {
+      var sections = parseDraft(text);
+      if (!looksLikeDraft(sections)) { return false; }
+      applyDraft(sections);
+      setStatus('Draft opened', true);
+      showNotice('Draft opened. Every section has been filled in.');
+      return true;
+    }
+
+    /* ---------- Dialog (paste in / copy out fallback) ---------- */
+    var dialog = byId('draft-dialog');
+    var dialogText = byId('draft-dialog-text');
+    var dialogHint = byId('draft-dialog-hint');
+
+    function openDialog(text, hint) {
+      dialogText.value = text;
+      dialogHint.textContent = hint;
+      dialog.showModal();
+      dialogText.focus();
+    }
+
+    /* ---------- Save draft ---------- */
+    function getDownloads() {
+      if (!window.claude || typeof window.claude.use !== 'function') { return Promise.resolve(null); }
+      return window.claude.use('downloads').catch(function () { return null; });
+    }
+
+    async function saveDraft() {
+      var missing = validateRequired();
+      if (missing.length) {
+        showNotice('Can\u2019t save yet. Still needed: ' + missing.map(function (item) { return item.label; }).join(', ') + '.');
+        missing[0].target.focus();
+        return;
+      }
+
+      // Search keywords are refreshed from the page text every time a draft is saved
+      await refreshKeywords();
+
+      var text = serializeDraft();
+      var filename = draftFilename();
+      var fallbackHint = 'Downloads aren\u2019t available here. Copy this text into a .txt file, then use "Paste draft text" to load it later.';
+
+      getDownloads().then(function (downloads) {
+        if (!downloads) {
+          openDialog(text, fallbackHint);
+          return;
+        }
+        return downloads.save({ filename: filename, data: text }).then(
+          function () {
+            setStatus('Saved just now', true);
+            showNotice('Draft saved as ' + filename + '.');
+          },
+          function (error) {
+            if (error && error.code === 'declined') { return; }
+            openDialog(text, fallbackHint);
+          }
+        );
+      });
+    }
+
+    /* ---------- Rich text (paragraph blocks only) ----------
+       Formatted text is stored in the draft file as plain text:
+         **bold**   _italic_   <u>underline</u>   [label](https://example.com)
+         - bullet item     1. numbered item
+       A backslash in front of a symbol keeps that symbol literal. */
+    var BACKSLASH = String.fromCharCode(92);
+    var MARKDOWN_SPECIALS = BACKSLASH + '*_[]<>';
+    var TOKEN_OPEN = String.fromCharCode(0xE000);
+    var TOKEN_CLOSE = String.fromCharCode(0xE001);
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function escapeMarkdown(text) {
+      return text.split(String.fromCharCode(160)).join(' ').split('').map(function (ch) {
+        return MARKDOWN_SPECIALS.indexOf(ch) >= 0 ? BACKSLASH + ch : ch;
+      }).join('');
+    }
+
+    function isListLookalike(line) {
+      return /^- /.test(line) || /^[0-9]+[.] /.test(line);
+    }
+
+    // One inline node (text, bold, italic, underline, link) -> formatted plain text
+    function inlineToMarkdown(node) {
+      if (node.nodeType === 3) { return escapeMarkdown(node.nodeValue); }
+      if (node.nodeType !== 1) { return ''; }
+      if (node.tagName === 'BR') { return NL; }
+
+      var inner = Array.prototype.map.call(node.childNodes, inlineToMarkdown).join('');
+      var tag = node.tagName;
+      if (tag === 'B' || tag === 'STRONG') { return inner ? '**' + inner + '**' : ''; }
+      if (tag === 'I' || tag === 'EM') { return inner ? '_' + inner + '_' : ''; }
+      if (tag === 'U') { return inner ? '<u>' + inner + '</u>' : ''; }
+      if (tag === 'A' && node.getAttribute('href') && node.textContent) {
+        var href = node.getAttribute('href').split(' ').join('%20').split(')').join('%29');
+        return '[' + escapeMarkdown(node.textContent) + '](' + href + ')';
+      }
+      return inner;
+    }
+
+    // A paragraph field's HTML -> formatted plain text, one line per line break or list item
+    function htmlToMarkdown(root) {
+      var lines = [];
+      var current = '';
+
+      function flush() {
+        lines.push(isListLookalike(current) ? BACKSLASH + current : current);
+        current = '';
+      }
+
+      function walk(node) {
+        if (node.nodeType !== 1) { current += inlineToMarkdown(node); return; }
+        var tag = node.tagName;
+        if (tag === 'BR') {
+          flush();
+        } else if (tag === 'UL' || tag === 'OL') {
+          if (current !== '') { flush(); }
+          Array.prototype.forEach.call(node.children, function (item, index) {
+            lines.push((tag === 'UL' ? '- ' : (index + 1) + '. ') + inlineToMarkdown(item).split(NL).join(' '));
+          });
+        } else if (tag === 'DIV' || tag === 'P') {
+          if (current !== '') { flush(); }
+          Array.prototype.forEach.call(node.childNodes, walk);
+          if (current !== '') { flush(); }
+        } else {
+          current += inlineToMarkdown(node);
+        }
+      }
+
+      Array.prototype.forEach.call(root.childNodes, walk);
+      if (current !== '') { flush(); }
+      return lines.join(NL);
+    }
+
+    // One line of formatted plain text -> HTML
+    function inlineMarkdownToHtml(text) {
+      var stash = [];
+      function keep(html) {
+        stash.push(html);
+        return TOKEN_OPEN + (stash.length - 1) + TOKEN_CLOSE;
+      }
+
+      // Escaped symbols stay literal
+      var work = '';
+      for (var i = 0; i < text.length; i += 1) {
+        var following = text.charAt(i + 1);
+        if (text.charAt(i) === BACKSLASH && following && MARKDOWN_SPECIALS.indexOf(following) >= 0) {
+          work += keep(escapeHtml(following));
+          i += 1;
+        } else {
+          work += text.charAt(i);
+        }
+      }
+
+      work = escapeHtml(work);
+      work = work.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (match, label, url) {
+        if (!/^(https?:[/][/]|mailto:)/i.test(url)) { return match; }
+        return keep('<a href="' + url + '">' + label + '</a>');
+      });
+      work = work.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      work = work.replace(/_(.+?)_/g, '<i>$1</i>');
+      work = work.replace(/&lt;u&gt;(.+?)&lt;[/]u&gt;/g, '<u>$1</u>');
+
+      var tokenPattern = new RegExp(TOKEN_OPEN + '([0-9]+)' + TOKEN_CLOSE, 'g');
+      for (var pass = 0; pass < 3; pass += 1) {
+        work = work.replace(tokenPattern, function (match, index) { return stash[Number(index)]; });
+      }
+      return work;
+    }
+
+    // Formatted plain text -> a paragraph field's HTML
+    function markdownToHtml(markdown) {
+      if (!markdown) { return ''; }
+      var html = '';
+      var openList = '';
+      var needsBreak = false;
+
+      markdown.split(NL).forEach(function (line) {
+        var bullet = /^- (.*)$/.exec(line);
+        var numbered = /^[0-9]+[.] (.*)$/.exec(line);
+        var listTag = bullet ? 'ul' : (numbered ? 'ol' : '');
+
+        if (openList && openList !== listTag) {
+          html += '</' + openList + '>';
+          openList = '';
+        }
+        if (listTag) {
+          if (!openList) {
+            html += '<' + listTag + '>';
+            openList = listTag;
+          }
+          html += '<li>' + inlineMarkdownToHtml((bullet || numbered)[1]) + '</li>';
+          needsBreak = false;
+          return;
+        }
+
+        var text = line;
+        var rest = line.slice(1);
+        if (line.charAt(0) === BACKSLASH && isListLookalike(rest)) { text = rest; }
+        if (needsBreak) { html += '<br>'; }
+        html += inlineMarkdownToHtml(text);
+        needsBreak = true;
+      });
+
+      if (openList) { html += '</' + openList + '>'; }
+      return html;
+    }
+
+    /* ---------- Formatting toolbar: works only inside paragraph fields ---------- */
+    var activeRich = null;   // the paragraph field the cursor is in
+    var savedRange = null;   // its last selection, so a toolbar click can restore it
+    var formatButtons = Array.prototype.slice.call(document.querySelectorAll('.icon-btn[data-format]'));
+    var linkPopover = byId('link-popover');
+    var linkInput = byId('link-input');
+
+    function updateFormatButtons() {
+      formatButtons.forEach(function (button) {
+        var format = button.getAttribute('data-format');
+        var pressed = false;
+        if (activeRich && format !== 'link') {
+          try { pressed = document.queryCommandState(format); } catch (error) { pressed = false; }
+        }
+        button.setAttribute('aria-disabled', String(!activeRich));
+        button.setAttribute('aria-pressed', String(pressed));
+      });
+    }
+
+    function resetRichSelection() {
+      activeRich = null;
+      savedRange = null;
+      linkPopover.hidden = true;
+      updateFormatButtons();
+    }
+
+    function restoreSelection() {
+      if (!activeRich) { return; }
+      var selection = window.getSelection();
+      var cursorIsInField = document.activeElement === activeRich && selection.rangeCount && activeRich.contains(selection.anchorNode);
+      if (cursorIsInField) { return; }   // leave the live cursor alone
+
+      activeRich.focus();
+      if (savedRange) {
+        selection.removeAllRanges();
+        selection.addRange(savedRange.cloneRange());
+      }
+    }
+
+    function currentAnchor() {
+      var node = savedRange ? savedRange.startContainer : null;
+      while (node && node !== activeRich) {
+        if (node.nodeType === 1 && node.tagName === 'A') { return node; }
+        node = node.parentNode;
+      }
+      return null;
+    }
+
+    // The cursor's position as a count of characters from the start of the field. A command can
+    // replace the text nodes, so the count (not a node reference) is what survives it.
+    function caretTextOffset(field, selection) {
+      var range = document.createRange();
+      range.selectNodeContents(field);
+      range.setEnd(selection.anchorNode, selection.anchorOffset);
+      return range.toString().length;
+    }
+
+    function placeCaretAtTextOffset(field, offset) {
+      var walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
+      var remaining = offset;
+      var node = walker.nextNode();
+      while (node) {
+        if (remaining <= node.nodeValue.length) {
+          var range = document.createRange();
+          range.setStart(node, remaining);
+          range.collapse(true);
+          var selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          return;
+        }
+        remaining -= node.nodeValue.length;
+        node = walker.nextNode();
+      }
+    }
+
+    function normalizeUrl(value) {
+      var url = value.trim();
+      if (!url) { return ''; }
+      if (/^(https?:[/][/]|mailto:)/i.test(url)) { return url; }
+      if (/^[a-z][a-z0-9+.-]*:/i.test(url)) { return ''; }
+      return 'https://' + url;
+    }
+
+    function openLinkPopover(opener) {
+      var rect = opener.getBoundingClientRect();
+      var anchor = currentAnchor();
+      linkInput.value = anchor ? anchor.getAttribute('href') : '';
+      linkPopover.hidden = false;
+      var width = linkPopover.offsetWidth;
+      linkPopover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + 'px';
+      linkPopover.style.top = (rect.bottom + 8) + 'px';
+      linkInput.focus();
+      linkInput.select();
+    }
+
+    function closeLinkPopover() {
+      linkPopover.hidden = true;
+      restoreSelection();
+    }
+
+    function applyLink() {
+      var typed = linkInput.value.trim();
+      var url = normalizeUrl(typed);
+      if (typed && !url) {
+        showNotice('Links can start with https://, http:// or mailto:.');
+        return;
+      }
+
+      var anchor = currentAnchor();
+      linkPopover.hidden = true;
+      restoreSelection();
+      if (!url) {
+        document.execCommand('unlink');
+      } else if (anchor) {
+        anchor.setAttribute('href', url);
+        markDirty();
+      } else if (savedRange && savedRange.collapsed) {
+        document.execCommand('insertHTML', false, '<a href="' + escapeHtml(url) + '">' + escapeHtml(url) + '</a>');
+      } else {
+        document.execCommand('createLink', false, url);
+      }
+      updateFormatButtons();
+    }
+
+    formatButtons.forEach(function (button) {
+      // Keep the text selection while the toolbar is clicked
+      button.addEventListener('mousedown', function (event) { event.preventDefault(); });
+      button.addEventListener('click', function () {
+        if (!activeRich) {
+          showNotice('Formatting works in paragraph text only: the opening paragraph and Text blocks.');
+          return;
+        }
+        var format = button.getAttribute('data-format');
+        if (format === 'link') { openLinkPopover(button); return; }
+        restoreSelection();
+        var selection = window.getSelection();
+        var isListFormat = format.indexOf('List') >= 0;
+        // Only needed when the cursor sits in text; on an empty line the browser puts it in the right place
+        var caretOffset = isListFormat && selection.rangeCount && selection.isCollapsed && selection.anchorNode.nodeType === 3 && activeRich.contains(selection.anchorNode)
+          ? caretTextOffset(activeRich, selection)
+          : -1;
+
+        document.execCommand(format, false, null);
+
+        // Browsers can drop the cursor to the start of the line after a list command; put it back
+        if (caretOffset >= 0) { placeCaretAtTextOffset(activeRich, caretOffset); }
+        updateFormatButtons();
+      });
+    });
+
+    byId('link-apply').addEventListener('click', applyLink);
+    byId('link-cancel').addEventListener('click', closeLinkPopover);
+    linkInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') { event.preventDefault(); applyLink(); }
+      if (event.key === 'Escape') { event.preventDefault(); closeLinkPopover(); }
+    });
+    document.addEventListener('click', function (event) {
+      var onLinkControls = event.target.closest('#link-popover, .icon-btn[data-format="link"]');
+      if (!linkPopover.hidden && !onLinkControls) { linkPopover.hidden = true; }
+    });
+
+    // Track which field has the cursor; only paragraph fields turn the toolbar on
+    document.addEventListener('focusin', function (event) {
+      var target = event.target;
+      if (!target.closest || target.closest('.icon-btn[data-format], #link-popover')) { return; }
+      activeRich = target.closest('[data-rich]');
+      updateFormatButtons();
+    });
+    document.addEventListener('selectionchange', function () {
+      var selection = window.getSelection();
+      if (activeRich && selection.rangeCount && activeRich.contains(selection.anchorNode)) {
+        savedRange = selection.getRangeAt(0).cloneRange();
+        updateFormatButtons();
+      }
+    });
+
+    // Bold / italic / underline keyboard shortcuts work in paragraph fields only
+    document.addEventListener('keydown', function (event) {
+      var target = event.target;
+      var isFormatShortcut = (event.ctrlKey || event.metaKey) && /^[biu]$/i.test(event.key);
+      if (isFormatShortcut && target.closest && target.closest('[contenteditable]') && !target.closest('[data-rich]')) {
+        event.preventDefault();
+      }
+    });
+
+    updateFormatButtons();
+
+    /* ---------- AI assist: scan the page and suggest changes ---------- */
+    var AI_MAX_SUGGESTIONS = 8;
+    var aiButton = byId('ai-assist');
+    var aiController = null;     // set while a scan runs, so a second click can cancel it
+    var aiUnavailable = false;   // set when this view cannot use Claude at all
+
+    function getSample() {
+      if (!window.claude || typeof window.claude.use !== 'function') { return Promise.resolve(null); }
+      return window.claude.use('sample').catch(function () { return null; });
+    }
+
+    // The whole page as plain text, with each section labelled so a suggestion can point at it
+    function describePageForAi() {
+      var lines = [
+        'Page type: ' + (state.pageType || 'not chosen'),
+        'Visibility: ' + state.visibility,
+        '',
+        '[title] ' + readText(titleEl),
+        '[description] ' + readText(subtitleEl),
+        '[summary] ' + readText(summaryEl)
+      ];
+      readBlocks().forEach(function (block, index) {
+        var label = 'block ' + (index + 1) + ', ' + block.type;
+        if (block.type === 'step') {
+          lines.push('[' + label + ', numbered ' + block.number + '] title: ' + block.title + ' | text: ' + block.text);
+        } else if (block.type === 'header') {
+          lines.push('[' + label + ', level ' + block.level + '] ' + block.text);
+        } else {
+          lines.push('[' + label + '] ' + block.text);
+        }
+      });
+      return lines.join(NL);
+    }
+
+    function buildAiPrompt() {
+      return [
+        'You are an editor reviewing a draft process-documentation page. Read it and suggest improvements.',
+        '',
+        'Rules:',
+        '- Suggest at most ' + AI_MAX_SUGGESTIONS + ' changes, and only ones that clearly help a reader follow the process: unclear or ambiguous wording, missing detail, typos and tone. Only rewrite what is already on the page; never add new sections.',
+        '- Do not invent facts, numbers, names, systems or policies that are not on the page. If a rewrite would need a fact only the author knows, keep the original wording for that part instead of guessing.',
+        '- If Visibility is Client-Safe, also flag wording that only makes sense for internal staff.',
+        '- Keep the author\u2019s voice and keep edits short.',
+        '',
+        'Reply with ONLY a JSON array (no other text). Each item is an object:',
+        '{"target": "title" | "description" | "summary" | "block N", "title": "...", "text": "...", "reason": "..."}',
+        '- target: which section the suggestion belongs to. N is the block number shown below.',
+        '- "text" is the full replacement for that section\u2019s text. For a step block you may also give a replacement "title". Leave out anything you would not change.',
+        '- title and description are single plain-text lines. A summary or paragraph may use **bold**, _italic_, lines starting with "- " for bullets and "1. " for numbers.',
+        '- reason: under 120 characters, why the change helps.',
+        '- If nothing needs changing, reply with [].',
+        '',
+        'The page:',
+        describePageForAi()
+      ].join(NL);
+    }
+
+    function oneLine(value, limit) {
+      return typeof value === 'string' ? value.split(NL).join(' ').trim().slice(0, limit) : '';
+    }
+
+    // Checks one item from the reply; returns a clean suggestion or null
+    function cleanSuggestion(item) {
+      if (!item || typeof item !== 'object') { return null; }
+      var target = String(item.target || '').toLowerCase().trim();
+      var isPageField = target === 'title' || target === 'description' || target === 'summary';
+      if (!isPageField && !/^block [0-9]+$/.test(target)) { return null; }
+
+      if (item.action === 'add') { return null; }   // suggestions only replace text that is already there
+      var text = typeof item.text === 'string' ? item.text.trim().slice(0, 2000) : '';
+      var title = oneLine(item.title, 200);
+      if (isPageField && !text) { text = title; title = ''; }
+      if (!text && !title) { return null; }
+      if (target === 'title' || target === 'description') { text = oneLine(text, 300); }
+
+      return {
+        target: target,
+        title: title,
+        text: text,
+        reason: oneLine(item.reason, 160)
+      };
+    }
+
+    function suggestionHost(target, blocks) {
+      if (target === 'title') { return titleEl.closest('.text-block'); }
+      if (target === 'description') { return subtitleEl.closest('.text-block'); }
+      if (target === 'summary') { return summaryEl.closest('.text-block'); }
+      return blocks[Number(target.split(' ')[1]) - 1] || null;
+    }
+
+    // An edit that would leave the section exactly as it is is not worth showing
+    function changesNothing(suggestion, host) {
+      if (host.classList.contains('step-block')) {
+        var sameTitle = !suggestion.title || suggestion.title === readText(host.querySelector('.step-title'));
+        var sameText = !suggestion.text || suggestion.text === readText(host.querySelector('.step-text'));
+        return sameTitle && sameText;
+      }
+      return suggestion.text === readText(host.querySelector('[contenteditable]'));
+    }
+
+    function setFieldText(field, text) {
+      if (field.hasAttribute('data-rich')) {
+        field.innerHTML = markdownToHtml(text);
+      } else {
+        field.textContent = field.hasAttribute('data-single-line') ? text.split(NL).join(' ') : text;
+      }
+    }
+
+    // Accepting a suggestion (+) replaces the section's existing text with the suggested text
+    function applySuggestion(suggestion, host) {
+      if (host.classList.contains('step-block')) {
+        if (suggestion.title) { setFieldText(host.querySelector('.step-title'), suggestion.title); }
+        if (suggestion.text) { setFieldText(host.querySelector('.step-text'), suggestion.text); }
+      } else {
+        setFieldText(host.querySelector('[contenteditable]'), suggestion.text);
+      }
+      markDirty();
+      refreshOutline();
+    }
+
+    // The small card shown next to a section: the proposal, a + to accept it and an x to dismiss it
+    function buildSuggestionPanel(suggestion, host) {
+      var panel = document.createElement('div');
+      panel.className = 'ai-suggestion';
+      panel.setAttribute('role', 'group');
+      panel.setAttribute('aria-label', 'AI suggestion');
+
+      var body = document.createElement('div');
+      body.className = 'ai-suggestion-body';
+
+      var label = document.createElement('div');
+      label.className = 'ai-suggestion-label';
+      label.textContent = 'Suggested replacement';
+      body.appendChild(label);
+
+      if (suggestion.reason) {
+        var reason = document.createElement('p');
+        reason.className = 'ai-suggestion-reason';
+        reason.textContent = suggestion.reason;
+        body.appendChild(reason);
+      }
+
+      var preview = document.createElement('div');
+      preview.className = 'ai-suggestion-text';
+      var isRichPreview = !!host.querySelector('[data-rich]');
+      if (isRichPreview) {
+        preview.innerHTML = markdownToHtml(suggestion.text);
+      } else {
+        preview.textContent = [suggestion.title, suggestion.text].filter(Boolean).join(NL);
+      }
+      body.appendChild(preview);
+
+      var actions = document.createElement('div');
+      actions.className = 'ai-suggestion-actions';
+
+      var accept = document.createElement('button');
+      accept.type = 'button';
+      accept.className = 'ai-accept';
+      accept.setAttribute('aria-label', 'Replace the existing text with this suggestion');
+      accept.title = 'Replace the existing text with this suggestion';
+      accept.innerHTML = PLUS_ICON;
+      accept.addEventListener('click', function () {
+        applySuggestion(suggestion, host);
+        panel.remove();
+      });
+
+      var dismiss = document.createElement('button');
+      dismiss.type = 'button';
+      dismiss.className = 'ai-dismiss';
+      dismiss.setAttribute('aria-label', 'Dismiss this suggestion');
+      dismiss.title = 'Dismiss this suggestion';
+      dismiss.innerHTML = CLOSE_ICON;
+      dismiss.addEventListener('click', function () { panel.remove(); });
+
+      actions.appendChild(accept);
+      actions.appendChild(dismiss);
+      panel.appendChild(body);
+      panel.appendChild(actions);
+      return panel;
+    }
+
+    function clearSuggestions() {
+      document.querySelectorAll('.ai-suggestion').forEach(function (panel) { panel.remove(); });
+    }
+
+    // Shows one suggestion card inside its section, replacing any card that section already has
+    function attachSuggestion(suggestion, host) {
+      // Steps lay their content out in a row, so the card goes inside the step's text column
+      var container = host.classList.contains('step-block') ? host.querySelector(':scope > div') : host;
+      container.querySelectorAll(':scope > .ai-suggestion').forEach(function (panel) { panel.remove(); });
+      container.appendChild(buildSuggestionPanel(suggestion, host));
+    }
+
+    // Puts each suggestion next to its section; returns how many were shown
+    function showSuggestions(result) {
+      var list = Array.isArray(result) ? result.slice(0, AI_MAX_SUGGESTIONS) : [];
+      var blocks = contentBlocks();
+      var shown = 0;
+
+      list.forEach(function (item) {
+        var suggestion = cleanSuggestion(item);
+        var host = suggestion ? suggestionHost(suggestion.target, blocks) : null;
+        if (!host || changesNothing(suggestion, host)) { return; }
+
+        attachSuggestion(suggestion, host);
+        shown += 1;
+      });
+      return shown;
+    }
+
+    function setAiBusy(busy) {
+      aiButton.classList.toggle('is-busy', busy);
+      aiButton.querySelector('.ai-label').textContent = busy ? 'Scanning\u2026 (click to cancel)' : 'AI assist';
+    }
+
+    function handleAiError(error) {
+      var code = error && error.code;
+      if (code === 'cancelled') {
+        showNotice('AI scan cancelled.');
+      } else if (code === 'not_granted' || code === 'sampling_disabled' || code === 'not_declared' || code === 'capability_disabled' || code === 'capability_removed') {
+        aiUnavailable = true;
+        updateSaveState();
+        showNotice('AI assist isn\u2019t available: this page wasn\u2019t allowed to use Claude.');
+      } else if (code === 'rate_limited') {
+        showNotice('AI assist has been used a lot just now. Try again in a little while.');
+      } else if (code === 'invalid_json' || code === 'empty_completion' || code === 'refused') {
+        showNotice('AI assist couldn\u2019t come up with suggestions this time. Try again.');
+      } else {
+        showNotice('AI assist ran into a problem. Try again.');
+      }
+    }
+
+    async function runAiAssist() {
+      if (aiController) { aiController.abort(); return; }   // a click while scanning cancels
+      if (aiUnavailable) {
+        showNotice('AI assist isn\u2019t available in this view.');
+        return;
+      }
+      if (!isDraftComplete()) {
+        validateRequired();
+        showNotice('Fill in the required fields (*) before using AI assist.');
+        return;
+      }
+
+      aiController = new AbortController();
+      var controller = aiController;
+      setAiBusy(true);
+      try {
+        var sample = await getSample();
+        if (!sample) {
+          aiUnavailable = true;
+          updateSaveState();
+          showNotice('AI assist isn\u2019t available in this view.');
+          return;
+        }
+        clearSuggestions();
+        var result = await sample.json(buildAiPrompt(), { modelTier: 'default', signal: controller.signal });
+        var count = showSuggestions(result);
+        showNotice(count
+          ? 'AI assist has ' + count + (count === 1 ? ' suggestion' : ' suggestions') + '. Use + to replace the existing text or x to dismiss it.'
+          : 'AI assist found nothing to change. This page reads well.');
+      } catch (error) {
+        handleAiError(error);
+      } finally {
+        aiController = null;
+        setAiBusy(false);
+      }
+    }
+
+    /* ---------- Search keywords: AI writes 10 whenever a draft is saved ----------
+       They are stored only in the saved file's [KEYWORDS] section, for the search function.
+       They are never shown in the editor or on the page itself. */
+    var KEYWORD_COUNT = 10;
+    var isMakingKeywords = false;
+
+    function buildKeywordPrompt() {
+      return [
+        'Write exactly ' + KEYWORD_COUNT + ' search keywords for this process-documentation page. People will type these words into a search box to find the page.',
+        '',
+        'Rules:',
+        '- Use lowercase single words or short two- or three-word phrases.',
+        '- Mix the main topic, the tools and systems the page names, the team or role involved, and terms people might search for even if the page does not use those exact words.',
+        '- No duplicates, no sentences, and nothing that is not about this page.',
+        '',
+        'Reply with ONLY a JSON array of ' + KEYWORD_COUNT + ' strings.',
+        '',
+        'The page:',
+        describePageForAi()
+      ].join(NL);
+    }
+
+    // Tidies the reply: trimmed, lowercase, one line each, no repeats, at most 10
+    function cleanKeywords(result) {
+      var list = Array.isArray(result) ? result : [];
+      var seen = {};
+      var keywords = [];
+      list.forEach(function (item) {
+        var keyword = oneLine(typeof item === 'string' ? item : '', 40).toLowerCase();
+        if (keyword && !seen[keyword] && keywords.length < KEYWORD_COUNT) {
+          seen[keyword] = true;
+          keywords.push(keyword);
+        }
+      });
+      return keywords;
+    }
+
+    // Saving never waits on AI forever or fails because of it: without AI the draft saves with the
+    // keywords it already had.
+    async function refreshKeywords() {
+      if (isMakingKeywords || aiUnavailable) { return; }
+      isMakingKeywords = true;
+      try {
+        var sample = await getSample();
+        if (!sample) { return; }
+        showNotice('Preparing your draft\u2026');
+        var keywords = cleanKeywords(await sample.json(buildKeywordPrompt(), { modelTier: 'quick' }));
+        if (keywords.length) {
+          state.keywords = keywords;
+        }
+      } catch (error) {
+        var code = error && error.code;
+        if (code === 'not_granted' || code === 'sampling_disabled' || code === 'not_declared' || code === 'capability_disabled' || code === 'capability_removed') {
+          aiUnavailable = true;
+          updateSaveState();
+        }
+      } finally {
+        isMakingKeywords = false;
+      }
+    }
+
+    /* ---------- AI assist for a single section ---------- */
+    // Every section that has text gets a small sparkle button in its corner. It asks Claude to
+    // improve just that section and shows the answer as a + / x suggestion card.
+    var SPARKLE_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>';
+
+    function allSections() {
+      return [titleEl.closest('.text-block'), subtitleEl.closest('.text-block'), summaryEl.closest('.text-block')].concat(contentBlocks());
+    }
+
+    function isSectionFilled(host) {
+      if (host.classList.contains('step-block')) {
+        return readText(host.querySelector('.step-title')) !== '' || readText(host.querySelector('.step-text')) !== '';
+      }
+      return readText(host.querySelector('[contenteditable]')) !== '';
+    }
+
+    // The name used for a section in the prompt: title, description, summary, or "block N"
+    function targetNameFor(host) {
+      if (host === titleEl.closest('.text-block')) { return 'title'; }
+      if (host === subtitleEl.closest('.text-block')) { return 'description'; }
+      if (host === summaryEl.closest('.text-block')) { return 'summary'; }
+      return 'block ' + (contentBlocks().indexOf(host) + 1);
+    }
+
+    function buildSectionPrompt(target) {
+      return [
+        'You are an editor improving ONE section of a draft process-documentation page. Rewrite just that section so it is clearer and easier to follow.',
+        '',
+        'Rules:',
+        '- Keep the meaning and the author\u2019s voice, and keep it short. Fix typos and unclear wording. Add detail only when the rest of the page already supports it.',
+        '- Do not invent facts, numbers, names, systems or policies that are not on the page. If the rewrite would need a fact only the author knows, keep the original wording for that part.',
+        '- If Visibility is Client-Safe, avoid wording that only makes sense for internal staff.',
+        '- A title or description is a single plain-text line. A summary or text block may use **bold**, _italic_, lines starting with "- " for bullets and "1. " for numbers.',
+        '',
+        'Reply with ONLY a JSON object: {"text": "the full rewritten text", "reason": "under 120 characters, why it is better"}. For a step you may also include "title" (the rewritten step title). If nothing needs changing, reply with {}.',
+        '',
+        'Section to improve: ' + target,
+        '',
+        'The whole page, for context:',
+        describePageForAi()
+      ].join(NL);
+    }
+
+    async function runSectionAssist(host, button) {
+      if (aiController) {
+        showNotice('AI assist is already working on something. Try again in a moment.');
+        return;
+      }
+      if (aiUnavailable) {
+        showNotice('AI assist isn\u2019t available in this view.');
+        return;
+      }
+
+      aiController = new AbortController();
+      var controller = aiController;
+      button.classList.add('is-busy');
+      try {
+        var sample = await getSample();
+        if (!sample) {
+          aiUnavailable = true;
+          updateSaveState();
+          showNotice('AI assist isn\u2019t available in this view.');
+          return;
+        }
+        var target = targetNameFor(host);
+        var result = await sample.json(buildSectionPrompt(target), { modelTier: 'default', signal: controller.signal });
+        var item = Array.isArray(result) ? result[0] : result;
+        var suggestion = item && typeof item === 'object' ? cleanSuggestion(Object.assign({}, item, { target: target, action: 'edit' })) : null;
+
+        if (!suggestion || !host.isConnected || changesNothing(suggestion, host)) {
+          showNotice('AI assist found nothing to improve in this section.');
+          return;
+        }
+        attachSuggestion(suggestion, host);
+        showNotice('AI assist has a suggestion for this section. Use + to replace the text or x to dismiss it.');
+      } catch (error) {
+        handleAiError(error);
+      } finally {
+        aiController = null;
+        button.classList.remove('is-busy');
+      }
+    }
+
+    function createSectionAiButton(host) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'section-ai';
+      button.setAttribute('aria-label', 'AI assist for this section');
+      button.title = 'AI assist: suggest an improvement for this section';
+      button.innerHTML = SPARKLE_ICON;
+      button.addEventListener('click', function () {
+        if (button.getAttribute('aria-disabled') === 'true') {
+          showNotice('Add some text to this section first, then AI assist can improve it.');
+          return;
+        }
+        runSectionAssist(host, button);
+      });
+      return button;
+    }
+
+    // Called after every change: every section always shows the button, but it only works once the
+    // section has text
+    function ensureSectionAiButtons() {
+      allSections().forEach(function (host) {
+        var button = host.querySelector(':scope > .section-ai');
+        if (!button) {
+          button = createSectionAiButton(host);
+          host.appendChild(button);
+        }
+        var hasText = isSectionFilled(host);
+        button.setAttribute('aria-disabled', String(!hasText));
+        button.title = hasText ? 'AI assist: suggest an improvement for this section' : 'Add some text to use AI assist on this section';
+      });
+    }
+
+    aiButton.addEventListener('click', runAiAssist);
+
+    /* ---------- Wire up events ---------- */
+    byId('save-draft').addEventListener('click', saveDraft);
+
+    // Submit has no action yet; if the page is incomplete it points at what's missing
+    byId('submit-draft').addEventListener('click', function () {
+      var missing = validateRequired();
+      if (missing.length) {
+        showNotice('Fill in the required fields marked * before submitting.');
+        missing[0].target.focus();
+      }
+    });
+
+    byId('open-draft').addEventListener('click', function () { byId('draft-file').click(); });
+    byId('draft-file').addEventListener('change', function (event) {
+      var input = event.target;
+      var file = input.files && input.files[0];
+      if (!file) { return; }
+      file.text().then(function (text) {
+        if (!loadDraftText(text)) {
+          showNotice('Couldn\u2019t read that file. It doesn\u2019t look like a saved draft.');
+        }
+        input.value = '';
+      });
+    });
+
+    byId('paste-draft').addEventListener('click', function () {
+      openDialog('', 'Paste the full text of a saved draft, then choose Load into editor.');
+    });
+    byId('draft-dialog-close').addEventListener('click', function () { dialog.close(); });
+    byId('draft-dialog-load').addEventListener('click', function () {
+      if (loadDraftText(dialogText.value)) {
+        dialog.close();
+      } else {
+        dialogHint.textContent = 'That text doesn\u2019t look like a saved draft. Check that it includes the [TITLE] and other section headings.';
+      }
+    });
+
+    // Typing in any editable block
+    document.addEventListener('input', function (event) {
+      var target = event.target;
+      if (!target.matches || !target.matches('[contenteditable]')) { return; }
+      if (target.textContent === '' && !target.querySelector('ul, ol')) { target.innerHTML = ''; }
+      var flagged = target.closest('.has-error');
+      if (flagged) { clearBlockError(flagged); }
+      refreshOutline();
+      markDirty();
+    });
+
+    // Keep titles on one line
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && event.target.closest && event.target.closest('[data-single-line]')) {
+        event.preventDefault();
+      }
+    });
+
+    // Paste as plain text only
+    document.addEventListener('paste', function (event) {
+      var target = event.target;
+      var editable = target.closest && target.closest('[contenteditable]');
+      if (!editable) { return; }
+      event.preventDefault();
+      var text = (event.clipboardData || window.clipboardData).getData('text/plain');
+      if (editable.hasAttribute('data-single-line')) { text = text.replace(/\s*\r?\n\s*/g, ' '); }
+      document.execCommand('insertText', false, text);
+    });
+
+    /* ---------- Add-block menu (Paragraph / Header / Steps) ---------- */
+    var blockMenu = byId('block-menu');
+    var menuOpener = null;
+    var menuGetInsertBefore = null;
+    var menuInserterTypes = null;
+
+    function closeBlockMenu() {
+      blockMenu.hidden = true;
+    }
+
+    // Places the menu under the button that opened it (or above it when there is no room below)
+    function positionBlockMenu() {
+      var rect = menuOpener.getBoundingClientRect();
+      var menuWidth = blockMenu.offsetWidth;
+      var menuHeight = blockMenu.offsetHeight;
+      var left = rect.left + rect.width / 2 - menuWidth / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+      var top = rect.bottom + 8;
+      if (top + menuHeight > window.innerHeight - 8) { top = Math.max(8, rect.top - menuHeight - 8); }
+      blockMenu.style.left = left + 'px';
+      blockMenu.style.top = top + 'px';
+    }
+
+    function focusFirstMenuItem() {
+      var first = blockMenu.querySelector('.menu-panel:not([hidden]) button:not([hidden])');
+      if (first) { first.focus(); }
+    }
+
+    // The menu has two panels: the block types ('main') and the header levels ('headers')
+    // Levels deeper than the hierarchy allows at the insertion point are greyed out
+    function updateHeaderLevelButtons() {
+      var beforeNode = menuGetInsertBefore ? menuGetInsertBefore() : null;
+      var deepest = deepestAllowedHeaderLevel(beforeNode);
+      blockMenu.querySelectorAll('#menu-headers [data-level]').forEach(function (item) {
+        var blocked = Number(item.getAttribute('data-level')) > deepest;
+        item.setAttribute('aria-disabled', String(blocked));
+        item.title = blocked ? 'Headers step down one level at a time. The deepest level allowed here is H' + deepest + '.' : '';
+      });
+    }
+
+    function showMenuPanel(name) {
+      byId('menu-main').hidden = name !== 'main';
+      byId('menu-headers').hidden = name !== 'headers';
+      if (name === 'headers') { updateHeaderLevelButtons(); }
+      positionBlockMenu();
+      focusFirstMenuItem();
+    }
+
+    // getInsertBefore returns the node the new block goes before (null means the end of the page).
+    // allowedTypes limits which options show (null shows all of them).
+    function openBlockMenu(opener, getInsertBefore, allowedTypes) {
+      if (!blockMenu.hidden && menuOpener === opener) {
+        closeBlockMenu();
+        return;
+      }
+      menuOpener = opener;
+      menuGetInsertBefore = getInsertBefore;
+      menuInserterTypes = allowedTypes || null;
+      blockMenu.querySelectorAll('#menu-main button').forEach(function (item) {
+        item.hidden = !!allowedTypes && allowedTypes.indexOf(item.getAttribute('data-type')) < 0;
+      });
+      blockMenu.hidden = false;
+
+      showMenuPanel('main');
+    }
+
+    blockMenu.addEventListener('click', function (event) {
+      if (event.target.closest('#menu-back')) { showMenuPanel('main'); return; }
+      var item = event.target.closest('[data-type]');
+      if (!item) { return; }
+      if (item.getAttribute('aria-disabled') === 'true') {
+        showNotice('Headers step down one level at a time, so that level can\u2019t go here.');
+        return;
+      }
+      if (item.hasAttribute('data-submenu')) { showMenuPanel('headers'); return; }
+      var beforeNode = menuGetInsertBefore ? menuGetInsertBefore() : null;
+      closeBlockMenu();
+      insertBlockAndFocus(item.getAttribute('data-type'), beforeNode, Number(item.getAttribute('data-level')) || undefined, menuInserterTypes);
+    });
+
+    blockMenu.addEventListener('keydown', function (event) {
+      var items = Array.prototype.slice.call(blockMenu.querySelectorAll('.menu-panel:not([hidden]) button:not([hidden])'));
+      var index = items.indexOf(document.activeElement);
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        items[(index + 1) % items.length].focus();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        items[(index - 1 + items.length) % items.length].focus();
+      } else if (event.key === 'ArrowRight' && document.activeElement.hasAttribute('data-submenu')) {
+        event.preventDefault();
+        showMenuPanel('headers');
+      } else if (event.key === 'ArrowLeft' && !byId('menu-headers').hidden) {
+        event.preventDefault();
+        showMenuPanel('main');
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !blockMenu.hidden) {
+        closeBlockMenu();
+        if (menuOpener && document.body.contains(menuOpener)) { menuOpener.focus(); }
+      }
+    });
+    document.addEventListener('click', function (event) {
+      var clickedOpener = menuOpener && menuOpener.contains(event.target);
+      if (!blockMenu.hidden && !blockMenu.contains(event.target) && !clickedOpener) { closeBlockMenu(); }
+    });
+    window.addEventListener('scroll', closeBlockMenu, true);
+    window.addEventListener('resize', closeBlockMenu);
+
+    // The toolbar chips (Text, Step, Note, Warning) add that block at the very end of the page
+    var CHIP_BLOCK_TYPES = { Text: 'paragraph', Step: 'step', Note: 'note', Warning: 'warning' };
+    document.querySelectorAll('.block-chip').forEach(function (chip) {
+      var type = CHIP_BLOCK_TYPES[chip.textContent.trim()];
+      if (type) {
+        chip.addEventListener('click', function () {
+          insertBlockAndFocus(type, null, undefined, null);
+        });
+      }
+    });
+
+    // Sidebar controls
+    byId('page-type').addEventListener('change', function (event) {
+      state.pageType = event.target.value;
+      markDirty();
+    });
+    byId('reviewer').addEventListener('change', function (event) {
+      state.reviewer = event.target.value;
+      renderReviewer();
+      markDirty();
+    });
+    document.querySelectorAll('.segment').forEach(function (segment) {
+      segment.addEventListener('click', function () {
+        state.visibility = segment.getAttribute('data-value');
+        renderVisibility();
+        markDirty();
+      });
+    });
+
+    var memberInput = byId('member-input');
+    // Typed text is kept when the field loses focus: leaving the box adds the member, like Enter does
+    function commitMemberInput() {
+      var name = memberInput.value.trim();
+      if (name && state.members.indexOf(name) < 0) {
+        state.members.push(name);
+        renderMembers();
+        renderReviewer();
+        markDirty();
+      }
+      closeMemberInput();
+    }
+    memberInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitMemberInput();
+      } else if (event.key === 'Escape') {
+        closeMemberInput();
+      }
+    });
+    memberInput.addEventListener('blur', commitMemberInput);
+
+    /* ---------- Initial render ---------- */
+    renderSidebar();
+    layoutContent([{ type: 'step', title: '', text: '' }], 1);
+    refreshOutline();
+  })();
+</script>
+</body>
+</html>

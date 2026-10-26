@@ -1,0 +1,248 @@
+# Page editor: handoff notes
+
+A single-file prototype of a page editor for process documentation, built in Claude chat and
+published as an artifact. This note explains what it does, how the code is organized, which parts
+only work inside Claude's artifact runtime, and what is still open.
+
+## Files
+
+| File | What it is |
+| --- | --- |
+| `page-editor.html` | The whole app: HTML, CSS and JavaScript in one file. No build step, no dependencies. The only external request is the Inter font from Google Fonts, with system fonts as fallback. |
+| `HANDOFF.md` | This file. |
+
+To run it, open `page-editor.html` in a browser. Everything works except the two things in
+"Parts that only work inside Claude" below, which degrade gracefully.
+
+## Code standards that apply
+
+- Keep the code human-readable. Do not minify or collapse it into single lines.
+- Banned packages (organization rule): Moq, and AutoMapper v13 and earlier is the only acceptable
+  AutoMapper range. Neither is used here, but keep it in mind if this moves into a .NET project.
+- The code is deliberately plain ES2017 with `var`, no framework, no bundler.
+
+## How the code is organized
+
+Everything is in `page-editor.html`. The stylesheet and script are each divided by comment
+headings of the form `/* ---------- Name ---------- */`. Search for these rather than line numbers.
+
+**Stylesheet:** Design tokens (light and dark), Top bar, Workspace, Editor card, Canvas, On this
+page (outline), Page setup sidebar, Footer, then additions for draft export, required fields,
+insert lines, the add-block menu, header levels, rich text, AI assist, icon sizes, and
+Responsive.
+
+**Script (one IIFE):**
+
+- State for the Page Setup sidebar (`state` object). Title, description, summary and all blocks
+  live in the DOM, not in `state`.
+- Content blocks: `addBlock`, `buildTextBlock`, `buildStepBlock`, `refreshBlocks`, `readBlocks`.
+- Header hierarchy: `enforceHeaderHierarchy`, `deepestAllowedHeaderLevel`.
+- Page layout: `layoutContent`, `createInserter`, `createAddBlockButton`, `createStepActions`.
+- Required fields: `validateRequired`, `isDraftComplete`, `updateSaveState`.
+- Outline panel: `refreshOutline`.
+- Export and import: `serializeDraft`, `parseDraft`, `readDraftBlocks`, `applyDraft`.
+- Rich text: `htmlToMarkdown`, `markdownToHtml` and the formatting toolbar.
+- AI: page scan (`runAiAssist`), per-section assist (`runSectionAssist`), search keywords
+  (`refreshKeywords`).
+- Add-block menu: `openBlockMenu`, `showMenuPanel`.
+- Initial render at the bottom: `layoutContent([...one empty step...], 1)`.
+
+**The DOM model.** After the three fixed fields (title, description, opening paragraph), one
+container, `#content-blocks`, holds everything else in page order: content blocks
+(`.step-block`, `.text-block`), insert lines (`.section-insert`), the step button rows
+(`.step-actions`), and the `+ Add a block` button (`#add-block`). `contentBlocks()` returns only
+the real blocks. `refreshBlocks()` is the single place that re-numbers steps, places the required
+marker, adds or removes step rows, enforces header hierarchy, removes redundant insert lines, and
+refreshes the outline. Call it after any structural change.
+
+## What it does (the product spec as built)
+
+**Fields and blocks**
+
+- Fixed fields: Page title (single line), Description (single line), Opening paragraph (rich text).
+- Block types: Text (rich text), Header (H1 to H5), Step, Note (yellow), Warning (red).
+- Steps sit in sections. Numbering restarts at 1 in each section. Each section ends with a row of
+  three rounded buttons: `+ Add step` (adds to that section), `+ Warning`, `+ Note` (add that
+  block below the section).
+- Choosing Step from the toolbar or any menu starts a new step section. It never extends an
+  existing one.
+
+**Required fields**
+
+- Required: title, description, opening paragraph, and at least one step with a title. The first
+  step on the page carries the red `*`.
+- Save draft, Submit to Draft and AI assist (toolbar) stay greyed out until all are filled in.
+  Clicking a greyed button outlines what is missing.
+
+**Adding and removing**
+
+- Insert lines (thin line with a +) appear under the opening paragraph and under every block added
+  later. Each opens the add-block menu. There is no insert line directly above or below the
+  `+ Add a block` button.
+- `+ Add a block` opens the same menu and inserts directly below itself.
+- The toolbar chips (Text, Step, Note, Warning) add at the very end of the page.
+- The add-block menu offers Header (with an H1 to H5 submenu), Text, Step, Note, Warning.
+- Every block except the required first step has a red `x` in its corner to remove it.
+
+**Header hierarchy:** the first header is H1. A new header may be at most one level deeper than
+the nearest header above it (after H1: H1 or H2; after H2: H1, H2 or H3). Disallowed levels are
+greyed out in the submenu. Adding or removing headers pulls any too-deep header up to the deepest
+allowed level, and opening a draft corrects an invalid order.
+
+**Formatting:** bold, italic, underline, bulleted and numbered lists, and links work only in the
+opening paragraph and Text blocks. The toolbar buttons are greyed out everywhere else, and
+Ctrl/Cmd + B, I, U are blocked outside paragraph fields. Pasted text is always plain text.
+
+**AI assist** (needs the Claude runtime, see below)
+
+- Toolbar chip: scans the whole page and returns up to 8 suggestions. Each appears as a card inside
+  its section. `+` replaces that section's text with the suggestion. `x` dismisses it. Suggestions
+  only replace existing text and never add blocks.
+- Corner button on every section: always visible, only clickable when the section has text. Asks
+  for one suggestion for just that section.
+- Search keywords: every Save draft asks the AI for 10 keywords and stores them in the draft file
+  only. They are never shown in the editor.
+
+**Page Setup sidebar:** Page Type (select), Where This Lives (toggle chips plus add), Linked Team
+Members (avatars plus add), Reviewer (select from linked members), Visibility (Internal-Only or
+Client-Safe).
+
+**On this page (outline):** live list of the title, headers (indented by level), numbered steps,
+a warning count, and a rough read time.
+
+## Draft file format (plain text, FORMAT 2)
+
+Save draft writes this; Open draft and Paste draft text read it. Everything before the first
+`[SECTION]` heading is ignored.
+
+```
+PAGE EDITOR DRAFT
+FORMAT: 2
+SAVED: 2026-10-23T12:00:00.000Z
+
+[TITLE]
+Refund Approval Process
+
+[SUBTITLE]
+Billing team procedure for customer refund requests
+
+[SUMMARY]
+Follow **these steps** whenever a customer requests a refund.
+
+[BLOCK 1 STEP NUMBER]
+1
+
+[BLOCK 1 STEP TITLE]
+Verify the request
+
+[BLOCK 1 STEP TEXT]
+Confirm the payment ID before approving any refund.
+
+[BLOCK 2 NOTE]
+Keep the receipt with the request.
+
+[BLOCK 3 HEADER 2]
+Exceptions
+
+[BLOCK 4 PARAGRAPH]
+- first item
+- second item
+
+[ADD BLOCK BUTTON]
+2
+
+[KEYWORDS]
+refunds
+billing
+
+[PAGE TYPE]
+Process Documentation
+
+[WHERE THIS LIVES]
+Tools & Access
+
+[LINKED TEAM MEMBERS]
+Jordan Mackey
+Riley Torres
+
+[REVIEWER]
+Jordan Mackey
+
+[VISIBILITY]
+Internal-Only
+```
+
+- Block sections are named `BLOCK n` followed by `PARAGRAPH`, `HEADER 1` to `HEADER 5`, `NOTE`,
+  `WARNING`, or `STEP NUMBER` / `STEP TITLE` / `STEP TEXT`. A step numbered 1 starts a new step
+  section. Blocks are read in `n` order.
+- `ADD BLOCK BUTTON` holds how many blocks sit above the `+ Add a block` button, so the layout
+  reopens the same way. If it is missing, all blocks are placed above the button.
+- Older files still open: a plain `HEADER` is read as H2, and `STEP n TITLE` / `STEP n TEXT`
+  sections are read as steps.
+- Line escape: a content line starting with `[` or `~` is saved with a leading `~`.
+- Inline text markup in the opening paragraph and Text blocks: `**bold**`, `_italic_`,
+  `<u>underline</u>`, `[label](https://link)`, lines starting `- ` (bullets) or `1. ` (numbers). A
+  backslash keeps a symbol literal (`\*`, `\_`, `\[`, `\]`, `\<`, `\>`, `\\`). Only http, https and
+  mailto links are accepted.
+- Reopening a draft re-levels invalid headers and ignores unknown sections.
+
+## Parts that only work inside Claude
+
+The page uses two capabilities that exist only in Claude's published-artifact runtime. Both are
+reached through `window.claude.use(...)`. Outside Claude they return nothing and the page falls back.
+
+1. **Saving a file:** `window.claude.use('downloads')`, then `downloads.save({ filename, data })`.
+   It rejects with `code: 'declined'` when the person cancels.
+   *Fallback already built:* when it is missing, Save draft opens a dialog with the draft text to
+   copy. In Claude Code, replace `getDownloads()` / `saveDraft()` with a normal Blob and
+   `<a download>` (or a server write).
+2. **All AI features:** `window.claude.use('sample')`, then
+   `sample.json(prompt, { modelTier, signal })`, which returns parsed JSON. `modelTier` is
+   `'default'` for suggestions and `'quick'` for keywords. Errors carry a `code` (`not_granted`,
+   `sampling_disabled`, `rate_limited`, `invalid_json`, `cancelled`, and so on) that
+   `handleAiError` and `refreshKeywords` translate into short footer notices.
+   *Fallback already built:* when it is missing, the AI buttons stay greyed out with a note, and
+   saving still works (keywords are skipped).
+   In Claude Code, put a small server endpoint in front of the Anthropic API and implement the same
+   `getSample()` shape against it. Do not put an API key in the page. Keep the prompts as they are
+   (`buildAiPrompt`, `buildSectionPrompt`, `buildKeywordPrompt`) and keep the JSON contracts: an
+   array of `{ target, title?, text, reason }` for the page scan, one object for a section, and an
+   array of 10 strings for keywords.
+
+## Not built yet, or placeholders
+
+- **Submit to Draft** does nothing (it only highlights missing required fields).
+- **Leave without saving**, the toolbar **Paragraph** dropdown, and the toolbar **image** button
+  are visual only.
+- **Search** does not exist yet. The `[KEYWORDS]` section is written to the file for it to use.
+- Sample content in Page Setup is invented: the page types (Process Documentation, Policy,
+  Reference Guide, How-To Guide), the team members (Jordan Mackey is from your design; Riley Torres
+  is a guess for "RT"), and the starting chips (Tools & Access, Billing Team).
+- No auto-save. The status pill reads "Draft not saved yet", "Unsaved changes", "Saved just now".
+- Formatting uses `document.execCommand`, which is deprecated but still works in every major
+  browser. A future rewrite could use a small editor library or the Selection and Range APIs.
+- The undo history is the browser's own. Removing a block has no undo.
+
+## Testing
+
+I tested with headless Chromium (Playwright for Python), driving the page and, for AI, replacing
+`window.claude` with a stub through `add_init_script`. Behaviors covered: the required-fields rule,
+add and remove for every block type, insert-line placement, step sections and numbering, header
+hierarchy including re-levelling and invalid drafts, rich-text round trips through save and
+reopen, per-section and whole-page AI suggestions, keyword generation and the no-AI fallbacks, and
+text surviving click-out. Those scripts were throwaway, so nothing is checked into a test folder.
+A good first task is turning them into a committed Playwright suite.
+
+## Design reference
+
+The layout and sizes were matched to a 2x screenshot supplied at the start (Content Box, "Refund
+Approval Process"). Body text is 14px, the page title 20px, labels 11 to 13px. The original
+screenshot is the source of truth for spacing.
+
+## A good first prompt for Claude Code
+
+> Read `HANDOFF.md` and `page-editor.html`. First, split the file into `index.html`, `styles.css`
+> and `app.js` without changing behavior, keeping the code readable and unminified. Then replace
+> the two `window.claude` dependencies: save drafts with a Blob download, and route the AI calls
+> through a small server endpoint that calls the Anthropic API with the same prompts and JSON
+> contracts. Finally, add a Playwright test suite that covers the behaviors listed under Testing.
