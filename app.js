@@ -967,9 +967,17 @@
     }
 
     /* ---------- Save draft ---------- */
-    function getDownloads() {
-      if (!window.claude || typeof window.claude.use !== 'function') { return Promise.resolve(null); }
-      return window.claude.use('downloads').catch(function () { return null; });
+    // Downloads the draft as a .txt file through a temporary link
+    function downloadTextFile(filename, text) {
+      var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
 
     async function saveDraft() {
@@ -985,24 +993,16 @@
 
       var text = serializeDraft();
       var filename = draftFilename();
-      var fallbackHint = 'Downloads aren\u2019t available here. Copy this text into a .txt file, then use "Paste draft text" to load it later.';
+      var fallbackHint = 'The download didn\u2019t start. Copy this text into a .txt file, then use "Paste draft text" to load it later.';
 
-      getDownloads().then(function (downloads) {
-        if (!downloads) {
-          openDialog(text, fallbackHint);
-          return;
-        }
-        return downloads.save({ filename: filename, data: text }).then(
-          function () {
-            setStatus('Saved just now', true);
-            showNotice('Draft saved as ' + filename + '.');
-          },
-          function (error) {
-            if (error && error.code === 'declined') { return; }
-            openDialog(text, fallbackHint);
-          }
-        );
-      });
+      try {
+        downloadTextFile(filename, text);
+      } catch (error) {
+        openDialog(text, fallbackHint);
+        return;
+      }
+      setStatus('Saved just now', true);
+      showNotice('Draft saved as ' + filename + '.');
     }
 
     /* ---------- Rich text (paragraph blocks only) ----------
@@ -1349,10 +1349,54 @@
     var aiController = null;     // set while a scan runs, so a second click can cancel it
     var aiUnavailable = false;   // set when this view cannot use Claude at all
 
+    // Talks to the AI endpoint in server.js. The API key lives on the server, never in this file.
+    // Errors carry a `code` (see handleAiError): the server's own code, or 'cancelled' when aborted.
+    var aiClient = {
+      json: async function (prompt, options) {
+        var response;
+        try {
+          response = await fetch('/api/ai/json', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: prompt, modelTier: options.modelTier }),
+            signal: options.signal
+          });
+        } catch (error) {
+          var failure = new Error(error.message);
+          failure.code = error.name === 'AbortError' ? 'cancelled' : 'network_error';
+          throw failure;
+        }
+
+        var body = await response.json().catch(function () { return {}; });
+        if (!response.ok) {
+          var problem = new Error((body.error && body.error.message) || 'AI request failed');
+          problem.code = (body.error && body.error.code) || 'upstream_error';
+          throw problem;
+        }
+        return body.result;
+      }
+    };
+
+    // Resolves to aiClient when the server has an API key, otherwise null (AI stays switched off).
+    // Also null when the page is opened straight from disk with no server behind it.
+    var aiStatusCheck = null;
     function getSample() {
-      if (!window.claude || typeof window.claude.use !== 'function') { return Promise.resolve(null); }
-      return window.claude.use('sample').catch(function () { return null; });
+      if (!aiStatusCheck) {
+        aiStatusCheck = fetch('/api/ai/status')
+          .then(function (response) { return response.ok ? response.json() : { available: false }; })
+          .then(function (status) { return status.available ? aiClient : null; })
+          .catch(function () { return null; });
+      }
+      return aiStatusCheck;
     }
+
+    // Grey out the AI buttons right away when the server can't do AI
+    getSample().then(function (sample) {
+      if (!sample) {
+        aiUnavailable = true;
+        updateSaveState();
+      }
+    });
 
     // The whole page as plain text, with each section labelled so a suggestion can point at it
     function describePageForAi() {
@@ -1565,7 +1609,7 @@
       } else if (code === 'not_granted' || code === 'sampling_disabled' || code === 'not_declared' || code === 'capability_disabled' || code === 'capability_removed') {
         aiUnavailable = true;
         updateSaveState();
-        showNotice('AI assist isn\u2019t available: this page wasn\u2019t allowed to use Claude.');
+        showNotice('AI assist isn\u2019t available: the server has no working API key.');
       } else if (code === 'rate_limited') {
         showNotice('AI assist has been used a lot just now. Try again in a little while.');
       } else if (code === 'invalid_json' || code === 'empty_completion' || code === 'refused') {

@@ -188,28 +188,31 @@ Internal-Only
   mailto links are accepted.
 - Reopening a draft re-levels invalid headers and ignores unknown sections.
 
-## Parts that only work inside Claude
+## Running it and the AI server
 
-The page uses two capabilities that exist only in Claude's published-artifact runtime. Both are
-reached through `window.claude.use(...)`. Outside Claude they return nothing and the page falls back.
+```
+npm install
+ANTHROPIC_API_KEY=your-key npm start      # http://localhost:3000 (set PORT to change)
+```
 
-1. **Saving a file:** `window.claude.use('downloads')`, then `downloads.save({ filename, data })`.
-   It rejects with `code: 'declined'` when the person cancels.
-   *Fallback already built:* when it is missing, Save draft opens a dialog with the draft text to
-   copy. In Claude Code, replace `getDownloads()` / `saveDraft()` with a normal Blob and
-   `<a download>` (or a server write).
-2. **All AI features:** `window.claude.use('sample')`, then
-   `sample.json(prompt, { modelTier, signal })`, which returns parsed JSON. `modelTier` is
-   `'default'` for suggestions and `'quick'` for keywords. Errors carry a `code` (`not_granted`,
-   `sampling_disabled`, `rate_limited`, `invalid_json`, `cancelled`, and so on) that
-   `handleAiError` and `refreshKeywords` translate into short footer notices.
-   *Fallback already built:* when it is missing, the AI buttons stay greyed out with a note, and
-   saving still works (keywords are skipped).
-   In Claude Code, put a small server endpoint in front of the Anthropic API and implement the same
-   `getSample()` shape against it. Do not put an API key in the page. Keep the prompts as they are
-   (`buildAiPrompt`, `buildSectionPrompt`, `buildKeywordPrompt`) and keep the JSON contracts: an
-   array of `{ target, title?, text, reason }` for the page scan, one object for a section, and an
-   array of 10 strings for keywords.
+`server.js` (Express) serves `index.html`, `styles.css` and `app.js`, and answers the AI requests, so the
+API key stays on the server and never reaches the page. Without a key the editor still works: the AI
+buttons stay greyed out and saving a draft skips keyword generation. Opening `index.html` straight from
+disk behaves the same way.
+
+- `GET /api/ai/status` returns `{ available: true|false }`. `app.js` asks once on load.
+- `POST /api/ai/json` takes `{ prompt, modelTier }` (`'default'` for suggestions, `'quick'` for keywords)
+  and returns `{ result }` with the parsed JSON. Errors return `{ error: { code, message } }` using the
+  codes `handleAiError` already understands: `sampling_disabled`, `rate_limited`, `invalid_json`,
+  `empty_completion`, `refused`, `upstream_error`.
+- Models: both tiers default to `claude-opus-5-5` (`default` at medium effort, `quick` at low). Override
+  with the `AI_MODEL` and `AI_MODEL_QUICK` environment variables.
+- The prompts (`buildAiPrompt`, `buildSectionPrompt`, `buildKeywordPrompt`) and JSON contracts are
+  unchanged: an array of `{ target, title?, text, reason }` for the page scan, one object for a section,
+  and an array of 10 strings for keywords.
+- Save draft is now a normal Blob download. If the browser blocks it, the copy-text dialog still opens.
+- For IT: this is one Node process (Node 20.6 or later) with one secret, `ANTHROPIC_API_KEY`. It has no
+  login, so host it only where the people who can reach it are allowed to use the AI budget.
 
 ## Not built yet, or placeholders
 
@@ -228,7 +231,7 @@ reached through `window.claude.use(...)`. Outside Claude they return nothing and
 ## Testing
 
 I tested with headless Chromium (Playwright for Python), driving the page and, for AI, replacing
-`window.claude` with a stub through `add_init_script`. Behaviors covered: the required-fields rule,
+the AI calls with a stub through `add_init_script`. Behaviors covered: the required-fields rule,
 add and remove for every block type, insert-line placement, step sections and numbering, header
 hierarchy including re-levelling and invalid drafts, rich-text round trips through save and
 reopen, per-section and whole-page AI suggestions, keyword generation and the no-AI fallbacks, and
@@ -241,10 +244,8 @@ The layout and sizes were matched to a 2x screenshot supplied at the start (Cont
 Approval Process"). Body text is 14px, the page title 20px, labels 11 to 13px. The original
 screenshot is the source of truth for spacing.
 
-## A good first prompt for Claude Code
+## Status of the Claude Code plan
 
-> Read `HANDOFF.md` and `page-editor.html`. First, split the file into `index.html`, `styles.css`
-> and `app.js` without changing behavior, keeping the code readable and unminified. Then replace
-> the two `window.claude` dependencies: save drafts with a Blob download, and route the AI calls
-> through a small server endpoint that calls the Anthropic API with the same prompts and JSON
-> contracts. Finally, add a Playwright test suite that covers the behaviors listed under Testing.
+1. Split into `index.html`, `styles.css`, `app.js`: done.
+2. Blob download and the Node AI endpoint: done.
+3. Playwright suite covering the behaviors under Testing: not started.
