@@ -649,7 +649,35 @@
     line-height: 1.5;
     resize: vertical;
   }
-  .dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+  .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 16px; }
+
+  .draft-list {
+    max-height: 320px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .draft-list:empty { display: none; }
+  .draft-list li + li { border-top: 1px solid var(--border); }
+  .draft-list button {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    color: var(--text);
+    border: 0;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .draft-list button:hover { background: var(--surface-muted); }
+  .draft-list .draft-name { font-size: 14px; font-weight: 600; }
+  .draft-list .draft-meta { color: var(--text-faint); font-size: 12px; }
 
   /* ---------- Required fields + insert lines ---------- */
   :root { --danger: #c62828; --danger-soft: #fdf0ef; --danger-border: #f0b4b0; }

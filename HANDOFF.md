@@ -210,7 +210,15 @@ disk behaves the same way.
 - The prompts (`buildAiPrompt`, `buildSectionPrompt`, `buildKeywordPrompt`) and JSON contracts are
   unchanged: an array of `{ target, title?, text, reason }` for the page scan, one object for a section,
   and an array of 10 strings for keywords.
-- Save draft is now a normal Blob download. If the browser blocks it, the copy-text dialog still opens.
+- Drafts are saved on the server as plain `.txt` files in the `drafts/` folder next to `server.js`
+  (git-ignored; set `DRAFTS_DIR` to store them elsewhere). The file name comes from the page title, so
+  saving a page with the same title replaces the earlier draft. Endpoints: `GET /api/drafts` (list),
+  `GET /api/drafts/:name`, `PUT /api/drafts/:name` (text/plain body). Names must look like
+  `some-title-draft.txt`; anything else is rejected.
+- **Open draft** shows the saved drafts on the server. "Open a file instead" and "Paste draft text" still
+  work. With no server (page opened from disk), Save draft downloads a file and Open draft uses the file
+  picker.
+- There is no login, so anyone who can reach the server can read and overwrite every draft.
 - For IT: this is one Node process (Node 20.6 or later) with one secret, `ANTHROPIC_API_KEY`. It has no
   login, so host it only where the people who can reach it are allowed to use the AI budget.
 

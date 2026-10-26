@@ -967,6 +967,17 @@
     }
 
     /* ---------- Save draft ---------- */
+    // Drafts are stored on the server (the drafts folder next to server.js). If there is no server,
+    // for example when index.html is opened from disk, saving falls back to a file download.
+    async function saveDraftToServer(filename, text) {
+      var response = await fetch('/api/drafts/' + encodeURIComponent(filename), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        body: text
+      });
+      if (!response.ok) { throw new Error('Save failed with status ' + response.status); }
+    }
+
     // Downloads the draft as a .txt file through a temporary link
     function downloadTextFile(filename, text) {
       var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -993,16 +1004,23 @@
 
       var text = serializeDraft();
       var filename = draftFilename();
-      var fallbackHint = 'The download didn\u2019t start. Copy this text into a .txt file, then use "Paste draft text" to load it later.';
+
+      try {
+        await saveDraftToServer(filename, text);
+        setStatus('Saved just now', true);
+        showNotice('Draft saved as ' + filename + '.');
+        return;
+      } catch (error) {
+        // No server behind this page (or the save failed): keep the work by downloading it instead
+      }
 
       try {
         downloadTextFile(filename, text);
+        setStatus('Saved just now', true);
+        showNotice('Couldn\u2019t reach the server, so the draft was downloaded as ' + filename + '.');
       } catch (error) {
-        openDialog(text, fallbackHint);
-        return;
+        openDialog(text, 'Neither saving nor downloading worked. Copy this text into a .txt file, then use "Paste draft text" to load it later.');
       }
-      setStatus('Saved just now', true);
-      showNotice('Draft saved as ' + filename + '.');
     }
 
     /* ---------- Rich text (paragraph blocks only) ----------
@@ -1846,7 +1864,69 @@
       }
     });
 
-    byId('open-draft').addEventListener('click', function () { byId('draft-file').click(); });
+    /* ---------- Open a draft saved on the server ---------- */
+    var draftsDialog = byId('drafts-dialog');
+    var draftsList = byId('drafts-list');
+    var draftsHint = byId('drafts-dialog-hint');
+
+    function formatSavedTime(iso) {
+      var date = new Date(iso);
+      return isNaN(date.getTime()) ? '' : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    async function openSavedDraft(name) {
+      try {
+        var response = await fetch('/api/drafts/' + encodeURIComponent(name));
+        if (!response.ok) { throw new Error('status ' + response.status); }
+        if (loadDraftText(await response.text())) {
+          draftsDialog.close();
+        } else {
+          draftsHint.textContent = 'That file doesn\u2019t look like a saved draft.';
+        }
+      } catch (error) {
+        draftsHint.textContent = 'Couldn\u2019t open that draft. Try again.';
+      }
+    }
+
+    function showSavedDrafts(drafts) {
+      draftsList.innerHTML = '';
+      draftsHint.textContent = drafts.length
+        ? 'Choose a draft to load into the editor. It replaces what is on the page now.'
+        : 'Nothing has been saved on this server yet. Use Save draft to create the first one.';
+      drafts.forEach(function (draft) {
+        var item = document.createElement('li');
+        var button = document.createElement('button');
+        button.type = 'button';
+        var title = document.createElement('span');
+        title.className = 'draft-name';
+        title.textContent = draft.title || draft.name;
+        var meta = document.createElement('span');
+        meta.className = 'draft-meta';
+        meta.textContent = draft.name + ' \u00b7 saved ' + formatSavedTime(draft.modified);
+        button.appendChild(title);
+        button.appendChild(meta);
+        button.addEventListener('click', function () { openSavedDraft(draft.name); });
+        item.appendChild(button);
+        draftsList.appendChild(item);
+      });
+      draftsDialog.showModal();
+    }
+
+    byId('open-draft').addEventListener('click', async function () {
+      try {
+        var response = await fetch('/api/drafts');
+        if (!response.ok) { throw new Error('status ' + response.status); }
+        showSavedDrafts((await response.json()).drafts);
+      } catch (error) {
+        // No server behind this page: pick a file from disk instead
+        byId('draft-file').click();
+      }
+    });
+    byId('drafts-dialog-close').addEventListener('click', function () { draftsDialog.close(); });
+    byId('drafts-dialog-file').addEventListener('click', function () {
+      draftsDialog.close();
+      byId('draft-file').click();
+    });
     byId('draft-file').addEventListener('change', function (event) {
       var input = event.target;
       var file = input.files && input.files[0];
