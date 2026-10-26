@@ -8,10 +8,12 @@ only work inside Claude's artifact runtime, and what is still open.
 
 | File | What it is |
 | --- | --- |
-| `page-editor.html` | The whole app: HTML, CSS and JavaScript in one file. No build step, no dependencies. The only external request is the Inter font from Google Fonts, with system fonts as fallback. |
+| `index.html` | Page markup. No build step, no dependencies. The only external request is the Inter font from Google Fonts, with system fonts as fallback. |
+| `styles.css` | The stylesheet (originally inline in `page-editor.html`). |
+| `app.js` | The script (originally inline in `page-editor.html`). |
 | `HANDOFF.md` | This file. |
 
-To run it, open `page-editor.html` in a browser. Everything works except the two things in
+To run it, open `index.html` in a browser. Everything works except the two things in
 "Parts that only work inside Claude" below, which degrade gracefully.
 
 ## Code standards that apply
@@ -23,7 +25,7 @@ To run it, open `page-editor.html` in a browser. Everything works except the two
 
 ## How the code is organized
 
-Everything is in `page-editor.html`. The stylesheet and script are each divided by comment
+The code was split out of a single `page-editor.html` into `index.html`, `styles.css` and `app.js`; the structure below is unchanged. The stylesheet and script are each divided by comment
 headings of the form `/* ---------- Name ---------- */`. Search for these rather than line numbers.
 
 **Stylesheet:** Design tokens (light and dark), Top bar, Workspace, Editor card, Canvas, On this
