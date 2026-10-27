@@ -133,6 +133,23 @@ Pasted text is sent as `pasted-text.txt` and kept in the box if the import fails
 - Limits: PDFs up to 20 MB, text up to about 200,000 characters, one file at a time. Longer documents
   need splitting. There is no batch import yet.
 
+## Two ways to run it: server and Claude artifact
+
+The same `app.js` runs in two places and picks its AI automatically:
+
+- **With `server.js`** (normal): AI calls, import (including Word and PDF) and draft storage go through
+  the server.
+- **As a Claude artifact** (no server, no API key): `npm run build:artifact` writes
+  `dist/page-editor-artifact.html`, one self-contained file with the stylesheet, the script and the import
+  instructions built in. In it the AI is Claude's built-in AI, import takes pasted text and .txt/.md
+  files only, and Save draft goes through Claude's download. Publish it with the Artifact tool using the
+  capabilities `sample` and `downloads`. The current copy is at
+  https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (private). After changing the guidelines or
+  `app.js`, rebuild and republish to refresh it.
+
+Pasting plain text into **Paste draft text** does not need `[TITLE]` or any headings: text that is not in
+the saved-draft format is sent to the AI to be sorted into a page.
+
 ## Draft file format (plain text, FORMAT 2)
 
 Save draft writes this; Open draft and Paste draft text read it. Everything before the first

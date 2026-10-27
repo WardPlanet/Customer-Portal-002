@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Page editor prototype with a small server that proxies AI requests to the Anthropic API",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build:artifact": "node scripts/build-artifact.mjs"
   },
   "engines": {
     "node": ">=20.12"

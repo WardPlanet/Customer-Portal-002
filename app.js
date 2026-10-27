@@ -991,6 +991,12 @@
       if (!response.ok) { throw new Error('Save failed with status ' + response.status); }
     }
 
+    // Only exists when the page runs as a Claude artifact
+    function getDownloads() {
+      if (!window.claude || typeof window.claude.use !== 'function') { return Promise.resolve(null); }
+      return window.claude.use('downloads').catch(function () { return null; });
+    }
+
     // Downloads the draft as a .txt file through a temporary link
     function downloadTextFile(filename, text) {
       var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -1028,10 +1034,17 @@
       }
 
       try {
-        downloadTextFile(filename, text);
+        var downloads = await getDownloads();
+        if (downloads) {
+          // Running as a Claude artifact: Claude asks the person where to put the file
+          await downloads.save({ filename: filename, data: text });
+        } else {
+          downloadTextFile(filename, text);
+        }
         setStatus('Saved just now', true);
         showNotice('Couldn\u2019t reach the server, so the draft was downloaded as ' + filename + '.');
       } catch (error) {
+        if (error && error.code === 'declined') { return; }
         openDialog(text, 'Neither saving nor downloading worked. Copy this text into a .txt file, then use "Paste draft text" to load it later.');
       }
     }
@@ -1408,15 +1421,31 @@
       }
     };
 
-    // Resolves to aiClient when the server has an API key, otherwise null (AI stays switched off).
-    // Also null when the page is opened straight from disk with no server behind it.
+    // Which AI is behind this page:
+    //   'server' - server.js, which holds the API key (the normal setup)
+    //   'claude' - Claude's built-in AI, when the page runs as a Claude artifact with no server
+    //   null     - none; the AI buttons stay greyed out
+    // Both give back an object with json(prompt, { modelTier, signal }).
+    var aiMode = null;
     var aiStatusCheck = null;
     function getSample() {
       if (!aiStatusCheck) {
         aiStatusCheck = fetch('/api/ai/status')
           .then(function (response) { return response.ok ? response.json() : { available: false }; })
-          .then(function (status) { return status.available ? aiClient : null; })
-          .catch(function () { return null; });
+          .catch(function () { return { available: false }; })
+          .then(function (status) {
+            if (status.available) {
+              aiMode = 'server';
+              return aiClient;
+            }
+            if (window.claude && typeof window.claude.use === 'function') {
+              return window.claude.use('sample').then(function (sample) {
+                if (sample) { aiMode = 'claude'; }
+                return sample;
+              }).catch(function () { return null; });
+            }
+            return null;
+          });
       }
       return aiStatusCheck;
     }
@@ -1932,31 +1961,108 @@
       importDialog.showModal();
     }
 
+    function importProblem(message) {
+      var error = new Error(message);
+      error.userMessage = message;
+      return error;
+    }
+
+    // Keeps only what the editor understands, so an odd AI reply cannot break the page.
+    // Used when Claude's built-in AI answers directly; keep in step with cleanResult in importer.js.
+    function cleanImportResult(raw, source) {
+      function asText(value) { return typeof value === 'string' ? value.trim() : ''; }
+      var blocks = (Array.isArray(raw && raw.blocks) ? raw.blocks : []).map(function (block) {
+        var text = asText(block && block.text);
+        switch (block && block.type) {
+          case 'header':
+            return { type: 'header', level: Math.min(5, Math.max(1, parseInt(block.level, 10) || 1)), text: text };
+          case 'step':
+            return { type: 'step', number: Math.max(1, parseInt(block.number, 10) || 1), title: asText(block.title), text: text };
+          case 'paragraph':
+          case 'note':
+          case 'warning':
+            return { type: block.type, text: text };
+          default:
+            return null;
+        }
+      }).filter(function (block) { return block && (block.text || block.title); });
+
+      return {
+        title: asText(raw && raw.title),
+        description: asText(raw && raw.description),
+        summary: asText(raw && raw.summary),
+        blocks: blocks,
+        review_notes: (Array.isArray(raw && raw.review_notes) ? raw.review_notes : []).map(asText).filter(Boolean),
+        source: source
+      };
+    }
+
+    // Server mode: the server reads the file and asks the AI, using guidelines/import-guidelines.md
+    async function importViaServer(file) {
+      var response = await fetch('/api/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(file.name) },
+        body: file
+      });
+      var body = await response.json().catch(function () { return {}; });
+      if (!response.ok) {
+        throw importProblem((body.error && body.error.message) || 'The import failed. Try again.');
+      }
+      return body.result;
+    }
+
+    // Claude artifact mode: text only. The instructions (guidelines + output format) are built into
+    // the page by scripts/build-artifact.mjs as window.IMPORT_INSTRUCTIONS.
+    async function importViaClaude(file, sample) {
+      if (!/\.(txt|md)$/i.test(file.name)) {
+        throw importProblem('Word and PDF files need the server version. Here, paste the text instead, or choose a .txt or .md file.');
+      }
+      if (!window.IMPORT_INSTRUCTIONS) {
+        throw importProblem('This copy of the page has no import instructions built in.');
+      }
+      var text = await file.text();
+      if (!text.trim()) { throw importProblem('That text is empty.'); }
+      if (text.length > 100000) { throw importProblem('That is too long to import in one go. Split it into smaller parts.'); }
+
+      var prompt = window.IMPORT_INSTRUCTIONS + NL + NL + 'The document to convert is "' + file.name + '".' +
+        NL + NL + '<document>' + NL + text + NL + '</document>';
+      var result = cleanImportResult(await sample.json(prompt, { modelTier: 'default' }), file.name);
+      if (!result.title && !result.blocks.length) {
+        throw importProblem('The AI did not find any page content in that text.');
+      }
+      return result;
+    }
+
+    function importErrorMessage(error) {
+      if (error && error.userMessage) { return error.userMessage; }
+      var code = error && error.code;
+      if (code === 'not_granted' || code === 'sampling_disabled') { return 'The AI isn\u2019t available: this page wasn\u2019t allowed to use Claude.'; }
+      if (code === 'rate_limited') { return 'The AI has been used a lot just now. Try again in a little while.'; }
+      if (code === 'invalid_json' || code === 'empty_completion' || code === 'refused') { return 'The AI couldn\u2019t sort that text this time. Try again.'; }
+      return 'The import failed. Try again.';
+    }
+
     // Resolves to true when the page was filled in, false when nothing changed
     async function importDocumentFile(file) {
       if (isImporting) { return false; }
+      var sample = await getSample();
+      if (!sample) {
+        showNotice('Importing needs the AI, which isn\u2019t available in this view.');
+        return false;
+      }
       if (pageHasContent() && !window.confirm('Importing replaces everything on this page. Continue?')) { return false; }
 
       isImporting = true;
       importButton.setAttribute('aria-disabled', 'true');
       importButton.textContent = 'Importing\u2026';
       try {
-        var response = await fetch('/api/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(file.name) },
-          body: file
-        });
-        var body = await response.json().catch(function () { return {}; });
-        if (!response.ok) {
-          showNotice((body.error && body.error.message) || 'The import failed. Try again.');
-          return false;
-        }
-        applyDraft(importResultToSections(body.result));
+        var result = aiMode === 'server' ? await importViaServer(file) : await importViaClaude(file, sample);
+        applyDraft(importResultToSections(result));
         setStatus('Imported, not saved yet', false);
-        showImportReview(body.result);
+        showImportReview(result);
         return true;
       } catch (error) {
-        showNotice('Couldn\u2019t reach the server to import that file.');
+        showNotice(error instanceof TypeError ? 'Couldn\u2019t reach the server to import that file.' : importErrorMessage(error));
         return false;
       } finally {
         isImporting = false;
@@ -1970,6 +2076,9 @@
         showNotice(aiUnavailable ? 'Importing needs the AI, which isn\u2019t available in this view.' : 'An import is already running.');
         return;
       }
+      var fileOnly = aiMode === 'claude';
+      byId('import-choose-file').textContent = fileOnly ? 'Choose a text file (.txt, .md)' : 'Choose a file (.docx, .pdf, .txt, .md)';
+      byId('import-file').accept = fileOnly ? '.txt,.md' : '.docx,.pdf,.txt,.md';
       importSourceDialog.showModal();
     });
 
