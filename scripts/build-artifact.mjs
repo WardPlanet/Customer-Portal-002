@@ -29,9 +29,11 @@ const styleGuide = await read('guidelines', 'style-guide.md');
 // The PDF library is embedded as inert text and only run when someone clicks Export PDF
 const pdfCore = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'pdfmake.min.js'), 'utf8');
 const pdfFonts = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'vfs_fonts.js'), 'utf8');
+const pdfCourier = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'standard-fonts', 'Courier.js'), 'utf8');
 const pdfLibrary =
   '<script type="text/plain" id="pdf-lib-core">\n' + safeForScript(pdfCore) + '\n</script>\n' +
-  '<script type="text/plain" id="pdf-lib-fonts">\n' + safeForScript(pdfFonts) + '\n</script>\n';
+  '<script type="text/plain" id="pdf-lib-fonts">\n' + safeForScript(pdfFonts) + '\n</script>\n' +
+  '<script type="text/plain" id="pdf-lib-courier">\n' + safeForScript(pdfCourier) + '\n</script>\n';
 
 // IMPORT_INSTRUCTIONS is the full import prompt; STYLE_PREAMBLE is put in front of the AI assist prompts
 const instructions =

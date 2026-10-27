@@ -48,6 +48,8 @@
     function readText(el) {
       // Paragraph fields hold formatting, so they are read back as formatted plain text
       if (el.hasAttribute('data-rich')) { return htmlToMarkdown(el).trim(); }
+      // Code keeps its indentation: only blank lines at the very start and end are dropped
+      if (el.hasAttribute('data-code')) { return el.innerText.replace(/\r/g, '').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, ''); }
       return el.innerText.replace(/\r/g, '').trim();
     }
 
@@ -117,8 +119,17 @@
       paragraph: { blockClass: 'paragraph-block', fieldClass: 'block-paragraph', element: 'p', label: 'Text', placeholder: 'Write some text', rich: true },
       header: { blockClass: 'header-block', fieldClass: 'block-header', element: 'h2', label: 'Header', placeholder: 'Header' },
       note: { blockClass: 'note-block', fieldClass: 'block-callout', element: 'p', label: 'Note', placeholder: 'Write a note' },
-      warning: { blockClass: 'warning-block', fieldClass: 'block-callout', element: 'p', label: 'Warning', placeholder: 'Write a warning' }
+      warning: { blockClass: 'warning-block', fieldClass: 'block-callout', element: 'p', label: 'Warning', placeholder: 'Write a warning' },
+      code: { blockClass: 'code-block', fieldClass: 'block-code', element: 'pre', label: 'Code', placeholder: 'Paste or type code', code: true }
     };
+
+    // Code is plain text only. 'plaintext-only' makes the browser enforce that (Enter adds a line break,
+    // pasting adds text only); where it is not supported the field falls back to ordinary editing.
+    var CODE_EDITABLE = (function () {
+      var probe = document.createElement('div');
+      try { probe.contentEditable = 'plaintext-only'; } catch (error) { /* older browser */ }
+      return probe.contentEditable === 'plaintext-only' ? 'plaintext-only' : 'true';
+    })();
 
     function buildTextBlock(type, text, level) {
       var config = TEXT_BLOCKS[type] || TEXT_BLOCKS.paragraph;
@@ -144,10 +155,11 @@
 
       var field = document.createElement(headerLevel ? 'h' + headerLevel : config.element);
       field.className = config.fieldClass + (headerLevel ? ' level-' + headerLevel : '');
-      field.contentEditable = 'true';
-      field.spellcheck = true;
+      field.contentEditable = config.code ? CODE_EDITABLE : 'true';
+      field.spellcheck = !config.code;
       field.setAttribute('data-placeholder', config.placeholder);
       if (type === 'header') { field.setAttribute('data-single-line', ''); }
+      if (config.code) { field.setAttribute('data-code', ''); }
       if (config.rich) {
         field.setAttribute('data-rich', '');
         field.innerHTML = markdownToHtml(text || '');
@@ -155,8 +167,37 @@
         field.textContent = text || '';
       }
       block.appendChild(field);
+      if (config.code) { block.appendChild(createCopyButton(field)); }
 
       return block;
+    }
+
+    // The Copy button in the corner of a code block
+    function createCopyButton(field) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy-code';
+      button.textContent = 'Copy';
+      button.setAttribute('aria-label', 'Copy this code');
+      button.addEventListener('click', async function () {
+        var text = readText(field);
+        if (!text) { return; }
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (error) {
+          // No clipboard permission (for example inside a frame): select the text so Ctrl/Cmd+C works
+          var range = document.createRange();
+          range.selectNodeContents(field);
+          var selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          showNotice('Press Ctrl/Cmd+C to copy the selected code.');
+          return;
+        }
+        button.textContent = 'Copied';
+        setTimeout(function () { button.textContent = 'Copy'; }, 1500);
+      });
+      return button;
     }
 
     function createRequiredMark() {
@@ -857,7 +898,7 @@
       var blocks = [];
       var numbers = {};
       Object.keys(sections).forEach(function (name) {
-        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|STEP TITLE|STEP TEXT|STEP NUMBER)$/.exec(name);
+        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|STEP TITLE|STEP TEXT|STEP NUMBER)$/.exec(name);
         if (match) { numbers[Number(match[1])] = true; }
       });
 
@@ -867,11 +908,14 @@
         var headerLevel = [1, 2, 3, 4, 5].filter(function (level) {
           return sections[prefix + 'HEADER ' + level];
         })[0];
-        var textType = ['paragraph', 'header', 'note', 'warning'].filter(function (type) {
+        var textType = ['paragraph', 'header', 'note', 'warning', 'code'].filter(function (type) {
           return sections[prefix + type.toUpperCase()];
         })[0];
         if (headerLevel) {
           blocks.push({ type: 'header', level: headerLevel, text: body(prefix + 'HEADER ' + headerLevel) });
+        } else if (textType === 'code') {
+          // Code keeps its indentation, so it is not trimmed like other text
+          blocks.push({ type: 'code', text: sections[prefix + 'CODE'].join(NL).replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '') });
         } else if (textType) {
           blocks.push({ type: textType, text: body(prefix + textType.toUpperCase()) });
         } else {
@@ -1482,6 +1526,8 @@
           lines.push('[' + label + ', numbered ' + block.number + '] title: ' + block.title + ' | text: ' + block.text);
         } else if (block.type === 'header') {
           lines.push('[' + label + ', level ' + block.level + '] ' + block.text);
+        } else if (block.type === 'code') {
+          lines.push('[' + label + ', code snippet: never suggest changes to it] ' + block.text);
         } else {
           lines.push('[' + label + '] ' + block.text);
         }
@@ -1543,7 +1589,8 @@
     function suggestionHost(target, blocks) {
       if (target === 'title') { return titleEl.closest('.text-block'); }
       if (target === 'description') { return descriptionEl.closest('.text-block'); }
-      return blocks[Number(target.split(' ')[1]) - 1] || null;
+      var block = blocks[Number(target.split(' ')[1]) - 1] || null;
+      return block && block.classList.contains('code-block') ? null : block;   // code is never rewritten by the AI
     }
 
     // An edit that would leave the section exactly as it is is not worth showing
@@ -1890,6 +1937,7 @@
     // section has text
     function ensureSectionAiButtons() {
       allSections().forEach(function (host) {
+        if (host.classList.contains('code-block')) { return; }   // the AI does not touch code
         var button = host.querySelector(':scope > .section-ai');
         if (!button) {
           button = createSectionAiButton(host);
@@ -1986,6 +2034,9 @@
             return { type: 'header', level: Math.min(5, Math.max(1, parseInt(block.level, 10) || 1)), text: text };
           case 'step':
             return { type: 'step', number: Math.max(1, parseInt(block.number, 10) || 1), title: asText(block.title), text: text };
+          case 'code':
+            // Code keeps its indentation
+            return { type: 'code', text: typeof block.text === 'string' ? block.text.replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '') : '' };
           case 'paragraph':
           case 'note':
           case 'warning':
@@ -2160,6 +2211,8 @@
           if (block.text) { body.appendChild(printElement('p', 'print-plain', block.text)); }
           step.appendChild(body);
           printView.appendChild(step);
+        } else if (block.type === 'code') {
+          printView.appendChild(printElement('pre', 'print-code', block.text));
         } else {
           // note or warning
           var callout = printElement('div', 'print-callout print-' + block.type);
@@ -2208,10 +2261,12 @@
           var embeddedCore = document.getElementById('pdf-lib-core');
           if (embeddedCore) {
             runScriptText(embeddedCore.textContent);
-            runScriptText(document.getElementById('pdf-lib-fonts').textContent);   // must come second
+            runScriptText(document.getElementById('pdf-lib-fonts').textContent);   // fonts come after the library
+            runScriptText(document.getElementById('pdf-lib-courier').textContent);
           } else {
             await loadScriptFile('/vendor/pdfmake.min.js');
             await loadScriptFile('/vendor/vfs_fonts.js');
+            await loadScriptFile('/vendor/Courier.js');   // the monospace font for code blocks
           }
           if (!window.pdfMake) { throw new Error('The PDF library did not start.'); }
         })();
@@ -2300,6 +2355,15 @@
       };
     }
 
+    // A code snippet: monospace on a light grey box, line breaks and indentation kept
+    function pdfCode(text) {
+      return {
+        table: { widths: ['*'], body: [[{ text: text, font: 'Courier', fontSize: 9, lineHeight: 1.3, preserveLeadingSpaces: true, color: PDF_COLORS.text, fillColor: '#F4F5F9', margin: [8, 6, 8, 6] }]] },
+        layout: { hLineWidth: function () { return 0.5; }, vLineWidth: function () { return 0.5; }, hLineColor: function () { return '#D9DBEA'; }, vLineColor: function () { return '#D9DBEA'; } },
+        margin: [0, 0, 0, 10]
+      };
+    }
+
     function pdfStep(block) {
       return {
         columns: [
@@ -2343,6 +2407,8 @@
           content = content.concat(pdfRichText(block.text));
         } else if (block.type === 'step') {
           content.push(pdfStep(block));
+        } else if (block.type === 'code') {
+          content.push(pdfCode(block.text));
         } else if (block.type === 'warning') {
           content.push(pdfCallout('Warning', block.text, '#FDECEA', '#C62828', '#8A1C1C'));
         } else {

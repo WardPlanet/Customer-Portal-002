@@ -38,9 +38,10 @@ app.use('/api/drafts', express.text({ type: 'text/plain', limit: MAX_DRAFT_BYTES
 });
 
 // The PDF library, loaded by app.js only when someone clicks Export PDF
-['pdfmake.min.js', 'vfs_fonts.js'].forEach(function (file) {
+['pdfmake.min.js', 'vfs_fonts.js', 'Courier.js'].forEach(function (file) {
   app.get('/vendor/' + file, function (req, res) {
-    res.sendFile(path.join(here, 'node_modules', 'pdfmake', 'build', file));
+    var folder = file === 'Courier.js' ? path.join('build', 'standard-fonts') : 'build';
+    res.sendFile(path.join(here, 'node_modules', 'pdfmake', folder, file));
   });
 });
 

@@ -55,6 +55,12 @@ standardizes on a different guide (for example Chicago or AP).
 - Write dates as Month D, YYYY (March 31, 2027) and times as 9:00 AM.
 - Avoid exclamation marks.
 
+## Code
+
+- Code, commands and other text in a Code block is copied exactly. None of the rules in this guide
+  (capitalization, punctuation, quotation marks, spelling) apply inside it.
+- Never edit, "fix" or suggest changes to the contents of a Code block.
+
 ## Lists, links and emphasis
 
 - Use a numbered list only when the order matters. Otherwise use bullets.

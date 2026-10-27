@@ -63,7 +63,8 @@ refreshes the outline. Call it after any structural change.
 
 - Fixed fields: Page title (single line, larger than an H1 header) and Description (rich text: what the
   page covers and when to use it). There is no separate summary or subtitle.
-- Block types: Text (rich text), Header (H1 to H5), Step, Note (yellow), Warning (red).
+- Block types: Text (rich text), Header (H1 to H5), Step, Note (yellow), Warning (red), Code (plain-text
+  snippet).
 - Steps sit in sections. Numbering restarts at 1 in each section. Each section ends with a row of
   three rounded buttons: `+ Add step` (adds to that section), `+ Warning`, `+ Note` (add that
   block below the section).
@@ -84,7 +85,11 @@ refreshes the outline. Call it after any structural change.
   `+ Add a block` button.
 - `+ Add a block` opens the same menu and inserts directly below itself.
 - The toolbar chips (Text, Step, Note, Warning) add at the very end of the page.
-- The add-block menu offers Header (with an H1 to H5 submenu), Text, Step, Note, Warning.
+- The add-block menu offers Header (with an H1 to H5 submenu), Text, Step, Note, Warning, Code.
+- **Code** is a plain-text snippet in a monospace box (grey, dark in dark mode) with a Copy button. It has no
+  formatting and no spell check, and keeps indentation and line breaks exactly. It is never rewritten by
+  the AI (no sparkle button, scans skip it) and the style guide does not apply inside it. In the PDF it
+  prints in Courier on a light grey box. Imports put commands, queries and config into Code blocks.
 - Every block except the required first step has a red `x` in its corner to remove it.
 
 **Header hierarchy:** the first header is H1. A new header may be at most one level deeper than
@@ -256,7 +261,7 @@ refund-process-v2.docx
 - Older drafts that have `SUBTITLE` and `SUMMARY` sections still open: `SUMMARY` becomes the description and
   `SUBTITLE` is ignored.
 - Block sections are named `BLOCK n` followed by `PARAGRAPH`, `HEADER 1` to `HEADER 5`, `NOTE`,
-  `WARNING`, or `STEP NUMBER` / `STEP TITLE` / `STEP TEXT`. A step numbered 1 starts a new step
+  `WARNING`, `CODE`, or `STEP NUMBER` / `STEP TITLE` / `STEP TEXT`. A step numbered 1 starts a new step
   section. Blocks are read in `n` order.
 - `ADD BLOCK BUTTON` holds how many blocks sit above the `+ Add a block` button, so the layout
   reopens the same way. If it is missing, all blocks are placed above the button.

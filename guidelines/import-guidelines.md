@@ -28,6 +28,10 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
   problem if ignored becomes a Warning. Use warnings sparingly, only when the document itself
   stresses the risk.
 - Lists that are not a procedure stay as bullet lists inside a Text block.
+- Commands, queries, scripts, configuration, file contents and anything the reader is meant to copy and
+  type or paste go in a Code block, copied exactly: same characters, same line breaks, same indentation.
+  Never reword, reformat, fix or style code. A short name inside a sentence (a file or setting name) stays
+  in the sentence.
 
 ## People and contact details
 

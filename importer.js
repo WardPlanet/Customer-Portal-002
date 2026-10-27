@@ -24,7 +24,8 @@ const OUTPUT_FORMAT = [
   '    { "type": "paragraph", "text": "free text, same inline markup as summary" },',
   '    { "type": "step", "number": 1, "title": "short step title", "text": "step detail, same inline markup" },',
   '    { "type": "note", "text": "a tip or aside" },',
-  '    { "type": "warning", "text": "a caution" }',
+  '    { "type": "warning", "text": "a caution" },',
+  '    { "type": "code", "text": "a command, query, file path list, configuration or code snippet, copied exactly with its line breaks and indentation" }',
   '  ],',
   '  "review_notes": ["short notes for the person reviewing this import"]',
   '}',
@@ -32,7 +33,7 @@ const OUTPUT_FORMAT = [
   'Rules for the format:',
   '- Header levels are 1 to 5. The first header must be level 1, and a header may only be one level deeper than the header before it.',
   '- Step numbers start at 1 for each separate procedure and go up by 1 within it.',
-  '- If the text itself needs a literal * _ [ ] < > or backslash, put a backslash in front of it.',
+  '- If the text itself needs a literal * _ [ ] < > or backslash, put a backslash in front of it. Do not do this inside a "code" block: its text is plain and copied exactly.',
   '- "review_notes" lists everything a person should check: gaps, guesses, omitted images, names replaced by job titles, anything out of date. Use an empty array only if there is genuinely nothing to check.'
 ].join('\n');
 
@@ -132,6 +133,9 @@ function cleanResult(raw) {
         return { type: 'header', level: Math.min(5, Math.max(1, parseInt(block.level, 10) || 1)), text: text };
       case 'step':
         return { type: 'step', number: Math.max(1, parseInt(block.number, 10) || 1), title: asText(block.title), text: text };
+      case 'code':
+        // Code keeps its indentation, so it is not trimmed like other text
+        return { type: 'code', text: typeof block.text === 'string' ? block.text.replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '') : '' };
       case 'paragraph':
       case 'note':
       case 'warning':
