@@ -1148,7 +1148,7 @@
     body > *:not(#print-view) { display: none !important; }
     #print-view {
       display: block;
-      color: #111;
+      color: #1b1b3a;
       font-size: 11pt;
       line-height: 1.55;
       -webkit-print-color-adjust: exact;
@@ -1157,6 +1157,7 @@
     #print-view h1, #print-view h2, #print-view h3, #print-view h4, #print-view h5, #print-view h6 {
       margin: 0;
       font-weight: 700;
+      color: #000f60;
       break-after: avoid;
     }
     .print-title { margin-bottom: 10pt !important; font-size: 28pt; line-height: 1.15; letter-spacing: -0.01em; }
@@ -1176,7 +1177,7 @@
       width: 20pt;
       height: 20pt;
       border-radius: 50%;
-      background: #111;
+      background: #0069dc;
       color: #fff;
       font-size: 10pt;
       font-weight: 700;
@@ -1186,6 +1187,6 @@
     .print-step-title { margin-bottom: 2pt !important; font-size: 12.5pt; }
     .print-callout { margin: 0 0 12pt; padding: 8pt 10pt; border-left: 4pt solid; border-radius: 3pt; break-inside: avoid; }
     .print-callout strong { display: block; margin-bottom: 2pt; }
-    .print-note { background: #fff6d6; border-color: #e0b400; }
-    .print-warning { background: #fde8e6; border-color: #c62828; }
+    .print-note { background: #eaf2fd; border-color: #0069dc; }
+    .print-warning { background: #fdecea; border-color: #c62828; }
   }

@@ -162,6 +162,12 @@ included.
 - If the library cannot load, Export PDF falls back to the browser's print window (choose Save as PDF);
   the print layout is the `@media print` section at the end of `styles.css`. Ctrl/Cmd+P always gives that
   clean print copy.
+- **Look:** Planet DDS branding. The supplied logo (vector) sits in a pale lavender band on the first page,
+  headings are logo navy (#000F60), accents and step numbers are logo blue (#0069DC), notes have a blue
+  edge and warnings a red one, and every page has a small "Planet DDS" footer with the page number. The
+  colors, the logo SVG and the band size are the `PDF_*` constants above `buildPdfDefinition` in `app.js`.
+  The PDF uses Roboto, the font that ships with the library; the website's own typeface is not embedded.
+  To use it, add its font files to pdfmake and set `defaultStyle.font`.
 - To change how the PDF looks, edit `buildPdfDefinition` and the `pdf*` helpers next to it.
 
 Pasting plain text into **Paste draft text** does not need `[TITLE]` or any headings: text that is not in
