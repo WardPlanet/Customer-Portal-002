@@ -121,7 +121,7 @@ Pasted text is sent as `pasted-text.txt` and kept in the box if the import fails
 
 - Word files are converted to simple HTML on the server (images become an "[image omitted]" marker and a
   reviewer note). PDFs are sent to Claude as a PDF. Old `.doc` files are refused with a message.
-- The AI follows `guidelines/import-guidelines.md`. That file is where the house rules live (how steps,
+- The AI follows `guidelines/style-guide.md` (how all text is written) and `guidelines/import-guidelines.md`. The latter is where the import rules live (how steps,
   notes and warnings are used, replacing people's names with job titles, what to leave out). It is read on
   every import, so edit it and re-import to see the effect. Add a rule whenever the AI repeats a mistake.
 - The reply format is fixed in `importer.js` (`OUTPUT_FORMAT`) and read in `app.js`
@@ -133,6 +133,23 @@ Pasted text is sent as `pasted-text.txt` and kept in the box if the import fails
 - The original file name is kept in the draft as `[SOURCE FILE]`, so every page can be traced back.
 - Limits: PDFs up to 20 MB, text up to about 200,000 characters, one file at a time. Longer documents
   need splitting. There is no batch import yet.
+
+## Style guide
+
+`guidelines/style-guide.md` is the writing and formatting standard for every AI feature: imports, pasted
+text, AI assist (page scan) and the per-section suggestions. It covers names and terms (written the same
+everywhere, never in quotation marks), buttons and menus (bold in description and Text blocks, exact
+on-screen wording elsewhere), sentence-case headings, voice, punctuation, numbers and dates, lists and links.
+Search keywords are not styled by it.
+
+- It is plain text, read on every request, so edits apply immediately. Add a rule whenever the AI repeats a
+  style mistake.
+- It names the **Microsoft Writing Style Guide** as the fallback where it says nothing. That is an
+  assumption: change the line if the company uses a different guide.
+- The starter list of official names (Planet DDS, Denticon, Cloud 9, DentalOS, Apteryx, Artemis) needs
+  checking and extending by someone who knows the correct spellings.
+- On the server, `/api/ai/json` puts the guide in front of 'default'-tier prompts and `importer.js` builds it
+  into the import prompt. In the artifact build the same text is embedded (`window.STYLE_PREAMBLE`).
 
 ## Two ways to run it: server and Claude artifact
 

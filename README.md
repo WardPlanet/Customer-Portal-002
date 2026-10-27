@@ -40,7 +40,9 @@ variables take priority). `.env.example` documents each one.
 | `ai.js` | The only code that talks to the Anthropic API (models, errors, JSON replies). |
 | `importer.js` | Reads an uploaded document and asks the AI to turn it into a standard page. |
 | `config.js` | Loads the optional `.env` file. |
-| `guidelines/import-guidelines.md` | Plain-text rules for how imported documents are standardized. Edit freely; takes effect on the next import. |
+| `guidelines/style-guide.md` | The writing and formatting standard every AI feature follows (names, capitalization, quotation marks, punctuation). Edit freely; takes effect on the next AI request. |
+| `guidelines/import-guidelines.md` | Plain-text rules for how imported documents become pages. Edit freely; takes effect on the next import. |
+| `guidelines.js` | Reads the two guideline files on every request. |
 | `index.html`, `styles.css`, `app.js` | The editor. Plain HTML, CSS and JavaScript, served as is. |
 | `drafts/` | Saved drafts, one `.txt` per page. Created on first save. Not in git. |
 

@@ -1425,6 +1425,18 @@
     // Both give back an object with json(prompt, { modelTier, signal }).
     var aiMode = null;
     var aiStatusCheck = null;
+
+    // Claude's built-in AI has no server in front of it, so the style guide (built into the page as
+    // window.STYLE_PREAMBLE) is put in front of the prompt here. The server does the same for its AI.
+    // Keyword requests ('quick') and the import, which carries the guide itself, skip it.
+    function styledSample(sample) {
+      return {
+        json: function (prompt, options) {
+          var addGuide = options.modelTier === 'default' && !options.skipStyleGuide && window.STYLE_PREAMBLE;
+          return sample.json(addGuide ? window.STYLE_PREAMBLE + prompt : prompt, { modelTier: options.modelTier, signal: options.signal });
+        }
+      };
+    }
     function getSample() {
       if (!aiStatusCheck) {
         aiStatusCheck = fetch('/api/ai/status')
@@ -1438,7 +1450,7 @@
             if (window.claude && typeof window.claude.use === 'function') {
               return window.claude.use('sample').then(function (sample) {
                 if (sample) { aiMode = 'claude'; }
-                return sample;
+                return sample ? styledSample(sample) : null;
               }).catch(function () { return null; });
             }
             return null;
@@ -1486,6 +1498,7 @@
         '- Do not invent facts, numbers, names, systems or policies that are not on the page. If a rewrite would need a fact only the author knows, keep the original wording for that part instead of guessing.',
         '- If Visibility is Client-Safe, also flag wording that only makes sense for internal staff.',
         '- Keep the author\u2019s voice and keep edits short.',
+        '- Text that breaks the style guide above (names in quotation marks, inconsistent capitalization, wrong formatting) is worth a suggestion, and every replacement you write must follow it.',
         '',
         'Reply with ONLY a JSON array (no other text). Each item is an object:',
         '{"target": "title" | "description" | "block N", "title": "...", "text": "...", "reason": "..."}',
@@ -1802,6 +1815,7 @@
         '',
         'Rules:',
         '- Keep the meaning and the author\u2019s voice, and keep it short. Fix typos and unclear wording. Add detail only when the rest of the page already supports it.',
+        '- Make the section follow the style guide above (names, capitalization, quotation marks, formatting), not just read more clearly.',
         '- Do not invent facts, numbers, names, systems or policies that are not on the page. If the rewrite would need a fact only the author knows, keep the original wording for that part.',
         '- If Visibility is Client-Safe, avoid wording that only makes sense for internal staff.',
         '- A title is a single plain-text line. A description or text block may use **bold**, _italic_, lines starting with "- " for bullets and "1. " for numbers.',
@@ -2019,7 +2033,7 @@
 
       var prompt = window.IMPORT_INSTRUCTIONS + NL + NL + 'The document to convert is "' + file.name + '".' +
         NL + NL + '<document>' + NL + text + NL + '</document>';
-      var result = cleanImportResult(await sample.json(prompt, { modelTier: 'default' }), file.name);
+      var result = cleanImportResult(await sample.json(prompt, { modelTier: 'default', skipStyleGuide: true }), file.name);
       if (!result.title && !result.blocks.length) {
         throw importProblem('The AI did not find any page content in that text.');
       }

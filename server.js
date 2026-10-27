@@ -13,6 +13,7 @@ import express from 'express';
 import { here } from './config.js';
 import { AiError, askForJson, hasApiKey } from './ai.js';
 import { importDocument } from './importer.js';
+import { readStyleGuide, stylePreamble } from './guidelines.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -134,6 +135,14 @@ app.post('/api/ai/json', async function (req, res) {
     return sendError(res, 400, 'bad_request', 'Send a prompt (text) and a modelTier of default or quick.');
   }
   try {
+    // Suggestions and rewrites are written in house style. Keyword requests (tier 'quick') are not.
+    if ((req.body.modelTier || 'default') === 'default') {
+      var styleGuide = await readStyleGuide().catch(function (error) {
+        console.error(error.message);   // still answer, just without the style guide
+        return '';
+      });
+      if (styleGuide) { prompt = stylePreamble(styleGuide) + prompt; }
+    }
     res.json({ result: await askForJson(prompt, req.body.modelTier) });
   } catch (error) {
     sendAiError(res, error);

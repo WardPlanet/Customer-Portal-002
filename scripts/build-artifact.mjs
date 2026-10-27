@@ -1,7 +1,7 @@
 // Builds dist/page-editor-artifact.html: the whole editor in one file, for publishing as a Claude
 // artifact (no server there). Run with:  npm run build:artifact
 //
-// It inlines styles.css, app.js and the PDF library, and builds in the import instructions (guidelines plus output
+// It inlines styles.css, app.js and the PDF library, and builds in the import instructions and style guide (guidelines plus output
 // format) from importer.js, so the artifact imports pasted text exactly as the server would.
 // In the artifact the AI is Claude's built-in AI, and saving drafts goes through Claude's download.
 
@@ -9,6 +9,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { here } from '../config.js';
 import { buildInstructions } from '../importer.js';
+import { stylePreamble } from '../guidelines.js';
 
 async function read(...parts) {
   return fs.readFile(path.join(here, ...parts), 'utf8');
@@ -23,6 +24,7 @@ const html = await read('index.html');
 const css = await read('styles.css');
 const app = await read('app.js');
 const guidelines = await read('guidelines', 'import-guidelines.md');
+const styleGuide = await read('guidelines', 'style-guide.md');
 
 // The PDF library is embedded as inert text and only run when someone clicks Export PDF
 const pdfCore = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'pdfmake.min.js'), 'utf8');
@@ -31,7 +33,10 @@ const pdfLibrary =
   '<script type="text/plain" id="pdf-lib-core">\n' + safeForScript(pdfCore) + '\n</script>\n' +
   '<script type="text/plain" id="pdf-lib-fonts">\n' + safeForScript(pdfFonts) + '\n</script>\n';
 
-const instructions = 'window.IMPORT_INSTRUCTIONS = ' + safeForScript(JSON.stringify(buildInstructions(guidelines))) + ';';
+// IMPORT_INSTRUCTIONS is the full import prompt; STYLE_PREAMBLE is put in front of the AI assist prompts
+const instructions =
+  'window.IMPORT_INSTRUCTIONS = ' + safeForScript(JSON.stringify(buildInstructions(guidelines, styleGuide))) + ';\n' +
+  'window.STYLE_PREAMBLE = ' + safeForScript(JSON.stringify(stylePreamble(styleGuide))) + ';';
 
 const linkTag = '<link rel="stylesheet" href="styles.css">';
 const scriptTag = '<script src="app.js"></script>';
