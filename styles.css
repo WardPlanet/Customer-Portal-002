@@ -801,6 +801,29 @@
   .remove-block:hover,
   .remove-block:focus-visible { background: var(--danger); color: #fff; }
 
+  /* The small red x on a code snippet inside a step */
+  .remove-snippet {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    background: var(--surface);
+    border: 1px solid var(--danger);
+    border-radius: 50%;
+    color: var(--danger);
+    opacity: 0;
+  }
+  .step-code:hover > .remove-snippet,
+  .step-code:focus-within > .remove-snippet,
+  .remove-snippet:focus-visible { opacity: 1; }
+  .remove-snippet:hover,
+  .remove-snippet:focus-visible { background: var(--danger); color: #fff; }
+  .remove-snippet svg { width: 10px; height: 10px; }
+
   /* ---------- Add-block menu + optional content blocks ---------- */
   .block-menu {
    position: fixed;
@@ -904,6 +927,12 @@
   .code-block:focus-within > .copy-code,
   .copy-code:focus-visible { opacity: 1; }
   .copy-code:hover { color: var(--accent-text); border-color: var(--accent-border); }
+
+  /* A snippet inside a step */
+  .step-code { position: relative; margin-top: 8px; }
+  .step-code .copy-code { top: 8px; right: 12px; }
+  .step-code:hover > .copy-code,
+  .step-code:focus-within > .copy-code { opacity: 1; }
 
   .block-callout {
     margin: 0;
@@ -1009,6 +1038,8 @@
   .step-actions .step-warning:hover { border-color: var(--danger); }
   .step-actions .step-note { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-icon); }
   .step-actions .step-note:hover { border-color: var(--warn-icon); }
+  .step-actions .step-code-add { background: var(--code-bg); border-color: var(--border-strong); color: var(--text-muted); }
+  .step-actions .step-code-add:hover { border-color: var(--text-muted); color: var(--text); }
   .step-actions svg { width: 13px; height: 13px; }
 
   .link-popover {

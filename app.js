@@ -53,6 +53,11 @@
       return el.innerText.replace(/\r/g, '').trim();
     }
 
+    // Code keeps its indentation: only blank lines at the very start and end are dropped
+    function tidyCode(text) {
+      return typeof text === 'string' ? text.replace(/\r/g, '').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '') : '';
+    }
+
     function initials(name) {
       var parts = name.trim().split(/\s+/).filter(Boolean);
       if (!parts.length) { return '?'; }
@@ -94,7 +99,7 @@
 
     function buildBlockElement(type, values) {
       return type === 'step'
-        ? buildStepBlock(values.title, values.text)
+        ? buildStepBlock(values.title, values.text, values.code)
         : buildTextBlock(type, values.text, values.level);
     }
 
@@ -361,7 +366,8 @@
             type: 'step',
             number: Number(block.querySelector('.step-number').textContent),
             title: readText(block.querySelector('.step-title')),
-            text: readText(block.querySelector('.step-text'))
+            text: readText(block.querySelector('.step-text')),
+            code: stepCodeTexts(block)
           };
         }
         var type = Object.keys(TEXT_BLOCKS).filter(function (key) {
@@ -373,7 +379,7 @@
       });
     }
 
-    function buildStepBlock(title, text) {
+    function buildStepBlock(title, text, codes) {
       var block = document.createElement('div');
       block.className = 'block step-block';
 
@@ -399,11 +405,73 @@
 
       body.appendChild(heading);
       body.appendChild(paragraph);
+      (codes || []).forEach(function (code) { body.appendChild(buildStepCode(code)); });
       block.appendChild(number);
       block.appendChild(body);
       return block;
     }
 
+    /* ---------- Code snippets inside a step ----------
+       A step can hold any number of plain-text code snippets, shown under its text. They are part of
+       the step (saved as BLOCK n STEP CODE k), unlike the separate Code block. */
+    function buildStepCode(text) {
+      var wrap = document.createElement('div');
+      wrap.className = 'step-code';
+
+      var field = document.createElement('pre');
+      field.className = 'block-code';
+      field.contentEditable = CODE_EDITABLE;
+      field.spellcheck = false;
+      field.setAttribute('data-code', '');
+      field.setAttribute('data-placeholder', 'Paste or type code');
+      field.textContent = text || '';
+
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'remove-snippet';
+      remove.setAttribute('aria-label', 'Remove this code snippet');
+      remove.title = 'Remove this code snippet';
+      remove.innerHTML = CLOSE_ICON;
+      remove.addEventListener('click', function () {
+        wrap.remove();
+        markDirty();
+        refreshOutline();
+      });
+
+      wrap.appendChild(field);
+      wrap.appendChild(createCopyButton(field));
+      wrap.appendChild(remove);
+      return wrap;
+    }
+
+    function stepCodeTexts(stepBlock) {
+      return Array.prototype.map.call(stepBlock.querySelectorAll('.step-code .block-code'), readText);
+    }
+
+    // The step that was being edited most recently, so "+ Code Snippet" knows which step to use
+    var lastActiveStep = null;
+    document.addEventListener('focusin', function (event) {
+      var step = event.target.closest && event.target.closest('.step-block');
+      if (step) { lastActiveStep = step; }
+    });
+
+    // Adds a snippet to a step in the section above this button row: the step being edited if it is
+    // one of them, otherwise the last step of the section
+    function addCodeToStepAbove(row) {
+      var steps = [];
+      var node = row.previousElementSibling;
+      while (node && node.classList.contains('step-block')) {
+        steps.unshift(node);
+        node = node.previousElementSibling;
+      }
+      if (!steps.length) { return; }
+
+      var target = steps.indexOf(lastActiveStep) >= 0 ? lastActiveStep : steps[steps.length - 1];
+      var snippet = buildStepCode('');
+      target.querySelector('.step-text').parentNode.appendChild(snippet);
+      markDirty();
+      snippet.querySelector('.block-code').focus();
+    }
     function readSteps() {
       return stepBlocks().map(function (block) {
         return {
@@ -433,6 +501,7 @@
     var CLOSE_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
     var NOTE_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5M12 8h.01"/></svg>';
+    var CODE_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>';
     var WARNING_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>';
 
     function createInserter(allowedTypes) {
@@ -484,6 +553,8 @@
       });
       addAction('Warning', 'step-warning', WARNING_ICON, function () { addCalloutBelow(row, 'warning'); });
       addAction('Note', 'step-note', NOTE_ICON, function () { addCalloutBelow(row, 'note'); });
+      addAction('Code Snippet', 'step-code-add', CODE_ICON, function () { addCodeToStepAbove(row); });
+      row.lastChild.title = 'Add a code snippet inside the step you were editing (or the last step in this section)';
       return row;
     }
 
@@ -841,6 +912,7 @@
           section(prefix + 'STEP NUMBER', [String(block.number)]);
           section(prefix + 'STEP TITLE', textLines(block.title));
           section(prefix + 'STEP TEXT', textLines(block.text));
+          block.code.filter(Boolean).forEach(function (code, i) { section(prefix + 'STEP CODE ' + (i + 1), textLines(code)); });
         } else if (block.type === 'header') {
           section(prefix + 'HEADER ' + block.level, textLines(block.text));
         } else {
@@ -894,11 +966,21 @@
     }
 
     // Turns the BLOCK n ... sections (or the older STEP n ... sections) into an ordered list of blocks
+    // The k in each "BLOCK n STEP CODE k" section of one step, in order
+    function stepCodeNumbers(sections, prefix) {
+      var numbers = [];
+      Object.keys(sections).forEach(function (name) {
+        var match = /^STEP CODE ([0-9]+)$/.exec(name.slice(prefix.length));
+        if (name.indexOf(prefix) === 0 && match) { numbers.push(Number(match[1])); }
+      });
+      return numbers.sort(function (a, b) { return a - b; });
+    }
+
     function readDraftBlocks(sections, body) {
       var blocks = [];
       var numbers = {};
       Object.keys(sections).forEach(function (name) {
-        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|STEP TITLE|STEP TEXT|STEP NUMBER)$/.exec(name);
+        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|STEP TITLE|STEP TEXT|STEP NUMBER|STEP CODE [0-9]+)$/.exec(name);
         if (match) { numbers[Number(match[1])] = true; }
       });
 
@@ -923,7 +1005,10 @@
             type: 'step',
             number: parseInt(body(prefix + 'STEP NUMBER'), 10),
             title: body(prefix + 'STEP TITLE'),
-            text: body(prefix + 'STEP TEXT')
+            text: body(prefix + 'STEP TEXT'),
+            code: stepCodeNumbers(sections, prefix).map(function (k) {
+              return tidyCode(sections[prefix + 'STEP CODE ' + k].join(NL));
+            }).filter(Boolean)
           });
         }
       });
@@ -1523,7 +1608,8 @@
       readBlocks().forEach(function (block, index) {
         var label = 'block ' + (index + 1) + ', ' + block.type;
         if (block.type === 'step') {
-          lines.push('[' + label + ', numbered ' + block.number + '] title: ' + block.title + ' | text: ' + block.text);
+          lines.push('[' + label + ', numbered ' + block.number + '] title: ' + block.title + ' | text: ' + block.text
+            + (block.code.length ? ' | has ' + block.code.length + ' code snippet(s): never suggest changes to them' : ''));
         } else if (block.type === 'header') {
           lines.push('[' + label + ', level ' + block.level + '] ' + block.text);
         } else if (block.type === 'code') {
@@ -1844,7 +1930,8 @@
 
     function isSectionFilled(host) {
       if (host.classList.contains('step-block')) {
-        return readText(host.querySelector('.step-title')) !== '' || readText(host.querySelector('.step-text')) !== '';
+        return readText(host.querySelector('.step-title')) !== '' || readText(host.querySelector('.step-text')) !== ''
+          || stepCodeTexts(host).some(Boolean);
       }
       return readText(host.querySelector('[contenteditable]')) !== '';
     }
@@ -1993,6 +2080,7 @@
           sections[prefix + 'STEP NUMBER'] = [String(block.number)];
           sections[prefix + 'STEP TITLE'] = lines(block.title);
           sections[prefix + 'STEP TEXT'] = lines(block.text);
+          block.code.forEach(function (code, i) { sections[prefix + 'STEP CODE ' + (i + 1)] = lines(code); });
         } else if (block.type === 'header') {
           sections[prefix + 'HEADER ' + block.level] = lines(block.text);
         } else {
@@ -2033,10 +2121,16 @@
           case 'header':
             return { type: 'header', level: Math.min(5, Math.max(1, parseInt(block.level, 10) || 1)), text: text };
           case 'step':
-            return { type: 'step', number: Math.max(1, parseInt(block.number, 10) || 1), title: asText(block.title), text: text };
+            return {
+              type: 'step',
+              number: Math.max(1, parseInt(block.number, 10) || 1),
+              title: asText(block.title),
+              text: text,
+              code: (Array.isArray(block.code) ? block.code : []).map(tidyCode).filter(Boolean)
+            };
           case 'code':
             // Code keeps its indentation
-            return { type: 'code', text: typeof block.text === 'string' ? block.text.replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '') : '' };
+            return { type: 'code', text: tidyCode(block.text) };
           case 'paragraph':
           case 'note':
           case 'warning':
@@ -2044,7 +2138,7 @@
           default:
             return null;
         }
-      }).filter(function (block) { return block && (block.text || block.title); });
+      }).filter(function (block) { return block && (block.text || block.title || (block.code && block.code.length)); });
 
       return {
         title: asText(raw && raw.title),
@@ -2196,7 +2290,7 @@
       if (description) { printView.appendChild(printRichText(description)); }
 
       readBlocks().forEach(function (block) {
-        if (!block.text && !block.title) { return; }
+        if (!block.text && !block.title && !(block.code && block.code.length)) { return; }
 
         if (block.type === 'header') {
           // The page title is the top heading, so header level 1 is printed as h2
@@ -2209,6 +2303,7 @@
           var body = printElement('div', 'print-step-body');
           if (block.title) { body.appendChild(printElement('h3', 'print-step-title', block.title)); }
           if (block.text) { body.appendChild(printElement('p', 'print-plain', block.text)); }
+          block.code.filter(Boolean).forEach(function (code) { body.appendChild(printElement('pre', 'print-code', code)); });
           step.appendChild(body);
           printView.appendChild(step);
         } else if (block.type === 'code') {
@@ -2376,7 +2471,8 @@
           },
           { width: '*', stack: [].concat(
             block.title ? [{ text: block.title, bold: true, fontSize: 12, color: PDF_COLORS.navy, margin: [0, 1, 0, 2] }] : [],
-            block.text ? [{ text: block.text }] : []
+            block.text ? [{ text: block.text }] : [],
+            block.code.filter(Boolean).map(function (code) { var box = pdfCode(code); box.margin = [0, 4, 0, 2]; return box; })
           ) }
         ],
         columnGap: 4,
@@ -2400,7 +2496,7 @@
       if (description) { content = content.concat(pdfRichText(description)); }
 
       readBlocks().forEach(function (block) {
-        if (!block.text && !block.title) { return; }
+        if (!block.text && !block.title && !(block.code && block.code.length)) { return; }
         if (block.type === 'header') {
           content.push({ text: block.text, bold: true, color: PDF_COLORS.navy, fontSize: PDF_HEADER_SIZES[block.level - 1] || 11, margin: [0, 14, 0, 6], headlineLevel: block.level });
         } else if (block.type === 'paragraph') {
@@ -2466,7 +2562,7 @@
 
     var isExporting = false;
     byId('export-pdf').addEventListener('click', async function () {
-      var hasContent = readText(titleEl) || readText(descriptionEl) || readBlocks().some(function (block) { return block.text || block.title; });
+      var hasContent = readText(titleEl) || readText(descriptionEl) || readBlocks().some(function (block) { return block.text || block.title || (block.code && block.code.length); });
       if (!hasContent) {
         showNotice('There is nothing to export yet.');
         return;

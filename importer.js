@@ -22,7 +22,7 @@ const OUTPUT_FORMAT = [
   '  "blocks": [',
   '    { "type": "header", "level": 1, "text": "section heading" },',
   '    { "type": "paragraph", "text": "free text, same inline markup as summary" },',
-  '    { "type": "step", "number": 1, "title": "short step title", "text": "step detail, same inline markup" },',
+  '    { "type": "step", "number": 1, "title": "short step title", "text": "step detail, same inline markup", "code": ["optional: a command or snippet that belongs to this step, copied exactly"] },',
   '    { "type": "note", "text": "a tip or aside" },',
   '    { "type": "warning", "text": "a caution" },',
   '    { "type": "code", "text": "a command, query, file path list, configuration or code snippet, copied exactly with its line breaks and indentation" }',
@@ -120,6 +120,11 @@ export function buildInstructions(guidelines, styleGuide) {
   ].join('\n');
 }
 
+// Code keeps its indentation: only blank lines at the very start and end are dropped
+function tidyCode(text) {
+  return typeof text === 'string' ? text.replace(/\r/g, '').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '') : '';
+}
+
 function asText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -132,10 +137,16 @@ function cleanResult(raw) {
       case 'header':
         return { type: 'header', level: Math.min(5, Math.max(1, parseInt(block.level, 10) || 1)), text: text };
       case 'step':
-        return { type: 'step', number: Math.max(1, parseInt(block.number, 10) || 1), title: asText(block.title), text: text };
+        return {
+          type: 'step',
+          number: Math.max(1, parseInt(block.number, 10) || 1),
+          title: asText(block.title),
+          text: text,
+          code: (Array.isArray(block.code) ? block.code : []).map(tidyCode).filter(Boolean)
+        };
       case 'code':
         // Code keeps its indentation, so it is not trimmed like other text
-        return { type: 'code', text: typeof block.text === 'string' ? block.text.replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '') : '' };
+        return { type: 'code', text: tidyCode(block.text) };
       case 'paragraph':
       case 'note':
       case 'warning':
@@ -144,7 +155,7 @@ function cleanResult(raw) {
         return null;
     }
   }).filter(function (block) {
-    return block && (block.text || block.title);
+    return block && (block.text || block.title || (block.code && block.code.length));
   });
 
   return {

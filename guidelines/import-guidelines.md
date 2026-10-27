@@ -30,7 +30,9 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
 - Lists that are not a procedure stay as bullet lists inside a Text block.
 - Commands, queries, scripts, configuration, file contents and anything the reader is meant to copy and
   type or paste go in a Code block, copied exactly: same characters, same line breaks, same indentation.
-  Never reword, reformat, fix or style code. A short name inside a sentence (a file or setting name) stays
+  A command or snippet that belongs to a step goes in that step's "code" list, so it stays inside the step.
+  Only a snippet that is not tied to one step becomes a separate Code block. Never reword, reformat, fix
+  or style code. A short name inside a sentence (a file or setting name) stays
   in the sentence.
 
 ## People and contact details
