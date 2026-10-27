@@ -90,7 +90,7 @@ refreshes the outline. Call it after any structural change.
   required but is filled in automatically, see below. With no roster, for example the page opened from
   disk with no server, there is nobody to choose, so Owner and Reviewer do not block saving.) The first
   step on the page carries the red `*`.
-- Save draft, Submit to Draft and AI assist (toolbar) stay greyed out until all are filled in.
+- Save draft, Submit for review and AI assist (toolbar) stay greyed out until all are filled in.
   Clicking a greyed button outlines what is missing.
 
 **Adding and removing**
@@ -154,8 +154,8 @@ new person, with no page edits and no restart.
   (now `["Websites"]`, so it is selected automatically). There is no free-text "+ Add" any more: new
   locations are added to the roster file. Older drafts with other locations open as the team's first one.
 - Only first names were given for four people; add surnames to the roster file when you have them.
-- Saved drafts live in `drafts/legwork-web-team/` (one folder per team). Drafts saved before teams existed
-  are moved there automatically when the server starts.
+- Pages live in `drafts/legwork-web-team/pages/` (one folder per team). Older single-file drafts are moved
+  there and turned into pages automatically when the server starts.
 - The roster is served at `GET /api/team`. In the Claude artifact it is built into the page by
   `npm run build:artifact`, so republish after changing the roster.
 - The AI is given the roster, so when a document or a rewrite names one of these people it writes their job
@@ -215,7 +215,7 @@ The same `app.js` runs in two places and picks its AI automatically:
 - **As a Claude artifact** (no server, no API key): `npm run build:artifact` writes
   `dist/page-editor-artifact.html`, one self-contained file with the stylesheet, the script and the import
   instructions built in. In it the AI is Claude's built-in AI, import takes pasted text and .pdf, .txt and .md
-  files (not Word), and Save draft goes through Claude's download. PDFs are read in the browser with pdf.js
+  files (not Word), and the library keeps its pages in this browser's storage (same rules, no server). PDFs are read in the browser with pdf.js
   (embedded, run only when a PDF is chosen), so a scanned PDF with no selectable text is refused there; on the
   server a PDF goes to Claude as a PDF, which can read scans. Publish it with the Artifact tool using the
   capabilities `sample` and `downloads`. The current copy is at
@@ -247,9 +247,66 @@ included.
 Pasting plain text into **Import document** does not need `[TITLE]` or any headings: text that is not in
 the saved-draft format is sent to the AI to be sorted into a page.
 
+## The library, versions and review
+
+The app now opens on the **library**: every page in the team, with its status, owner role, visibility and last
+change. Everything (library, page history, reading, the editor) is one single-page app with `#/` routes, so it
+is also one file in the artifact build.
+
+| Route | Screen |
+| --- | --- |
+| `#/` | Library: list, status filter, search of live pages, and (for the lead) a "Needs your review" box |
+| `#/page/<id>` | One page: status, owner, and the **version history** with the buttons each person may use |
+| `#/new`, `#/edit/<id>/<n>` | The editor (blank, or on a version that can still be edited) |
+| `#/view/<id>/<n>` | The editor locked, for reading a version. The lead sees Approve / Send back here |
+| `#/public`, `#/public/<id>` | **Public preview**: only live, Client-Safe pages, with nothing about owners or reviewers |
+
+**Versions.** A page has a permanent id and numbered versions (v1, v2, ...). Only a *draft* (or a version
+*sent back*) can be edited. A page has at most one **live** version. Editing a live page makes a new draft copy;
+the live version stays up until the new one is approved, which replaces it (the old one becomes "Replaced" and
+stays in the history). Restoring an old version makes a new draft, which needs approval like any edit.
+
+| Version status | Meaning |
+| --- | --- |
+| Draft | Being written. Editable. |
+| In review (submitted) | Waiting for the team lead. Not editable; the author or lead can withdraw it. |
+| Sent back | The lead asked for changes (with a required note). Editable; submit again. |
+| Live (approved) | The one version everyone reads and searches. |
+| Replaced | A live version that a newer approval replaced. History only. |
+| Unpublished | The lead pulled it down. History only. |
+
+**Who may do what.** Anyone on the team: create pages, edit drafts, submit, withdraw their own submission,
+restore. The **team lead only** (Web Team Manager, currently Micah): approve, send back, unpublish. Submitting
+needs a title, description, owner role and at least one step title. These rules are in one file,
+`workflow.cjs`, used by both the server and the artifact build, with unit tests in `tests/` (`npm test`).
+
+**Search and the public site only see the live version.** There is one search entry per page, built from the
+live version. Drafts, versions in review and old versions never get an entry, so their text cannot be found
+(the tests prove this). The two audiences: staff see every live page, the public sees live Client-Safe pages.
+Changing a live page to Internal-Only takes it off the public site only when that version is approved; the
+lead can **Unpublish** at once if it must come down immediately. The public API strips ownership, roles,
+reviewer, keywords, location and source file from the page text. The search itself is a simple word match
+over those entries; the real search engine (Azure AI Search) replaces it later and should be fed the same
+entries.
+
+**Acting as (stand-in for login).** There is no login yet. The "Acting as" menu (top right) chooses which
+person is using the app, and the server trusts it, so anyone can claim to be anyone. It exists so the
+workflow can be tried as Scott (writes) and as Micah (reviews). Microsoft Entra ID replaces it, mapping each
+signed-in person to the roles they hold. Everything that checks "who" already goes through that one person.
+
+**Where pages live.** On the server: `drafts/<team>/pages/<id>/page.json` (the page and the facts about each
+version) plus `v1.txt`, `v2.txt` ... (each version's text in the draft format). In the artifact: this
+browser's storage (so pages exist only in that browser; clearing it loses them). API: `/api/library/...`
+(staff, needs the `X-Acting-As` header) and `/api/public/...` (no login, live Client-Safe only); see
+`library.js`.
+
+**Not built yet:** comparing two versions, comments from other staff, email/notifications, several teams in
+the library (the data is team-aware but only one team exists), per-person limits on who may open old
+versions, and login.
+
 ## Draft file format (plain text, FORMAT 2)
 
-Save draft writes this; Open draft and Import document (pasted text) read it. Everything before the first
+Each version of a page is stored in this format; Import document (pasted text) can also read it. Everything before the first
 `[SECTION]` heading is ignored.
 
 ```
@@ -356,24 +413,17 @@ disk behaves the same way.
 - The prompts (`buildAiPrompt`, `buildSectionPrompt`, `buildKeywordPrompt`) and JSON contracts are
   unchanged: an array of `{ target, title?, text, reason }` for the page scan, one object for a section,
   and an array of 10 strings for keywords.
-- Drafts are saved on the server as plain `.txt` files in the `drafts/` folder next to `server.js`
-  (git-ignored; set `DRAFTS_DIR` to store them elsewhere). The file name comes from the page title, so
-  saving a page with the same title replaces the earlier draft. Endpoints: `GET /api/drafts` (list),
-  `GET /api/drafts/:name`, `PUT /api/drafts/:name` (text/plain body). Names must look like
-  `some-title-draft.txt`; anything else is rejected.
-- **Open draft** shows the saved drafts on the server. "Open a file instead" still works. There is no
-  separate "Paste draft text" button: paste into **Import document** instead. Plain text is sorted by the AI;
-  text in the saved-draft format (it has `[TITLE]` and similar headings) loads exactly as saved, with no AI. With no server (page opened from disk), Save draft downloads a file and Open draft uses the file
-  picker.
-- There is no login, so anyone who can reach the server can read and overwrite every draft.
+- Pages and their versions are stored by the server as files (see **The library** below). There is no
+  separate "Paste draft text" button: paste into **Import document**. Plain text is sorted by the AI; text in
+  the saved-draft format (it has `[TITLE]` and similar headings) loads exactly as saved, with no AI.
+- There is no real login yet (see **The library**), so anyone who can reach the server can act as anyone.
 - For IT: this is one Node process (Node 20.12 or later) with one secret, `ANTHROPIC_API_KEY`. It has no
   login, so host it only where the people who can reach it are allowed to use the AI budget.
 
 ## Not built yet, or placeholders
 
 - Batch import, handling of images and screenshots, and page types other than Process Documentation.
-- **Submit to Draft** does nothing (it only highlights missing required fields).
-- **Leave without saving**, the toolbar **Paragraph** dropdown, and the toolbar **image** button
+- The toolbar **Paragraph** dropdown, and the toolbar **image** button
   are visual only.
 - **Search** does not exist yet. The `[KEYWORDS]` section is written to the file for it to use.
 - Sample content in Page Setup is still invented: the page types (Process Documentation, Policy,

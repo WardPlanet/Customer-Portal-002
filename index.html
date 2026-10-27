@@ -10,23 +10,47 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="app">
+
+<!-- Library: the list of pages, a page's history, and the public preview. Filled in by library-ui.js -->
+<div class="library" id="library-screen">
+  <header class="lib-top">
+    <div class="lib-top-left">
+      <span class="lib-brand">Wiki</span>
+      <nav class="lib-nav" aria-label="Sections">
+        <a href="#/" id="nav-library">Library</a>
+        <a href="#/public" id="nav-public">Public preview</a>
+      </nav>
+    </div>
+    <div class="acting" id="acting-slot-library"></div>
+  </header>
+  <main class="lib-main" id="lib-main"></main>
+  <p class="lib-notice" id="lib-notice" role="status"></p>
+</div>
+
+<!-- The editor (also used, locked, to read a page) -->
+<div class="app" id="editor-screen" hidden>
 
   <!-- Top bar -->
   <header class="topbar">
     <div class="topbar-left">
-      <button class="leave-btn" type="button">
+      <button class="leave-btn" type="button" id="leave-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        Leave without saving
+        Back to library
       </button>
       <span class="topbar-divider" aria-hidden="true"></span>
-      <span class="page-name">New Page</span>
+      <span class="page-name" id="page-name">New page</span>
     </div>
-    <div class="save-status is-unsaved" id="save-status" role="status">
-      <span class="save-dot" aria-hidden="true"></span>
-      <span id="save-status-text">Draft not saved yet</span>
+    <div class="topbar-right">
+      <div class="acting" id="acting-slot-editor"></div>
+      <div class="save-status is-unsaved" id="save-status" role="status">
+        <span class="save-dot" aria-hidden="true"></span>
+        <span id="save-status-text">Draft not saved yet</span>
+      </div>
     </div>
   </header>
+
+  <!-- Says what state this version is in and, when reading, what the reviewer can do -->
+  <div class="editor-banner" id="editor-banner" hidden></div>
 
   <main class="workspace">
 
@@ -115,7 +139,7 @@
     </section>
 
     <!-- Page setup -->
-    <aside class="setup" aria-label="Page setup">
+    <aside class="setup" id="editor-setup" aria-label="Page setup">
       <h2 class="section-label" style="margin: 0;">Page setup</h2>
 
       <div>
@@ -178,16 +202,14 @@
   <!-- Footer -->
   <footer class="footer">
     <div class="footer-group">
-      <button class="secondary-btn" type="button" id="open-draft">Open draft</button>
       <button class="secondary-btn" type="button" id="import-doc" title="Convert an existing document, or pasted text, into a page">Import document</button>
-      <input type="file" id="draft-file" accept=".txt,text/plain" hidden>
       <input type="file" id="import-file" accept=".docx,.pdf,.txt,.md" hidden>
     </div>
     <span class="footer-message" id="footer-message" role="status"></span>
     <div class="footer-group">
       <button class="secondary-btn" type="button" id="export-pdf" title="Save the page as a PDF: title, description and content only">Export PDF</button>
       <button class="secondary-btn" type="button" id="save-draft" aria-disabled="true">Save draft</button>
-      <button class="submit-btn" type="button" id="submit-draft" aria-disabled="true">Submit to Draft</button>
+      <button class="submit-btn" type="button" id="submit-draft" aria-disabled="true">Submit for review</button>
     </div>
   </footer>
 
@@ -245,22 +267,13 @@
 <!-- Clean copy of the page that is printed or saved as PDF; filled in by the script -->
 <div id="print-view" aria-hidden="true"></div>
 
-<dialog id="draft-dialog" class="draft-dialog" aria-labelledby="draft-dialog-title">
-  <h2 id="draft-dialog-title" class="dialog-title">Draft text</h2>
-  <p class="dialog-hint" id="draft-dialog-hint"></p>
-  <textarea id="draft-dialog-text" class="dialog-text" spellcheck="false" readonly aria-label="Draft text"></textarea>
+<dialog id="comment-dialog" class="draft-dialog" aria-labelledby="comment-dialog-title">
+  <h2 id="comment-dialog-title" class="dialog-title">Send back for changes</h2>
+  <p class="dialog-hint" id="comment-dialog-hint">Say what needs to change. The author sees this note.</p>
+  <textarea id="comment-dialog-text" class="dialog-text comment-text" aria-label="What needs to change"></textarea>
   <div class="dialog-actions">
-    <button class="secondary-btn" type="button" id="draft-dialog-close">Close</button>
-  </div>
-</dialog>
-
-<dialog id="drafts-dialog" class="draft-dialog" aria-labelledby="drafts-dialog-title">
-  <h2 id="drafts-dialog-title" class="dialog-title">Open a saved draft</h2>
-  <p class="dialog-hint" id="drafts-dialog-hint"></p>
-  <ul class="draft-list" id="drafts-list"></ul>
-  <div class="dialog-actions">
-    <button class="link-btn" type="button" id="drafts-dialog-file">Open a file instead</button>
-    <button class="secondary-btn" type="button" id="drafts-dialog-close">Close</button>
+    <button class="secondary-btn" type="button" id="comment-dialog-cancel">Cancel</button>
+    <button class="submit-btn" type="button" id="comment-dialog-send">Send back</button>
   </div>
 </dialog>
 
@@ -285,6 +298,9 @@
   </div>
 </dialog>
 
+<script src="workflow.cjs"></script>
+<script src="store.js"></script>
 <script src="app.js"></script>
+<script src="library-ui.js"></script>
 </body>
 </html>

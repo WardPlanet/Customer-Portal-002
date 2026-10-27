@@ -1380,3 +1380,179 @@
       word-break: break-word;
     }
   }
+
+  /* ---------- Library, page history, public preview ---------- */
+  .app[hidden], .library[hidden] { display: none; }
+
+  .library { display: flex; flex-direction: column; min-height: 100vh; }
+  .lib-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 15px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .lib-top-left { display: flex; align-items: center; gap: 28px; }
+  .lib-brand { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+  .lib-nav { display: flex; gap: 18px; }
+  .lib-nav a { color: var(--text-muted); text-decoration: none; font-weight: 500; padding: 4px 0; border-bottom: 2px solid transparent; }
+  .lib-nav a:hover { color: var(--text); }
+  .lib-nav a.is-current { color: var(--text); border-bottom-color: var(--accent); }
+  .lib-main { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 28px; }
+  .lib-notice {
+    position: sticky;
+    bottom: 0;
+    margin: 0;
+    padding: 10px 28px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    min-height: 0;
+  }
+  .lib-notice:empty { display: none; }
+
+  .acting-label { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
+  .acting-select {
+    padding: 5px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+
+  .lib-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .lib-title { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.01em; }
+  .lib-sub { margin: 6px 0 0; color: var(--text-muted); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .lib-h2 { margin: 28px 0 10px; font-size: 16px; }
+  .lib-note, .lib-hint { margin: 0 0 12px; color: var(--text-faint); font-size: 13px; }
+  .lib-empty { padding: 28px 0; color: var(--text-muted); }
+  .lib-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .back-link { display: inline-block; margin-bottom: 14px; color: var(--text-muted); text-decoration: none; font-weight: 500; }
+  .back-link:hover { color: var(--text); }
+
+  .primary-link, .primary-btn, .secondary-link, .danger-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: var(--radius-pill);
+    border: 1px solid transparent;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .primary-link, .primary-btn { background: var(--accent); color: #fff; }
+  .primary-link:hover, .primary-btn:hover { filter: brightness(1.08); }
+  .secondary-link { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+  .secondary-link:hover { background: var(--surface-muted); }
+  .danger-btn { background: var(--surface); color: var(--danger); border-color: var(--danger-border); }
+  .danger-btn:hover { background: var(--danger-soft); }
+
+  .lib-filters { display: flex; gap: 10px; margin-bottom: 8px; }
+  .lib-search, .lib-status {
+    padding: 9px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font: inherit;
+    color: var(--text);
+  }
+  .lib-search { flex: 1; min-width: 0; width: 100%; }
+  .lib-queue {
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    border-radius: 12px;
+  }
+  .lib-queue[hidden] { display: none; }
+  .lib-queue-title { margin: 0 0 8px; font-size: 14px; }
+  .lib-queue-row { display: flex; align-items: center; gap: 14px; padding: 6px 0; }
+  .lib-queue-name { font-weight: 600; flex: 1; min-width: 0; }
+  .lib-queue-meta { color: var(--text-muted); font-size: 13px; }
+
+  .lib-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .lib-table th { text-align: left; padding: 10px 14px; background: var(--surface-muted); color: var(--text-muted); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+  .lib-table td { padding: 12px 14px; border-top: 1px solid var(--border); vertical-align: top; }
+  .lib-page-link { color: var(--text); font-weight: 600; text-decoration: none; }
+  .lib-page-link:hover { color: var(--accent-text); text-decoration: underline; }
+  .lib-row-sub { color: var(--text-faint); font-size: 12px; margin-top: 2px; }
+  .lib-date { color: var(--text-muted); white-space: nowrap; font-size: 13px; }
+  .lib-comment { margin-top: 4px; color: var(--text); font-style: italic; }
+  .lib-row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .row-link, .row-btn {
+    padding: 3px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-pill);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .row-link:hover, .row-btn:hover { background: var(--surface-muted); }
+  .row-btn-go { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .badge-live { background: #e3f6ea; color: #14703a; border-color: #b6e3c6; }
+  .badge-draft { background: var(--surface-muted); color: var(--text-muted); border-color: var(--border-strong); }
+  .badge-review { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-border); }
+  .badge-sent-back { background: var(--warn-bg); color: var(--warn-icon); border-color: var(--warn-border); }
+  .badge-unpublished { background: var(--surface-muted); color: var(--text-faint); border-color: var(--border); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .badge-live { background: #12301f; color: #6fd29a; border-color: #1f5a37; }
+  }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 500; border: 1px solid var(--border-strong); color: var(--text-muted); }
+  .pill-public { border-color: var(--accent-border); color: var(--accent-text); }
+
+  .public-card { padding: 14px 16px; margin-top: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .public-card p { margin: 4px 0 0; }
+
+  /* The banner above the editor: what state this version is in, and what can be done */
+  .editor-banner { padding: 0 28px; max-width: 1336px; width: 100%; margin: 14px auto 0; }
+  .editor-banner[hidden] { display: none; }
+  .banner { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--accent-border); background: var(--accent-soft); color: var(--text); }
+  .banner p { margin: 0; }
+  .banner p + p { margin-top: 4px; }
+  .banner-warn { background: var(--warn-bg); border-color: var(--warn-border); }
+  .banner-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+  .comment-text { min-height: 120px; font-family: inherit; font-size: 14px; }
+
+  /* Reading a page: the same screen with editing switched off */
+  body.is-readonly .toolbar,
+  body.is-readonly .section-insert,
+  body.is-readonly .step-actions,
+  body.is-readonly .add-block,
+  body.is-readonly .step-tools,
+  body.is-readonly .step-grip,
+  body.is-readonly .remove-block,
+  body.is-readonly .remove-snippet,
+  body.is-readonly .section-ai,
+  body.is-readonly .required-mark,
+  body.is-readonly #import-doc,
+  body.is-readonly #save-draft,
+  body.is-readonly #submit-draft { display: none; }
+  body.is-readonly [contenteditable="false"] { cursor: text; }
+  body.is-readonly .step-block:focus-within,
+  body.is-readonly .text-block:focus-within { border-color: transparent; }
+  /* The public sees the page and nothing about who owns it */
+  body.is-public .setup,
+  body.is-public #acting-slot-editor,
+  body.is-public .required-note { display: none; }
+  body.is-public .workspace { grid-template-columns: minmax(0, 1fr); }
+  .is-public .lib-top .acting { visibility: hidden; }

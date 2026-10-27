@@ -1331,85 +1331,38 @@
       return true;
     }
 
-    /* ---------- Dialog (copy-out fallback when a draft can be neither saved nor downloaded) ---------- */
-    var dialog = byId('draft-dialog');
-    var dialogText = byId('draft-dialog-text');
-    var dialogHint = byId('draft-dialog-hint');
+    /* ---------- Save and submit ----------
+       Saving and submitting go through the library (window.PageHost, see library-ui.js): it keeps the
+       page and its versions and applies the review rules. The editor only prepares the text. */
 
-    function openDialog(text, hint) {
-      dialogText.value = text;
-      dialogHint.textContent = hint;
-      dialog.showModal();
-      dialogText.focus();
-    }
-
-    /* ---------- Save draft ---------- */
-    // Drafts are stored on the server (the drafts folder next to server.js). If there is no server,
-    // for example when index.html is opened from disk, saving falls back to a file download.
-    async function saveDraftToServer(filename, text) {
-      var response = await fetch('/api/drafts/' + encodeURIComponent(filename), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-        body: text
-      });
-      if (!response.ok) { throw new Error('Save failed with status ' + response.status); }
-    }
-
-    // Only exists when the page runs as a Claude artifact
-    function getDownloads() {
-      if (!window.claude || typeof window.claude.use !== 'function') { return Promise.resolve(null); }
-      return window.claude.use('downloads').catch(function () { return null; });
-    }
-
-    // Downloads the draft as a .txt file through a temporary link
-    function downloadTextFile(filename, text) {
-      var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      var url = URL.createObjectURL(blob);
-      var link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
-
-    async function saveDraft() {
+    // Checks the required fields, refreshes the search keywords, and returns the draft text (null if
+    // something is missing)
+    async function prepareDraftText() {
       var missing = validateRequired();
       if (missing.length) {
         showNotice('Can\u2019t save yet. Still needed: ' + missing.map(function (item) { return item.label; }).join(', ') + '.');
         missing[0].target.focus();
-        return;
+        return null;
       }
-
       // Search keywords are refreshed from the page text every time a draft is saved
       await refreshKeywords();
+      return serializeDraft();
+    }
 
-      var text = serializeDraft();
-      var filename = draftFilename();
-
+    var isSaving = false;
+    async function saveAndMaybeSubmit(submit) {
+      if (isSaving) { return; }
+      isSaving = true;
       try {
-        await saveDraftToServer(filename, text);
-        setStatus('Saved just now', true);
-        showNotice('Draft saved as ' + filename + '.');
-        return;
+        var text = await prepareDraftText();
+        if (text === null) { return; }
+        var message = submit ? await window.PageHost.submit(text) : await window.PageHost.save(text);
+        setStatus(submit ? 'Submitted for review' : 'Saved just now', true);
+        showNotice(message);
       } catch (error) {
-        // No server behind this page (or the save failed): keep the work by downloading it instead
-      }
-
-      try {
-        var downloads = await getDownloads();
-        if (downloads) {
-          // Running as a Claude artifact: Claude asks the person where to put the file
-          await downloads.save({ filename: filename, data: text });
-        } else {
-          downloadTextFile(filename, text);
-        }
-        setStatus('Saved just now', true);
-        showNotice('Couldn\u2019t reach the server, so the draft was downloaded as ' + filename + '.');
-      } catch (error) {
-        if (error && error.code === 'declined') { return; }
-        openDialog(text, 'Neither saving nor downloading worked. Copy this text into a .txt file, then use Import document to load it later.');
+        showNotice(error && error.message ? error.message : 'That did not work. Try again.');
+      } finally {
+        isSaving = false;
       }
     }
 
@@ -2279,16 +2232,15 @@
     aiButton.addEventListener('click', runAiAssist);
 
     /* ---------- Wire up events ---------- */
-    byId('save-draft').addEventListener('click', saveDraft);
-
-    // Submit has no action yet; if the page is incomplete it points at what's missing
-    byId('submit-draft').addEventListener('click', function () {
-      var missing = validateRequired();
-      if (missing.length) {
-        showNotice('Fill in the required fields marked * before submitting.');
-        missing[0].target.focus();
-      }
+    byId('save-draft').addEventListener('click', function () {
+      if (byId('save-draft').getAttribute('aria-disabled') === 'true') { validateRequired(); showNotice('Fill in the required fields (*) before saving.'); return; }
+      saveAndMaybeSubmit(false);
     });
+    byId('submit-draft').addEventListener('click', function () {
+      if (byId('submit-draft').getAttribute('aria-disabled') === 'true') { validateRequired(); showNotice('Fill in the required fields (*) before submitting.'); return; }
+      saveAndMaybeSubmit(true);
+    });
+    byId('leave-btn').addEventListener('click', function () { window.PageHost.leave(); });
 
     /* ---------- Import an existing document ----------
        The server reads the file and asks the AI to restructure it following
@@ -2910,83 +2862,6 @@
       }
     });
 
-    /* ---------- Open a draft saved on the server ---------- */
-    var draftsDialog = byId('drafts-dialog');
-    var draftsList = byId('drafts-list');
-    var draftsHint = byId('drafts-dialog-hint');
-
-    function formatSavedTime(iso) {
-      var date = new Date(iso);
-      return isNaN(date.getTime()) ? '' : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-    }
-
-    async function openSavedDraft(name) {
-      try {
-        var response = await fetch('/api/drafts/' + encodeURIComponent(name));
-        if (!response.ok) { throw new Error('status ' + response.status); }
-        if (loadDraftText(await response.text())) {
-          draftsDialog.close();
-        } else {
-          draftsHint.textContent = 'That file doesn\u2019t look like a saved draft.';
-        }
-      } catch (error) {
-        draftsHint.textContent = 'Couldn\u2019t open that draft. Try again.';
-      }
-    }
-
-    function showSavedDrafts(drafts) {
-      draftsList.innerHTML = '';
-      draftsHint.textContent = drafts.length
-        ? 'Choose a draft to load into the editor. It replaces what is on the page now.'
-        : 'Nothing has been saved on this server yet. Use Save draft to create the first one.';
-      drafts.forEach(function (draft) {
-        var item = document.createElement('li');
-        var button = document.createElement('button');
-        button.type = 'button';
-        var title = document.createElement('span');
-        title.className = 'draft-name';
-        title.textContent = draft.title || draft.name;
-        var meta = document.createElement('span');
-        meta.className = 'draft-meta';
-        meta.textContent = draft.name + ' \u00b7 saved ' + formatSavedTime(draft.modified);
-        button.appendChild(title);
-        button.appendChild(meta);
-        button.addEventListener('click', function () { openSavedDraft(draft.name); });
-        item.appendChild(button);
-        draftsList.appendChild(item);
-      });
-      draftsDialog.showModal();
-    }
-
-    byId('open-draft').addEventListener('click', async function () {
-      try {
-        var response = await fetch('/api/drafts');
-        if (!response.ok) { throw new Error('status ' + response.status); }
-        showSavedDrafts((await response.json()).drafts);
-      } catch (error) {
-        // No server behind this page: pick a file from disk instead
-        byId('draft-file').click();
-      }
-    });
-    byId('drafts-dialog-close').addEventListener('click', function () { draftsDialog.close(); });
-    byId('drafts-dialog-file').addEventListener('click', function () {
-      draftsDialog.close();
-      byId('draft-file').click();
-    });
-    byId('draft-file').addEventListener('change', function (event) {
-      var input = event.target;
-      var file = input.files && input.files[0];
-      if (!file) { return; }
-      file.text().then(function (text) {
-        if (!loadDraftText(text)) {
-          showNotice('Couldn\u2019t read that file. It doesn\u2019t look like a saved draft.');
-        }
-        input.value = '';
-      });
-    });
-
-    byId('draft-dialog-close').addEventListener('click', function () { dialog.close(); });
-
     // Typing in any editable block
     document.addEventListener('input', function (event) {
       var target = event.target;
@@ -3164,6 +3039,59 @@
         markDirty();
       });
     });
+
+    /* ---------- What the library uses to drive the editor ---------- */
+    // Locks every editable field (and the Page Setup panel) for reading, or unlocks them again
+    function lockEditing(on) {
+      document.querySelectorAll('[contenteditable], [data-was-editable]').forEach(function (el) {
+        if (on) {
+          if (!el.hasAttribute('data-was-editable')) { el.setAttribute('data-was-editable', el.getAttribute('contenteditable')); }
+          el.setAttribute('contenteditable', 'false');
+        } else if (el.hasAttribute('data-was-editable')) {
+          el.setAttribute('contenteditable', el.getAttribute('data-was-editable'));
+          el.removeAttribute('data-was-editable');
+        }
+      });
+      document.body.classList.toggle('is-readonly', on);
+      byId('editor-setup').inert = on;
+    }
+
+    // A blank page, as when someone starts a new one
+    function resetEditor() {
+      lockEditing(false);
+      titleEl.textContent = '';
+      descriptionEl.textContent = '';
+      state.pageType = 'Process Documentation';
+      state.location = '';
+      state.owner = '';
+      state.roles = [];
+      state.keywords = [];
+      state.source = '';
+      layoutContent([{ type: 'step', title: '', text: '' }], 1);
+      clearSuggestions();
+      resetRichSelection();
+      renderSidebar();
+      refreshOutline();
+      setStatus('Draft not saved yet', false);
+    }
+
+    window.PageEditor = {
+      reset: resetEditor,
+      // Fill the editor from a saved version's text (silently, unlike Import)
+      load: function (text, readOnly) {
+        lockEditing(false);
+        applyDraft(parseDraft(text));
+        setStatus('Saved', true);
+        if (readOnly) { lockEditing(true); }
+      },
+      getText: serializeDraft,
+      isDirty: function () { return byId('save-status').classList.contains('is-unsaved') && pageHasContent(); },
+      setStatus: setStatus,
+      showNotice: showNotice,
+      setLabel: function (text) { byId('page-name').textContent = text; },
+      title: function () { return readText(titleEl); },
+      exportPdf: function () { byId('export-pdf').click(); }
+    };
 
     /* ---------- Initial render ---------- */
     renderSidebar();

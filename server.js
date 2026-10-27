@@ -1,7 +1,7 @@
 // Small server for the page editor.
 //
 // It does two things:
-//   1. Serves the three static files (index.html, styles.css, app.js) and the PDF library.
+//   1. Serves the page and its scripts (index.html, styles.css, app.js and the library files) and the PDF library.
 //   2. Answers the AI requests from app.js, so the Anthropic API key stays on the server.
 //
 // Run it with:  ANTHROPIC_API_KEY=... npm start
@@ -15,21 +15,19 @@ import { AiError, askForJson, hasApiKey } from './ai.js';
 import { importDocument } from './importer.js';
 import { readStyleGuide, stylePreamble } from './guidelines.js';
 import { readTeam } from './teams.js';
+import { migrateFlatDrafts, registerLibraryRoutes } from './library.js';
 
 const PORT = process.env.PORT || 3000;
 
-// Saved drafts are plain .txt files, kept in one folder per team inside this folder (so the Legwork Web
-// Team's drafts are in drafts/legwork-web-team/). Back it up or move it by copying the folder; point
-// DRAFTS_DIR somewhere else to store drafts elsewhere.
+// Pages are stored as files in one folder per team inside this folder (the Legwork Web Team's are in
+// drafts/legwork-web-team/pages/). Back it up or move it by copying the folder; point DRAFTS_DIR somewhere
+// else to store them elsewhere.
 const DRAFTS_DIR = path.resolve(process.env.DRAFTS_DIR || path.join(here, 'drafts'));
-// Matches the names app.js generates (draftFilename). Rejecting anything else also rules out
-// path tricks such as ../ in the URL.
+// Drafts from before teams or versions existed are single files named like this
 const DRAFT_NAME = /^[a-z0-9][a-z0-9-]{0,79}-draft\.txt$/;
-const MAX_DRAFT_BYTES = 1024 * 1024;
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
-app.use('/api/drafts', express.text({ type: 'text/plain', limit: MAX_DRAFT_BYTES }));
 
 /* ---------- Team ----------
    The team and who holds each role. Pages name roles; this says who they are today. */
@@ -41,11 +39,6 @@ app.get('/api/team', async function (req, res) {
     sendError(res, 500, 'team_error', 'Could not read the team file.');
   }
 });
-
-// The folder this team's drafts live in. Everything saved belongs to the current team.
-async function teamDraftsDir() {
-  return path.join(DRAFTS_DIR, (await readTeam()).slug);
-}
 
 // Drafts saved before teams existed sit loose in DRAFTS_DIR. Move them under the team (once, at startup).
 async function moveLooseDrafts() {
@@ -69,8 +62,9 @@ async function moveLooseDrafts() {
 
 /* ---------- Static files ----------
    Only these three are served, so server.js, package.json and any .env file are never exposed. */
-['index.html', 'styles.css', 'app.js'].forEach(function (file) {
+['index.html', 'styles.css', 'app.js', 'store.js', 'library-ui.js', 'workflow.cjs'].forEach(function (file) {
   app.get(file === 'index.html' ? ['/', '/index.html'] : '/' + file, function (req, res) {
+    if (file === 'workflow.cjs') { res.type('application/javascript'); }   // a script for the browser as well as the server
     res.sendFile(path.join(here, file));
   });
 });
@@ -86,63 +80,6 @@ async function moveLooseDrafts() {
 // For load balancers and monitoring: answers 200 whenever the process is up
 app.get('/healthz', function (req, res) {
   res.json({ ok: true });
-});
-
-/* ---------- Saved drafts ---------- */
-
-// The page title is the first line under [TITLE]; used to label the list in the editor
-function titleFromDraft(text) {
-  var match = /^\[TITLE\]\r?\n(.*)$/m.exec(text);
-  return match ? match[1].trim() : '';
-}
-
-// Newest first: [{ name, title, modified }]
-app.get('/api/drafts', async function (req, res) {
-  try {
-    var folder = await teamDraftsDir();
-    var names = (await fs.readdir(folder)).filter(function (name) { return DRAFT_NAME.test(name); });
-    var drafts = await Promise.all(names.map(async function (name) {
-      var file = path.join(folder, name);
-      var stats = await fs.stat(file);
-      var text = await fs.readFile(file, 'utf8');
-      return { name: name, title: titleFromDraft(text), modified: stats.mtime.toISOString() };
-    }));
-    drafts.sort(function (a, b) { return b.modified.localeCompare(a.modified); });
-    res.json({ drafts: drafts });
-  } catch (error) {
-    if (error.code === 'ENOENT') { return res.json({ drafts: [] }); }   // nothing saved yet
-    console.error('Listing drafts failed:', error);
-    res.status(500).json({ error: { code: 'storage_error', message: 'Could not read the drafts folder.' } });
-  }
-});
-
-app.get('/api/drafts/:name', async function (req, res) {
-  if (!DRAFT_NAME.test(req.params.name)) { return sendError(res, 400, 'bad_request', 'That is not a valid draft name.'); }
-  try {
-    var file = path.join(await teamDraftsDir(), req.params.name);
-    res.type('text/plain').send(await fs.readFile(file, 'utf8'));
-  } catch (error) {
-    if (error.code === 'ENOENT') { return sendError(res, 404, 'not_found', 'No saved draft with that name.'); }
-    console.error('Reading draft failed:', error);
-    sendError(res, 500, 'storage_error', 'Could not read that draft.');
-  }
-});
-
-// Saving a draft with the same name replaces the earlier one
-app.put('/api/drafts/:name', async function (req, res) {
-  if (!DRAFT_NAME.test(req.params.name)) { return sendError(res, 400, 'bad_request', 'That is not a valid draft name.'); }
-  if (typeof req.body !== 'string' || !req.body.trim()) {
-    return sendError(res, 400, 'bad_request', 'Send the draft text as text/plain.');
-  }
-  try {
-    var folder = await teamDraftsDir();
-    await fs.mkdir(folder, { recursive: true });
-    await fs.writeFile(path.join(folder, req.params.name), req.body, 'utf8');
-    res.json({ name: req.params.name });
-  } catch (error) {
-    console.error('Saving draft failed:', error);
-    sendError(res, 500, 'storage_error', 'Could not save the draft.');
-  }
 });
 
 /* ---------- AI ---------- */
@@ -202,6 +139,8 @@ app.post('/api/import', express.raw({ type: () => true, limit: '25mb' }), async 
 });
 
 await moveLooseDrafts().catch(function (error) { console.error('Could not move older drafts under the team:', error.message); });
+await migrateFlatDrafts(DRAFTS_DIR).catch(function (error) { console.error('Could not turn older drafts into pages:', error.message); });
+registerLibraryRoutes(app, DRAFTS_DIR);
 
 app.listen(PORT, function () {
   console.log('Page editor running at http://localhost:' + PORT);

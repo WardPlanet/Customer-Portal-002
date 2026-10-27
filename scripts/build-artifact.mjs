@@ -24,6 +24,9 @@ function safeForScript(text) {
 const html = await read('index.html');
 const css = await read('styles.css');
 const app = await read('app.js');
+const workflow = await read('workflow.cjs');
+const store = await read('store.js');
+const libraryUi = await read('library-ui.js');
 const guidelines = await read('guidelines', 'import-guidelines.md');
 const styleGuide = await read('guidelines', 'style-guide.md');
 const team = await readTeam();
@@ -50,14 +53,16 @@ const instructions =
   'window.TEAM_ROSTER = ' + safeForScript(JSON.stringify(team)) + ';';
 
 const linkTag = '<link rel="stylesheet" href="styles.css">';
-const scriptTag = '<script src="app.js"></script>';
+const scriptTag = ['<script src="workflow.cjs"></script>', '<script src="store.js"></script>', '<script src="app.js"></script>', '<script src="library-ui.js"></script>'].join('\n');
 if (!html.includes(linkTag) || !html.includes(scriptTag)) {
   throw new Error('index.html no longer has the stylesheet and script tags this build looks for.');
 }
 
 const output = html
   .replace(linkTag, () => '<style>\n' + css + '\n</style>')
-  .replace(scriptTag, () => pdfLibrary + '<script>\n' + instructions + '\n</script>\n<script>\n' + safeForScript(app) + '\n</script>');
+  .replace(scriptTag, () => pdfLibrary + '<script>\n' + instructions + '\n</script>\n' +
+    // The rules and the store first, then the editor, then the library screens (the same order as index.html)
+    ['<script>\n' + safeForScript(workflow) + '\n</script>', '<script>\n' + safeForScript(store) + '\n</script>', '<script>\n' + safeForScript(app) + '\n</script>', '<script>\n' + safeForScript(libraryUi) + '\n</script>'].join('\n'));
 
 await fs.mkdir(path.join(here, 'dist'), { recursive: true });
 const target = path.join(here, 'dist', 'page-editor-artifact.html');

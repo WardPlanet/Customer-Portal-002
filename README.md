@@ -45,7 +45,10 @@ variables take priority). `.env.example` documents each one.
 | `guidelines.js` | Reads the two guideline files on every request. |
 | `teams.js`, `teams/legwork-web-team.json` | The team and who holds each role. Pages name roles; edit the `person` for a role when someone changes jobs and every page updates. |
 | `index.html`, `styles.css`, `app.js` | The editor. Plain HTML, CSS and JavaScript, served as is. |
-| `drafts/` | Saved drafts, one `.txt` per page, in one folder per team (`drafts/legwork-web-team/`). Created on first save. Not in git. |
+| `workflow.cjs` | The rules for versions, review, search and the public view (used by the server and the browser). Tested by `npm test`. |
+| `library.js` | Stores pages and versions as files and serves the library and public routes. |
+| `store.js`, `library-ui.js` | The browser side of the library: where pages come from, and the library screens. |
+| `drafts/` | Pages, in one folder per team (`drafts/legwork-web-team/pages/<id>/`): `page.json` plus one `.txt` per version. Created on first save. Not in git. |
 
 ## Endpoints
 
@@ -57,14 +60,18 @@ variables take priority). `.env.example` documents each one.
 | `POST /api/ai/json` | Sends one prompt to Claude and returns parsed JSON. |
 | `POST /api/import` | Takes an uploaded .docx, .pdf, .txt or .md and returns a standardized page for review. |
 | `GET /api/team` | The team and who holds each role today. |
-| `GET /api/drafts`, `GET/PUT /api/drafts/:name` | List, read and save the team's drafts. |
+| `/api/library/...` | Pages and versions for staff (list, read, save, submit, approve, send back, withdraw, restore, unpublish). Needs the `X-Acting-As` header until real login exists. |
+| `/api/public/pages`, `/api/public/pages/:id` | The public side: no login, only live Client-Safe pages, no ownership details. |
 
 ## Things to decide before going live
 
-- **No login.** Anyone who can reach the server can read and overwrite every draft and use the AI
-  (which spends the API budget). Put it behind your single sign-on or an internal-only network.
-- **Drafts are plain files with no history.** Saving a page with the same title replaces the earlier
-  draft. Put `DRAFTS_DIR` on a backed-up volume.
-- **One instance only.** Drafts live on local disk, so running several copies would give each its own set.
+- **No real login.** The "Acting as" menu is a stand-in: anyone who can reach the server can act as any team
+  member, including the team lead who approves pages, and can use the AI (which spends the API budget). The
+  public routes (`/api/public/...`) are safe by design (live Client-Safe pages only) but everything else needs
+  real sign-in, for example Microsoft Entra ID, before this is hosted. Put it behind your single sign-on or an
+  internal-only network until then.
+- **Pages are files with version history.** Every version is kept (`page.json` and one `.txt` per version), so
+  put `DRAFTS_DIR` on a backed-up volume. There is no deletion in the app.
+- **One instance only.** Pages live on local disk, so running several copies would give each its own set.
 - **Spend limits.** Set a spend cap on the API key in the Anthropic console.
 - **Logs** go to standard output. The server logs failures only, not draft contents.

@@ -1,0 +1,468 @@
+// The rules for pages, versions and review. Plain JavaScript with no dependencies, so the very same
+// file runs on the server (require) and in the browser (a <script> that defines `Workflow`).
+// Persistence is not here: the server keeps files, the Claude artifact keeps browser storage, and both
+// call these functions so they can never disagree about what is allowed.
+//
+// The model
+//   A page has a permanent id and any number of VERSIONS (v1, v2, ...). A version is a snapshot of the
+//   page in the editor's draft text format. Only a draft (or a version that was sent back) can be edited.
+//   A page has at most one LIVE version (the approved one). Editing a live page makes a new draft copy;
+//   the live version stays up until the new one is approved, which replaces it.
+//
+//   Version status:  draft -> submitted -> approved (live)
+//                                       \-> sent_back (edit it, submit again)
+//                    approved -> superseded (a newer version was approved) or unpublished (pulled down)
+//
+// Who may do what (prototype: whoever the person is "acting as"; real login comes later)
+//   anyone on the team: create pages, edit drafts, submit, withdraw their own submission, restore, view
+//   the team lead only:  approve, send back, unpublish
+//
+// Search and the public site only ever see the LIVE version (see searchEntry), so old versions cannot
+// appear in results: they are never put in the index.
+
+(function (root, factory) {
+  var api = factory();
+  if (typeof module !== 'undefined' && module.exports) { module.exports = api; } else { root.Workflow = api; }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var STATUS = {
+    DRAFT: 'draft',
+    SUBMITTED: 'submitted',
+    SENT_BACK: 'sent_back',
+    APPROVED: 'approved',
+    SUPERSEDED: 'superseded',
+    UNPUBLISHED: 'unpublished'
+  };
+
+  function WorkflowError(code, message, httpStatus) {
+    this.name = 'WorkflowError';
+    this.code = code;
+    this.message = message;
+    this.httpStatus = httpStatus || 400;
+  }
+  WorkflowError.prototype = Object.create(Error.prototype);
+
+  /* ---------- Reading the draft text ---------- */
+
+  // The sections of a draft: { TITLE: [lines], ... } (the same format the editor saves)
+  function parseSections(text) {
+    var sections = {};
+    var current = null;
+    String(text || '').replace(/\r\n?/g, '\n').split('\n').forEach(function (line) {
+      var header = /^\[([A-Z0-9 ]+)\]$/.exec(line);
+      if (header) {
+        current = header[1];
+        sections[current] = [];
+      } else if (current !== null) {
+        sections[current].push(line.charAt(0) === '~' ? line.slice(1) : line);
+      }
+    });
+    return sections;
+  }
+
+  function first(sections, name) {
+    var lines = sections[name];
+    return lines ? lines.join('\n').trim() : '';
+  }
+
+  // The few facts the library needs from a version's text
+  function fields(text) {
+    var sections = parseSections(text);
+    var stepTitles = Object.keys(sections).filter(function (name) {
+      return /^BLOCK \d+ STEP TITLE$/.test(name) && first(sections, name) !== '';
+    });
+    return {
+      title: first(sections, 'TITLE'),
+      description: first(sections, 'DESCRIPTION') || first(sections, 'SUMMARY'),
+      location: first(sections, 'WHERE THIS LIVES').split('\n')[0] || '',
+      visibility: first(sections, 'VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only',
+      owner: first(sections, 'OWNER ROLE'),
+      pageType: first(sections, 'PAGE TYPE'),
+      keywords: (sections.KEYWORDS || []).map(function (line) { return line.trim(); }).filter(Boolean),
+      hasStepTitle: stepTitles.length > 0,
+      sections: sections
+    };
+  }
+
+  // What is still missing before a version can be submitted for review
+  function missingForSubmit(text, team) {
+    var f = fields(text);
+    var missing = [];
+    if (!f.title) { missing.push('a page title'); }
+    if (!f.description) { missing.push('a description'); }
+    if (team && team.roles && team.roles.length && !f.owner) { missing.push('an owner role'); }
+    if (!f.hasStepTitle) { missing.push('at least one step with a title'); }
+    return missing;
+  }
+
+  /* ---------- People ---------- */
+
+  // The roles a person holds today, from the team roster
+  function actorFor(name, team) {
+    var clean = String(name || '').trim();
+    var roles = ((team && team.roles) || []).filter(function (role) {
+      return clean && String(role.person || '').toLowerCase() === clean.toLowerCase();
+    }).map(function (role) { return role.title; });
+    return { name: clean, roles: roles };
+  }
+
+  function requireActor(actor) {
+    if (!actor || !actor.name) {
+      throw new WorkflowError('no_actor', 'Choose who you are acting as first.', 401);
+    }
+  }
+
+  function isLead(actor, team) {
+    return !!(actor && team && team.lead && actor.roles.indexOf(team.lead) >= 0);
+  }
+
+  function requireLead(actor, team, what) {
+    requireActor(actor);
+    if (!isLead(actor, team)) {
+      throw new WorkflowError('not_lead', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can ' + what + '.', 403);
+    }
+  }
+
+  /* ---------- Finding things ---------- */
+
+  function versionOf(page, n) {
+    var found = page.versions.filter(function (v) { return v.n === Number(n); })[0];
+    if (!found) { throw new WorkflowError('no_version', 'That version does not exist.', 404); }
+    return found;
+  }
+
+  function liveVersion(page) {
+    return page.liveVersion ? versionOf(page, page.liveVersion) : null;
+  }
+
+  // The version being worked on: a draft, a submitted one, or one sent back (there is at most one)
+  function workingVersion(page) {
+    return page.versions.filter(function (v) {
+      return v.status === STATUS.DRAFT || v.status === STATUS.SUBMITTED || v.status === STATUS.SENT_BACK;
+    })[0] || null;
+  }
+
+  function latestVersion(page) {
+    return page.versions[page.versions.length - 1];
+  }
+
+  function touch(page, version, actor, now) {
+    version.updatedAt = now;
+    page.updatedAt = now;
+    version.updatedBy = actor.name;
+  }
+
+  function copyFields(version) {
+    var f = fields(version.text);
+    version.title = f.title;
+    version.location = f.location;
+    version.visibility = f.visibility;
+    version.owner = f.owner;
+  }
+
+  function newVersion(page, text, actor, now, note) {
+    var version = {
+      n: page.versions.length + 1,
+      status: STATUS.DRAFT,
+      text: text,
+      author: actor.name,
+      createdAt: now,
+      updatedAt: now,
+      updatedBy: actor.name,
+      note: note || ''
+    };
+    copyFields(version);
+    page.versions.push(version);
+    page.updatedAt = now;
+    return version;
+  }
+
+  /* ---------- Actions ---------- */
+
+  function newId(now) {
+    return 'pg' + now.toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  function createPage(team, text, actor, now) {
+    requireActor(actor);
+    var page = { id: newId(Date.parse(now) || Date.now()), team: team.slug, createdAt: now, updatedAt: now, liveVersion: null, versions: [] };
+    newVersion(page, text, actor, now, '');
+    return page;
+  }
+
+  // Save the editor's text into a version that is allowed to change (a draft, or one sent back)
+  function saveDraft(page, n, text, actor, now) {
+    requireActor(actor);
+    var version = versionOf(page, n);
+    if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK) {
+      throw new WorkflowError('not_editable', 'Version ' + version.n + ' is ' + describeStatus(version.status) + ' and cannot be edited. Start a new edit from the page.', 409);
+    }
+    version.text = text;
+    copyFields(version);
+    touch(page, version, actor, now);
+    return version;
+  }
+
+  // Edit a page: reuse the version being worked on, or make a new draft copy of the live (or latest) one
+  function startEdit(page, actor, now) {
+    requireActor(actor);
+    var working = workingVersion(page);
+    if (working) { return working; }
+    var base = liveVersion(page) || latestVersion(page);
+    return newVersion(page, base.text, actor, now, 'Edit of version ' + base.n);
+  }
+
+  // Restore an old version: it becomes a new draft (it still has to be approved like any edit)
+  function restore(page, n, actor, now) {
+    requireActor(actor);
+    if (workingVersion(page)) {
+      throw new WorkflowError('edit_in_progress', 'There is already a version being edited or reviewed. Finish or withdraw it first.', 409);
+    }
+    var source = versionOf(page, n);
+    return newVersion(page, source.text, actor, now, 'Restored from version ' + source.n);
+  }
+
+  function submit(page, n, actor, team, now) {
+    requireActor(actor);
+    var version = versionOf(page, n);
+    if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK) {
+      throw new WorkflowError('not_editable', 'Only a draft can be submitted for review.', 409);
+    }
+    var missing = missingForSubmit(version.text, team);
+    if (missing.length) {
+      throw new WorkflowError('incomplete', 'Still needed before it can be submitted: ' + missing.join(', ') + '.', 422);
+    }
+    version.status = STATUS.SUBMITTED;
+    version.submittedAt = now;
+    version.submittedBy = actor.name;
+    version.decisionComment = '';
+    touch(page, version, actor, now);
+    return version;
+  }
+
+  function withdraw(page, n, actor, team, now) {
+    requireActor(actor);
+    var version = versionOf(page, n);
+    if (version.status !== STATUS.SUBMITTED) {
+      throw new WorkflowError('not_submitted', 'Only a version waiting for review can be withdrawn.', 409);
+    }
+    if (version.submittedBy !== actor.name && !isLead(actor, team)) {
+      throw new WorkflowError('not_yours', 'Only the person who submitted it, or the team lead, can withdraw it.', 403);
+    }
+    version.status = STATUS.DRAFT;
+    touch(page, version, actor, now);
+    return version;
+  }
+
+  function approve(page, n, actor, team, now) {
+    requireLead(actor, team, 'approve a page');
+    var version = versionOf(page, n);
+    if (version.status !== STATUS.SUBMITTED) {
+      throw new WorkflowError('not_submitted', 'Only a version waiting for review can be approved.', 409);
+    }
+    var previous = liveVersion(page);
+    if (previous) { previous.status = STATUS.SUPERSEDED; }
+    version.status = STATUS.APPROVED;
+    version.decidedBy = actor.name;
+    version.decidedAt = now;
+    version.decisionComment = '';
+    page.liveVersion = version.n;
+    touch(page, version, actor, now);
+    return version;
+  }
+
+  function sendBack(page, n, comment, actor, team, now) {
+    requireLead(actor, team, 'send a page back');
+    var version = versionOf(page, n);
+    if (version.status !== STATUS.SUBMITTED) {
+      throw new WorkflowError('not_submitted', 'Only a version waiting for review can be sent back.', 409);
+    }
+    if (!String(comment || '').trim()) {
+      throw new WorkflowError('comment_needed', 'Say what needs to change, so the author knows what to fix.', 422);
+    }
+    version.status = STATUS.SENT_BACK;
+    version.decidedBy = actor.name;
+    version.decidedAt = now;
+    version.decisionComment = String(comment).trim();
+    touch(page, version, actor, now);
+    return version;
+  }
+
+  // Pull the live version down at once (for example a Client-Safe page that should not be public)
+  function unpublish(page, actor, team, now) {
+    requireLead(actor, team, 'unpublish a page');
+    var live = liveVersion(page);
+    if (!live) { throw new WorkflowError('not_live', 'This page is not live.', 409); }
+    live.status = STATUS.UNPUBLISHED;
+    live.decidedBy = actor.name;
+    live.decidedAt = now;
+    page.liveVersion = null;
+    touch(page, live, actor, now);
+    return live;
+  }
+
+  /* ---------- What the library shows ---------- */
+
+  function describeStatus(status) {
+    return {
+      draft: 'a draft',
+      submitted: 'waiting for review',
+      sent_back: 'sent back',
+      approved: 'live',
+      superseded: 'replaced by a newer version',
+      unpublished: 'unpublished'
+    }[status] || status;
+  }
+
+  // One row for the library list
+  function summary(page) {
+    var live = liveVersion(page);
+    var working = workingVersion(page);
+    var shown = live || working || latestVersion(page);
+    var state;
+    if (live && working) { state = working.status === STATUS.SUBMITTED ? 'live_edit_in_review' : 'live_edit_in_progress'; }
+    else if (live) { state = 'live'; }
+    else if (working) { state = working.status === STATUS.SUBMITTED ? 'in_review' : (working.status === STATUS.SENT_BACK ? 'sent_back' : 'draft'); }
+    else { state = 'unpublished'; }
+    return {
+      id: page.id,
+      team: page.team,
+      title: shown.title || 'Untitled page',
+      location: shown.location,
+      visibility: shown.visibility,
+      owner: shown.owner,
+      state: state,
+      liveVersion: page.liveVersion,
+      workingVersion: working ? { n: working.n, status: working.status } : null,
+      versionCount: page.versions.length,
+      updatedAt: page.updatedAt
+    };
+  }
+
+  // What this person may do with one version (the screens show only these buttons; the actions
+  // themselves check again, so hiding a button is never the only protection)
+  function versionActions(page, v, actor, team) {
+    var actions = ['view'];
+    if (!actor || !actor.name) { return actions; }
+    var lead = isLead(actor, team);
+    if (v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK) { actions.push('edit', 'submit'); }
+    if (v.status === STATUS.SUBMITTED) {
+      if (v.submittedBy === actor.name || lead) { actions.push('withdraw'); }
+      if (lead) { actions.push('approve', 'send_back'); }
+    }
+    var restorable = v.status === STATUS.SUPERSEDED || v.status === STATUS.UNPUBLISHED;
+    if (restorable && !workingVersion(page)) { actions.push('restore'); }
+    return actions;
+  }
+
+  // The version list for a page's history (no text, newest first)
+  function history(page, actor, team) {
+    return page.versions.slice().reverse().map(function (v) {
+      return {
+        n: v.n, status: v.status, title: v.title, author: v.author, note: v.note,
+        createdAt: v.createdAt, updatedAt: v.updatedAt,
+        submittedBy: v.submittedBy, submittedAt: v.submittedAt,
+        decidedBy: v.decidedBy, decidedAt: v.decidedAt, decisionComment: v.decisionComment,
+        live: page.liveVersion === v.n,
+        actions: versionActions(page, v, actor, team)
+      };
+    });
+  }
+
+  // Page-level actions: start an edit (when nothing is being worked on or it is the person's to continue),
+  // unpublish (lead only, and only while live)
+  function pageActions(page, actor, team) {
+    var actions = [];
+    if (actor && actor.name) { actions.push('edit'); }
+    if (isLead(actor, team) && page.liveVersion) { actions.push('unpublish'); }
+    return actions;
+  }
+
+  /* ---------- Search and the public site ----------
+     One entry per page, built from the LIVE version only. A page with no live version has no entry, and
+     an older version never gets one, so old text cannot show up in search. The two audiences:
+       staff  - every live page, Internal-Only and Client-Safe
+       public - live pages that are Client-Safe, nothing else */
+  function searchEntry(page, audience) {
+    var live = liveVersion(page);
+    if (!live) { return null; }
+    if (audience === 'public' && live.visibility !== 'Client-Safe') { return null; }
+    var f = fields(live.text);
+    return {
+      id: page.id,
+      team: page.team,
+      version: live.n,
+      title: f.title,
+      description: f.description,
+      location: f.location,
+      visibility: f.visibility,
+      owner: f.owner,
+      keywords: f.keywords,
+      body: bodyText(f.sections)
+    };
+  }
+
+  // All the readable text of a page (step titles, step text, headers, notes, code), for searching
+  function bodyText(sections) {
+    return Object.keys(sections).filter(function (name) {
+      return /^BLOCK \d+ /.test(name) && !/STEP NUMBER$/.test(name);
+    }).map(function (name) { return sections[name].join('\n'); }).join('\n');
+  }
+
+  // A simple word match over the entries (the real search engine comes later)
+  function searchPages(pages, query, audience) {
+    var words = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
+    return pages.map(function (page) { return searchEntry(page, audience); }).filter(function (entry) {
+      if (!entry) { return false; }
+      var haystack = [entry.title, entry.description, entry.keywords.join(' '), entry.body].join(' ').toLowerCase();
+      return words.every(function (word) { return haystack.indexOf(word) >= 0; });
+    });
+  }
+
+  function canSeePublic(page) {
+    return !!searchEntry(page, 'public');
+  }
+
+  // The text of a page for the public: only the title, description and content blocks. Ownership,
+  // roles, reviewer, keywords, location and source file are left out, so the public API never shows them.
+  function publicText(text) {
+    var out = [];
+    var keep = false;
+    String(text || '').replace(/\r\n?/g, '\n').split('\n').forEach(function (line) {
+      var header = /^\[([A-Z0-9 ]+)\]$/.exec(line);
+      if (header) { keep = header[1] === 'TITLE' || header[1] === 'DESCRIPTION' || /^BLOCK \d+ /.test(header[1]); }
+      if (keep) { out.push(line); }
+    });
+    return out.join('\n');
+  }
+
+  return {
+    STATUS: STATUS,
+    WorkflowError: WorkflowError,
+    fields: fields,
+    missingForSubmit: missingForSubmit,
+    actorFor: actorFor,
+    isLead: isLead,
+    versionOf: versionOf,
+    liveVersion: liveVersion,
+    workingVersion: workingVersion,
+    createPage: createPage,
+    saveDraft: saveDraft,
+    startEdit: startEdit,
+    restore: restore,
+    submit: submit,
+    withdraw: withdraw,
+    approve: approve,
+    sendBack: sendBack,
+    unpublish: unpublish,
+    describeStatus: describeStatus,
+    summary: summary,
+    history: history,
+    pageActions: pageActions,
+    publicText: publicText,
+    searchEntry: searchEntry,
+    searchPages: searchPages,
+    canSeePublic: canSeePublic
+  };
+});
