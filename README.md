@@ -43,8 +43,9 @@ variables take priority). `.env.example` documents each one.
 | `guidelines/style-guide.md` | The writing and formatting standard every AI feature follows (names, capitalization, quotation marks, punctuation). Edit freely; takes effect on the next AI request. |
 | `guidelines/import-guidelines.md` | Plain-text rules for how imported documents become pages. Edit freely; takes effect on the next import. |
 | `guidelines.js` | Reads the two guideline files on every request. |
+| `teams.js`, `teams/legwork-web-team.json` | The team and who holds each role. Pages name roles; edit the `person` for a role when someone changes jobs and every page updates. |
 | `index.html`, `styles.css`, `app.js` | The editor. Plain HTML, CSS and JavaScript, served as is. |
-| `drafts/` | Saved drafts, one `.txt` per page. Created on first save. Not in git. |
+| `drafts/` | Saved drafts, one `.txt` per page, in one folder per team (`drafts/legwork-web-team/`). Created on first save. Not in git. |
 
 ## Endpoints
 
@@ -55,7 +56,8 @@ variables take priority). `.env.example` documents each one.
 | `GET /api/ai/status` | Whether an API key is configured. |
 | `POST /api/ai/json` | Sends one prompt to Claude and returns parsed JSON. |
 | `POST /api/import` | Takes an uploaded .docx, .pdf, .txt or .md and returns a standardized page for review. |
-| `GET /api/drafts`, `GET/PUT /api/drafts/:name` | List, read and save drafts. |
+| `GET /api/team` | The team and who holds each role today. |
+| `GET /api/drafts`, `GET/PUT /api/drafts/:name` | List, read and save the team's drafts. |
 
 ## Things to decide before going live
 

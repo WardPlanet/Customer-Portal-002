@@ -119,6 +119,12 @@
       <h2 class="section-label" style="margin: 0;">Page setup</h2>
 
       <div>
+        <span class="field-label">Team</span>
+        <p class="team-name" id="team-name"></p>
+        <p class="field-hint">Everything saved belongs to this team.</p>
+      </div>
+
+      <div>
         <label class="field-label" for="page-type">Page Type</label>
         <div class="select-wrap">
           <select class="select-field" id="page-type"></select>
@@ -132,13 +138,25 @@
       </div>
 
       <div>
-        <span class="field-label">Linked Team Members</span>
-        <div class="avatars" id="members"></div>
-        <input class="inline-input" id="member-input" type="text" placeholder="Full name, then Enter" aria-label="Add a team member" hidden>
+        <label class="field-label" for="owner">Owner <span class="optional">(a role)</span></label>
+        <div class="select-wrap">
+          <select class="select-field" id="owner"></select>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <p class="field-hint">Whoever holds this role owns the page. Contact details follow the role, not the name.</p>
       </div>
 
       <div>
-        <label class="field-label" for="reviewer">Reviewer <span class="optional">(optional)</span></label>
+        <span class="field-label">Linked Roles</span>
+        <ul class="role-list" id="roles"></ul>
+        <div class="select-wrap" id="role-add-wrap">
+          <select class="select-field" id="role-add" aria-label="Link a role"></select>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <div>
+        <label class="field-label" for="reviewer">Reviewer <span class="optional">(a role, optional)</span></label>
         <div class="reviewer-field">
           <span class="avatar avatar-blue avatar-small" id="reviewer-avatar" hidden></span>
           <select class="reviewer-select" id="reviewer"></select>

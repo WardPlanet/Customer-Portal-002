@@ -447,6 +447,35 @@
     line-height: 1.4;
   }
 
+  .select-wrap[hidden] { display: none; }
+  #owner, #reviewer, #role-add { font-size: 13px; }
+  .team-name { margin: 0; font-size: 14px; font-weight: 600; }
+  .role-list { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+  .role-list:empty { display: none; }
+  .role-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .role-chip .avatar { margin: 0; flex: none; }
+  .role-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+  .role-title { font-weight: 600; }
+  .role-person { color: var(--text-muted); font-size: 12px; }
+  .role-remove {
+    flex: none;
+    padding: 2px 4px;
+    background: none;
+    border: 0;
+    color: var(--text-faint);
+    cursor: pointer;
+  }
+  .role-remove:hover { color: var(--danger); }
+  .role-remove svg { width: 10px; height: 10px; }
   .avatars { display: flex; align-items: center; }
   .avatar {
     display: grid;

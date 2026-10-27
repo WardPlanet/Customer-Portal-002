@@ -124,9 +124,35 @@ Ctrl/Cmd + B, I, U are blocked outside paragraph fields. Pasted text is always p
 - Search keywords: every Save draft asks the AI for 10 keywords and stores them in the draft file
   only. They are never shown in the editor.
 
-**Page Setup sidebar:** Page Type (select), Where This Lives (toggle chips plus add), Linked Team
-Members (avatars plus add), Reviewer (select from linked members), Visibility (Internal-Only or
-Client-Safe).
+**Page Setup sidebar:** Team (read-only), Page Type (select), Owner (a role), Where This Lives (toggle
+chips plus add), Linked Roles (chips plus a "Link a role" menu), Reviewer (a role, optional), Visibility
+(Internal-Only or Client-Safe).
+
+**Teams and roles.** Everything saved belongs to the **Legwork Web Team** (the only team for now). Pages are
+owned by **roles**, never by names: the page stores a job title such as "Website Editor", and the name next
+to it is looked up from the roster at the moment it is shown. When someone changes jobs, edit one line in
+`teams/legwork-web-team.json` (the `person` for that role) and every page that names the role shows the
+new person, with no page edits and no restart.
+
+| Role | Held by |
+| --- | --- |
+| Website Editor | Scott Archer |
+| Domain Manager | Mataya |
+| SEM Manager | Stephanie |
+| Web Designer | Molly |
+| Web Team Manager | Micah |
+
+- Only first names were given for four people; add surnames to the roster file when you have them.
+- Saved drafts live in `drafts/legwork-web-team/` (one folder per team). Drafts saved before teams existed
+  are moved there automatically when the server starts.
+- The roster is served at `GET /api/team`. In the Claude artifact it is built into the page by
+  `npm run build:artifact`, so republish after changing the roster.
+- The AI is given the roster, so when a document or a rewrite names one of these people it writes their job
+  title instead.
+- Roles for a page are chosen in the sidebar. A saved draft keeps only role titles, so no person's name is
+  ever stored in a page. Older drafts that listed people (`[LINKED TEAM MEMBERS]`, or a name under
+  `[REVIEWER]`) still open: a name that matches someone on the team becomes that person's role, and any
+  other name is dropped.
 
 **On this page (outline):** live list of the title, headers (indented by level), numbered steps,
 a warning count, and a rough read time.
@@ -256,12 +282,18 @@ Process Documentation
 [WHERE THIS LIVES]
 Tools & Access
 
-[LINKED TEAM MEMBERS]
-Jordan Mackey
-Riley Torres
+[TEAM]
+Legwork Web Team
+
+[OWNER ROLE]
+Website Editor
+
+[LINKED ROLES]
+Domain Manager
+Web Designer
 
 [REVIEWER]
-Jordan Mackey
+Web Team Manager
 
 [VISIBILITY]
 Internal-Only
@@ -330,9 +362,9 @@ disk behaves the same way.
 - **Leave without saving**, the toolbar **Paragraph** dropdown, and the toolbar **image** button
   are visual only.
 - **Search** does not exist yet. The `[KEYWORDS]` section is written to the file for it to use.
-- Sample content in Page Setup is invented: the page types (Process Documentation, Policy,
-  Reference Guide, How-To Guide), the team members (Jordan Mackey is from your design; Riley Torres
-  is a guess for "RT"), and the starting chips (Tools & Access, Billing Team).
+- Sample content in Page Setup is still invented: the page types (Process Documentation, Policy,
+  Reference Guide, How-To Guide) and the starting "Where This Lives" chips (Tools & Access, Billing Team).
+  The team and roles are real (see Teams and roles).
 - No auto-save. The status pill reads "Draft not saved yet", "Unsaved changes", "Saved just now".
 - Formatting uses `document.execCommand`, which is deprecated but still works in every major
   browser. A future rewrite could use a small editor library or the Selection and Range APIs.

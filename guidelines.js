@@ -6,6 +6,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { here } from './config.js';
 import { AiError } from './ai.js';
+import { rosterNote } from './teams.js';
 
 async function readGuideline(name) {
   return fs.readFile(path.join(here, 'guidelines', name), 'utf8').catch(function () {
@@ -21,12 +22,15 @@ export function readImportGuidelines() {
   return readGuideline('import-guidelines.md');
 }
 
-// Put in front of an AI prompt so the AI writes in house style
-export function stylePreamble(styleGuide) {
+// Put in front of an AI prompt so the AI writes in house style. The team, when given, adds who holds
+// each role so people are written as job titles.
+export function stylePreamble(styleGuide, team) {
   return [
     'Follow this style guide for every piece of text you write, rewrite or suggest:',
     '',
     styleGuide.trim(),
+    '',
+    rosterNote(team),
     '',
     '---',
     ''

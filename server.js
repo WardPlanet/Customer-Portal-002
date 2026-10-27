@@ -14,11 +14,13 @@ import { here } from './config.js';
 import { AiError, askForJson, hasApiKey } from './ai.js';
 import { importDocument } from './importer.js';
 import { readStyleGuide, stylePreamble } from './guidelines.js';
+import { readTeam } from './teams.js';
 
 const PORT = process.env.PORT || 3000;
 
-// Saved drafts are plain .txt files in this folder (created on first save). Back it up or
-// move it by copying the folder; point DRAFTS_DIR somewhere else to store drafts elsewhere.
+// Saved drafts are plain .txt files, kept in one folder per team inside this folder (so the Legwork Web
+// Team's drafts are in drafts/legwork-web-team/). Back it up or move it by copying the folder; point
+// DRAFTS_DIR somewhere else to store drafts elsewhere.
 const DRAFTS_DIR = path.resolve(process.env.DRAFTS_DIR || path.join(here, 'drafts'));
 // Matches the names app.js generates (draftFilename). Rejecting anything else also rules out
 // path tricks such as ../ in the URL.
@@ -28,6 +30,42 @@ const MAX_DRAFT_BYTES = 1024 * 1024;
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use('/api/drafts', express.text({ type: 'text/plain', limit: MAX_DRAFT_BYTES }));
+
+/* ---------- Team ----------
+   The team and who holds each role. Pages name roles; this says who they are today. */
+app.get('/api/team', async function (req, res) {
+  try {
+    res.json(await readTeam());
+  } catch (error) {
+    console.error('Reading the team failed:', error.message);
+    sendError(res, 500, 'team_error', 'Could not read the team file.');
+  }
+});
+
+// The folder this team's drafts live in. Everything saved belongs to the current team.
+async function teamDraftsDir() {
+  return path.join(DRAFTS_DIR, (await readTeam()).slug);
+}
+
+// Drafts saved before teams existed sit loose in DRAFTS_DIR. Move them under the team (once, at startup).
+async function moveLooseDrafts() {
+  var team = await readTeam();
+  var folder = path.join(DRAFTS_DIR, team.slug);
+  var names;
+  try { names = await fs.readdir(DRAFTS_DIR); } catch (error) { return; }   // nothing saved yet
+  var loose = names.filter(function (name) { return DRAFT_NAME.test(name); });
+  if (!loose.length) { return; }
+  await fs.mkdir(folder, { recursive: true });
+  for (var name of loose) {
+    try {
+      await fs.access(path.join(folder, name));
+      console.log('Left ' + name + ' where it is: ' + team.slug + '/' + name + ' already exists.');
+    } catch (missing) {
+      await fs.rename(path.join(DRAFTS_DIR, name), path.join(folder, name));
+      console.log('Moved ' + name + ' under ' + team.name + '.');
+    }
+  }
+}
 
 /* ---------- Static files ----------
    Only these three are served, so server.js, package.json and any .env file are never exposed. */
@@ -52,10 +90,6 @@ app.get('/healthz', function (req, res) {
 
 /* ---------- Saved drafts ---------- */
 
-function draftPath(name) {
-  return DRAFT_NAME.test(name) ? path.join(DRAFTS_DIR, name) : null;
-}
-
 // The page title is the first line under [TITLE]; used to label the list in the editor
 function titleFromDraft(text) {
   var match = /^\[TITLE\]\r?\n(.*)$/m.exec(text);
@@ -65,9 +99,10 @@ function titleFromDraft(text) {
 // Newest first: [{ name, title, modified }]
 app.get('/api/drafts', async function (req, res) {
   try {
-    var names = (await fs.readdir(DRAFTS_DIR)).filter(function (name) { return DRAFT_NAME.test(name); });
+    var folder = await teamDraftsDir();
+    var names = (await fs.readdir(folder)).filter(function (name) { return DRAFT_NAME.test(name); });
     var drafts = await Promise.all(names.map(async function (name) {
-      var file = path.join(DRAFTS_DIR, name);
+      var file = path.join(folder, name);
       var stats = await fs.stat(file);
       var text = await fs.readFile(file, 'utf8');
       return { name: name, title: titleFromDraft(text), modified: stats.mtime.toISOString() };
@@ -82,9 +117,9 @@ app.get('/api/drafts', async function (req, res) {
 });
 
 app.get('/api/drafts/:name', async function (req, res) {
-  var file = draftPath(req.params.name);
-  if (!file) { return sendError(res, 400, 'bad_request', 'That is not a valid draft name.'); }
+  if (!DRAFT_NAME.test(req.params.name)) { return sendError(res, 400, 'bad_request', 'That is not a valid draft name.'); }
   try {
+    var file = path.join(await teamDraftsDir(), req.params.name);
     res.type('text/plain').send(await fs.readFile(file, 'utf8'));
   } catch (error) {
     if (error.code === 'ENOENT') { return sendError(res, 404, 'not_found', 'No saved draft with that name.'); }
@@ -95,14 +130,14 @@ app.get('/api/drafts/:name', async function (req, res) {
 
 // Saving a draft with the same name replaces the earlier one
 app.put('/api/drafts/:name', async function (req, res) {
-  var file = draftPath(req.params.name);
-  if (!file) { return sendError(res, 400, 'bad_request', 'That is not a valid draft name.'); }
+  if (!DRAFT_NAME.test(req.params.name)) { return sendError(res, 400, 'bad_request', 'That is not a valid draft name.'); }
   if (typeof req.body !== 'string' || !req.body.trim()) {
     return sendError(res, 400, 'bad_request', 'Send the draft text as text/plain.');
   }
   try {
-    await fs.mkdir(DRAFTS_DIR, { recursive: true });
-    await fs.writeFile(file, req.body, 'utf8');
+    var folder = await teamDraftsDir();
+    await fs.mkdir(folder, { recursive: true });
+    await fs.writeFile(path.join(folder, req.params.name), req.body, 'utf8');
     res.json({ name: req.params.name });
   } catch (error) {
     console.error('Saving draft failed:', error);
@@ -142,7 +177,8 @@ app.post('/api/ai/json', async function (req, res) {
         console.error(error.message);   // still answer, just without the style guide
         return '';
       });
-      if (styleGuide) { prompt = stylePreamble(styleGuide) + prompt; }
+      var team = await readTeam().catch(function () { return null; });
+      if (styleGuide) { prompt = stylePreamble(styleGuide, team) + prompt; }
     }
     res.json({ result: await askForJson(prompt, req.body.modelTier) });
   } catch (error) {
@@ -165,9 +201,11 @@ app.post('/api/import', express.raw({ type: () => true, limit: '25mb' }), async 
   }
 });
 
+await moveLooseDrafts().catch(function (error) { console.error('Could not move older drafts under the team:', error.message); });
+
 app.listen(PORT, function () {
   console.log('Page editor running at http://localhost:' + PORT);
-  console.log('Drafts are saved in ' + DRAFTS_DIR);
+  console.log('Drafts are saved in ' + DRAFTS_DIR + ' (one folder per team)');
   if (!hasApiKey) {
     console.log('ANTHROPIC_API_KEY is not set: AI features are off. Saving drafts still works.');
   }
