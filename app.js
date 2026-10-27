@@ -24,7 +24,7 @@
 
     var BASE_PAGE_TYPES = ['Process Documentation', 'Policy', 'Reference Guide', 'How-To Guide'];
     var BASE_LOCATIONS = ['Tools & Access', 'Billing Team'];
-    var KNOWN_SECTIONS = ['TITLE', 'SUBTITLE', 'SUMMARY', 'PAGE TYPE', 'WHERE THIS LIVES', 'LINKED TEAM MEMBERS', 'REVIEWER', 'VISIBILITY', 'SOURCE FILE'];
+    var KNOWN_SECTIONS = ['TITLE', 'DESCRIPTION', 'SUBTITLE', 'SUMMARY', 'PAGE TYPE', 'WHERE THIS LIVES', 'LINKED TEAM MEMBERS', 'REVIEWER', 'VISIBILITY', 'SOURCE FILE'];
 
     /* ---------- State for the Page Setup sidebar (text fields live in the DOM) ---------- */
     var state = {
@@ -41,8 +41,7 @@
     function byId(id) { return document.getElementById(id); }
 
     var titleEl = byId('field-title');
-    var subtitleEl = byId('field-subtitle');
-    var summaryEl = byId('field-summary');
+    var descriptionEl = byId('field-description');
     var contentEl = byId('content-blocks');
 
     /* ---------- Small helpers ---------- */
@@ -298,7 +297,7 @@
     }
 
     // No + line sits directly above or below "+ Add a block" (the button covers that spot), and two
-    // + lines never sit side by side. The + under the opening paragraph always stays.
+    // + lines never sit side by side. The + under the description always stays.
     function removeRedundantInserters() {
       var addButton = byId('add-block');
       var topLine = contentEl.firstElementChild;
@@ -466,7 +465,7 @@
       return button;
     }
 
-    // Insert lines sit below the opening paragraph and below every block that is added later.
+    // Insert lines sit below the description and below every block that is added later.
     // There are none directly above or below "+ Add a block"; the button covers that spot.
     // The title and description are single fields, so they get no insert line.
     // aboveButton is how many blocks sit above the "+ Add a block" button.
@@ -517,8 +516,7 @@
 
     var REQUIRED_FIELDS = [
       { el: titleEl, label: 'page title', message: 'Add a page title to save a draft.' },
-      { el: subtitleEl, label: 'description', message: 'Add a description to save a draft.' },
-      { el: summaryEl, label: 'opening paragraph', message: 'Add an opening paragraph to save a draft.' }
+      { el: descriptionEl, label: 'description', message: 'Add a description to save a draft.' }
     ];
 
     function anyStepHasTitle() {
@@ -597,7 +595,7 @@
       var steps = readSteps();
       var list = byId('outline-list');
       list.textContent = '';
-      var allText = [title, readText(subtitleEl), readText(summaryEl)];
+      var allText = [title, readText(descriptionEl)];
       var warningCount = 0;
       readBlocks().forEach(function (block) {
         var item = document.createElement('li');
@@ -794,8 +792,7 @@
       out.push('');
 
       section('TITLE', textLines(readText(titleEl)));
-      section('SUBTITLE', textLines(readText(subtitleEl)));
-      section('SUMMARY', textLines(readText(summaryEl)));
+      section('DESCRIPTION', textLines(readText(descriptionEl)));
 
       readBlocks().forEach(function (block, index) {
         var prefix = 'BLOCK ' + (index + 1) + ' ';
@@ -916,8 +913,8 @@
       }
 
       titleEl.textContent = body('TITLE');
-      subtitleEl.textContent = body('SUBTITLE');
-      summaryEl.innerHTML = markdownToHtml(body('SUMMARY'));
+      // Older drafts called this section SUMMARY (and had a separate one-line SUBTITLE, now dropped)
+      descriptionEl.innerHTML = markdownToHtml(body('DESCRIPTION') || body('SUMMARY'));
 
       var blocks = readDraftBlocks(sections, body);
       var aboveButton = parseInt(body('ADD BLOCK BUTTON'), 10);
@@ -1329,7 +1326,7 @@
       button.addEventListener('mousedown', function (event) { event.preventDefault(); });
       button.addEventListener('click', function () {
         if (!activeRich) {
-          showNotice('Formatting works in paragraph text only: the opening paragraph and Text blocks.');
+          showNotice('Formatting works in paragraph text only: the description and Text blocks.');
           return;
         }
         var format = button.getAttribute('data-format');
@@ -1465,8 +1462,7 @@
         'Visibility: ' + state.visibility,
         '',
         '[title] ' + readText(titleEl),
-        '[description] ' + readText(subtitleEl),
-        '[summary] ' + readText(summaryEl)
+        '[description] ' + readText(descriptionEl)
       ];
       readBlocks().forEach(function (block, index) {
         var label = 'block ' + (index + 1) + ', ' + block.type;
@@ -1492,10 +1488,10 @@
         '- Keep the author\u2019s voice and keep edits short.',
         '',
         'Reply with ONLY a JSON array (no other text). Each item is an object:',
-        '{"target": "title" | "description" | "summary" | "block N", "title": "...", "text": "...", "reason": "..."}',
+        '{"target": "title" | "description" | "block N", "title": "...", "text": "...", "reason": "..."}',
         '- target: which section the suggestion belongs to. N is the block number shown below.',
         '- "text" is the full replacement for that section\u2019s text. For a step block you may also give a replacement "title". Leave out anything you would not change.',
-        '- title and description are single plain-text lines. A summary or paragraph may use **bold**, _italic_, lines starting with "- " for bullets and "1. " for numbers.',
+        '- A title is a single plain-text line. A description or paragraph may use **bold**, _italic_, lines starting with "- " for bullets and "1. " for numbers.',
         '- reason: under 120 characters, why the change helps.',
         '- If nothing needs changing, reply with [].',
         '',
@@ -1512,7 +1508,8 @@
     function cleanSuggestion(item) {
       if (!item || typeof item !== 'object') { return null; }
       var target = String(item.target || '').toLowerCase().trim();
-      var isPageField = target === 'title' || target === 'description' || target === 'summary';
+      if (target === 'summary') { target = 'description'; }   // the old name for the description
+      var isPageField = target === 'title' || target === 'description';
       if (!isPageField && !/^block [0-9]+$/.test(target)) { return null; }
 
       if (item.action === 'add') { return null; }   // suggestions only replace text that is already there
@@ -1520,7 +1517,7 @@
       var title = oneLine(item.title, 200);
       if (isPageField && !text) { text = title; title = ''; }
       if (!text && !title) { return null; }
-      if (target === 'title' || target === 'description') { text = oneLine(text, 300); }
+      if (target === 'title') { text = oneLine(text, 300); }
 
       return {
         target: target,
@@ -1532,8 +1529,7 @@
 
     function suggestionHost(target, blocks) {
       if (target === 'title') { return titleEl.closest('.text-block'); }
-      if (target === 'description') { return subtitleEl.closest('.text-block'); }
-      if (target === 'summary') { return summaryEl.closest('.text-block'); }
+      if (target === 'description') { return descriptionEl.closest('.text-block'); }
       return blocks[Number(target.split(' ')[1]) - 1] || null;
     }
 
@@ -1783,7 +1779,7 @@
     var SPARKLE_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>';
 
     function allSections() {
-      return [titleEl.closest('.text-block'), subtitleEl.closest('.text-block'), summaryEl.closest('.text-block')].concat(contentBlocks());
+      return [titleEl.closest('.text-block'), descriptionEl.closest('.text-block')].concat(contentBlocks());
     }
 
     function isSectionFilled(host) {
@@ -1796,8 +1792,7 @@
     // The name used for a section in the prompt: title, description, summary, or "block N"
     function targetNameFor(host) {
       if (host === titleEl.closest('.text-block')) { return 'title'; }
-      if (host === subtitleEl.closest('.text-block')) { return 'description'; }
-      if (host === summaryEl.closest('.text-block')) { return 'summary'; }
+      if (host === descriptionEl.closest('.text-block')) { return 'description'; }
       return 'block ' + (contentBlocks().indexOf(host) + 1);
     }
 
@@ -1809,7 +1804,7 @@
         '- Keep the meaning and the author\u2019s voice, and keep it short. Fix typos and unclear wording. Add detail only when the rest of the page already supports it.',
         '- Do not invent facts, numbers, names, systems or policies that are not on the page. If the rewrite would need a fact only the author knows, keep the original wording for that part.',
         '- If Visibility is Client-Safe, avoid wording that only makes sense for internal staff.',
-        '- A title or description is a single plain-text line. A summary or text block may use **bold**, _italic_, lines starting with "- " for bullets and "1. " for numbers.',
+        '- A title is a single plain-text line. A description or text block may use **bold**, _italic_, lines starting with "- " for bullets and "1. " for numbers.',
         '',
         'Reply with ONLY a JSON object: {"text": "the full rewritten text", "reason": "under 120 characters, why it is better"}. For a step you may also include "title" (the rewritten step title). If nothing needs changing, reply with {}.',
         '',
@@ -1924,8 +1919,7 @@
 
       var sections = {
         'TITLE': lines(result.title),
-        'SUBTITLE': lines(result.description),
-        'SUMMARY': lines(result.summary),
+        'DESCRIPTION': lines(result.description),
         'PAGE TYPE': ['Process Documentation'],
         'VISIBILITY': ['Internal-Only'],
         'SOURCE FILE': [result.source],
@@ -1989,8 +1983,7 @@
 
       return {
         title: asText(raw && raw.title),
-        description: asText(raw && raw.description),
-        summary: asText(raw && raw.summary),
+        description: asText(raw && (raw.description || raw.summary)),
         blocks: blocks,
         review_notes: (Array.isArray(raw && raw.review_notes) ? raw.review_notes : []).map(asText).filter(Boolean),
         source: source
@@ -2109,6 +2102,80 @@
       if (file) { importDocumentFile(file); }
     });
     byId('import-dialog-close').addEventListener('click', function () { importDialog.close(); });
+
+    /* ---------- Export PDF ----------
+       Builds a clean copy of the page (title, description and content only) in #print-view and opens
+       the browser's print window. Choosing "Save as PDF" there makes the file. The page setup
+       (type, owner, reviewer, visibility), keywords and source file are never included. */
+    var printView = byId('print-view');
+    var originalTitle = document.title;
+
+    function printElement(tag, className, text) {
+      var el = document.createElement(tag);
+      el.className = className;
+      if (text !== undefined) { el.textContent = text; }
+      return el;
+    }
+
+    function printRichText(markdown) {
+      var el = printElement('div', 'print-text');
+      el.innerHTML = markdownToHtml(markdown);   // the same safe converter the editor uses
+      return el;
+    }
+
+    function buildPrintView() {
+      printView.textContent = '';
+      printView.appendChild(printElement('h1', 'print-title', readText(titleEl) || 'Untitled page'));
+
+      var description = readText(descriptionEl);
+      if (description) { printView.appendChild(printRichText(description)); }
+
+      readBlocks().forEach(function (block) {
+        if (!block.text && !block.title) { return; }
+
+        if (block.type === 'header') {
+          // The page title is the top heading, so header level 1 is printed as h2
+          printView.appendChild(printElement('h' + Math.min(block.level + 1, 6), 'print-heading print-level-' + block.level, block.text));
+        } else if (block.type === 'paragraph') {
+          printView.appendChild(printRichText(block.text));
+        } else if (block.type === 'step') {
+          var step = printElement('div', 'print-step');
+          step.appendChild(printElement('div', 'print-step-number', String(block.number)));
+          var body = printElement('div', 'print-step-body');
+          if (block.title) { body.appendChild(printElement('h3', 'print-step-title', block.title)); }
+          if (block.text) { body.appendChild(printElement('p', 'print-plain', block.text)); }
+          step.appendChild(body);
+          printView.appendChild(step);
+        } else {
+          // note or warning
+          var callout = printElement('div', 'print-callout print-' + block.type);
+          callout.appendChild(printElement('strong', '', block.type === 'warning' ? 'Warning' : 'Note'));
+          callout.appendChild(printElement('p', 'print-plain', block.text));
+          printView.appendChild(callout);
+        }
+      });
+    }
+
+    // Also runs for Ctrl/Cmd+P, so printing the page directly gives the same clean copy
+    window.addEventListener('beforeprint', function () {
+      buildPrintView();
+      document.title = readText(titleEl) || 'Untitled page';   // browsers suggest this as the file name
+    });
+    window.addEventListener('afterprint', function () {
+      printView.textContent = '';
+      document.title = originalTitle;
+    });
+
+    byId('export-pdf').addEventListener('click', function () {
+      var hasContent = readText(titleEl) || readText(descriptionEl) || readBlocks().some(function (block) { return block.text || block.title; });
+      if (!hasContent) {
+        showNotice('There is nothing to export yet.');
+        return;
+      }
+      showNotice('In the print window, choose Save as PDF as the destination.');
+      buildPrintView();
+      window.print();
+    });
 
     /* ---------- Open a draft saved on the server ---------- */
     var draftsDialog = byId('drafts-dialog');

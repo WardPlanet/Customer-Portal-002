@@ -226,7 +226,7 @@
    padding: 24px 16px 20px;
    min-width: 0;
  }
-  /* Every piece of content is its own block: title, subtitle, summary, each step */
+  /* Every piece of content is its own block: title, description, each step */
   .text-block {
    position: relative;
    padding: 6px 32px 6px 8px;
@@ -253,18 +253,12 @@
 
   .canvas-title {
     margin: 0;
-    font-size: 20px;
+    font-size: 30px;
     line-height: 1.25;
     font-weight: 700;
     letter-spacing: -0.01em;
   }
-  .canvas-subtitle {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.45;
-    color: var(--text-muted);
-  }
-  .canvas-summary {
+  .canvas-description {
     margin: 0;
     font-size: 14px;
     line-height: 1.6;
@@ -1142,4 +1136,56 @@
     .workspace { padding: 16px; }
     .topbar { padding: 14px 16px; }
     .save-status span:last-child { display: none; }
+  }
+
+  /* ---------- Print / Export PDF ----------
+     Only #print-view is printed: the page title, description and content. Page setup,
+     ownership, keywords and every editing control stay out of the PDF. */
+  #print-view { display: none; }
+  @media print {
+    @page { margin: 18mm; }
+    html, body { background: #fff !important; }
+    body > *:not(#print-view) { display: none !important; }
+    #print-view {
+      display: block;
+      color: #111;
+      font-size: 11pt;
+      line-height: 1.55;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    #print-view h1, #print-view h2, #print-view h3, #print-view h4, #print-view h5, #print-view h6 {
+      margin: 0;
+      font-weight: 700;
+      break-after: avoid;
+    }
+    .print-title { margin-bottom: 10pt !important; font-size: 28pt; line-height: 1.15; letter-spacing: -0.01em; }
+    .print-heading { margin-top: 18pt !important; margin-bottom: 6pt !important; line-height: 1.25; }
+    .print-level-1 { font-size: 20pt; }
+    .print-level-2 { font-size: 16pt; }
+    .print-level-3 { font-size: 14pt; }
+    .print-level-4 { font-size: 12.5pt; }
+    .print-level-5 { font-size: 11pt; }
+    .print-text { margin: 0 0 10pt; }
+    .print-text p { margin: 0 0 6pt; }
+    .print-text ul, .print-text ol { margin: 0 0 6pt; padding-left: 18pt; }
+    .print-plain { margin: 0; white-space: pre-wrap; }
+    .print-step { display: flex; gap: 10pt; margin: 0 0 12pt; break-inside: avoid; }
+    .print-step-number {
+      flex: none;
+      width: 20pt;
+      height: 20pt;
+      border-radius: 50%;
+      background: #111;
+      color: #fff;
+      font-size: 10pt;
+      font-weight: 700;
+      line-height: 20pt;
+      text-align: center;
+    }
+    .print-step-title { margin-bottom: 2pt !important; font-size: 12.5pt; }
+    .print-callout { margin: 0 0 12pt; padding: 8pt 10pt; border-left: 4pt solid; border-radius: 3pt; break-inside: avoid; }
+    .print-callout strong { display: block; margin-bottom: 2pt; }
+    .print-note { background: #fff6d6; border-color: #e0b400; }
+    .print-warning { background: #fde8e6; border-color: #c62828; }
   }

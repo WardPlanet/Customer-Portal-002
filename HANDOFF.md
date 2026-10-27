@@ -49,7 +49,7 @@ Responsive.
 - Add-block menu: `openBlockMenu`, `showMenuPanel`.
 - Initial render at the bottom: `layoutContent([...one empty step...], 1)`.
 
-**The DOM model.** After the three fixed fields (title, description, opening paragraph), one
+**The DOM model.** After the two fixed fields (title and description), one
 container, `#content-blocks`, holds everything else in page order: content blocks
 (`.step-block`, `.text-block`), insert lines (`.section-insert`), the step button rows
 (`.step-actions`), and the `+ Add a block` button (`#add-block`). `contentBlocks()` returns only
@@ -61,7 +61,8 @@ refreshes the outline. Call it after any structural change.
 
 **Fields and blocks**
 
-- Fixed fields: Page title (single line), Description (single line), Opening paragraph (rich text).
+- Fixed fields: Page title (single line, larger than an H1 header) and Description (rich text: what the
+  page covers and when to use it). There is no separate summary or subtitle.
 - Block types: Text (rich text), Header (H1 to H5), Step, Note (yellow), Warning (red).
 - Steps sit in sections. Numbering restarts at 1 in each section. Each section ends with a row of
   three rounded buttons: `+ Add step` (adds to that section), `+ Warning`, `+ Note` (add that
@@ -71,14 +72,14 @@ refreshes the outline. Call it after any structural change.
 
 **Required fields**
 
-- Required: title, description, opening paragraph, and at least one step with a title. The first
+- Required: title, description, and at least one step with a title. The first
   step on the page carries the red `*`.
 - Save draft, Submit to Draft and AI assist (toolbar) stay greyed out until all are filled in.
   Clicking a greyed button outlines what is missing.
 
 **Adding and removing**
 
-- Insert lines (thin line with a +) appear under the opening paragraph and under every block added
+- Insert lines (thin line with a +) appear under the description and under every block added
   later. Each opens the add-block menu. There is no insert line directly above or below the
   `+ Add a block` button.
 - `+ Add a block` opens the same menu and inserts directly below itself.
@@ -92,7 +93,7 @@ greyed out in the submenu. Adding or removing headers pulls any too-deep header 
 allowed level, and opening a draft corrects an invalid order.
 
 **Formatting:** bold, italic, underline, bulleted and numbered lists, and links work only in the
-opening paragraph and Text blocks. The toolbar buttons are greyed out everywhere else, and
+description and Text blocks. The toolbar buttons are greyed out everywhere else, and
 Ctrl/Cmd + B, I, U are blocked outside paragraph fields. Pasted text is always plain text.
 
 **AI assist** (needs the Claude runtime, see below)
@@ -147,6 +148,15 @@ The same `app.js` runs in two places and picks its AI automatically:
   https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (private). After changing the guidelines or
   `app.js`, rebuild and republish to refresh it.
 
+## Export PDF
+
+**Export PDF** (footer) opens the browser's print window with a clean copy of the page: the title, the
+description and the content (headers, steps, notes, warnings). Choose **Save as PDF** as the destination.
+Page Setup (type, locations, team members, reviewer, visibility), keywords and the source file are never
+included. Ctrl/Cmd+P gives the same clean copy. The print layout is the `@media print` section at the end of
+`styles.css`. If the browser blocks printing (possible inside the Claude artifact), use the downloaded
+copy of the page or the server version.
+
 Pasting plain text into **Paste draft text** does not need `[TITLE]` or any headings: text that is not in
 the saved-draft format is sent to the AI to be sorted into a page.
 
@@ -163,10 +173,7 @@ SAVED: 2026-10-23T12:00:00.000Z
 [TITLE]
 Refund Approval Process
 
-[SUBTITLE]
-Billing team procedure for customer refund requests
-
-[SUMMARY]
+[DESCRIPTION]
 Follow **these steps** whenever a customer requests a refund.
 
 [BLOCK 1 STEP NUMBER]
@@ -216,6 +223,8 @@ refund-process-v2.docx
 ```
 
 - `SOURCE FILE` is only present on pages created by an import.
+- Older drafts that have `SUBTITLE` and `SUMMARY` sections still open: `SUMMARY` becomes the description and
+  `SUBTITLE` is ignored.
 - Block sections are named `BLOCK n` followed by `PARAGRAPH`, `HEADER 1` to `HEADER 5`, `NOTE`,
   `WARNING`, or `STEP NUMBER` / `STEP TITLE` / `STEP TEXT`. A step numbered 1 starts a new step
   section. Blocks are read in `n` order.
@@ -224,7 +233,7 @@ refund-process-v2.docx
 - Older files still open: a plain `HEADER` is read as H2, and `STEP n TITLE` / `STEP n TEXT`
   sections are read as steps.
 - Line escape: a content line starting with `[` or `~` is saved with a leading `~`.
-- Inline text markup in the opening paragraph and Text blocks: `**bold**`, `_italic_`,
+- Inline text markup in the description and Text blocks: `**bold**`, `_italic_`,
   `<u>underline</u>`, `[label](https://link)`, lines starting `- ` (bullets) or `1. ` (numbers). A
   backslash keeps a symbol literal (`\*`, `\_`, `\[`, `\]`, `\<`, `\>`, `\\`). Only http, https and
   mailto links are accepted.

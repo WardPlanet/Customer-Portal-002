@@ -95,13 +95,7 @@
             <div class="text-block">
               <span class="block-tag">Description</span>
               <span class="required-mark" aria-hidden="true">*</span>
-              <p class="canvas-subtitle" id="field-subtitle" data-single-line contenteditable="true" spellcheck="true" data-placeholder="Description (required)"></p>
-            </div>
-
-            <div class="text-block">
-              <span class="block-tag">Opening paragraph</span>
-              <span class="required-mark" aria-hidden="true">*</span>
-              <p class="canvas-summary" id="field-summary" data-rich contenteditable="true" spellcheck="true" data-placeholder="Opening paragraph (required): what this page covers and when to use it"></p>
+              <p class="canvas-description" id="field-description" data-rich contenteditable="true" spellcheck="true" data-placeholder="Description (required): what this page covers and when to use it"></p>
             </div>
 
             <!-- Paragraph, header and step blocks are created by the script, in page order -->
@@ -174,6 +168,7 @@
     </div>
     <span class="footer-message" id="footer-message" role="status"></span>
     <div class="footer-group">
+      <button class="secondary-btn" type="button" id="export-pdf" title="Save the page as a PDF: title, description and content only">Export PDF</button>
       <button class="secondary-btn" type="button" id="save-draft" aria-disabled="true">Save draft</button>
       <button class="submit-btn" type="button" id="submit-draft" aria-disabled="true">Submit to Draft</button>
     </div>
@@ -225,6 +220,9 @@
   <button type="button" class="link-apply" id="link-apply">Apply</button>
   <button type="button" id="link-cancel">Cancel</button>
 </div>
+
+<!-- Clean copy of the page that is printed or saved as PDF; filled in by the script -->
+<div id="print-view" aria-hidden="true"></div>
 
 <dialog id="draft-dialog" class="draft-dialog" aria-labelledby="draft-dialog-title">
   <h2 id="draft-dialog-title" class="dialog-title">Draft text</h2>

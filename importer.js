@@ -20,8 +20,7 @@ const OUTPUT_FORMAT = [
   'Reply with ONLY a JSON object, no other text, in exactly this shape:',
   '{',
   '  "title": "page title, plain text, one line",',
-  '  "description": "one plain-text sentence",',
-  '  "summary": "opening paragraph; may use **bold**, _italic_, lines starting with \\"- \\" for bullets and \\"1. \\" for numbers",',
+  '  "description": "two or three sentences saying what the page covers and when to use it; may use **bold**, _italic_, lines starting with \\"- \\" for bullets and \\"1. \\" for numbers",',
   '  "blocks": [',
   '    { "type": "header", "level": 1, "text": "section heading" },',
   '    { "type": "paragraph", "text": "free text, same inline markup as summary" },',
@@ -144,8 +143,7 @@ function cleanResult(raw) {
 
   return {
     title: asText(raw && raw.title),
-    description: asText(raw && raw.description),
-    summary: asText(raw && raw.summary),
+    description: asText(raw && (raw.description || raw.summary)),
     blocks: blocks,
     review_notes: (Array.isArray(raw && raw.review_notes) ? raw.review_notes : []).map(asText).filter(Boolean)
   };

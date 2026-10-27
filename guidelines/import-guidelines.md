@@ -18,8 +18,8 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
 
 - The page title says what the process or topic is, in a few words, with no file-name leftovers
   such as "v2" or "FINAL".
-- The description is one plain sentence saying who this is for and what it covers.
-- The opening paragraph is two or three sentences: what this page is, when to use it, who owns it.
+- The description is two or three sentences: what this page covers, who it is for and when to use it.
+  There is no separate summary or subtitle, so do not repeat the description anywhere else.
 - Procedures become numbered steps. Each step has a short title that starts with a verb, and the
   detail underneath. Numbering restarts at 1 for each separate procedure on the page.
 - Use a header to start each major section. Do not use headers for decoration.
