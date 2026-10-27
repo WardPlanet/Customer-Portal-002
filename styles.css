@@ -448,6 +448,11 @@
   }
 
   .select-wrap[hidden] { display: none; }
+  .field-required { color: var(--danger); font-weight: 700; }
+  .setup .has-error .select-field { border-color: var(--danger); }
+  .setup .has-error .field-error { margin-top: 6px; }
+  .reviewer-field.is-locked { background: var(--surface-muted); cursor: default; }
+  .reviewer-select:disabled { opacity: 1; color: var(--text); cursor: default; }
   #owner, #reviewer, #role-add { font-size: 13px; }
   .team-name { margin: 0; font-size: 14px; font-weight: 600; }
   .role-list { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }

@@ -86,7 +86,9 @@ refreshes the outline. Call it after any structural change.
 
 **Required fields**
 
-- Required: title, description, and at least one step with a title. The first
+- Required: title, description, an Owner role, and at least one step with a title. (The Reviewer is also
+  required but is filled in automatically, see below. With no roster, for example the page opened from
+  disk with no server, there is nobody to choose, so Owner and Reviewer do not block saving.) The first
   step on the page carries the red `*`.
 - Save draft, Submit to Draft and AI assist (toolbar) stay greyed out until all are filled in.
   Clicking a greyed button outlines what is missing.
@@ -124,9 +126,9 @@ Ctrl/Cmd + B, I, U are blocked outside paragraph fields. Pasted text is always p
 - Search keywords: every Save draft asks the AI for 10 keywords and stores them in the draft file
   only. They are never shown in the editor.
 
-**Page Setup sidebar:** Team (read-only), Page Type (select), Owner (a role), Where This Lives (toggle
-chips plus add), Linked Roles (chips plus a "Link a role" menu), Reviewer (a role, optional), Visibility
-(Internal-Only or Client-Safe).
+**Page Setup sidebar:** Team (read-only), Page Type (select), Owner (a role, required), Where This Lives
+(toggle chips plus add), Linked Roles (chips plus a "Link a role" menu), Reviewer (locked to the team lead,
+required), Visibility (Internal-Only or Client-Safe).
 
 **Teams and roles.** Everything saved belongs to the **Legwork Web Team** (the only team for now). Pages are
 owned by **roles**, never by names: the page stores a job title such as "Website Editor", and the name next
@@ -142,6 +144,12 @@ new person, with no page edits and no restart.
 | Web Designer | Molly |
 | Web Team Manager | Micah |
 
+- **Reviewer is always the team lead.** The roster file names the lead role (`"lead": "Web Team Manager"`,
+  currently Micah). It cannot be changed on a page, and a page always saves with it. An older draft that
+  names a different reviewer opens with the lead instead. To change who reviews everything, change the
+  `person` for that role, or change `lead` to another role.
+- **Owner is required** and chosen per page, as a role. Save, Submit and AI assist stay greyed out until it
+  is set, and clicking Save names what is missing.
 - Only first names were given for four people; add surnames to the roster file when you have them.
 - Saved drafts live in `drafts/legwork-web-team/` (one folder per team). Drafts saved before teams existed
   are moved there automatically when the server starts.

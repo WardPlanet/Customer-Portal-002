@@ -815,7 +815,7 @@
 
     function isDraftComplete() {
       var fieldsFilled = REQUIRED_FIELDS.every(function (field) { return readText(field.el) !== ''; });
-      return fieldsFilled && anyStepHasTitle();
+      return fieldsFilled && anyStepHasTitle() && !ownerIsMissing();
     }
 
     // Grey out Save draft and Submit until every required field is filled in
@@ -848,6 +848,11 @@
           missing.push({ label: field.label, target: field.el });
         }
       });
+
+      if (ownerIsMissing()) {
+        flagBlock(byId('owner-field'), 'Choose an owner role to save a draft.');
+        missing.push({ label: 'owner role', target: byId('owner') });
+      }
 
       var steps = stepBlocks();
       if (!steps.length) {
@@ -1020,9 +1025,20 @@
       return byPerson ? byPerson.title : '';
     }
 
+    // The team lead's role. It is every page's reviewer, and a page cannot choose another.
+    function leadRole() {
+      return roster && roster.lead ? roster.lead : '';
+    }
+
+    // Owner and Reviewer are required whenever the roster says who they could be. With no roster (the
+    // page opened from disk with no server) neither can be chosen, so neither blocks saving.
+    function ownerIsRequired() { return rosterRoles().length > 0; }
+    function ownerIsMissing() { return ownerIsRequired() && !state.owner; }
+
     function setRoster(newRoster) {
       roster = newRoster;
       renderSidebar();
+      updateSaveState();   // Owner and Reviewer become required once the roster is known
     }
 
     function renderTeam() {
@@ -1097,7 +1113,12 @@
     }
 
     function renderReviewer() {
-      fillRoleSelect(byId('reviewer'), 'No reviewer', state.reviewer);
+      // Locked to the team lead: the only choice, and the select cannot be changed
+      state.reviewer = leadRole();
+      var select = byId('reviewer');
+      select.textContent = '';
+      addOption(select, state.reviewer, state.reviewer ? roleLabel(state.reviewer) : 'No team lead set');
+      select.value = state.reviewer;
 
       var person = personFor(state.reviewer);
       var avatar = byId('reviewer-avatar');
@@ -1183,7 +1204,7 @@
       section('OWNER ROLE', textLines(state.owner));
       section('WHERE THIS LIVES', state.locations.filter(function (l) { return l.on; }).map(function (l) { return l.name; }));
       section('LINKED ROLES', state.roles);
-      section('REVIEWER', textLines(state.reviewer));
+      section('REVIEWER', textLines(leadRole() || state.reviewer));
       section('VISIBILITY', textLines(state.visibility));
       if (state.source) { section('SOURCE FILE', [state.source]); }
 
@@ -1323,7 +1344,7 @@
       state.roles = list('LINKED ROLES').concat(list('LINKED TEAM MEMBERS').map(roleFromValue)).filter(function (title, index, all) {
         return title && all.indexOf(title) === index;
       });
-      state.reviewer = roleFromValue(body('REVIEWER'));
+      state.reviewer = leadRole();   // always the team lead, whatever an older draft says
 
       state.visibility = body('VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only';
       state.keywords = list('KEYWORDS').slice(0, 20);
@@ -3156,12 +3177,9 @@
     });
     byId('owner').addEventListener('change', function (event) {
       state.owner = event.target.value;
+      clearBlockError(byId('owner-field'));
       markDirty();
-    });
-    byId('reviewer').addEventListener('change', function (event) {
-      state.reviewer = event.target.value;
-      renderReviewer();
-      markDirty();
+      updateSaveState();
     });
     byId('role-add').addEventListener('change', function (event) {
       var title = event.target.value;

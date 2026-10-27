@@ -1,11 +1,27 @@
 {
   "name": "Legwork Web Team",
   "slug": "legwork-web-team",
+  "lead": "Web Team Manager",
   "roles": [
-    { "title": "Website Editor", "person": "Scott Archer" },
-    { "title": "Domain Manager", "person": "Mataya" },
-    { "title": "SEM Manager", "person": "Stephanie" },
-    { "title": "Web Designer", "person": "Molly" },
-    { "title": "Web Team Manager", "person": "Micah" }
+    {
+      "title": "Website Editor",
+      "person": "Scott Archer"
+    },
+    {
+      "title": "Domain Manager",
+      "person": "Mataya"
+    },
+    {
+      "title": "SEM Manager",
+      "person": "Stephanie"
+    },
+    {
+      "title": "Web Designer",
+      "person": "Molly"
+    },
+    {
+      "title": "Web Team Manager",
+      "person": "Micah"
+    }
   ]
 }

@@ -17,6 +17,10 @@ export async function readTeam() {
   var valid = team && typeof team.name === 'string' && /^[a-z0-9-]+$/.test(team.slug || '') && Array.isArray(team.roles);
   if (!valid) { throw new Error('teams/legwork-web-team.json needs a name, a slug (lowercase letters, numbers, hyphens) and a roles list.'); }
   team.roles = team.roles.filter(function (role) { return role && typeof role.title === 'string' && role.title.trim(); });
+  // "lead" names the role of the team lead. That role is every page's reviewer and cannot be changed per page.
+  if (team.lead && team.roles.every(function (role) { return role.title !== team.lead; })) {
+    throw new Error('The "lead" in teams/legwork-web-team.json must be one of the roles.');
+  }
   return team;
 }
 
