@@ -114,8 +114,9 @@ a warning count, and a rough read time.
 
 ## Importing existing documents
 
-The **Import document** button (footer) takes a `.docx`, `.pdf`, `.txt` or `.md` file and loads a
-standardized version into the editor for a person to review and save. Nothing is saved automatically.
+The **Import document** button (footer) opens a dialog: choose a `.docx`, `.pdf`, `.txt` or `.md` file, or
+paste the text. Either way a standardized version loads into the editor for a person to review and save.
+Pasted text is sent as `pasted-text.txt` and kept in the box if the import fails. Nothing is saved automatically.
 
 - Word files are converted to simple HTML on the server (images become an "[image omitted]" marker and a
   reviewer note). PDFs are sent to Claude as a PDF. Old `.doc` files are refused with a message.

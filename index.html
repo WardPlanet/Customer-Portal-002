@@ -168,7 +168,7 @@
     <div class="footer-group">
       <button class="secondary-btn" type="button" id="open-draft">Open draft</button>
       <button class="link-btn" type="button" id="paste-draft">Paste draft text</button>
-      <button class="secondary-btn" type="button" id="import-doc" title="Convert an existing Word, PDF, text or Markdown document into a page">Import document</button>
+      <button class="secondary-btn" type="button" id="import-doc" title="Convert an existing document, or pasted text, into a page">Import document</button>
       <input type="file" id="draft-file" accept=".txt,text/plain" hidden>
       <input type="file" id="import-file" accept=".docx,.pdf,.txt,.md" hidden>
     </div>
@@ -243,6 +243,18 @@
   <div class="dialog-actions">
     <button class="link-btn" type="button" id="drafts-dialog-file">Open a file instead</button>
     <button class="secondary-btn" type="button" id="drafts-dialog-close">Close</button>
+  </div>
+</dialog>
+
+<dialog id="import-source-dialog" class="draft-dialog" aria-labelledby="import-source-title">
+  <h2 id="import-source-title" class="dialog-title">Import a document</h2>
+  <p class="dialog-hint">The AI restructures it into a standard page. You review it before anything is saved.</p>
+  <button class="secondary-btn" type="button" id="import-choose-file">Choose a file (.docx, .pdf, .txt, .md)</button>
+  <p class="dialog-hint import-or">or paste the text</p>
+  <textarea id="import-paste-text" class="dialog-text" spellcheck="false" aria-label="Text to import" placeholder="Paste the document text here"></textarea>
+  <div class="dialog-actions">
+    <button class="secondary-btn" type="button" id="import-source-close">Cancel</button>
+    <button class="submit-btn" type="button" id="import-paste-convert">Convert pasted text</button>
   </div>
 </dialog>
 

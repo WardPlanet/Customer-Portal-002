@@ -1925,9 +1925,10 @@
       importDialog.showModal();
     }
 
+    // Resolves to true when the page was filled in, false when nothing changed
     async function importDocumentFile(file) {
-      if (isImporting) { return; }
-      if (pageHasContent() && !window.confirm('Importing replaces everything on this page. Continue?')) { return; }
+      if (isImporting) { return false; }
+      if (pageHasContent() && !window.confirm('Importing replaces everything on this page. Continue?')) { return false; }
 
       isImporting = true;
       importButton.setAttribute('aria-disabled', 'true');
@@ -1941,13 +1942,15 @@
         var body = await response.json().catch(function () { return {}; });
         if (!response.ok) {
           showNotice((body.error && body.error.message) || 'The import failed. Try again.');
-          return;
+          return false;
         }
         applyDraft(importResultToSections(body.result));
         setStatus('Imported, not saved yet', false);
         showImportReview(body.result);
+        return true;
       } catch (error) {
         showNotice('Couldn\u2019t reach the server to import that file.');
+        return false;
       } finally {
         isImporting = false;
         importButton.textContent = 'Import document';
@@ -1960,7 +1963,28 @@
         showNotice(aiUnavailable ? 'Importing needs the AI, which isn\u2019t available in this view.' : 'An import is already running.');
         return;
       }
+      importSourceDialog.showModal();
+    });
+
+    // Step 1 of an import: choose a file, or paste the text
+    var importSourceDialog = byId('import-source-dialog');
+    byId('import-choose-file').addEventListener('click', function () {
+      importSourceDialog.close();
       byId('import-file').click();
+    });
+    byId('import-source-close').addEventListener('click', function () { importSourceDialog.close(); });
+    byId('import-paste-convert').addEventListener('click', function () {
+      var pasted = byId('import-paste-text');
+      if (!pasted.value.trim()) {
+        pasted.focus();
+        return;
+      }
+      importSourceDialog.close();
+      // Pasted text goes through the same path as an uploaded .txt file
+      // The text stays in the box unless the import worked, so a failure never loses it
+      importDocumentFile(new File([pasted.value], 'pasted-text.txt', { type: 'text/plain' })).then(function (done) {
+        if (done) { pasted.value = ''; }
+      });
     });
     byId('import-file').addEventListener('change', function (event) {
       var input = event.target;

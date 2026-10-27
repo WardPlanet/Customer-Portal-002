@@ -651,6 +651,8 @@
   }
   .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 16px; }
 
+  .import-or { margin: 16px 0 8px; }
+
   .review-list {
     max-height: 320px;
     margin: 0;
