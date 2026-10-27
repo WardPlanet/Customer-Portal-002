@@ -22,7 +22,7 @@ const OUTPUT_FORMAT = [
   '  "blocks": [',
   '    { "type": "header", "level": 1, "text": "section heading" },',
   '    { "type": "paragraph", "text": "free text, same inline markup as summary" },',
-  '    { "type": "step", "number": 1, "title": "short step title", "text": "step detail, same inline markup; an empty string when the title already says enough", "code": ["optional: a command or snippet that belongs to this step, copied exactly"] },',
+  '    { "type": "step", "number": 1, "title": "short step title", "text": "step detail, same inline markup; an empty string when the title already says enough", "items": [{ "type": "note | warning | code", "text": "optional: a note, warning or code snippet that belongs to this step; code is copied exactly" }] },',
   '    { "type": "note", "text": "a tip or aside" },',
   '    { "type": "warning", "text": "a caution" },',
   '    { "type": "code", "text": "a command, query, file path list, configuration or code snippet, copied exactly with its line breaks and indentation" }',
@@ -125,6 +125,21 @@ function tidyCode(text) {
   return typeof text === 'string' ? text.replace(/\r/g, '').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '') : '';
 }
 
+// A step's notes, warnings and code from the AI's reply: [{ type, text }]. Also accepts the older
+// "code": [...] list. Keep in step with cleanStepItems in app.js.
+function cleanStepItems(block) {
+  var items = (Array.isArray(block.items) ? block.items : []).map(function (item) {
+    var type = item && item.type;
+    if (type !== 'note' && type !== 'warning' && type !== 'code') { return null; }
+    var text = type === 'code' ? tidyCode(item.text) : asText(item.text);
+    return text ? { type: type, text: text } : null;
+  });
+  (Array.isArray(block.code) ? block.code : []).forEach(function (code) {
+    items.push({ type: 'code', text: tidyCode(code) });
+  });
+  return items.filter(function (item) { return item && item.text; });
+}
+
 function asText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -142,7 +157,7 @@ function cleanResult(raw) {
           number: Math.max(1, parseInt(block.number, 10) || 1),
           title: asText(block.title),
           text: text,
-          code: (Array.isArray(block.code) ? block.code : []).map(tidyCode).filter(Boolean)
+          items: cleanStepItems(block)
         };
       case 'code':
         // Code keeps its indentation, so it is not trimmed like other text
@@ -155,7 +170,7 @@ function cleanResult(raw) {
         return null;
     }
   }).filter(function (block) {
-    return block && (block.text || block.title || (block.code && block.code.length));
+    return block && (block.text || block.title || (block.items && block.items.length));
   });
 
   return {

@@ -817,8 +817,8 @@
     color: var(--danger);
     opacity: 0;
   }
-  .step-code:hover > .remove-snippet,
-  .step-code:focus-within > .remove-snippet,
+  .step-item:hover > .remove-snippet,
+  .step-item:focus-within > .remove-snippet,
   .remove-snippet:focus-visible { opacity: 1; }
   .remove-snippet:hover,
   .remove-snippet:focus-visible { background: var(--danger); color: #fff; }
@@ -928,11 +928,98 @@
   .copy-code:focus-visible { opacity: 1; }
   .copy-code:hover { color: var(--accent-text); border-color: var(--accent-border); }
 
-  /* A snippet inside a step */
-  .step-code { position: relative; margin-top: 8px; }
-  .step-code .copy-code { top: 8px; right: 12px; }
-  .step-code:hover > .copy-code,
-  .step-code:focus-within > .copy-code { opacity: 1; }
+  /* Notes, warnings and code inside a step */
+  .step-item { position: relative; margin-top: 8px; }
+  .step-item-code .copy-code { top: 8px; right: 12px; }
+  .step-item-code:hover > .copy-code,
+  .step-item-code:focus-within > .copy-code { opacity: 1; }
+  .step-item-note,
+  .step-item-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 14px 7px 9px;
+    border: 1px solid;
+    border-radius: 8px;
+  }
+  .step-item-note { background: var(--warn-bg); border-color: var(--warn-border); }
+  .step-item-warning { background: var(--danger-soft); border-color: var(--danger-border); }
+  .step-item-note:focus-within { border-color: var(--warn-icon); }
+  .step-item-warning:focus-within { border-color: var(--danger); }
+  .item-icon { flex: none; display: grid; place-items: center; margin-top: 1px; }
+  .item-icon svg { width: 16px; height: 16px; }
+  .step-item-note .item-icon { color: var(--warn-icon); }
+  .step-item-warning .item-icon { color: var(--danger); }
+  .step-item-text {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+    min-height: 1.45em;
+  }
+
+  /* The buttons for a step: a small bar over the step's top edge, visible only while the step is
+     selected. It floats (position: absolute) so showing it never moves anything on the page, which
+     would make clicks on the elements below it miss. */
+  .step-tools {
+    display: none;
+    position: absolute;
+    top: -15px;
+    right: 44px;
+    z-index: 4;
+    gap: 6px;
+    padding: 3px;
+    background: var(--surface);
+    border-radius: var(--radius-pill);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+  }
+  .step-block:focus-within .step-tools { display: flex; }
+  @media (max-width: 560px) {
+    .step-tools { right: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  }
+
+  /* Drag handle under the step number, and the line that shows where a dragged step will land */
+  .step-grip {
+    position: absolute;
+    left: 14px;
+    top: 38px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    color: var(--text-faint);
+    cursor: grab;
+    opacity: 0;
+    touch-action: none;
+  }
+  .step-block:hover > .step-grip,
+  .step-block:focus-within > .step-grip,
+  .step-grip:focus-visible { opacity: 1; }
+  .step-grip:hover { color: var(--text); background: var(--surface-muted); }
+  .step-block.is-dragging {
+    position: relative;
+    z-index: 5;
+    background: var(--surface);
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    opacity: 0.95;
+  }
+  .step-block.is-dragging .step-grip { cursor: grabbing; }
+  body.is-reordering { user-select: none; cursor: grabbing; }
+  .step-drop-line {
+    position: fixed;
+    z-index: 70;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    pointer-events: none;
+  }
 
   .block-callout {
     margin: 0;
@@ -1021,7 +1108,8 @@
     margin: -2px 0 0 2px;
   }
   /* Rounded boxes. Add step matches the selected "Tools & Access" chip; Warning and Note match their blocks. */
-  .step-actions button {
+  .step-actions button,
+  .step-tools button {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -1034,13 +1122,14 @@
   }
   .step-actions .step-add { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }
   .step-actions .step-add:hover { border-color: var(--accent); }
-  .step-actions .step-warning { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
-  .step-actions .step-warning:hover { border-color: var(--danger); }
-  .step-actions .step-note { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-icon); }
-  .step-actions .step-note:hover { border-color: var(--warn-icon); }
-  .step-actions .step-code-add { background: var(--code-bg); border-color: var(--border-strong); color: var(--text-muted); }
-  .step-actions .step-code-add:hover { border-color: var(--text-muted); color: var(--text); }
-  .step-actions svg { width: 13px; height: 13px; }
+  .step-tools .step-warning { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+  .step-tools .step-warning:hover { border-color: var(--danger); }
+  .step-tools .step-note { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-icon); }
+  .step-tools .step-note:hover { border-color: var(--warn-icon); }
+  .step-tools .step-code-add { background: var(--code-bg); border-color: var(--border-strong); color: var(--text-muted); }
+  .step-tools .step-code-add:hover { border-color: var(--text-muted); color: var(--text); }
+  .step-actions svg,
+  .step-tools svg { width: 13px; height: 13px; }
 
   .link-popover {
     position: fixed;

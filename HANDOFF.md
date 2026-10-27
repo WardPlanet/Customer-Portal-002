@@ -65,15 +65,20 @@ refreshes the outline. Call it after any structural change.
   page covers and when to use it). There is no separate summary or subtitle.
 - Block types: Text (rich text), Header (H1 to H5), Step, Note (yellow), Warning (red), Code (plain-text
   snippet).
-- Steps sit in sections. Numbering restarts at 1 in each section. Each section ends with a row of
-  four rounded buttons: `+ Add step` (adds to that section), `+ Warning`, `+ Note` (add that
-  block below the section) and `+ Code Snippet`.
-- `+ Code Snippet` adds a plain-text code snippet **inside a step**, under its text. It goes into the step
-  being edited most recently if that step is in this section, otherwise the section's last step. A step can
-  hold several snippets, each with its own Copy button and a red x to remove it. They are saved as
-  `[BLOCK n STEP CODE k]` sections, print in Courier in the PDF, and are never rewritten by the AI. Imports
-  put a command that belongs to a step into that step's `code` list (see `importer.js`). This is separate
-  from the **Code** block in the add-block menu, which stands on its own between blocks.
+- Steps sit in sections. Numbering restarts at 1 in each section. Each section ends with one rounded
+  `+ Add step` button.
+- **Notes, warnings and code snippets belong to a step.** While a step is selected (the cursor is anywhere
+  in it), a small bar with `+ Note`, `+ Warning` and `+ Code Snippet` floats over its top edge. Each adds an
+  item under the step's text, in the order added; a step can hold any number. Items have a red x to remove
+  them, and code items a Copy button. They are saved as `[BLOCK n STEP NOTE k]`, `STEP WARNING k` and
+  `STEP CODE k`, print inside the step in the PDF, and are never rewritten by the AI. Imports put a note,
+  warning or command that applies to one step into that step's `items` list (see `importer.js`). The bar
+  floats on purpose: showing it never moves the page, which would make clicks just below it miss.
+- **Standalone** Note, Warning and Code blocks still exist (toolbar chips and the add-block menu) for things
+  that apply to the whole page rather than one step.
+- **Reorder steps** by dragging the grip (six dots) under the step number, with a mouse or a finger, or by
+  focusing it and pressing the up or down arrow key. A blue line shows where the step will land and the
+  numbers update when it is dropped. A step can move within its own section only. Escape cancels a drag.
 - Choosing Step from the toolbar or any menu starts a new step section. It never extends an
   existing one.
 
@@ -267,8 +272,8 @@ refund-process-v2.docx
 - Older drafts that have `SUBTITLE` and `SUMMARY` sections still open: `SUMMARY` becomes the description and
   `SUBTITLE` is ignored.
 - Block sections are named `BLOCK n` followed by `PARAGRAPH`, `HEADER 1` to `HEADER 5`, `NOTE`,
-  `WARNING`, `CODE`, or `STEP NUMBER` / `STEP TITLE` / `STEP TEXT` / `STEP CODE k` (k = 1, 2, ... for the snippets
-  inside a step). A step numbered 1 starts a new step
+  `WARNING`, `CODE`, or `STEP NUMBER` / `STEP TITLE` / `STEP TEXT` / `STEP NOTE k` / `STEP WARNING k` /
+  `STEP CODE k` (k = 1, 2, ... in the order the items appear inside that step). A step numbered 1 starts a new step
   section. Blocks are read in `n` order.
 - `ADD BLOCK BUTTON` holds how many blocks sit above the `+ Add a block` button, so the layout
   reopens the same way. If it is missing, all blocks are placed above the button.

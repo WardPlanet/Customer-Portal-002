@@ -99,7 +99,7 @@
 
     function buildBlockElement(type, values) {
       return type === 'step'
-        ? buildStepBlock(values.title, values.text, values.code)
+        ? buildStepBlock(values.title, values.text, values.items)
         : buildTextBlock(type, values.text, values.level);
     }
 
@@ -367,7 +367,7 @@
             number: Number(block.querySelector('.step-number').textContent),
             title: readText(block.querySelector('.step-title')),
             text: readText(block.querySelector('.step-text')),
-            code: stepCodeTexts(block)
+            items: stepItems(block)
           };
         }
         var type = Object.keys(TEXT_BLOCKS).filter(function (key) {
@@ -379,7 +379,7 @@
       });
     }
 
-    function buildStepBlock(title, text, codes) {
+    function buildStepBlock(title, text, items) {
       var block = document.createElement('div');
       block.className = 'block step-block';
 
@@ -405,73 +405,223 @@
 
       body.appendChild(heading);
       body.appendChild(paragraph);
-      (codes || []).forEach(function (code) { body.appendChild(buildStepCode(code)); });
+      (items || []).forEach(function (item) { body.appendChild(buildStepItem(item.type, item.text)); });
       block.appendChild(number);
       block.appendChild(body);
+      body.appendChild(createStepTools(block));
+      block.appendChild(createStepGrip(block));
       return block;
     }
 
-    /* ---------- Code snippets inside a step ----------
-       A step can hold any number of plain-text code snippets, shown under its text. They are part of
-       the step (saved as BLOCK n STEP CODE k), unlike the separate Code block. */
-    function buildStepCode(text) {
-      var wrap = document.createElement('div');
-      wrap.className = 'step-code';
+    /* ---------- Notes, warnings and code inside a step ----------
+       Each step can hold any number of notes, warnings and plain-text code snippets, shown under its
+       text in the order they were added. They belong to the step (saved as BLOCK n STEP NOTE k,
+       STEP WARNING k and STEP CODE k). The buttons that add them appear only while the step is selected. */
+    var STEP_ITEM_TYPES = {
+      note: { label: 'Note', placeholder: 'Write a note' },
+      warning: { label: 'Warning', placeholder: 'Write a warning' },
+      code: { label: 'Code Snippet', placeholder: 'Paste or type code' }
+    };
 
-      var field = document.createElement('pre');
-      field.className = 'block-code';
-      field.contentEditable = CODE_EDITABLE;
-      field.spellcheck = false;
-      field.setAttribute('data-code', '');
-      field.setAttribute('data-placeholder', 'Paste or type code');
+    function buildStepItem(type, text) {
+      var wrap = document.createElement('div');
+      wrap.className = 'step-item step-item-' + type;
+      wrap.setAttribute('data-item', type);
+
+      var field;
+      if (type === 'code') {
+        field = document.createElement('pre');
+        field.className = 'block-code';
+        field.contentEditable = CODE_EDITABLE;
+        field.spellcheck = false;
+        field.setAttribute('data-code', '');
+      } else {
+        var icon = document.createElement('span');
+        icon.className = 'item-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.innerHTML = type === 'note' ? NOTE_ICON : WARNING_ICON;
+        wrap.appendChild(icon);
+
+        field = document.createElement('p');
+        field.className = 'step-item-text';
+        field.contentEditable = 'true';
+        field.spellcheck = true;
+      }
+      field.setAttribute('data-placeholder', STEP_ITEM_TYPES[type].placeholder);
       field.textContent = text || '';
+      wrap.appendChild(field);
+      if (type === 'code') { wrap.appendChild(createCopyButton(field)); }
 
       var remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'remove-snippet';
-      remove.setAttribute('aria-label', 'Remove this code snippet');
-      remove.title = 'Remove this code snippet';
+      remove.setAttribute('aria-label', 'Remove this ' + STEP_ITEM_TYPES[type].label.toLowerCase());
+      remove.title = 'Remove this ' + STEP_ITEM_TYPES[type].label.toLowerCase();
       remove.innerHTML = CLOSE_ICON;
       remove.addEventListener('click', function () {
         wrap.remove();
         markDirty();
         refreshOutline();
       });
-
-      wrap.appendChild(field);
-      wrap.appendChild(createCopyButton(field));
       wrap.appendChild(remove);
       return wrap;
     }
 
-    function stepCodeTexts(stepBlock) {
-      return Array.prototype.map.call(stepBlock.querySelectorAll('.step-code .block-code'), readText);
+    // [{ type: 'note' | 'warning' | 'code', text }] in the order they appear in the step
+    function stepItems(stepBlock) {
+      return Array.prototype.map.call(stepBlock.querySelectorAll('.step-item'), function (wrap) {
+        return { type: wrap.getAttribute('data-item'), text: readText(wrap.querySelector('[contenteditable]')) };
+      });
     }
 
-    // The step that was being edited most recently, so "+ Code Snippet" knows which step to use
-    var lastActiveStep = null;
-    document.addEventListener('focusin', function (event) {
-      var step = event.target.closest && event.target.closest('.step-block');
-      if (step) { lastActiveStep = step; }
-    });
+    // The row of buttons inside a step. It is only visible while the step is selected (CSS :focus-within).
+    function createStepTools(stepBlock) {
+      var row = document.createElement('div');
+      row.className = 'step-tools';
 
-    // Adds a snippet to a step in the section above this button row: the step being edited if it is
-    // one of them, otherwise the last step of the section
-    function addCodeToStepAbove(row) {
-      var steps = [];
-      var node = row.previousElementSibling;
-      while (node && node.classList.contains('step-block')) {
-        steps.unshift(node);
-        node = node.previousElementSibling;
+      function addTool(type, className, iconHtml) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = className;
+        var plus = document.createElement('span');
+        plus.textContent = '+';
+        var label = document.createElement('span');
+        label.textContent = STEP_ITEM_TYPES[type].label;
+        button.appendChild(plus);
+        button.insertAdjacentHTML('beforeend', iconHtml);
+        button.appendChild(label);
+        button.addEventListener('click', function () {
+          var item = buildStepItem(type, '');
+          row.before(item);
+          markDirty();
+          refreshOutline();
+          item.querySelector('[contenteditable]').focus();
+        });
+        row.appendChild(button);
       }
-      if (!steps.length) { return; }
 
-      var target = steps.indexOf(lastActiveStep) >= 0 ? lastActiveStep : steps[steps.length - 1];
-      var snippet = buildStepCode('');
-      target.querySelector('.step-text').parentNode.appendChild(snippet);
-      markDirty();
-      snippet.querySelector('.block-code').focus();
+      addTool('note', 'step-note', NOTE_ICON);
+      addTool('warning', 'step-warning', WARNING_ICON);
+      addTool('code', 'step-code-add', CODE_ICON);
+      return row;
     }
+
+    /* ---------- Reorder steps by dragging ----------
+       The grip under a step's number can be dragged with a mouse or finger, or moved with the up and
+       down arrow keys. A step can be reordered within its own section; the numbers update at once. */
+    var GRIP_ICON = '<svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.4"/><circle cx="9" cy="3" r="1.4"/><circle cx="3" cy="8" r="1.4"/><circle cx="9" cy="8" r="1.4"/><circle cx="3" cy="13" r="1.4"/><circle cx="9" cy="13" r="1.4"/></svg>';
+
+    // The steps that sit together with this one (its section), in order
+    function stepsInSection(step) {
+      var run = [step];
+      var node = step.previousElementSibling;
+      while (node && node.classList.contains('step-block')) { run.unshift(node); node = node.previousElementSibling; }
+      node = step.nextElementSibling;
+      while (node && node.classList.contains('step-block')) { run.push(node); node = node.nextElementSibling; }
+      return run;
+    }
+
+    function finishStepMove(step) {
+      refreshBlocks();   // renumbers the steps and re-places the "+ Add step" button
+      markDirty();
+      showNotice('Step moved. It is now step ' + step.querySelector('.step-number').textContent + '.');
+    }
+
+    // delta -1 moves the step up one place, +1 moves it down
+    function moveStepBy(step, delta) {
+      var run = stepsInSection(step);
+      var index = run.indexOf(step);
+      var target = index + delta;
+      if (target < 0 || target >= run.length) { return false; }
+      contentEl.insertBefore(step, delta < 0 ? run[index - 1] : run[index + 1].nextSibling);
+      finishStepMove(step);
+      return true;
+    }
+
+    var stepDrag = null;
+
+    function startStepDrag(step, grip, event) {
+      var run = stepsInSection(step);
+      if (run.length < 2) {
+        showNotice('There is only one step here, so there is nothing to reorder.');
+        return;
+      }
+      event.preventDefault();
+      var line = document.createElement('div');
+      line.className = 'step-drop-line';
+      document.body.appendChild(line);
+      stepDrag = { step: step, grip: grip, others: run.filter(function (item) { return item !== step; }), startY: event.clientY, slot: run.indexOf(step), line: line };
+      grip.setPointerCapture(event.pointerId);
+      step.classList.add('is-dragging');
+      document.body.classList.add('is-reordering');
+    }
+
+    function moveStepDrag(event) {
+      if (!stepDrag) { return; }
+      stepDrag.step.style.transform = 'translateY(' + (event.clientY - stepDrag.startY) + 'px)';
+
+      // The slot is how many of the other steps sit above the pointer
+      var slot = stepDrag.others.filter(function (other) {
+        var rect = other.getBoundingClientRect();
+        return event.clientY > rect.top + rect.height / 2;
+      }).length;
+      stepDrag.slot = slot;
+
+      var anchor = slot < stepDrag.others.length ? stepDrag.others[slot] : stepDrag.others[stepDrag.others.length - 1];
+      var box = anchor.getBoundingClientRect();
+      stepDrag.line.style.left = box.left + 'px';
+      stepDrag.line.style.width = box.width + 'px';
+      stepDrag.line.style.top = (slot < stepDrag.others.length ? box.top - 3 : box.bottom + 1) + 'px';
+
+      // Scroll when the pointer nears the top or bottom edge of the window
+      if (event.clientY < 50) { window.scrollBy(0, -12); }
+      else if (event.clientY > window.innerHeight - 50) { window.scrollBy(0, 12); }
+    }
+
+    function endStepDrag(commit) {
+      if (!stepDrag) { return; }
+      var drag = stepDrag;
+      stepDrag = null;
+      drag.step.classList.remove('is-dragging');
+      drag.step.style.transform = '';
+      document.body.classList.remove('is-reordering');
+      drag.line.remove();
+
+      var before = drag.slot < drag.others.length ? drag.others[drag.slot] : drag.others[drag.others.length - 1].nextSibling;
+      var order = stepsInSection(drag.step);
+      var changed = order.indexOf(drag.step) !== drag.slot;
+      if (commit && changed) {
+        contentEl.insertBefore(drag.step, before);
+        finishStepMove(drag.step);
+      }
+      drag.grip.focus();
+    }
+
+    function createStepGrip(step) {
+      var grip = document.createElement('button');
+      grip.type = 'button';
+      grip.className = 'step-grip';
+      grip.setAttribute('aria-label', 'Move this step: drag it, or press the up or down arrow key');
+      grip.title = 'Drag to reorder this step';
+      grip.innerHTML = GRIP_ICON;
+      grip.addEventListener('pointerdown', function (event) {
+        if (event.pointerType === 'mouse' && event.button !== 0) { return; }
+        startStepDrag(step, grip, event);
+      });
+      grip.addEventListener('pointermove', moveStepDrag);
+      grip.addEventListener('pointerup', function () { endStepDrag(true); });
+      grip.addEventListener('pointercancel', function () { endStepDrag(false); });
+      grip.addEventListener('keydown', function (event) {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          event.preventDefault();
+          if (moveStepBy(step, event.key === 'ArrowUp' ? -1 : 1)) { grip.focus(); }
+        } else if (event.key === 'Escape') {
+          endStepDrag(false);
+        }
+      });
+      return grip;
+    }
+
     function readSteps() {
       return stepBlocks().map(function (block) {
         return {
@@ -524,8 +674,8 @@
     }
 
     /* ---------- Page layout: blocks, insert lines and the "+ Add a block" button ---------- */
-    // The row under each step section. "Add step" adds another step to the section (no insert
-    // line in between); "+ Warning" and "+ Note" add that callout directly below the section.
+    // The row under each step section: "+ Add step" adds another step to the section (no insert
+    // line in between). Notes, warnings and code are added from inside a step.
     function createStepActions() {
       var row = document.createElement('div');
       row.className = 'step-actions';
@@ -551,10 +701,6 @@
         markDirty();
         block.querySelector('.step-title').focus();
       });
-      addAction('Warning', 'step-warning', WARNING_ICON, function () { addCalloutBelow(row, 'warning'); });
-      addAction('Note', 'step-note', NOTE_ICON, function () { addCalloutBelow(row, 'note'); });
-      addAction('Code Snippet', 'step-code-add', CODE_ICON, function () { addCodeToStepAbove(row); });
-      row.lastChild.title = 'Add a code snippet inside the step you were editing (or the last step in this section)';
       return row;
     }
 
@@ -714,6 +860,9 @@
         if (block.type === 'step') {
           item.textContent = block.number + '. ' + (block.title || 'Untitled step');
           allText.push(block.title, block.text);
+          block.items.forEach(function (stepItem) {
+            if (stepItem.type === 'warning') { warningCount += 1; }
+          });
         } else if (block.type === 'header') {
           item.textContent = block.text || 'Untitled header';
           item.className = 'outline-header';
@@ -912,7 +1061,9 @@
           section(prefix + 'STEP NUMBER', [String(block.number)]);
           section(prefix + 'STEP TITLE', textLines(block.title));
           section(prefix + 'STEP TEXT', textLines(block.text));
-          block.code.filter(Boolean).forEach(function (code, i) { section(prefix + 'STEP CODE ' + (i + 1), textLines(code)); });
+          block.items.filter(function (item) { return item.text; }).forEach(function (item, i) {
+            section(prefix + 'STEP ' + item.type.toUpperCase() + ' ' + (i + 1), textLines(item.text));
+          });
         } else if (block.type === 'header') {
           section(prefix + 'HEADER ' + block.level, textLines(block.text));
         } else {
@@ -966,21 +1117,21 @@
     }
 
     // Turns the BLOCK n ... sections (or the older STEP n ... sections) into an ordered list of blocks
-    // The k in each "BLOCK n STEP CODE k" section of one step, in order
-    function stepCodeNumbers(sections, prefix) {
-      var numbers = [];
+    // The notes, warnings and code snippets of one step, in order: "BLOCK n STEP NOTE k" and so on
+    function stepItemSections(sections, prefix) {
+      var found = [];
       Object.keys(sections).forEach(function (name) {
-        var match = /^STEP CODE ([0-9]+)$/.exec(name.slice(prefix.length));
-        if (name.indexOf(prefix) === 0 && match) { numbers.push(Number(match[1])); }
+        var match = name.indexOf(prefix) === 0 && /^STEP (CODE|NOTE|WARNING) ([0-9]+)$/.exec(name.slice(prefix.length));
+        if (match) { found.push({ type: match[1].toLowerCase(), order: Number(match[2]), name: name }); }
       });
-      return numbers.sort(function (a, b) { return a - b; });
+      return found.sort(function (a, b) { return a.order - b.order; });
     }
 
     function readDraftBlocks(sections, body) {
       var blocks = [];
       var numbers = {};
       Object.keys(sections).forEach(function (name) {
-        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|STEP TITLE|STEP TEXT|STEP NUMBER|STEP CODE [0-9]+)$/.exec(name);
+        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|STEP TITLE|STEP TEXT|STEP NUMBER|STEP (?:CODE|NOTE|WARNING) [0-9]+)$/.exec(name);
         if (match) { numbers[Number(match[1])] = true; }
       });
 
@@ -1006,9 +1157,9 @@
             number: parseInt(body(prefix + 'STEP NUMBER'), 10),
             title: body(prefix + 'STEP TITLE'),
             text: body(prefix + 'STEP TEXT'),
-            code: stepCodeNumbers(sections, prefix).map(function (k) {
-              return tidyCode(sections[prefix + 'STEP CODE ' + k].join(NL));
-            }).filter(Boolean)
+            items: stepItemSections(sections, prefix).map(function (found) {
+              return { type: found.type, text: found.type === 'code' ? tidyCode(sections[found.name].join(NL)) : body(found.name) };
+            }).filter(function (item) { return item.text; })
           });
         }
       });
@@ -1609,7 +1760,7 @@
         var label = 'block ' + (index + 1) + ', ' + block.type;
         if (block.type === 'step') {
           lines.push('[' + label + ', numbered ' + block.number + '] title: ' + block.title + ' | text: ' + block.text
-            + (block.code.length ? ' | has ' + block.code.length + ' code snippet(s): never suggest changes to them' : ''));
+            + (block.items.length ? ' | has ' + block.items.length + ' note/warning/code item(s): never suggest changes to them' : ''));
         } else if (block.type === 'header') {
           lines.push('[' + label + ', level ' + block.level + '] ' + block.text);
         } else if (block.type === 'code') {
@@ -1932,7 +2083,7 @@
     function isSectionFilled(host) {
       if (host.classList.contains('step-block')) {
         return readText(host.querySelector('.step-title')) !== '' || readText(host.querySelector('.step-text')) !== ''
-          || stepCodeTexts(host).some(Boolean);
+          || stepItems(host).some(function (item) { return item.text !== ''; });
       }
       return readText(host.querySelector('[contenteditable]')) !== '';
     }
@@ -2082,7 +2233,7 @@
           sections[prefix + 'STEP NUMBER'] = [String(block.number)];
           sections[prefix + 'STEP TITLE'] = lines(block.title);
           sections[prefix + 'STEP TEXT'] = lines(block.text);
-          block.code.forEach(function (code, i) { sections[prefix + 'STEP CODE ' + (i + 1)] = lines(code); });
+          block.items.forEach(function (item, i) { sections[prefix + 'STEP ' + item.type.toUpperCase() + ' ' + (i + 1)] = lines(item.text); });
         } else if (block.type === 'header') {
           sections[prefix + 'HEADER ' + block.level] = lines(block.text);
         } else {
@@ -2113,6 +2264,21 @@
       return error;
     }
 
+    // A step's notes, warnings and code from the AI's reply: [{ type, text }]. Also accepts the older
+    // "code": [...] list.
+    function cleanStepItems(block) {
+      var items = (Array.isArray(block.items) ? block.items : []).map(function (item) {
+        var type = item && item.type;
+        if (type !== 'note' && type !== 'warning' && type !== 'code') { return null; }
+        var text = type === 'code' ? tidyCode(item.text) : (typeof item.text === 'string' ? item.text.trim() : '');
+        return text ? { type: type, text: text } : null;
+      });
+      (Array.isArray(block.code) ? block.code : []).forEach(function (code) {
+        items.push({ type: 'code', text: tidyCode(code) });
+      });
+      return items.filter(function (item) { return item && item.text; });
+    }
+
     // Keeps only what the editor understands, so an odd AI reply cannot break the page.
     // Used when Claude's built-in AI answers directly; keep in step with cleanResult in importer.js.
     function cleanImportResult(raw, source) {
@@ -2128,7 +2294,7 @@
               number: Math.max(1, parseInt(block.number, 10) || 1),
               title: asText(block.title),
               text: text,
-              code: (Array.isArray(block.code) ? block.code : []).map(tidyCode).filter(Boolean)
+              items: cleanStepItems(block)
             };
           case 'code':
             // Code keeps its indentation
@@ -2140,7 +2306,7 @@
           default:
             return null;
         }
-      }).filter(function (block) { return block && (block.text || block.title || (block.code && block.code.length)); });
+      }).filter(function (block) { return block && (block.text || block.title || (block.items && block.items.length)); });
 
       return {
         title: asText(raw && raw.title),
@@ -2292,7 +2458,7 @@
       if (description) { printView.appendChild(printRichText(description)); }
 
       readBlocks().forEach(function (block) {
-        if (!block.text && !block.title && !(block.code && block.code.length)) { return; }
+        if (!block.text && !block.title && !(block.items && block.items.length)) { return; }
 
         if (block.type === 'header') {
           // The page title is the top heading, so header level 1 is printed as h2
@@ -2305,7 +2471,16 @@
           var body = printElement('div', 'print-step-body');
           if (block.title) { body.appendChild(printElement('h3', 'print-step-title', block.title)); }
           if (block.text) { body.appendChild(printElement('p', 'print-plain', block.text)); }
-          block.code.filter(Boolean).forEach(function (code) { body.appendChild(printElement('pre', 'print-code', code)); });
+          block.items.forEach(function (item) {
+            if (item.type === 'code') {
+              body.appendChild(printElement('pre', 'print-code', item.text));
+            } else {
+              var inner = printElement('div', 'print-callout print-' + item.type);
+              inner.appendChild(printElement('strong', '', item.type === 'warning' ? 'Warning' : 'Note'));
+              inner.appendChild(printElement('p', 'print-plain', item.text));
+              body.appendChild(inner);
+            }
+          });
           step.appendChild(body);
           printView.appendChild(step);
         } else if (block.type === 'code') {
@@ -2474,7 +2649,13 @@
           { width: '*', stack: [].concat(
             block.title ? [{ text: block.title, bold: true, fontSize: 12, color: PDF_COLORS.navy, margin: [0, 1, 0, 2] }] : [],
             block.text ? [{ text: block.text }] : [],
-            block.code.filter(Boolean).map(function (code) { var box = pdfCode(code); box.margin = [0, 4, 0, 2]; return box; })
+            block.items.map(function (item) {
+              var box = item.type === 'code' ? pdfCode(item.text)
+                : item.type === 'warning' ? pdfCallout('Warning', item.text, '#FDECEA', '#C62828', '#8A1C1C')
+                : pdfCallout('Note', item.text, '#EAF2FD', PDF_COLORS.blue, PDF_COLORS.navy);
+              box.margin = [0, 4, 0, 2];
+              return box;
+            })
           ) }
         ],
         columnGap: 4,
@@ -2498,7 +2679,7 @@
       if (description) { content = content.concat(pdfRichText(description)); }
 
       readBlocks().forEach(function (block) {
-        if (!block.text && !block.title && !(block.code && block.code.length)) { return; }
+        if (!block.text && !block.title && !(block.items && block.items.length)) { return; }
         if (block.type === 'header') {
           content.push({ text: block.text, bold: true, color: PDF_COLORS.navy, fontSize: PDF_HEADER_SIZES[block.level - 1] || 11, margin: [0, 14, 0, 6], headlineLevel: block.level });
         } else if (block.type === 'paragraph') {
@@ -2564,7 +2745,7 @@
 
     var isExporting = false;
     byId('export-pdf').addEventListener('click', async function () {
-      var hasContent = readText(titleEl) || readText(descriptionEl) || readBlocks().some(function (block) { return block.text || block.title || (block.code && block.code.length); });
+      var hasContent = readText(titleEl) || readText(descriptionEl) || readBlocks().some(function (block) { return block.text || block.title || (block.items && block.items.length); });
       if (!hasContent) {
         showNotice('There is nothing to export yet.');
         return;
