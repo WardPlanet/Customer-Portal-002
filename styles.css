@@ -636,6 +636,7 @@
     color: var(--text-muted);
     font-size: 14px;
   }
+  .dialog-hint.is-error { color: var(--danger); font-weight: 600; }
   .dialog-text {
     width: 100%;
     min-height: 240px;

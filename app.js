@@ -965,7 +965,14 @@
     var dialogText = byId('draft-dialog-text');
     var dialogHint = byId('draft-dialog-hint');
 
+    function showDraftDialogError(message) {
+      dialogHint.textContent = message;
+      dialogHint.classList.add('is-error');
+      showNotice(message);
+    }
+
     function openDialog(text, hint) {
+      dialogHint.classList.remove('is-error');
       dialogText.value = text;
       dialogHint.textContent = hint;
       dialog.showModal();
@@ -2070,14 +2077,27 @@
     });
 
     byId('paste-draft').addEventListener('click', function () {
-      openDialog('', 'Paste the full text of a saved draft, then choose Load into editor.');
+      openDialog('', 'Paste a saved draft, or plain text for the AI to format as a new page, then choose Load into editor.');
     });
     byId('draft-dialog-close').addEventListener('click', function () { dialog.close(); });
-    byId('draft-dialog-load').addEventListener('click', function () {
+    byId('draft-dialog-load').addEventListener('click', async function () {
+      dialogHint.classList.remove('is-error');
       if (loadDraftText(dialogText.value)) {
         dialog.close();
+        return;
+      }
+      if (!dialogText.value.trim()) {
+        showDraftDialogError('Paste some text first.');
+        return;
+      }
+
+      // Not in the saved-draft format: it is ordinary text, so hand it to the AI to format
+      if (await getSample()) {
+        if (pageHasContent() && !window.confirm('That text isn\u2019t a saved draft, so the AI will format it as a new page. This replaces everything on the page now. Continue?')) { return; }
+        dialog.close();
+        importDocumentFile(new File([dialogText.value], 'pasted-text.txt', { type: 'text/plain' }));
       } else {
-        dialogHint.textContent = 'That text doesn\u2019t look like a saved draft. Check that it includes the [TITLE] and other section headings.';
+        showDraftDialogError('That text isn\u2019t in the saved-draft format (it needs [TITLE], [SUMMARY] and other headings), and the AI formatter isn\u2019t available on this server yet, so it can\u2019t be formatted automatically.');
       }
     });
 
