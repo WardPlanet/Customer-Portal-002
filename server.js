@@ -1,7 +1,7 @@
 // Small server for the page editor.
 //
 // It does two things:
-//   1. Serves the three static files (index.html, styles.css, app.js).
+//   1. Serves the three static files (index.html, styles.css, app.js) and the PDF library.
 //   2. Answers the AI requests from app.js, so the Anthropic API key stays on the server.
 //
 // Run it with:  ANTHROPIC_API_KEY=... npm start
@@ -33,6 +33,13 @@ app.use('/api/drafts', express.text({ type: 'text/plain', limit: MAX_DRAFT_BYTES
 ['index.html', 'styles.css', 'app.js'].forEach(function (file) {
   app.get(file === 'index.html' ? ['/', '/index.html'] : '/' + file, function (req, res) {
     res.sendFile(path.join(here, file));
+  });
+});
+
+// The PDF library, loaded by app.js only when someone clicks Export PDF
+['pdfmake.min.js', 'vfs_fonts.js'].forEach(function (file) {
+  app.get('/vendor/' + file, function (req, res) {
+    res.sendFile(path.join(here, 'node_modules', 'pdfmake', 'build', file));
   });
 });
 

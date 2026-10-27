@@ -49,6 +49,7 @@ variables take priority). `.env.example` documents each one.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /healthz` | Returns `{"ok":true}` when the process is up. For monitoring. |
+| `GET /vendor/pdfmake.min.js`, `/vendor/vfs_fonts.js` | The PDF library, fetched by the browser only when someone clicks Export PDF. |
 | `GET /api/ai/status` | Whether an API key is configured. |
 | `POST /api/ai/json` | Sends one prompt to Claude and returns parsed JSON. |
 | `POST /api/import` | Takes an uploaded .docx, .pdf, .txt or .md and returns a standardized page for review. |

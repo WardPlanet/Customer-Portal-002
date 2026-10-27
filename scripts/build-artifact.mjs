@@ -1,7 +1,7 @@
 // Builds dist/page-editor-artifact.html: the whole editor in one file, for publishing as a Claude
 // artifact (no server there). Run with:  npm run build:artifact
 //
-// It inlines styles.css and app.js, and builds in the import instructions (guidelines plus output
+// It inlines styles.css, app.js and the PDF library, and builds in the import instructions (guidelines plus output
 // format) from importer.js, so the artifact imports pasted text exactly as the server would.
 // In the artifact the AI is Claude's built-in AI, and saving drafts goes through Claude's download.
 
@@ -24,6 +24,13 @@ const css = await read('styles.css');
 const app = await read('app.js');
 const guidelines = await read('guidelines', 'import-guidelines.md');
 
+// The PDF library is embedded as inert text and only run when someone clicks Export PDF
+const pdfCore = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'pdfmake.min.js'), 'utf8');
+const pdfFonts = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'vfs_fonts.js'), 'utf8');
+const pdfLibrary =
+  '<script type="text/plain" id="pdf-lib-core">\n' + safeForScript(pdfCore) + '\n</script>\n' +
+  '<script type="text/plain" id="pdf-lib-fonts">\n' + safeForScript(pdfFonts) + '\n</script>\n';
+
 const instructions = 'window.IMPORT_INSTRUCTIONS = ' + safeForScript(JSON.stringify(buildInstructions(guidelines))) + ';';
 
 const linkTag = '<link rel="stylesheet" href="styles.css">';
@@ -34,7 +41,7 @@ if (!html.includes(linkTag) || !html.includes(scriptTag)) {
 
 const output = html
   .replace(linkTag, () => '<style>\n' + css + '\n</style>')
-  .replace(scriptTag, () => '<script>\n' + instructions + '\n</script>\n<script>\n' + safeForScript(app) + '\n</script>');
+  .replace(scriptTag, () => pdfLibrary + '<script>\n' + instructions + '\n</script>\n<script>\n' + safeForScript(app) + '\n</script>');
 
 await fs.mkdir(path.join(here, 'dist'), { recursive: true });
 const target = path.join(here, 'dist', 'page-editor-artifact.html');

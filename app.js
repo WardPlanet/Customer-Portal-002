@@ -2166,15 +2166,217 @@
       document.title = originalTitle;
     });
 
-    byId('export-pdf').addEventListener('click', function () {
+    /* PDF file: made in the browser with the pdfmake library, so it downloads directly and never
+       depends on the print window (which some places, such as a Claude artifact, can block).
+       The library is loaded on first use: from /vendor on the server, or from text embedded in the
+       page by scripts/build-artifact.mjs. If it cannot load, Export PDF falls back to printing. */
+    function runScriptText(text) {
+      var script = document.createElement('script');
+      script.textContent = text;
+      document.head.appendChild(script);
+    }
+
+    function loadScriptFile(src) {
+      return new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = function () { reject(new Error('Could not load ' + src)); };
+        document.head.appendChild(script);
+      });
+    }
+
+    var pdfLibraryLoading = null;
+    function loadPdfLibrary() {
+      if (!pdfLibraryLoading) {
+        pdfLibraryLoading = (async function () {
+          if (window.pdfMake) { return; }
+          var embeddedCore = document.getElementById('pdf-lib-core');
+          if (embeddedCore) {
+            runScriptText(embeddedCore.textContent);
+            runScriptText(document.getElementById('pdf-lib-fonts').textContent);   // must come second
+          } else {
+            await loadScriptFile('/vendor/pdfmake.min.js');
+            await loadScriptFile('/vendor/vfs_fonts.js');
+          }
+          if (!window.pdfMake) { throw new Error('The PDF library did not start.'); }
+        })();
+        pdfLibraryLoading.catch(function () { pdfLibraryLoading = null; });   // allow a retry
+      }
+      return pdfLibraryLoading;
+    }
+
+    // Formatted text (as stored: **bold**, _italic_, links, lists) -> pdfmake content
+    var PDF_LINK_COLOR = '#0a66d8';
+
+    function pdfRuns(node, style) {
+      var runs = [];
+      Array.prototype.forEach.call(node.childNodes, function (child) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          runs.push(Object.assign({ text: child.data }, style));
+        } else if (child.nodeName === 'BR') {
+          runs.push({ text: '\n' });
+        } else {
+          var next = Object.assign({}, style);
+          if (child.nodeName === 'B') { next.bold = true; }
+          if (child.nodeName === 'I') { next.italics = true; }
+          if (child.nodeName === 'U') { next.decoration = 'underline'; }
+          if (child.nodeName === 'A') {
+            next.link = child.getAttribute('href');
+            next.color = PDF_LINK_COLOR;
+            next.decoration = 'underline';
+          }
+          runs = runs.concat(pdfRuns(child, next));
+        }
+      });
+      return runs;
+    }
+
+    function pdfRichText(markdown) {
+      var holder = document.createElement('div');
+      holder.innerHTML = markdownToHtml(markdown);
+      var content = [];
+      var loose = document.createElement('div');   // inline pieces waiting to become one paragraph
+
+      function flushParagraph() {
+        if (loose.childNodes.length) {
+          content.push({ text: pdfRuns(loose, {}), margin: [0, 0, 0, 6] });
+          loose = document.createElement('div');
+        }
+      }
+
+      Array.prototype.forEach.call(holder.childNodes, function (child) {
+        if (child.nodeName === 'UL' || child.nodeName === 'OL') {
+          flushParagraph();
+          var items = Array.prototype.map.call(child.children, function (li) { return { text: pdfRuns(li, {}) }; });
+          var list = {};
+          list[child.nodeName === 'UL' ? 'ul' : 'ol'] = items;
+          list.margin = [0, 0, 0, 6];
+          content.push(list);
+        } else {
+          loose.appendChild(child.cloneNode(true));
+        }
+      });
+      flushParagraph();
+      return content;
+    }
+
+    var PDF_HEADER_SIZES = [18, 15, 13, 11.5, 10.5];
+
+    function pdfCallout(label, text, fill, edge) {
+      return {
+        table: { widths: ['*'], body: [[{ stack: [{ text: label, bold: true, margin: [0, 0, 0, 2] }, { text: text }], fillColor: fill, margin: [8, 6, 8, 6] }]] },
+        layout: { hLineWidth: function () { return 0; }, vLineWidth: function (i) { return i === 0 ? 4 : 0; }, vLineColor: function () { return edge; } },
+        margin: [0, 0, 0, 10]
+      };
+    }
+
+    function pdfStep(block) {
+      return {
+        columns: [
+          {
+            width: 26,
+            stack: [
+              { canvas: [{ type: 'ellipse', x: 10, y: 10, r1: 9.5, r2: 9.5, color: '#111111' }] },
+              { text: String(block.number), color: '#ffffff', bold: true, fontSize: 9, alignment: 'center', margin: [0, -15, 6, 0] }
+            ]
+          },
+          { width: '*', stack: [].concat(
+            block.title ? [{ text: block.title, bold: true, fontSize: 12, margin: [0, 1, 0, 2] }] : [],
+            block.text ? [{ text: block.text }] : []
+          ) }
+        ],
+        columnGap: 4,
+        margin: [0, 0, 0, 10],
+        unbreakable: true
+      };
+    }
+
+    // Only the page's own content: title, description and blocks. Page setup, keywords and the
+    // source file are not part of it.
+    function buildPdfDefinition() {
+      var title = readText(titleEl) || 'Untitled page';
+      var content = [{ text: title, fontSize: 26, bold: true, margin: [0, 0, 0, 10] }];
+
+      var description = readText(descriptionEl);
+      if (description) { content = content.concat(pdfRichText(description)); }
+
+      readBlocks().forEach(function (block) {
+        if (!block.text && !block.title) { return; }
+        if (block.type === 'header') {
+          content.push({ text: block.text, bold: true, fontSize: PDF_HEADER_SIZES[block.level - 1] || 11, margin: [0, 12, 0, 6], headlineLevel: block.level });
+        } else if (block.type === 'paragraph') {
+          content = content.concat(pdfRichText(block.text));
+        } else if (block.type === 'step') {
+          content.push(pdfStep(block));
+        } else if (block.type === 'warning') {
+          content.push(pdfCallout('Warning', block.text, '#fde8e6', '#c62828'));
+        } else {
+          content.push(pdfCallout('Note', block.text, '#fff6d6', '#e0b400'));
+        }
+      });
+
+      return {
+        info: { title: title },
+        pageSize: 'A4',
+        pageMargins: [54, 54, 54, 54],
+        defaultStyle: { font: 'Roboto', fontSize: 10.5, lineHeight: 1.3, color: '#111111' },
+        content: content
+      };
+    }
+
+    function pdfFilename() {
+      return draftFilename().replace(/-draft\.txt$/, '') + '.pdf';
+    }
+
+    async function exportPdfFile() {
+      await loadPdfLibrary();
+      var blob = await window.pdfMake.createPdf(buildPdfDefinition()).getBlob();
+      var filename = pdfFilename();
+
+      var downloads = await getDownloads();
+      if (downloads) {
+        // Running as a Claude artifact: Claude asks the person where to put the file
+        await downloads.save({ filename: filename, data: blob });
+      } else {
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      }
+      return filename;
+    }
+
+    var isExporting = false;
+    byId('export-pdf').addEventListener('click', async function () {
       var hasContent = readText(titleEl) || readText(descriptionEl) || readBlocks().some(function (block) { return block.text || block.title; });
       if (!hasContent) {
         showNotice('There is nothing to export yet.');
         return;
       }
-      showNotice('In the print window, choose Save as PDF as the destination.');
-      buildPrintView();
-      window.print();
+      if (isExporting) { return; }
+
+      isExporting = true;
+      showNotice('Making the PDF\u2026');
+      try {
+        var filename = await exportPdfFile();
+        showNotice('PDF saved as ' + filename + '.');
+      } catch (error) {
+        if (error && error.code === 'declined') {
+          showNotice('PDF not saved.');
+        } else {
+          // The library could not run here: use the browser's print window instead
+          showNotice('In the print window, choose Save as PDF as the destination.');
+          buildPrintView();
+          window.print();
+        }
+      } finally {
+        isExporting = false;
+      }
     });
 
     /* ---------- Open a draft saved on the server ---------- */

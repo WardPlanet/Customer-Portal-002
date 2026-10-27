@@ -150,12 +150,19 @@ The same `app.js` runs in two places and picks its AI automatically:
 
 ## Export PDF
 
-**Export PDF** (footer) opens the browser's print window with a clean copy of the page: the title, the
-description and the content (headers, steps, notes, warnings). Choose **Save as PDF** as the destination.
-Page Setup (type, locations, team members, reviewer, visibility), keywords and the source file are never
-included. Ctrl/Cmd+P gives the same clean copy. The print layout is the `@media print` section at the end of
-`styles.css`. If the browser blocks printing (possible inside the Claude artifact), use the downloaded
-copy of the page or the server version.
+**Export PDF** (footer) downloads a real `.pdf` file named after the page title. It contains the title, the
+description and the content (headers, steps, notes, warnings, with bold, italic, links and lists). Page
+Setup (type, locations, team members, reviewer, visibility), keywords and the source file are never
+included.
+
+- The PDF is made in the browser with the `pdfmake` library (`buildPdfDefinition` in `app.js`). The library
+  is loaded on first click: from `/vendor/` on the server (served out of `node_modules/pdfmake`), or from
+  text embedded in the single-file artifact build. It is not loaded until someone exports.
+- In a Claude artifact the file is handed to Claude's download feature, which asks where to save it.
+- If the library cannot load, Export PDF falls back to the browser's print window (choose Save as PDF);
+  the print layout is the `@media print` section at the end of `styles.css`. Ctrl/Cmd+P always gives that
+  clean print copy.
+- To change how the PDF looks, edit `buildPdfDefinition` and the `pdf*` helpers next to it.
 
 Pasting plain text into **Paste draft text** does not need `[TITLE]` or any headings: text that is not in
 the saved-draft format is sent to the AI to be sorted into a page.
