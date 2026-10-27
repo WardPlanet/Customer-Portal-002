@@ -474,7 +474,7 @@
       });
     }
 
-    // The row of buttons inside a step. It is only visible while the step is selected (CSS :focus-within).
+    // The row of buttons inside a step. It is only visible while the step is selected (.is-selected).
     function createStepTools(stepBlock) {
       var row = document.createElement('div');
       row.className = 'step-tools';
@@ -506,8 +506,36 @@
       return row;
     }
 
+    /* ---------- The selected step ----------
+       The step the cursor is in shows its note / warning / code buttons below its content. The row
+       is added and removed, so it moves everything below it. If it disappeared the instant the mouse
+       button went down on something else, that thing would slide away before the click finished and
+       the click would be lost. So the selection only changes once the pointer is released. */
+    var selectedStep = null;
+    var pointerIsDown = false;
+
+    function syncSelectedStep() {
+      if (pointerIsDown) { return; }
+      var active = document.activeElement;
+      var step = active && active.closest ? active.closest('.step-block') : null;
+      if (step === selectedStep && (!step || step.classList.contains('is-selected'))) { return; }
+      if (selectedStep) { selectedStep.classList.remove('is-selected'); }
+      if (step) { step.classList.add('is-selected'); }
+      selectedStep = step;
+    }
+
+    document.addEventListener('pointerdown', function () { pointerIsDown = true; }, true);
+    function releasePointer() {
+      pointerIsDown = false;
+      setTimeout(syncSelectedStep, 0);   // after the click this release belongs to has been handled
+    }
+    document.addEventListener('pointerup', releasePointer, true);
+    document.addEventListener('pointercancel', releasePointer, true);
+    document.addEventListener('focusin', syncSelectedStep);
+    document.addEventListener('focusout', function () { setTimeout(syncSelectedStep, 0); });
+
     /* ---------- Reorder steps by dragging ----------
-       The grip under a step's number can be dragged with a mouse or finger, or moved with the up and
+       The grip to the left of a step's number can be dragged with a mouse or finger, or moved with the up and
        down arrow keys. A step can be reordered within its own section; the numbers update at once. */
     var GRIP_ICON = '<svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.4"/><circle cx="9" cy="3" r="1.4"/><circle cx="3" cy="8" r="1.4"/><circle cx="9" cy="8" r="1.4"/><circle cx="3" cy="13" r="1.4"/><circle cx="9" cy="13" r="1.4"/></svg>';
 

@@ -68,15 +68,17 @@ refreshes the outline. Call it after any structural change.
 - Steps sit in sections. Numbering restarts at 1 in each section. Each section ends with one rounded
   `+ Add step` button.
 - **Notes, warnings and code snippets belong to a step.** While a step is selected (the cursor is anywhere
-  in it), a small bar with `+ Note`, `+ Warning` and `+ Code Snippet` floats over its top edge. Each adds an
-  item under the step's text, in the order added; a step can hold any number. Items have a red x to remove
-  them, and code items a Copy button. They are saved as `[BLOCK n STEP NOTE k]`, `STEP WARNING k` and
-  `STEP CODE k`, print inside the step in the PDF, and are never rewritten by the AI. Imports put a note,
-  warning or command that applies to one step into that step's `items` list (see `importer.js`). The bar
-  floats on purpose: showing it never moves the page, which would make clicks just below it miss.
+  in it), a row with `+ Note`, `+ Warning` and `+ Code Snippet` appears below its content, inside its
+  border. Each adds an item under the step's text, in the order added; a step can hold any number. Items
+  have a red x to remove them, and code items a Copy button. They are saved as `[BLOCK n STEP NOTE k]`,
+  `STEP WARNING k` and `STEP CODE k`, print inside the step in the PDF, and are never rewritten by the AI.
+  Imports put a note, warning or command that applies to one step into that step's `items` list (see
+  `importer.js`). Because the row adds and removes height, `syncSelectedStep` in `app.js` only changes
+  which step is selected after the mouse button is released; otherwise a click on something just below a
+  selected step would miss, as that step's row collapsed while the button was still down.
 - **Standalone** Note, Warning and Code blocks still exist (toolbar chips and the add-block menu) for things
   that apply to the whole page rather than one step.
-- **Reorder steps** by dragging the grip (six dots) under the step number, with a mouse or a finger, or by
+- **Reorder steps** by dragging the grip (six dots) to the left of the step number, which is always visible, with a mouse or a finger, or by
   focusing it and pressing the up or down arrow key. A blue line shows where the step will land and the
   numbers update when it is dropped. A step can move within its own section only. Escape cancels a drag.
 - Choosing Step from the toolbar or any menu starts a new step section. It never extends an
