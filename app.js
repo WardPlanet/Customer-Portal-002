@@ -23,14 +23,13 @@
     var ESCAPE = '~';
 
     var BASE_PAGE_TYPES = ['Process Documentation', 'Policy', 'Reference Guide', 'How-To Guide'];
-    var BASE_LOCATIONS = ['Tools & Access', 'Billing Team'];
     var KNOWN_SECTIONS = ['TITLE', 'DESCRIPTION', 'SUBTITLE', 'SUMMARY', 'PAGE TYPE', 'TEAM', 'OWNER ROLE', 'WHERE THIS LIVES', 'LINKED ROLES', 'LINKED TEAM MEMBERS', 'REVIEWER', 'VISIBILITY', 'SOURCE FILE'];
 
     /* ---------- State for the Page Setup sidebar (text fields live in the DOM) ---------- */
     var state = {
       pageTypes: BASE_PAGE_TYPES.slice(),
       pageType: 'Process Documentation',
-      locations: [{ name: 'Tools & Access', on: true }, { name: 'Billing Team', on: false }],
+      location: '',    // where this page lives: one of the team's locations (for example "Websites")
       team: '',        // the team every page belongs to (from the roster)
       owner: '',       // a role title, for example "Website Editor". Roles own pages, never names.
       roles: [],       // role titles linked to this page as contacts
@@ -937,64 +936,38 @@
       select.value = state.pageType;
     }
 
-    /* ---------- Page Setup: where this lives (chips) ---------- */
+    /* ---------- Page Setup: where this lives ----------
+       A page lives in exactly one location, chosen from the list the team defines (the roster's
+       "locations"). With one location it is simply selected. */
+    function teamLocations() { return roster && roster.locations ? roster.locations : []; }
+
+    // Matches a saved value to one of the team's locations. Anything else (for example the sample
+    // locations older drafts used) becomes the team's first location.
+    function locationFromValue(value) {
+      var locations = teamLocations();
+      if (!locations.length) { return value || ''; }
+      var match = locations.filter(function (name) { return name.toLowerCase() === (value || '').toLowerCase(); })[0];
+      return match || locations[0];
+    }
+
     function renderChips() {
       var box = byId('chips');
       box.textContent = '';
+      state.location = locationFromValue(state.location);
 
-      state.locations.forEach(function (location) {
+      teamLocations().forEach(function (name) {
         var chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'chip';
-        chip.textContent = location.name;
-        chip.setAttribute('aria-pressed', String(location.on));
+        chip.textContent = name;
+        chip.setAttribute('aria-pressed', String(name === state.location));
         chip.addEventListener('click', function () {
-          location.on = !location.on;
-          chip.setAttribute('aria-pressed', String(location.on));
+          state.location = name;
+          renderChips();
           markDirty();
         });
         box.appendChild(chip);
       });
-
-      var add = document.createElement('button');
-      add.type = 'button';
-      add.className = 'chip-add';
-      add.textContent = '+ Add';
-      add.addEventListener('click', function () { showChipInput(box, add); });
-      box.appendChild(add);
-    }
-
-    function showChipInput(box, addButton) {
-      var input = document.createElement('input');
-      input.type = 'text';
-      input.className = 'chip-input';
-      input.placeholder = 'Name, then Enter';
-      input.setAttribute('aria-label', 'Add a location');
-      box.replaceChild(input, addButton);
-      input.focus();
-
-      var finished = false;
-      function finish(commit) {
-        if (finished) { return; }
-        finished = true;
-        var name = input.value.trim();
-        if (commit && name) { addLocation(name); } else { renderChips(); }
-      }
-
-      input.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter') { event.preventDefault(); finish(true); }
-        if (event.key === 'Escape') { finish(false); }
-      });
-      input.addEventListener('blur', function () { finish(true); });
-    }
-
-    function addLocation(name) {
-      var existing = state.locations.filter(function (location) {
-        return location.name.toLowerCase() === name.toLowerCase();
-      })[0];
-      if (existing) { existing.on = true; } else { state.locations.push({ name: name, on: true }); }
-      renderChips();
-      markDirty();
     }
 
     /* ---------- Page Setup: team, owner, linked roles, reviewer ----------
@@ -1202,7 +1175,7 @@
       // Everything saved belongs to the current team. The owner is a role, never a person's name.
       section('TEAM', textLines(roster ? roster.name : state.team));
       section('OWNER ROLE', textLines(state.owner));
-      section('WHERE THIS LIVES', state.locations.filter(function (l) { return l.on; }).map(function (l) { return l.name; }));
+      section('WHERE THIS LIVES', textLines(state.location));
       section('LINKED ROLES', state.roles);
       section('REVIEWER', textLines(leadRole() || state.reviewer));
       section('VISIBILITY', textLines(state.visibility));
@@ -1329,13 +1302,8 @@
       if (pageType && state.pageTypes.indexOf(pageType) < 0) { state.pageTypes.push(pageType); }
       state.pageType = pageType;
 
-      var selected = list('WHERE THIS LIVES');
-      state.locations = BASE_LOCATIONS.map(function (name) {
-        return { name: name, on: selected.indexOf(name) >= 0 };
-      });
-      selected.forEach(function (name) {
-        if (BASE_LOCATIONS.indexOf(name) < 0) { state.locations.push({ name: name, on: true }); }
-      });
+      // One location per page. An older draft that listed several, or sample ones, gets the team's first.
+      state.location = locationFromValue(list('WHERE THIS LIVES')[0]);
 
       // Every page belongs to the current team. Linked roles come from LINKED ROLES; older drafts listed
       // people in LINKED TEAM MEMBERS, which become the roles those people hold today.

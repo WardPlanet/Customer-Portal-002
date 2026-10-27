@@ -126,8 +126,8 @@ Ctrl/Cmd + B, I, U are blocked outside paragraph fields. Pasted text is always p
 - Search keywords: every Save draft asks the AI for 10 keywords and stores them in the draft file
   only. They are never shown in the editor.
 
-**Page Setup sidebar:** Team (read-only), Page Type (select), Owner (a role, required), Where This Lives
-(toggle chips plus add), Linked Roles (chips plus a "Link a role" menu), Reviewer (locked to the team lead,
+**Page Setup sidebar:** Team (read-only), Page Type (select), Owner (required), Where This Lives (the team's
+locations, currently just "Websites"), Linked Roles (chips plus a "Link a role" menu), Reviewer (locked to the team lead,
 required), Visibility (Internal-Only or Client-Safe).
 
 **Teams and roles.** Everything saved belongs to the **Legwork Web Team** (the only team for now). Pages are
@@ -150,6 +150,9 @@ new person, with no page edits and no restart.
   `person` for that role, or change `lead` to another role.
 - **Owner is required** and chosen per page, as a role. Save, Submit and AI assist stay greyed out until it
   is set, and clicking Save names what is missing.
+- **Where This Lives** is one location per page, chosen from the team's `locations` list in the roster file
+  (now `["Websites"]`, so it is selected automatically). There is no free-text "+ Add" any more: new
+  locations are added to the roster file. Older drafts with other locations open as the team's first one.
 - Only first names were given for four people; add surnames to the roster file when you have them.
 - Saved drafts live in `drafts/legwork-web-team/` (one folder per team). Drafts saved before teams existed
   are moved there automatically when the server starts.
@@ -374,8 +377,8 @@ disk behaves the same way.
   are visual only.
 - **Search** does not exist yet. The `[KEYWORDS]` section is written to the file for it to use.
 - Sample content in Page Setup is still invented: the page types (Process Documentation, Policy,
-  Reference Guide, How-To Guide) and the starting "Where This Lives" chips (Tools & Access, Billing Team).
-  The team and roles are real (see Teams and roles).
+  Reference Guide, How-To Guide). The team, its roles and its location (Websites) are real (see Teams and
+  roles).
 - No auto-save. The status pill reads "Draft not saved yet", "Unsaved changes", "Saved just now".
 - Formatting uses `document.execCommand`, which is deprecated but still works in every major
   browser. A future rewrite could use a small editor library or the Selection and Range APIs.

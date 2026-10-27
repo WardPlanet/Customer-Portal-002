@@ -2,6 +2,9 @@
   "name": "Legwork Web Team",
   "slug": "legwork-web-team",
   "lead": "Web Team Manager",
+  "locations": [
+    "Websites"
+  ],
   "roles": [
     {
       "title": "Website Editor",
