@@ -22,7 +22,7 @@ const OUTPUT_FORMAT = [
   '  "blocks": [',
   '    { "type": "header", "level": 1, "text": "section heading" },',
   '    { "type": "paragraph", "text": "free text, same inline markup as summary" },',
-  '    { "type": "step", "number": 1, "title": "short step title", "text": "step detail, same inline markup", "code": ["optional: a command or snippet that belongs to this step, copied exactly"] },',
+  '    { "type": "step", "number": 1, "title": "short step title", "text": "step detail, same inline markup; an empty string when the title already says enough", "code": ["optional: a command or snippet that belongs to this step, copied exactly"] },',
   '    { "type": "note", "text": "a tip or aside" },',
   '    { "type": "warning", "text": "a caution" },',
   '    { "type": "code", "text": "a command, query, file path list, configuration or code snippet, copied exactly with its line breaks and indentation" }',

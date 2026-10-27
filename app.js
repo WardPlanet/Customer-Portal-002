@@ -400,7 +400,7 @@
       paragraph.className = 'step-text';
       paragraph.contentEditable = 'true';
       paragraph.spellcheck = true;
-      paragraph.setAttribute('data-placeholder', 'Describe this step');
+      paragraph.setAttribute('data-placeholder', 'Add detail (optional)');
       paragraph.textContent = text || '';
 
       body.appendChild(heading);
@@ -1630,6 +1630,7 @@
         '- Do not invent facts, numbers, names, systems or policies that are not on the page. If a rewrite would need a fact only the author knows, keep the original wording for that part instead of guessing.',
         '- If Visibility is Client-Safe, also flag wording that only makes sense for internal staff.',
         '- Keep the author\u2019s voice and keep edits short.',
+        '- A step whose title already explains it needs no detail text. Never suggest adding detail to such a step, and empty step text is fine.',
         '- Text that breaks the style guide above (names in quotation marks, inconsistent capitalization, wrong formatting) is worth a suggestion, and every replacement you write must follow it.',
         '',
         'Reply with ONLY a JSON array (no other text). Each item is an object:',
@@ -1950,6 +1951,7 @@
         'Rules:',
         '- Keep the meaning and the author\u2019s voice, and keep it short. Fix typos and unclear wording. Add detail only when the rest of the page already supports it.',
         '- Make the section follow the style guide above (names, capitalization, quotation marks, formatting), not just read more clearly.',
+        '- If this is a step whose title already explains it, do not add detail; reply with {}.',
         '- Do not invent facts, numbers, names, systems or policies that are not on the page. If the rewrite would need a fact only the author knows, keep the original wording for that part.',
         '- If Visibility is Client-Safe, avoid wording that only makes sense for internal staff.',
         '- A title is a single plain-text line. A description or text block may use **bold**, _italic_, lines starting with "- " for bullets and "1. " for numbers.',

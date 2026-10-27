@@ -20,8 +20,9 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
   such as "v2" or "FINAL".
 - The description is two or three sentences: what this page covers, who it is for and when to use it.
   There is no separate summary or subtitle, so do not repeat the description anywhere else.
-- Procedures become numbered steps. Each step has a short title that starts with a verb, and the
-  detail underneath. Numbering restarts at 1 for each separate procedure on the page.
+- Procedures become numbered steps. Each step has a short title that starts with a verb. Add detail
+  underneath only when the source has it or the reader would need it. If the title says enough ("Open
+  the Billing tab"), leave the detail empty. Never add detail just to fill the space. Numbering restarts at 1 for each separate procedure on the page.
 - Use a header to start each major section. Do not use headers for decoration.
 - A tip, background fact or "good to know" becomes a Note.
 - Anything that can cause data loss, money loss, a compliance problem or a patient or customer

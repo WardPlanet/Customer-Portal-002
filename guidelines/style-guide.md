@@ -41,6 +41,8 @@ standardizes on a different guide (for example Chicago or AP).
 
 - Write in the active voice and present tense, and speak to the reader as "you".
 - Steps start with a verb: "Verify the payment ID", not "Payment ID verification".
+- Say only what the reader needs. A step whose title already explains what to do needs no detail text:
+  leave it empty rather than restating the title.
 - Use short sentences and plain words. Cut filler such as "please", "simply", "just" and "obviously".
 - Spell out an abbreviation the first time it appears on the page, with the short form in parentheses,
   unless every reader already knows it.
