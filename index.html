@@ -179,7 +179,6 @@
   <footer class="footer">
     <div class="footer-group">
       <button class="secondary-btn" type="button" id="open-draft">Open draft</button>
-      <button class="link-btn" type="button" id="paste-draft">Paste draft text</button>
       <button class="secondary-btn" type="button" id="import-doc" title="Convert an existing document, or pasted text, into a page">Import document</button>
       <input type="file" id="draft-file" accept=".txt,text/plain" hidden>
       <input type="file" id="import-file" accept=".docx,.pdf,.txt,.md" hidden>
@@ -249,10 +248,9 @@
 <dialog id="draft-dialog" class="draft-dialog" aria-labelledby="draft-dialog-title">
   <h2 id="draft-dialog-title" class="dialog-title">Draft text</h2>
   <p class="dialog-hint" id="draft-dialog-hint"></p>
-  <textarea id="draft-dialog-text" class="dialog-text" spellcheck="false" aria-label="Draft text"></textarea>
+  <textarea id="draft-dialog-text" class="dialog-text" spellcheck="false" readonly aria-label="Draft text"></textarea>
   <div class="dialog-actions">
     <button class="secondary-btn" type="button" id="draft-dialog-close">Close</button>
-    <button class="submit-btn" type="button" id="draft-dialog-load">Load into editor</button>
   </div>
 </dialog>
 
@@ -270,7 +268,7 @@
   <h2 id="import-source-title" class="dialog-title">Import a document</h2>
   <p class="dialog-hint">The AI restructures it into a standard page. You review it before anything is saved.</p>
   <button class="secondary-btn" type="button" id="import-choose-file">Choose a file (.docx, .pdf, .txt, .md)</button>
-  <p class="dialog-hint import-or">or paste the text</p>
+  <p class="dialog-hint import-or">or paste the text (plain text is sorted by the AI; a saved draft loads as it is)</p>
   <textarea id="import-paste-text" class="dialog-text" spellcheck="false" aria-label="Text to import" placeholder="Paste the document text here"></textarea>
   <div class="dialog-actions">
     <button class="secondary-btn" type="button" id="import-source-close">Cancel</button>

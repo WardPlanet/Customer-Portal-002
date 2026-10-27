@@ -32,10 +32,15 @@ const team = await readTeam();
 const pdfCore = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'pdfmake.min.js'), 'utf8');
 const pdfFonts = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'vfs_fonts.js'), 'utf8');
 const pdfCourier = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'standard-fonts', 'Courier.js'), 'utf8');
+// pdf.js reads the text out of an uploaded PDF in the artifact (embedded as inert text, run on first use)
+const pdfjsCore = await fs.readFile(path.join(here, 'node_modules', 'pdfjs-dist', 'build', 'pdf.min.js'), 'utf8');
+const pdfjsWorker = await fs.readFile(path.join(here, 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js'), 'utf8');
 const pdfLibrary =
   '<script type="text/plain" id="pdf-lib-core">\n' + safeForScript(pdfCore) + '\n</script>\n' +
   '<script type="text/plain" id="pdf-lib-fonts">\n' + safeForScript(pdfFonts) + '\n</script>\n' +
-  '<script type="text/plain" id="pdf-lib-courier">\n' + safeForScript(pdfCourier) + '\n</script>\n';
+  '<script type="text/plain" id="pdf-lib-courier">\n' + safeForScript(pdfCourier) + '\n</script>\n' +
+  '<script type="text/plain" id="pdfjs-core">\n' + safeForScript(pdfjsCore) + '\n</script>\n' +
+  '<script type="text/plain" id="pdfjs-worker">\n' + safeForScript(pdfjsWorker) + '\n</script>\n';
 
 // IMPORT_INSTRUCTIONS is the full import prompt; STYLE_PREAMBLE is put in front of the AI assist prompts
 const instructions =

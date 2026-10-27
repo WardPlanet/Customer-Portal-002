@@ -203,8 +203,10 @@ The same `app.js` runs in two places and picks its AI automatically:
   the server.
 - **As a Claude artifact** (no server, no API key): `npm run build:artifact` writes
   `dist/page-editor-artifact.html`, one self-contained file with the stylesheet, the script and the import
-  instructions built in. In it the AI is Claude's built-in AI, import takes pasted text and .txt/.md
-  files only, and Save draft goes through Claude's download. Publish it with the Artifact tool using the
+  instructions built in. In it the AI is Claude's built-in AI, import takes pasted text and .pdf, .txt and .md
+  files (not Word), and Save draft goes through Claude's download. PDFs are read in the browser with pdf.js
+  (embedded, run only when a PDF is chosen), so a scanned PDF with no selectable text is refused there; on the
+  server a PDF goes to Claude as a PDF, which can read scans. Publish it with the Artifact tool using the
   capabilities `sample` and `downloads`. The current copy is at
   https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (private). After changing the guidelines or
   `app.js`, rebuild and republish to refresh it.
@@ -231,12 +233,12 @@ included.
   To use it, add its font files to pdfmake and set `defaultStyle.font`.
 - To change how the PDF looks, edit `buildPdfDefinition` and the `pdf*` helpers next to it.
 
-Pasting plain text into **Paste draft text** does not need `[TITLE]` or any headings: text that is not in
+Pasting plain text into **Import document** does not need `[TITLE]` or any headings: text that is not in
 the saved-draft format is sent to the AI to be sorted into a page.
 
 ## Draft file format (plain text, FORMAT 2)
 
-Save draft writes this; Open draft and Paste draft text read it. Everything before the first
+Save draft writes this; Open draft and Import document (pasted text) read it. Everything before the first
 `[SECTION]` heading is ignored.
 
 ```
@@ -348,8 +350,9 @@ disk behaves the same way.
   saving a page with the same title replaces the earlier draft. Endpoints: `GET /api/drafts` (list),
   `GET /api/drafts/:name`, `PUT /api/drafts/:name` (text/plain body). Names must look like
   `some-title-draft.txt`; anything else is rejected.
-- **Open draft** shows the saved drafts on the server. "Open a file instead" and "Paste draft text" still
-  work. With no server (page opened from disk), Save draft downloads a file and Open draft uses the file
+- **Open draft** shows the saved drafts on the server. "Open a file instead" still works. There is no
+  separate "Paste draft text" button: paste into **Import document** instead. Plain text is sorted by the AI;
+  text in the saved-draft format (it has `[TITLE]` and similar headings) loads exactly as saved, with no AI. With no server (page opened from disk), Save draft downloads a file and Open draft uses the file
   picker.
 - There is no login, so anyone who can reach the server can read and overwrite every draft.
 - For IT: this is one Node process (Node 20.12 or later) with one secret, `ANTHROPIC_API_KEY`. It has no

@@ -1342,19 +1342,12 @@
       return true;
     }
 
-    /* ---------- Dialog (paste in / copy out fallback) ---------- */
+    /* ---------- Dialog (copy-out fallback when a draft can be neither saved nor downloaded) ---------- */
     var dialog = byId('draft-dialog');
     var dialogText = byId('draft-dialog-text');
     var dialogHint = byId('draft-dialog-hint');
 
-    function showDraftDialogError(message) {
-      dialogHint.textContent = message;
-      dialogHint.classList.add('is-error');
-      showNotice(message);
-    }
-
     function openDialog(text, hint) {
-      dialogHint.classList.remove('is-error');
       dialogText.value = text;
       dialogHint.textContent = hint;
       dialog.showModal();
@@ -1427,7 +1420,7 @@
         showNotice('Couldn\u2019t reach the server, so the draft was downloaded as ' + filename + '.');
       } catch (error) {
         if (error && error.code === 'declined') { return; }
-        openDialog(text, 'Neither saving nor downloading worked. Copy this text into a .txt file, then use "Paste draft text" to load it later.');
+        openDialog(text, 'Neither saving nor downloading worked. Copy this text into a .txt file, then use Import document to load it later.');
       }
     }
 
@@ -2436,17 +2429,59 @@
       return body.result;
     }
 
-    // Claude artifact mode: text only. The instructions (guidelines + output format) are built into
-    // the page by scripts/build-artifact.mjs as window.IMPORT_INSTRUCTIONS.
+    // PDF text for the Claude artifact. Claude's built-in AI here takes text only, so the text is read out
+    // of the PDF in the browser with pdf.js. The library is built into the page (as inert text, see
+    // scripts/build-artifact.mjs) and only run when a PDF is chosen. It runs on the page itself, without a
+    // separate worker, which is fine for documents of normal size.
+    var pdfTextLibraryLoading = null;
+    function loadPdfTextLibrary() {
+      if (!pdfTextLibraryLoading) {
+        pdfTextLibraryLoading = (async function () {
+          if (window.pdfjsLib) { return; }
+          var core = document.getElementById('pdfjs-core');
+          var worker = document.getElementById('pdfjs-worker');
+          if (!core || !worker) { throw importProblem('This copy of the page cannot read PDFs. Use the server version, or paste the text.'); }
+          runScriptText(core.textContent);
+          runScriptText(worker.textContent);   // defines the worker code that pdf.js then uses in place
+          if (!window.pdfjsLib) { throw importProblem('The PDF reader did not start. Paste the text instead.'); }
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';   // never fetched: the worker code is already here
+        })();
+        pdfTextLibraryLoading.catch(function () { pdfTextLibraryLoading = null; });
+      }
+      return pdfTextLibraryLoading;
+    }
+
+    async function extractPdfText(file) {
+      if (file.size > 20 * 1024 * 1024) { throw importProblem('That PDF is over 20 MB. Split it into smaller files.'); }
+      await loadPdfTextLibrary();
+      var pdf;
+      try {
+        pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+      } catch (error) {
+        throw importProblem('That PDF could not be read. Is it a real, unprotected PDF?');
+      }
+      var pages = [];
+      for (var number = 1; number <= pdf.numPages; number += 1) {
+        var content = await (await pdf.getPage(number)).getTextContent();
+        pages.push(content.items.map(function (item) { return item.str + (item.hasEOL ? '\n' : ''); }).join(''));
+      }
+      return pages.join(NL + NL);
+    }
+
+    // Claude artifact mode: text, Markdown and PDF. The instructions (guidelines + output format) are
+    // built into the page by scripts/build-artifact.mjs as window.IMPORT_INSTRUCTIONS.
     async function importViaClaude(file, sample) {
-      if (!/\.(txt|md)$/i.test(file.name)) {
-        throw importProblem('Word and PDF files need the server version. Here, paste the text instead, or choose a .txt or .md file.');
+      var isPdf = /\.pdf$/i.test(file.name);
+      if (!isPdf && !/\.(txt|md)$/i.test(file.name)) {
+        throw importProblem('Word files need the server version. Here, save it as a PDF, or paste the text, or choose a .pdf, .txt or .md file.');
       }
       if (!window.IMPORT_INSTRUCTIONS) {
         throw importProblem('This copy of the page has no import instructions built in.');
       }
-      var text = await file.text();
-      if (!text.trim()) { throw importProblem('That text is empty.'); }
+      var text = isPdf ? await extractPdfText(file) : await file.text();
+      if (!text.trim()) {
+        throw importProblem(isPdf ? 'That PDF has no selectable text (it may be a scan). Use the server version, or paste the text.' : 'That text is empty.');
+      }
       if (text.length > 100000) { throw importProblem('That is too long to import in one go. Split it into smaller parts.'); }
 
       var prompt = window.IMPORT_INSTRUCTIONS + NL + NL + 'The document to convert is "' + file.name + '".' +
@@ -2501,9 +2536,9 @@
         showNotice(aiUnavailable ? 'Importing needs the AI, which isn\u2019t available in this view.' : 'An import is already running.');
         return;
       }
-      var fileOnly = aiMode === 'claude';
-      byId('import-choose-file').textContent = fileOnly ? 'Choose a text file (.txt, .md)' : 'Choose a file (.docx, .pdf, .txt, .md)';
-      byId('import-file').accept = fileOnly ? '.txt,.md' : '.docx,.pdf,.txt,.md';
+      var noWord = aiMode === 'claude';   // Word files need the server
+      byId('import-choose-file').textContent = noWord ? 'Choose a file (.pdf, .txt, .md)' : 'Choose a file (.docx, .pdf, .txt, .md)';
+      byId('import-file').accept = noWord ? '.pdf,.txt,.md' : '.docx,.pdf,.txt,.md';
       importSourceDialog.showModal();
     });
 
@@ -2520,6 +2555,16 @@
         pasted.focus();
         return;
       }
+      // A saved draft (it has [TITLE] and similar headings) loads exactly as it was saved, with no AI
+      if (looksLikeDraft(parseDraft(pasted.value))) {
+        if (pageHasContent() && !window.confirm('That is a saved draft, so it loads as it is. This replaces everything on the page now. Continue?')) { return; }
+        if (loadDraftText(pasted.value)) {
+          importSourceDialog.close();
+          pasted.value = '';
+        }
+        return;
+      }
+
       importSourceDialog.close();
       // Pasted text goes through the same path as an uploaded .txt file
       // The text stays in the box unless the import worked, so a failure never loses it
@@ -2951,30 +2996,7 @@
       });
     });
 
-    byId('paste-draft').addEventListener('click', function () {
-      openDialog('', 'Paste a saved draft, or plain text for the AI to format as a new page, then choose Load into editor.');
-    });
     byId('draft-dialog-close').addEventListener('click', function () { dialog.close(); });
-    byId('draft-dialog-load').addEventListener('click', async function () {
-      dialogHint.classList.remove('is-error');
-      if (loadDraftText(dialogText.value)) {
-        dialog.close();
-        return;
-      }
-      if (!dialogText.value.trim()) {
-        showDraftDialogError('Paste some text first.');
-        return;
-      }
-
-      // Not in the saved-draft format: it is ordinary text, so hand it to the AI to format
-      if (await getSample()) {
-        if (pageHasContent() && !window.confirm('That text isn\u2019t a saved draft, so the AI will format it as a new page. This replaces everything on the page now. Continue?')) { return; }
-        dialog.close();
-        importDocumentFile(new File([dialogText.value], 'pasted-text.txt', { type: 'text/plain' }));
-      } else {
-        showDraftDialogError('That text isn\u2019t in the saved-draft format (it needs [TITLE], [SUMMARY] and other headings), and the AI formatter isn\u2019t available on this server yet, so it can\u2019t be formatted automatically.');
-      }
-    });
 
     // Typing in any editable block
     document.addEventListener('input', function (event) {
