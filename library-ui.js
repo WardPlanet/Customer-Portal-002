@@ -615,29 +615,39 @@
     var head = el('div', 'lib-head');
     var titles = el('div');
     titles.appendChild(el('h1', 'lib-title', 'Public preview'));
-    titles.appendChild(el('p', 'lib-sub', 'What the general public sees: only live, Client-Safe pages. No login, and nothing about who owns or reviews a page.'));
+    titles.appendChild(el('p', 'lib-sub', 'Search live pages, Internal-Only and Client-Safe. The public only ever sees the Client-Safe ones, with nothing about who owns or reviews a page.'));
     head.appendChild(titles);
     main.appendChild(head);
     var search = el('input', 'lib-search');
     search.type = 'search';
-    search.placeholder = 'Search public pages';
-    search.setAttribute('aria-label', 'Search public pages');
+    search.placeholder = 'Search live pages';
+    search.setAttribute('aria-label', 'Search live pages');
     main.appendChild(search);
     var listBox = el('div', 'lib-list');
     main.appendChild(listBox);
 
+    // Nothing is listed until someone searches. Results cover live Internal-Only and Client-Safe pages,
+    // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
     async function refresh() {
-      var result = await backend().publicList(search.value.trim());
-      if (mine !== routing) { return; }
+      var q = search.value.trim();
       listBox.textContent = '';
-      if (!result.pages.length) {
-        listBox.appendChild(el('p', 'lib-empty', search.value ? 'No public pages match.' : 'No page is public yet. A page appears here once it is Client-Safe and approved.'));
+      if (!q) {
+        listBox.appendChild(el('p', 'lib-empty', 'Type in the box to search live pages.'));
         return;
       }
-      result.pages.forEach(function (p) {
+      var result = await backend().list(q);
+      if (mine !== routing || q !== search.value.trim()) { return; }
+      listBox.textContent = '';
+      var live = result.pages.filter(function (p) { return p.liveVersion; });
+      if (!live.length) {
+        listBox.appendChild(el('p', 'lib-empty', 'No live pages match.'));
+        return;
+      }
+      live.forEach(function (p) {
         var card = el('div', 'public-card');
-        card.appendChild(link(p.title, '#/public/' + p.id, 'lib-page-link'));
-        card.appendChild(el('p', 'lib-row-sub', p.description));
+        var isPublic = p.visibility === 'Client-Safe';
+        card.appendChild(link(p.title, isPublic ? '#/public/' + p.id : '#/view/' + p.id + '/' + p.liveVersion, 'lib-page-link'));
+        card.appendChild(visibilityPill(p.visibility));
         listBox.appendChild(card);
       });
     }
