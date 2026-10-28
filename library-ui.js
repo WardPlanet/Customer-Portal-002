@@ -2,6 +2,7 @@
 //
 //   #/                    the library: every page in the team, filters, search, the review queue
 //   #/page/<id>           one page: its status and its version history, with what each person can do
+//   #/batch               batch import: one file with several documents becomes several draft pages
 //   #/new                 the editor, on a blank page
 //   #/edit/<id>/<n>       the editor, on a version that can still be changed
 //   #/view/<id>/<n>       the editor locked, for reading a version (with Approve / Send back for the lead)
@@ -166,6 +167,7 @@
     titles.appendChild(el('p', 'lib-sub', team.name + ' · ' + (team.locations || []).join(', ')));
     head.appendChild(titles);
     var headActions = el('div', 'lib-actions');
+    headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
     headActions.appendChild(button('Download backup', 'secondary-link', downloadBackup));
     headActions.appendChild(button('Restore from backup', 'secondary-link', function () { restoreInput.click(); }));
     headActions.appendChild(link('New page', '#/new', 'primary-link'));
@@ -535,6 +537,8 @@
     if (detail && detail.page.liveVersion) { lines.push('Version ' + detail.page.liveVersion + ' stays live until this one is approved.'); }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
     var tone = 'info';
+    // A page made by an import keeps the points the AI flagged for the person who checks it
+    if (hist && /^Imported from /.test(hist.note || '')) { lines.push(hist.note); }
     if (hist && hist.status === 'sent_back' && hist.decisionComment) {
       lines.unshift('Sent back by ' + hist.decidedBy + ': “' + hist.decisionComment + '”');
       tone = 'warn';
@@ -678,6 +682,7 @@
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1]); }
+    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend }); }
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }
   }

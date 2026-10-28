@@ -185,10 +185,10 @@
     return 'pg' + now.toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
-  function createPage(team, text, actor, now) {
+  function createPage(team, text, actor, now, note) {
     requireActor(actor);
     var page = { id: newId(Date.parse(now) || Date.now()), team: team.slug, createdAt: now, updatedAt: now, liveVersion: null, versions: [] };
-    newVersion(page, text, actor, now, '');
+    newVersion(page, text, actor, now, note || '');
     return page;
   }
 
@@ -517,7 +517,7 @@
         var version = {
           n: v.n, status: v.status, text: v.text,
           author: text(v.author, 120), createdAt: text(v.createdAt, 40), updatedAt: text(v.updatedAt, 40), updatedBy: text(v.updatedBy, 120),
-          note: text(v.note, 300), submittedAt: text(v.submittedAt, 40), submittedBy: text(v.submittedBy, 120),
+          note: text(v.note, 2000), submittedAt: text(v.submittedAt, 40), submittedBy: text(v.submittedBy, 120),
           decidedBy: text(v.decidedBy, 120), decidedAt: text(v.decidedAt, 40), decisionComment: text(v.decisionComment, 2000),
           directPublish: v.directPublish === true
         };

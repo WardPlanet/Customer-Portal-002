@@ -25,6 +25,8 @@ const html = await read('index.html');
 const css = await read('styles.css');
 const app = await read('app.js');
 const workflow = await read('workflow.cjs');
+const batchCore = await read('batch-core.cjs');
+const batch = await read('batch.js');
 const store = await read('store.js');
 const libraryUi = await read('library-ui.js');
 const guidelines = await read('guidelines', 'import-guidelines.md');
@@ -38,12 +40,15 @@ const pdfCourier = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 
 // pdf.js reads the text out of an uploaded PDF in the artifact (embedded as inert text, run on first use)
 const pdfjsCore = await fs.readFile(path.join(here, 'node_modules', 'pdfjs-dist', 'build', 'pdf.min.js'), 'utf8');
 const pdfjsWorker = await fs.readFile(path.join(here, 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js'), 'utf8');
+// mammoth reads Word files in the browser (embedded as inert text, run when a Word file is chosen)
+const mammothBrowser = await fs.readFile(path.join(here, 'node_modules', 'mammoth', 'mammoth.browser.min.js'), 'utf8');
 const pdfLibrary =
   '<script type="text/plain" id="pdf-lib-core">\n' + safeForScript(pdfCore) + '\n</script>\n' +
   '<script type="text/plain" id="pdf-lib-fonts">\n' + safeForScript(pdfFonts) + '\n</script>\n' +
   '<script type="text/plain" id="pdf-lib-courier">\n' + safeForScript(pdfCourier) + '\n</script>\n' +
   '<script type="text/plain" id="pdfjs-core">\n' + safeForScript(pdfjsCore) + '\n</script>\n' +
-  '<script type="text/plain" id="pdfjs-worker">\n' + safeForScript(pdfjsWorker) + '\n</script>\n';
+  '<script type="text/plain" id="pdfjs-worker">\n' + safeForScript(pdfjsWorker) + '\n</script>\n' +
+  '<script type="text/plain" id="mammoth-browser">\n' + safeForScript(mammothBrowser) + '\n</script>\n';
 
 // IMPORT_INSTRUCTIONS is the full import prompt; STYLE_PREAMBLE is put in front of the AI assist prompts
 const instructions =
@@ -53,7 +58,7 @@ const instructions =
   'window.TEAM_ROSTER = ' + safeForScript(JSON.stringify(team)) + ';';
 
 const linkTag = '<link rel="stylesheet" href="styles.css">';
-const scriptTag = ['<script src="workflow.cjs"></script>', '<script src="store.js"></script>', '<script src="app.js"></script>', '<script src="library-ui.js"></script>'].join('\n');
+const scriptTag = ['<script src="workflow.cjs"></script>', '<script src="batch-core.cjs"></script>', '<script src="store.js"></script>', '<script src="app.js"></script>', '<script src="batch.js"></script>', '<script src="library-ui.js"></script>'].join('\n');
 if (!html.includes(linkTag) || !html.includes(scriptTag)) {
   throw new Error('index.html no longer has the stylesheet and script tags this build looks for.');
 }
@@ -62,7 +67,7 @@ const output = html
   .replace(linkTag, () => '<style>\n' + css + '\n</style>')
   .replace(scriptTag, () => pdfLibrary + '<script>\n' + instructions + '\n</script>\n' +
     // The rules and the store first, then the editor, then the library screens (the same order as index.html)
-    ['<script>\n' + safeForScript(workflow) + '\n</script>', '<script>\n' + safeForScript(store) + '\n</script>', '<script>\n' + safeForScript(app) + '\n</script>', '<script>\n' + safeForScript(libraryUi) + '\n</script>'].join('\n'));
+    ['<script>\n' + safeForScript(workflow) + '\n</script>', '<script>\n' + safeForScript(batchCore) + '\n</script>', '<script>\n' + safeForScript(store) + '\n</script>', '<script>\n' + safeForScript(app) + '\n</script>', '<script>\n' + safeForScript(batch) + '\n</script>', '<script>\n' + safeForScript(libraryUi) + '\n</script>'].join('\n'));
 
 await fs.mkdir(path.join(here, 'dist'), { recursive: true });
 const target = path.join(here, 'dist', 'page-editor-artifact.html');

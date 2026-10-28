@@ -46,7 +46,7 @@
       return data;
     },
     list: function (q) { return this.call('GET', '/api/library/pages' + (q ? '?q=' + encodeURIComponent(q) : '')); },
-    create: function (text) { return this.call('POST', '/api/library/pages', { text: text }); },
+    create: function (text, note) { return this.call('POST', '/api/library/pages', { text: text, note: note || '' }); },
     get: function (id) { return this.call('GET', '/api/library/pages/' + id); },
     getVersion: function (id, n) { return this.call('GET', '/api/library/pages/' + id + '/versions/' + n); },
     save: function (id, n, text) { return this.call('PUT', '/api/library/pages/' + id + '/versions/' + n, { text: text }); },
@@ -136,10 +136,10 @@
         rows.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
         return { pages: rows };
       },
-      create: async function (text) {
+      create: async function (text, note) {
         var who = actor();
         var data = readAll();
-        var page = guard(function () { return W.createPage(team, text, who, now()); });
+        var page = guard(function () { return W.createPage(team, text, who, now(), note); });
         data.pages.push(page);
         writeAll(data);
         return Object.assign(detail(page, who), { version: page.versions[0].n });

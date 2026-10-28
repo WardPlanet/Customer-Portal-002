@@ -84,8 +84,8 @@ async function readDocument(buffer, filename) {
     if (word.imageCount) {
       notes.push(word.imageCount + ' image(s) in the original were not imported. Add them back by hand where needed.');
     }
-  } else if (extension === '.txt' || extension === '.md') {
-    text = buffer.toString('utf8');
+  } else if (extension === '.txt' || extension === '.md' || extension === '.html') {
+    text = buffer.toString('utf8');   // .html is a piece of a Word file already converted by the batch import
   } else if (extension === '.doc') {
     throw new AiError(415, 'unsupported_file', 'Old .doc files are not supported. Open it in Word and save it as .docx first.');
   } else {

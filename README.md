@@ -48,6 +48,7 @@ variables take priority). `.env.example` documents each one.
 | `workflow.cjs` | The rules for versions, review, search and the public view (used by the server and the browser). Tested by `npm test`. |
 | `library.js` | Stores pages and versions as files and serves the library and public routes. |
 | `store.js`, `library-ui.js` | The browser side of the library: where pages come from, and the library screens. |
+| `batch.js`, `batch-core.cjs` | Batch import: split one file holding several documents into several draft pages (the splitting rules are in `batch-core.cjs`, tested). |
 | `drafts/` | Pages, in one folder per team (`drafts/legwork-web-team/pages/<id>/`): `page.json` plus one `.txt` per version. Created on first save. Not in git. |
 
 ## Endpoints
@@ -61,6 +62,7 @@ variables take priority). `.env.example` documents each one.
 | `POST /api/import` | Takes an uploaded .docx, .pdf, .txt or .md and returns a standardized page for review. |
 | `GET /api/team` | The team and who holds each role today. |
 | `/api/library/...` | Pages and versions for staff (list, read, save, submit, approve, send back, withdraw, restore, unpublish). Needs the `X-Acting-As` header until real login exists. |
+| `/vendor/mammoth.browser.min.js` | The Word reader the browser loads when a Word file is chosen. |
 | `/api/library/backup`, `/api/library/restore` | Download every page and version as one file; restore from one (team lead only). |
 | `/api/public/pages`, `/api/public/pages/:id` | The public side: no login, only live Client-Safe pages, no ownership details. |
 

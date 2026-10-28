@@ -64,14 +64,19 @@ async function moveLooseDrafts() {
 
 /* ---------- Static files ----------
    Only these three are served, so server.js, package.json and any .env file are never exposed. */
-['index.html', 'styles.css', 'app.js', 'store.js', 'library-ui.js', 'workflow.cjs'].forEach(function (file) {
+['index.html', 'styles.css', 'app.js', 'store.js', 'library-ui.js', 'batch.js', 'workflow.cjs', 'batch-core.cjs'].forEach(function (file) {
   app.get(file === 'index.html' ? ['/', '/index.html'] : '/' + file, function (req, res) {
-    if (file === 'workflow.cjs') { res.type('application/javascript'); }   // a script for the browser as well as the server
+    if (file.endsWith('.cjs')) { res.type('application/javascript'); }   // a script for the browser as well as the server
     res.sendFile(path.join(here, file));
   });
 });
 
 // The PDF library, loaded by app.js only when someone clicks Export PDF
+// Word files are read in the browser too (batch import), with mammoth's browser build
+app.get('/vendor/mammoth.browser.min.js', function (req, res) {
+  res.sendFile(path.join(here, 'node_modules', 'mammoth', 'mammoth.browser.min.js'));
+});
+
 ['pdfmake.min.js', 'vfs_fonts.js', 'Courier.js'].forEach(function (file) {
   app.get('/vendor/' + file, function (req, res) {
     var folder = file === 'Courier.js' ? path.join('build', 'standard-fonts') : 'build';
@@ -111,7 +116,7 @@ app.post('/api/ai/json', async function (req, res) {
   }
   try {
     // Suggestions and rewrites are written in house style. Keyword requests (tier 'quick') are not.
-    if ((req.body.modelTier || 'default') === 'default') {
+    if ((req.body.modelTier || 'default') === 'default' && req.body.skipStyleGuide !== true) {
       var styleGuide = await readStyleGuide().catch(function (error) {
         console.error(error.message);   // still answer, just without the style guide
         return '';

@@ -206,6 +206,36 @@ Search keywords are not styled by it.
 - On the server, `/api/ai/json` puts the guide in front of 'default'-tier prompts and `importer.js` builds it
   into the import prompt. In the artifact build the same text is embedded (`window.STYLE_PREAMBLE`).
 
+## Batch import (one file, several documents)
+
+**Batch import** (library, top right) turns one file that holds several documents into several draft pages.
+It takes a Word (.docx), text or Markdown file, or pasted text. PDFs are not supported in batch yet (use
+**Import document**, one at a time).
+
+1. **Scan.** The file is cut into numbered *pieces* (one per heading, paragraph, list or table; images are not
+   imported). The AI is shown a short view of them and answers only with *piece numbers* ("document 1 is pieces
+   5 to 7"), never the text, so it cannot change or invent content while splitting. Its answer is checked
+   (`batch-core.cjs`): bad, overlapping or out-of-range answers are dropped with a warning, and pieces nobody
+   claimed are shown as *skipped* rather than silently lost. Without the AI the file is split at its top-level
+   headings.
+2. **Review** (nothing is created yet). Rename each document, leave some out, merge one into the one above,
+   or turn a skipped section into a document. A page whose title already exists in the library is flagged
+   (a new draft is added; nothing is replaced). One **owner role** and **visibility** can be set for the whole
+   batch (both can be changed per page later).
+3. **Create.** Each chosen document is converted exactly like **Import document** (same style guide and
+   import guidelines) and saved as a **draft** in the library, one after another, with progress. If one fails
+   the rest continue, and **Try the ones that did not finish** retries only those. A title you typed wins over
+   the AI's.
+
+The AI's review points for each page are saved with its first version ("Imported from <file> (document 2 of 5).
+Check: ..."), shown in the history and in the banner whenever that draft is opened for editing. Each page's
+source file records the file and its position.
+
+Limits: 25 MB and about 6,000 pieces per file; each document needs one AI request (a minute or so each), plus
+one for the scan. Word files are read in the browser with mammoth (served from `/vendor`, or built into the
+artifact), which is also why **Import document** now accepts Word in the artifact. Splitting is the weakest
+part of any AI step, so always skim the proposed list before creating.
+
 ## Two ways to run it: server and Claude artifact
 
 The same `app.js` runs in two places and picks its AI automatically:
@@ -214,8 +244,8 @@ The same `app.js` runs in two places and picks its AI automatically:
   the server.
 - **As a Claude artifact** (no server, no API key): `npm run build:artifact` writes
   `dist/page-editor-artifact.html`, one self-contained file with the stylesheet, the script and the import
-  instructions built in. In it the AI is Claude's built-in AI, import takes pasted text and .pdf, .txt and .md
-  files (not Word), and the library keeps its pages in this browser's storage (same rules, no server). PDFs are read in the browser with pdf.js
+  instructions built in. In it the AI is Claude's built-in AI, import takes pasted text and .docx, .pdf, .txt and
+  .md files, and the library keeps its pages in this browser's storage (same rules, no server). PDFs are read in the browser with pdf.js
   (embedded, run only when a PDF is chosen), so a scanned PDF with no selectable text is refused there; on the
   server a PDF goes to Claude as a PDF, which can read scans. Publish it with the Artifact tool using the
   capabilities `sample` and `downloads`. The current copy is at

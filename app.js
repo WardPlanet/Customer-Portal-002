@@ -1757,7 +1757,7 @@
           response = await fetch('/api/ai/json', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: prompt, modelTier: options.modelTier }),
+            body: JSON.stringify({ prompt: prompt, modelTier: options.modelTier, skipStyleGuide: options.skipStyleGuide === true }),
             signal: options.signal
           });
         } catch (error) {
@@ -2414,6 +2414,41 @@
       return body.result;
     }
 
+    // Word files are read in the browser with mammoth (its browser build): from /vendor on the server, or from
+    // text built into the single-file artifact. Used by the artifact's Word import and by batch import.
+    var mammothLoading = null;
+    function loadMammoth() {
+      if (!mammothLoading) {
+        mammothLoading = (async function () {
+          if (window.mammoth) { return; }
+          var embedded = document.getElementById('mammoth-browser');
+          if (embedded) { runScriptText(embedded.textContent); } else { await loadScriptFile('/vendor/mammoth.browser.min.js'); }
+          if (!window.mammoth) { throw importProblem('The Word reader did not start. Save the file as a PDF, or paste the text.'); }
+        })();
+        mammothLoading.catch(function () { mammothLoading = null; });
+      }
+      return mammothLoading;
+    }
+
+    // A Word file as simple HTML (images become a marker, because the AI cannot see them). Resolves to
+    // { html, imageCount }.
+    async function wordToHtml(file) {
+      if (file.size > 25 * 1024 * 1024) { throw importProblem('That Word file is over 25 MB.'); }
+      await loadMammoth();
+      var result;
+      try {
+        result = await window.mammoth.convertToHtml(
+          { arrayBuffer: await file.arrayBuffer() },
+          { convertImage: window.mammoth.images.imgElement(function () { return Promise.resolve({ src: 'image' }); }) }
+        );
+      } catch (error) {
+        throw importProblem('That Word file could not be read. Is it a real .docx?');
+      }
+      var imageCount = 0;
+      var html = result.value.replace(/<img[^>]*>/g, function () { imageCount += 1; return '[image omitted]'; });
+      return { html: html, imageCount: imageCount };
+    }
+
     // PDF text for the Claude artifact. Claude's built-in AI here takes text only, so the text is read out
     // of the PDF in the browser with pdf.js. The library is built into the page (as inert text, see
     // scripts/build-artifact.mjs) and only run when a PDF is chosen. It runs on the page itself, without a
@@ -2457,13 +2492,22 @@
     // built into the page by scripts/build-artifact.mjs as window.IMPORT_INSTRUCTIONS.
     async function importViaClaude(file, sample) {
       var isPdf = /\.pdf$/i.test(file.name);
-      if (!isPdf && !/\.(txt|md)$/i.test(file.name)) {
-        throw importProblem('Word files need the server version. Here, save it as a PDF, or paste the text, or choose a .pdf, .txt or .md file.');
+      var isWord = /\.docx$/i.test(file.name);
+      if (!isPdf && !isWord && !/\.(txt|md|html)$/i.test(file.name)) {
+        throw importProblem('Choose a .docx, .pdf, .txt or .md file, or paste the text. (Older .doc files: open them in Word and save as .docx.)');
       }
       if (!window.IMPORT_INSTRUCTIONS) {
         throw importProblem('This copy of the page has no import instructions built in.');
       }
-      var text = isPdf ? await extractPdfText(file) : await file.text();
+      var wordNote = '';
+      var text;
+      if (isWord) {
+        var word = await wordToHtml(file);
+        text = word.html;
+        if (word.imageCount) { wordNote = word.imageCount + ' image(s) in the original were not imported. Add them back by hand where needed.'; }
+      } else {
+        text = isPdf ? await extractPdfText(file) : await file.text();
+      }
       if (!text.trim()) {
         throw importProblem(isPdf ? 'That PDF has no selectable text (it may be a scan). Use the server version, or paste the text.' : 'That text is empty.');
       }
@@ -2475,6 +2519,7 @@
       if (!result.title && !result.blocks.length) {
         throw importProblem('The AI did not find any page content in that text.');
       }
+      if (wordNote) { result.review_notes.push(wordNote); }
       return result;
     }
 
@@ -2521,9 +2566,6 @@
         showNotice(aiUnavailable ? 'Importing needs the AI, which isn\u2019t available in this view.' : 'An import is already running.');
         return;
       }
-      var noWord = aiMode === 'claude';   // Word files need the server
-      byId('import-choose-file').textContent = noWord ? 'Choose a file (.pdf, .txt, .md)' : 'Choose a file (.docx, .pdf, .txt, .md)';
-      byId('import-file').accept = noWord ? '.pdf,.txt,.md' : '.docx,.pdf,.txt,.md';
       importSourceDialog.showModal();
     });
 
@@ -3119,7 +3161,54 @@
       setStatus('Draft not saved yet', false);
     }
 
+    /* ----- Used by batch import (batch.js): converting without touching the editor screen ----- */
+    async function convertFile(file) {
+      var sample = await getSample();
+      if (!sample) { throw importProblem('Importing needs the AI, which isn\u2019t available in this view.'); }
+      return aiMode === 'server' ? importViaServer(file) : importViaClaude(file, sample);
+    }
+
+    // The complete draft text for an imported result, with the defaults a new page gets. The owner (a
+    // role) and visibility can be chosen for a whole batch; everything else is the team's default.
+    function draftTextFromResult(result, options) {
+      options = options || {};
+      var imported = importResultToSections(result);
+      var chosen = {};
+      Object.keys(imported).forEach(function (name) {
+        if (name === 'TITLE' || name === 'DESCRIPTION' || /^BLOCK /.test(name) || name === 'ADD BLOCK BUTTON') { chosen[name] = imported[name]; }
+      });
+      chosen['KEYWORDS'] = [];
+      chosen['PAGE TYPE'] = ['Process Documentation'];
+      chosen['TEAM'] = [roster ? roster.name : state.team];
+      chosen['OWNER ROLE'] = options.owner ? [options.owner] : [];
+      chosen['WHERE THIS LIVES'] = [locationFromValue('')];
+      chosen['LINKED ROLES'] = [];
+      chosen['REVIEWER'] = [leadRole()];
+      chosen['VISIBILITY'] = [options.visibility === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only'];
+      chosen['SOURCE FILE'] = [options.source || result.source || ''];
+
+      var out = ['PAGE EDITOR DRAFT', 'FORMAT: ' + FORMAT_VERSION, 'SAVED: ' + new Date().toISOString(), ''];
+      Object.keys(chosen).forEach(function (name) {
+        out.push('[' + name + ']');
+        chosen[name].forEach(function (line) { out.push(escapeLine(line)); });
+        out.push('');
+      });
+      return out.join(NL);
+    }
+
     window.PageEditor = {
+      aiAvailable: async function () { return !!(await getSample()); },
+      // One AI question that wants a JSON answer (no house style needed)
+      aiJson: async function (prompt) {
+        var sample = await getSample();
+        if (!sample) { throw importProblem('The AI isn\u2019t available in this view.'); }
+        return sample.json(prompt, { modelTier: 'default', skipStyleGuide: true });
+      },
+      wordToHtml: wordToHtml,
+      convert: convertFile,
+      draftTextFromResult: draftTextFromResult,
+      errorMessage: importErrorMessage,
+      roles: function () { return rosterRoles().map(function (role) { return role.title; }); },
       reset: resetEditor,
       // Fill the editor from a saved version's text (silently, unlike Import)
       load: function (text, readOnly) {

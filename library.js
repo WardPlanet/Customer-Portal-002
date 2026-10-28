@@ -169,7 +169,8 @@ export function registerLibraryRoutes(app, draftsDir) {
   }));
 
   app.post('/api/library/pages', staff(async function (req, res, ctx) {
-    var page = Workflow.createPage(ctx.team, textBody(req), ctx.actor, ctx.now);
+    var note = typeof (req.body && req.body.note) === 'string' ? req.body.note.slice(0, 2000) : '';
+    var page = Workflow.createPage(ctx.team, textBody(req), ctx.actor, ctx.now, note);
     await savePage(draftsDir, ctx.team, page);
     res.json(Object.assign(detail(page, ctx), { version: page.versions[0].n }));
   }));
