@@ -41,6 +41,40 @@
 
     function byId(id) { return document.getElementById(id); }
 
+    /* ---------- Asking "are you sure?" ----------
+       window.confirm() does nothing inside a sandboxed frame such as a Claude artifact (it returns false
+       without showing anything), so a button that relied on it would silently do nothing. This draws the
+       question in the page instead. Resolves to true (the person agreed) or false.
+       options: { title, ok } (the heading and the label of the agree button) */
+    window.askConfirm = function (message, options) {
+      options = options || {};
+      return new Promise(function (resolve) {
+        var dialog = document.getElementById('confirm-dialog');
+        var okButton = document.getElementById('confirm-dialog-ok');
+        var cancelButton = document.getElementById('confirm-dialog-cancel');
+        document.getElementById('confirm-dialog-title').textContent = options.title || 'Are you sure?';
+        document.getElementById('confirm-dialog-message').textContent = message;
+        okButton.textContent = options.ok || 'Continue';
+
+        function finish(answer) {
+          okButton.removeEventListener('click', onOk);
+          cancelButton.removeEventListener('click', onCancel);
+          dialog.removeEventListener('cancel', onEscape);
+          if (dialog.open) { dialog.close(); }
+          resolve(answer);
+        }
+        function onOk() { finish(true); }
+        function onCancel() { finish(false); }
+        function onEscape(event) { event.preventDefault(); finish(false); }
+
+        okButton.addEventListener('click', onOk);
+        cancelButton.addEventListener('click', onCancel);
+        dialog.addEventListener('cancel', onEscape);
+        dialog.showModal();
+        okButton.focus();
+      });
+    };
+
     var titleEl = byId('field-title');
     var descriptionEl = byId('field-description');
     var contentEl = byId('content-blocks');
@@ -1359,7 +1393,7 @@
       try {
         var text = await prepareDraftText();
         if (text === null) { return; }
-        if (action === 'publish' && !window.confirm('Publish this page now? It goes live right away, without review, and a copy is downloaded as a text file.')) { return; }
+        if (action === 'publish' && !(await window.askConfirm('It goes live right away, without review, and a copy is downloaded as a text file.', { title: 'Publish this page now?', ok: 'Publish' }))) { return; }
         var message = await window.PageHost[action](text);
         setStatus(action === 'publish' ? 'Published' : action === 'submit' ? 'Submitted for review' : 'Saved just now', true);
         showNotice(message);
@@ -2236,17 +2270,19 @@
     aiButton.addEventListener('click', runAiAssist);
 
     /* ---------- Wire up events ---------- */
-    byId('save-draft').addEventListener('click', function () {
-      if (byId('save-draft').getAttribute('aria-disabled') === 'true') { validateRequired(); showNotice('Fill in the required fields (*) before saving.'); return; }
-      saveAndMaybeSubmit('save');
-    });
-    byId('submit-draft').addEventListener('click', function () {
-      if (byId('submit-draft').getAttribute('aria-disabled') === 'true') { validateRequired(); showNotice('Fill in the required fields (*) before submitting.'); return; }
-      saveAndMaybeSubmit('submit');
-    });
-    byId('publish-draft').addEventListener('click', function () {
-      if (byId('publish-draft').getAttribute('aria-disabled') === 'true') { validateRequired(); showNotice('Fill in the required fields (*) before publishing.'); return; }
-      saveAndMaybeSubmit('publish');
+    // A greyed-out button still answers when clicked: it says what is missing and goes to the first thing
+    function explainMissing(verb) {
+      var missing = validateRequired();
+      if (!missing.length) { return false; }
+      showNotice('Can\u2019t ' + verb + ' yet. Still needed: ' + missing.map(function (item) { return item.label; }).join(', ') + '.');
+      missing[0].target.focus();
+      return true;
+    }
+    [['save-draft', 'save', 'save'], ['submit-draft', 'submit for review', 'submit'], ['publish-draft', 'publish', 'publish']].forEach(function (item) {
+      byId(item[0]).addEventListener('click', function () {
+        if (byId(item[0]).getAttribute('aria-disabled') === 'true' && explainMissing(item[1])) { return; }
+        saveAndMaybeSubmit(item[2]);
+      });
     });
     byId('leave-btn').addEventListener('click', function () { window.PageHost.leave(); });
 
@@ -2459,7 +2495,7 @@
         showNotice('Importing needs the AI, which isn\u2019t available in this view.');
         return false;
       }
-      if (pageHasContent() && !window.confirm('Importing replaces everything on this page. Continue?')) { return false; }
+      if (pageHasContent() && !(await window.askConfirm('Importing replaces everything on this page.', { title: 'Replace this page?', ok: 'Replace it' }))) { return false; }
 
       isImporting = true;
       importButton.setAttribute('aria-disabled', 'true');
@@ -2498,7 +2534,7 @@
       byId('import-file').click();
     });
     byId('import-source-close').addEventListener('click', function () { importSourceDialog.close(); });
-    byId('import-paste-convert').addEventListener('click', function () {
+    byId('import-paste-convert').addEventListener('click', async function () {
       var pasted = byId('import-paste-text');
       if (!pasted.value.trim()) {
         pasted.focus();
@@ -2506,7 +2542,7 @@
       }
       // A saved draft (it has [TITLE] and similar headings) loads exactly as it was saved, with no AI
       if (looksLikeDraft(parseDraft(pasted.value))) {
-        if (pageHasContent() && !window.confirm('That is a saved draft, so it loads as it is. This replaces everything on the page now. Continue?')) { return; }
+        if (pageHasContent() && !(await window.askConfirm('That is a saved draft, so it loads as it is. This replaces everything on the page now.', { title: 'Replace this page?', ok: 'Replace it' }))) { return; }
         if (loadDraftText(pasted.value)) {
           importSourceDialog.close();
           pasted.value = '';

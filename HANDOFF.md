@@ -288,6 +288,11 @@ in `teams/legwork-web-team.json`: `"directPublish": "anyone"` (now: anyone on th
 team lead; the button then disappears for everyone else and the server refuses their requests). Switching to
 `"lead"` is how to remove it for non-managers later. Submit for review, Approve and Send back still work.
 
+**No browser pop-up boxes.** The browser's own `confirm()` / `alert()` do nothing inside a Claude artifact (it is
+a sandboxed frame, so the browser ignores them and answers "no"), which made buttons like Publish silently do
+nothing. Every "are you sure?" now goes through `window.askConfirm(message, { title, ok })` in `app.js`, which
+draws a normal dialog in the page. Use that for any new confirmation, never `confirm()`.
+
 **Backups.** The library has **Download backup** (one `.json` file with every page and all versions) and
 **Restore from backup** (team lead only, because a restored file can change a page's review status). Restoring
 adds pages that are new and replaces pages the backup has a newer copy of; it never deletes. The file is checked

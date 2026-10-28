@@ -292,7 +292,7 @@
     if (!file) { return; }
     var data;
     try { data = JSON.parse(await file.text()); } catch (error) { notice('That file could not be read. Choose a backup file ending in .json.'); return; }
-    if (!confirm('Restore pages from this backup? Pages that are new are added, and pages the backup has a newer copy of are replaced. Nothing is deleted.')) { return; }
+    if (!(await window.askConfirm('Pages that are new are added, and pages the backup has a newer copy of are replaced. Nothing is deleted.', { title: 'Restore pages from this backup?', ok: 'Restore' }))) { return; }
     var result = await attempt(backend().restoreBackup(data));
     if (!result) { return; }
     notice('Restored: ' + result.added + ' added, ' + result.updated + ' updated, ' + result.skipped + ' unchanged.');
@@ -384,7 +384,7 @@
     }
     if (data.actions.indexOf('unpublish') >= 0) {
       actions.appendChild(button('Unpublish', 'danger-btn', async function () {
-        if (!confirm('Take this page down now? It will no longer be live or searchable until a version is approved again.')) { return; }
+        if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }
         if (await attempt(backend().unpublish(id))) { notice('Unpublished.'); showDetail(id); }
       }));
     }
@@ -463,7 +463,7 @@
   }
 
   async function publishVersion(id, n) {
-    if (!confirm('Publish this version now? It goes live right away, without review, and a copy is downloaded as a text file.')) { return; }
+    if (!(await window.askConfirm('It goes live right away, without review, and a copy is downloaded as a text file.', { title: 'Publish this version now?', ok: 'Publish' }))) { return; }
     var data = await attempt(backend().getVersion(id, n));
     if (!data) { return; }
     try {
@@ -660,8 +660,8 @@
       location.hash = '#/page/' + id;
       return message;
     },
-    leave: function () {
-      if (window.PageEditor.isDirty() && !confirm('Leave without saving? Your changes will be lost.')) { return; }
+    leave: async function () {
+      if (window.PageEditor.isDirty() && !(await window.askConfirm('Your changes will be lost.', { title: 'Leave without saving?', ok: 'Leave' }))) { return; }
       location.hash = current.backTo || '#/';
     }
   };

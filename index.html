@@ -268,6 +268,17 @@
 <!-- Clean copy of the page that is printed or saved as PDF; filled in by the script -->
 <div id="print-view" aria-hidden="true"></div>
 
+<!-- A confirm box drawn in the page. The browser's own confirm() is blocked inside a Claude artifact, so
+     nothing in the app uses it; everything asks through window.askConfirm (see app.js). -->
+<dialog id="confirm-dialog" class="draft-dialog" aria-labelledby="confirm-dialog-title">
+  <h2 id="confirm-dialog-title" class="dialog-title">Are you sure?</h2>
+  <p class="dialog-hint" id="confirm-dialog-message"></p>
+  <div class="dialog-actions">
+    <button class="secondary-btn" type="button" id="confirm-dialog-cancel">Cancel</button>
+    <button class="submit-btn" type="button" id="confirm-dialog-ok">Continue</button>
+  </div>
+</dialog>
+
 <dialog id="comment-dialog" class="draft-dialog" aria-labelledby="comment-dialog-title">
   <h2 id="comment-dialog-title" class="dialog-title">Send back for changes</h2>
   <p class="dialog-hint" id="comment-dialog-hint">Say what needs to change. The author sees this note.</p>
