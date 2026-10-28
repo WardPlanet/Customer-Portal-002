@@ -15,7 +15,7 @@
 //
 // Who may do what (prototype: whoever the person is "acting as"; real login comes later)
 //   anyone on the team: create pages, edit drafts, submit, withdraw their own submission, restore, view
-//   the team lead only:  approve, send back, unpublish
+//   the team lead only:  approve, send back, unpublish, delete a page
 //   publish (skips review): anyone on the team for now; the team's "directPublish" setting can limit it to the lead
 //
 // Search and the public site only ever see the LIVE version (see searchEntry), so old versions cannot
@@ -324,6 +324,12 @@
     return version;
   }
 
+  // Deleting a whole page (every version) is the team lead's alone. This only checks the rule; the server
+  // or the browser store then removes the page. A deleted page can only come back from a downloaded backup.
+  function assertCanDelete(actor, team) {
+    requireLead(actor, team, 'delete a page');
+  }
+
   // Pull the live version down at once (for example a Client-Safe page that should not be public)
   function unpublish(page, actor, team, now) {
     requireLead(actor, team, 'unpublish a page');
@@ -413,6 +419,7 @@
     var actions = [];
     if (actor && actor.name) { actions.push('edit'); }
     if (isLead(actor, team) && page.liveVersion) { actions.push('unpublish'); }
+    if (isLead(actor, team)) { actions.push('delete'); }
     return actions;
   }
 
@@ -578,6 +585,7 @@
     approve: approve,
     sendBack: sendBack,
     unpublish: unpublish,
+    assertCanDelete: assertCanDelete,
     describeStatus: describeStatus,
     summary: summary,
     history: history,

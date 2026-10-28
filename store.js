@@ -53,6 +53,7 @@
     edit: function (id) { return this.call('POST', '/api/library/pages/' + id + '/edit'); },
     act: function (id, n, action, body) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/' + action, body || {}); },
     unpublish: function (id) { return this.call('POST', '/api/library/pages/' + id + '/unpublish'); },
+    remove: function (id) { return this.call('DELETE', '/api/library/pages/' + id); },
     isMemoryOnly: function () { return false; },
     exportBackup: function () { return this.call('GET', '/api/library/backup'); },
     restoreBackup: function (data) { return this.call('POST', '/api/library/restore', { backup: data }); },
@@ -170,6 +171,16 @@
       },
       unpublish: async function (id) {
         return change(id, function (page, who, at) { W.unpublish(page, who, team, at); });
+      },
+      // Removes the page and every version (team lead only)
+      remove: async function (id) {
+        var who = actor();
+        guard(function () { W.assertCanDelete(who, team); });
+        var data = readAll();
+        find(data, id);
+        data.pages = data.pages.filter(function (p) { return p.id !== id; });
+        writeAll(data);
+        return { deleted: id };
       },
       // Everything, as one object the screen saves to a file
       exportBackup: async function () {

@@ -384,6 +384,15 @@
     if (page.liveVersion) {
       actions.appendChild(link('Read the live version', '#/view/' + id + '/' + page.liveVersion, 'secondary-link'));
     }
+    if (data.actions.indexOf('delete') >= 0) {
+      actions.appendChild(button('Delete page', 'danger-btn', async function () {
+        var live = page.liveVersion ? ' It is live now, so it will disappear from the library, search and the public site.' : '';
+        var warn = 'This removes \u201c' + page.title + '\u201d and all ' + page.versionCount + (page.versionCount === 1 ? ' version' : ' versions') + '.' + live +
+          ' It cannot be undone, except from a backup you downloaded earlier.';
+        if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it' }))) { return; }
+        if (await attempt(backend().remove(id))) { notice('Deleted \u201c' + page.title + '\u201d.'); location.hash = '#/'; }
+      }));
+    }
     if (data.actions.indexOf('unpublish') >= 0) {
       actions.appendChild(button('Unpublish', 'danger-btn', async function () {
         if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }

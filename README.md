@@ -74,7 +74,7 @@ variables take priority). `.env.example` documents each one.
   real sign-in, for example Microsoft Entra ID, before this is hosted. Put it behind your single sign-on or an
   internal-only network until then.
 - **Pages are files with version history.** Every version is kept (`page.json` and one `.txt` per version), so
-  put `DRAFTS_DIR` on a backed-up volume. There is no deletion in the app.
+  put `DRAFTS_DIR` on a backed-up volume. Only the team lead can delete a page (it removes every version), so keep backups.
 - **One instance only.** Pages live on local disk, so running several copies would give each its own set.
 - **Spend limits.** Set a spend cap on the API key in the Anthropic console.
 - **Logs** go to standard output. The server logs failures only, not draft contents.

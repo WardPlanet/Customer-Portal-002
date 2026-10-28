@@ -306,7 +306,7 @@ stays in the history). Restoring an old version makes a new draft, which needs a
 | Unpublished | The lead pulled it down. History only. |
 
 **Who may do what.** Anyone on the team: create pages, edit drafts, submit, withdraw their own submission,
-restore. The **team lead only** (Web Team Manager, currently Micah): approve, send back, unpublish. Submitting
+restore. The **team lead only** (Web Team Manager, currently Micah): approve, send back, unpublish, **delete a page**. Submitting
 needs a title, description, owner role and at least one step title.
 
 **Publish (skips review).** Review is not in use yet, so the editor has a **Publish** button (and a Publish
@@ -322,6 +322,12 @@ team lead; the button then disappears for everyone else and the server refuses t
 a sandboxed frame, so the browser ignores them and answers "no"), which made buttons like Publish silently do
 nothing. Every "are you sure?" now goes through `window.askConfirm(message, { title, ok })` in `app.js`, which
 draws a normal dialog in the page. Use that for any new confirmation, never `confirm()`.
+
+**Deleting a page.** The team lead has a **Delete page** button on a page's screen. It names the page, says how many
+versions go and whether it is live (it then leaves the library, search and the public site at once), and asks
+first. It removes the page and every version, on the server (the page's folder) or from the browser's storage.
+It cannot be undone except by restoring a backup that still has the page, so download a backup first if in
+doubt. Nobody else can delete, and the server refuses their requests. There is no "delete all" button.
 
 **Backups.** The library has **Download backup** (one `.json` file with every page and all versions) and
 **Restore from backup** (team lead only, because a restored file can change a page's review status). Restoring

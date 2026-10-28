@@ -194,7 +194,7 @@ test('the buttons each person is offered match the rules', () => {
   assert.deepEqual(W.history(page, micah, team)[0].actions, ['view', 'publish', 'withdraw', 'approve', 'send_back']);
   W.approve(page, 1, micah, team, t(3));
   assert.deepEqual(W.pageActions(page, scott, team), ['edit']);
-  assert.deepEqual(W.pageActions(page, micah, team), ['edit', 'unpublish']);
+  assert.deepEqual(W.pageActions(page, micah, team), ['edit', 'unpublish', 'delete']);
   assert.deepEqual(W.history(page, null, team)[0].actions, ['view']);
 });
 
@@ -275,4 +275,13 @@ test('the team setting can limit direct publishing to the lead', () => {
   assert.throws(() => W.publish(page, 1, scott, strict, t(2)), (e) => e.code === 'not_lead');
   W.publish(page, 1, micah, strict, t(3));
   assert.equal(page.liveVersion, 1);
+});
+
+test('only the team lead may delete a page', () => {
+  assert.throws(() => W.assertCanDelete(scott, team), (e) => e.code === 'not_lead' && /delete a page/.test(e.message));
+  assert.doesNotThrow(() => W.assertCanDelete(micah, team));
+  assert.throws(() => W.assertCanDelete({ name: '', roles: [] }, team), (e) => e.code === 'no_actor');
+  const page = livePage();
+  assert.ok(W.pageActions(page, micah, team).includes('delete'));
+  assert.equal(W.pageActions(page, scott, team).includes('delete'), false);
 });

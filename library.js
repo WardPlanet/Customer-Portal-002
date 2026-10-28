@@ -216,6 +216,14 @@ export function registerLibraryRoutes(app, draftsDir) {
     }));
   });
 
+  // Removes the page and every version. Team lead only; there is no undo except a downloaded backup.
+  app.delete('/api/library/pages/:id', staff(async function (req, res, ctx) {
+    Workflow.assertCanDelete(ctx.actor, ctx.team);
+    var page = await open(req, ctx);   // also checks the id is a valid page id, so the path below stays inside the pages folder
+    await fs.rm(path.join(pagesFolder(draftsDir, ctx.team), page.id), { recursive: true, force: true });
+    res.json({ deleted: page.id });
+  }));
+
   app.post('/api/library/pages/:id/unpublish', staff(async function (req, res, ctx) {
     var page = await open(req, ctx);
     Workflow.unpublish(page, ctx.actor, ctx.team, ctx.now);
