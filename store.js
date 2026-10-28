@@ -11,7 +11,10 @@
 (function () {
   'use strict';
 
-  var ACTOR_KEY = 'pageEditor.actingAs';
+  // Prototype: everyone starts as the team lead so all tools are available. Remove DEFAULT_ACTOR when real login exists.
+  // (The key name has a version so a choice saved earlier does not override the default.)
+  var ACTOR_KEY = 'pageEditor.actingAs.v2';
+  var DEFAULT_ACTOR = 'Micah';
   var PAGES_KEY = 'pageEditor.library.v1';
 
   function fail(code, message) {
@@ -24,8 +27,8 @@
   var BACKUP_KEY = 'pageEditor.lastBackup';
 
   /* ---------- Who is acting (prototype stand-in for login) ---------- */
-  var actingAs = '';
-  try { actingAs = localStorage.getItem(ACTOR_KEY) || ''; } catch (error) { /* storage unavailable */ }
+  var actingAs = DEFAULT_ACTOR;
+  try { actingAs = localStorage.getItem(ACTOR_KEY) || DEFAULT_ACTOR; } catch (error) { /* storage unavailable */ }
 
   /* ---------- Server backend ---------- */
   var server = {
