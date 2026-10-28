@@ -3205,6 +3205,7 @@
         return sample.json(prompt, { modelTier: 'default', skipStyleGuide: true });
       },
       wordToHtml: wordToHtml,
+      extractPdfText: extractPdfText,
       convert: convertFile,
       draftTextFromResult: draftTextFromResult,
       errorMessage: importErrorMessage,

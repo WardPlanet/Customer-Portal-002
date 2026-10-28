@@ -1,6 +1,6 @@
 // Batch import: one file that holds several documents becomes several draft pages.
 //
-//   1. Choose a Word, text or Markdown file (or paste text).
+//   1. Choose a Word, PDF, ODT, RTF, HTML, text or Markdown file (or paste text).
 //   2. SCAN: the file is cut into pieces (headings, paragraphs, lists, tables), and the AI says where each
 //      separate document starts and ends. Without the AI the file is split at its top-level headings.
 //   3. REVIEW: the proposed documents are listed. Rename them, leave some out, merge two, or rescue something
@@ -81,6 +81,123 @@
     return segments;
   }
 
+  // PDF text arrives as lines with no blank lines between paragraphs. A line that ends a sentence ends the
+  // paragraph, a short line with no closing punctuation after a finished paragraph is taken as a heading,
+  // and "- " / "1. " lines are list items.
+  function pdfTextToSegments(text) {
+    var lines = String(text).replace(/\r\n?/g, '\n').split('\n').map(function (l) { return l.trim(); });
+    var out = [];
+    var paragraph = [];
+    var list = [];
+    function endsSentence(line) { return /[.!?:;]["')\]]?$/.test(line); }
+    function flush() {
+      if (paragraph.length) {
+        var joined = paragraph.join(' ');
+        out.push({ tag: 'P', text: joined, html: '<p>' + escapeHtml(joined) + '</p>' });
+        paragraph = [];
+      }
+      if (list.length) {
+        out.push({ tag: 'LIST', text: list.join(' • '), html: '<ul>' + list.map(function (i) { return '<li>' + escapeHtml(i) + '</li>'; }).join('') + '</ul>' });
+        list = [];
+      }
+    }
+    lines.forEach(function (line) {
+      var item = /^(?:[-*•▪●]|\d+[.)])\s+(.*\S)$/.exec(line);
+      if (!line) { flush(); }
+      else if (item) { if (paragraph.length) { flush(); } list.push(item[1]); }
+      else if (list.length && !endsSentence(list[list.length - 1]) && line.charAt(0) === line.charAt(0).toLowerCase()) { list[list.length - 1] += ' ' + line; }
+      else {
+        var midSentence = paragraph.length && !endsSentence(paragraph[paragraph.length - 1]);
+        if (!midSentence && line.length <= 80 && !endsSentence(line)) {
+          flush();
+          out.push({ tag: 'H2', text: line, html: '<h2>' + escapeHtml(line) + '</h2>' });
+        } else {
+          if (list.length) { flush(); }
+          paragraph.push(line);
+          if (endsSentence(line) && line.length < 50) { flush(); }
+        }
+      }
+    });
+    flush();
+    return out;
+  }
+
+  // RTF -> plain text (drops formatting, keeps paragraph breaks and accented letters)
+  function rtfToText(rtf) {
+    return String(rtf)
+      .replace(/\{\\\*[^{}]*\}/g, '')
+      .replace(/\\'([0-9a-f]{2})/gi, function (m, hex) { return String.fromCharCode(parseInt(hex, 16)); })
+      .replace(/\\u(-?\d+)\??/g, function (m, code) { return String.fromCharCode(Number(code) < 0 ? Number(code) + 65536 : Number(code)); })
+      .replace(/\\par[d]?\b ?/g, '\n\n')
+      .replace(/\\(?:line|tab)\b ?/g, ' ')
+      .replace(/\\[a-z]+-?\d* ?/gi, '')
+      .replace(/\\([\\{}])/g, '$1')
+      .replace(/[{}]/g, '');
+  }
+
+  // An .odt file is a zip. This reads just content.xml out of it (browsers inflate it for us).
+  async function readZipEntry(buffer, wanted) {
+    var view = new DataView(buffer);
+    var end = -1;
+    for (var i = buffer.byteLength - 22; i >= Math.max(0, buffer.byteLength - 65600); i -= 1) {
+      if (view.getUint32(i, true) === 0x06054b50) { end = i; break; }
+    }
+    if (end < 0) { throw new Error('not a zip'); }
+    var count = view.getUint16(end + 10, true);
+    var pos = view.getUint32(end + 16, true);
+    for (var n = 0; n < count; n += 1) {
+      if (view.getUint32(pos, true) !== 0x02014b50) { break; }
+      var method = view.getUint16(pos + 10, true);
+      var size = view.getUint32(pos + 20, true);
+      var nameLength = view.getUint16(pos + 28, true);
+      var extraLength = view.getUint16(pos + 30, true);
+      var commentLength = view.getUint16(pos + 32, true);
+      var local = view.getUint32(pos + 42, true);
+      var name = new TextDecoder().decode(new Uint8Array(buffer, pos + 46, nameLength));
+      if (name === wanted) {
+        var start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+        var bytes = new Uint8Array(buffer, start, size);
+        if (method === 0) { return new TextDecoder().decode(bytes); }
+        if (method !== 8 || typeof DecompressionStream === 'undefined') { throw new Error('unsupported zip'); }
+        var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        return new Response(stream).text();
+      }
+      pos += 46 + nameLength + extraLength + commentLength;
+    }
+    throw new Error('no content');
+  }
+
+  // OpenDocument text (.odt) -> HTML the rest of the importer already understands
+  async function odtToHtml(file) {
+    var xml = await readZipEntry(await file.arrayBuffer(), 'content.xml');
+    var doc = new DOMParser().parseFromString(xml, 'application/xml');
+    var body = doc.getElementsByTagName('office:text')[0];
+    if (!body) { throw new Error('no text'); }
+    var html = [];
+    function clean(node) { return escapeHtml(node.textContent.replace(/\s+/g, ' ').trim()); }
+    function walk(parent) {
+      Array.prototype.forEach.call(parent.children, function (node) {
+        var name = node.nodeName;
+        if (name === 'text:h') {
+          var level = Math.min(6, Number(node.getAttribute('text:outline-level')) || 1);
+          if (clean(node)) { html.push('<h' + level + '>' + clean(node) + '</h' + level + '>'); }
+        } else if (name === 'text:p') {
+          if (clean(node)) { html.push('<p>' + clean(node) + '</p>'); }
+        } else if (name === 'text:list') {
+          var items = Array.prototype.map.call(node.getElementsByTagName('text:list-item'), clean).filter(Boolean);
+          if (items.length) { html.push('<ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>'); }
+        } else if (name === 'table:table') {
+          var cells = clean(node);
+          if (cells) { html.push('<table><tr><td>' + cells + '</td></tr></table>'); }
+        } else if (name === 'text:section') {
+          walk(node);
+        }
+      });
+    }
+    walk(body);
+    return html.join('\n');
+  }
+
   /* ---------- The screen ---------- */
 
   function show(main, ui) {
@@ -112,11 +229,11 @@
 
       var card = el('section', 'batch-card');
       card.appendChild(el('h2', 'lib-h2', '1. Choose the file'));
-      card.appendChild(el('p', 'lib-hint', 'A Word (.docx), text or Markdown file. The app finds where each document starts and ends, and you check the split before anything is created. Images are not imported.'));
+      card.appendChild(el('p', 'lib-hint', 'A Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text or Markdown file. The app finds where each document starts and ends, and you check the split before anything is created. Images are not imported.'));
 
       var input = el('input');
       input.type = 'file';
-      input.accept = '.docx,.txt,.md';
+      input.accept = '.docx,.pdf,.odt,.rtf,.html,.htm,.txt,.md';
       input.addEventListener('change', function () { if (input.files[0]) { load(input.files[0]); } });
       card.appendChild(input);
 
@@ -144,10 +261,21 @@
           var word = await window.PageEditor.wordToHtml(file);
           segments = htmlToSegments(word.html);
           images = word.imageCount;
+        } else if (/\.pdf$/i.test(file.name)) {
+          var pdfText = await window.PageEditor.extractPdfText(file);
+          if (!pdfText.trim()) { stepChoose('That PDF has no selectable text (it may be a scan), so it cannot be read.'); return; }
+          segments = pdfTextToSegments(pdfText);
+        } else if (/\.odt$/i.test(file.name)) {
+          try { segments = htmlToSegments(await odtToHtml(file)); }
+          catch (odtError) { stepChoose('That .odt file could not be read. Open it in a word processor and save it as .docx instead.'); return; }
+        } else if (/\.rtf$/i.test(file.name)) {
+          segments = textToSegments(rtfToText(await file.text()));
+        } else if (/\.html?$/i.test(file.name)) {
+          segments = htmlToSegments(await file.text());
         } else if (/\.(txt|md)$/i.test(file.name)) {
           segments = textToSegments(await file.text());
         } else {
-          stepChoose('Batch import reads .docx, .txt and .md files. For a PDF, use Import document on one document at a time.');
+          stepChoose('Batch import reads .docx, .pdf, .odt, .rtf, .html, .txt and .md files. (Older .doc files: open them in Word and save as .docx.)');
           return;
         }
         loadSegments(file.name, segments, images);

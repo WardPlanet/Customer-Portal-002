@@ -209,8 +209,9 @@ Search keywords are not styled by it.
 ## Batch import (one file, several documents)
 
 **Batch import** (library, top right) turns one file that holds several documents into several draft pages.
-It takes a Word (.docx), text or Markdown file, or pasted text. PDFs are not supported in batch yet (use
-**Import document**, one at a time).
+It takes a Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text or Markdown file, or pasted text. PDFs and RTF
+have no real headings, so the AI finds the boundaries; without it a PDF is split at short heading-like lines and an RTF
+stays one document. Scanned PDFs (no selectable text) cannot be read, and old .doc files must be saved as .docx first.
 
 1. **Scan.** The file is cut into numbered *pieces* (one per heading, paragraph, list or table; images are not
    imported). The AI is shown a short view of them and answers only with *piece numbers* ("document 1 is pieces
