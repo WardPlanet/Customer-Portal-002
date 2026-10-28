@@ -316,6 +316,18 @@
     });
   }
 
+  // Asks, then deletes a page and every version. `page` is a library row (title, versionCount, liveVersion).
+  // Resolves to true when it was deleted. Used by the Delete button on a page and on each row of the library.
+  async function confirmAndDelete(page) {
+    var live = page.liveVersion ? ' It is live now, so it will disappear from the library, search and the public site.' : '';
+    var warn = 'This removes \u201c' + page.title + '\u201d and all ' + page.versionCount + (page.versionCount === 1 ? ' version' : ' versions') + '.' + live +
+      ' It cannot be undone, except from a backup you downloaded earlier.';
+    if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it' }))) { return false; }
+    if (!(await attempt(backend().remove(page.id)))) { return false; }
+    notice('Deleted \u201c' + page.title + '\u201d.');
+    return true;
+  }
+
   function renderList(box, pages) {
     box.textContent = '';
     var shown = pages.filter(function (p) {
@@ -327,7 +339,8 @@
     }
     var table = el('table', 'lib-table');
     var headRow = el('tr');
-    ['Page', 'Status', 'Owner', 'Visibility', 'Updated'].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
+    var canDelete = actorIsLead();   // only the team lead gets Delete buttons; the server checks again
+    ['Page', 'Status', 'Owner', 'Visibility', 'Updated'].concat(canDelete ? [''] : []).forEach(function (h) { headRow.appendChild(el('th', '', h)); });
     var thead = el('thead');
     thead.appendChild(headRow);
     table.appendChild(thead);
@@ -346,6 +359,15 @@
       visCell.appendChild(visibilityPill(p.visibility));
       row.appendChild(visCell);
       row.appendChild(el('td', 'lib-date', formatDate(p.updatedAt)));
+      if (canDelete) {
+        var deleteCell = el('td', 'lib-row-actions');
+        var deleteButton = button('Delete', 'row-btn row-btn-danger', async function () {
+          if (await confirmAndDelete(p)) { route(); }
+        });
+        deleteButton.setAttribute('aria-label', 'Delete ' + p.title);
+        deleteCell.appendChild(deleteButton);
+        row.appendChild(deleteCell);
+      }
       body.appendChild(row);
     });
     table.appendChild(body);
@@ -386,11 +408,7 @@
     }
     if (data.actions.indexOf('delete') >= 0) {
       actions.appendChild(button('Delete page', 'danger-btn', async function () {
-        var live = page.liveVersion ? ' It is live now, so it will disappear from the library, search and the public site.' : '';
-        var warn = 'This removes \u201c' + page.title + '\u201d and all ' + page.versionCount + (page.versionCount === 1 ? ' version' : ' versions') + '.' + live +
-          ' It cannot be undone, except from a backup you downloaded earlier.';
-        if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it' }))) { return; }
-        if (await attempt(backend().remove(id))) { notice('Deleted \u201c' + page.title + '\u201d.'); location.hash = '#/'; }
+        if (await confirmAndDelete(page)) { location.hash = '#/'; }
       }));
     }
     if (data.actions.indexOf('unpublish') >= 0) {

@@ -1587,3 +1587,6 @@
   .batch-state { min-width: 76px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
   .batch-state-failed { color: var(--danger); }
   .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .row-btn-danger { color: var(--danger); border-color: var(--danger-border); }
+  .row-btn-danger:hover { background: var(--danger-soft); }

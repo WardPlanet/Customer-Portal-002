@@ -328,6 +328,7 @@ versions go and whether it is live (it then leaves the library, search and the p
 first. It removes the page and every version, on the server (the page's folder) or from the browser's storage.
 It cannot be undone except by restoring a backup that still has the page, so download a backup first if in
 doubt. Nobody else can delete, and the server refuses their requests. There is no "delete all" button.
+The library list also has a **Delete** button on every row, for the team lead only; it asks the same question.
 
 **Backups.** The library has **Download backup** (one `.json` file with every page and all versions) and
 **Restore from backup** (team lead only, because a restored file can change a page's review status). Restoring
