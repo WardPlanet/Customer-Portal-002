@@ -645,8 +645,7 @@
       }
       live.forEach(function (p) {
         var card = el('div', 'public-card');
-        var isPublic = p.visibility === 'Client-Safe';
-        card.appendChild(link(p.title, isPublic ? '#/public/' + p.id : '#/view/' + p.id + '/' + p.liveVersion, 'lib-page-link'));
+        card.appendChild(link(p.title, '#/public/' + p.id, 'lib-page-link'));
         card.appendChild(visibilityPill(p.visibility));
         listBox.appendChild(card);
       });
@@ -656,17 +655,116 @@
     refresh();
   }
 
+  // Inline formatting in preview text: **bold**, `code` and [label](https://link). Built as nodes, never as HTML.
+  function addInline(parent, text) {
+    var pattern = /\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g;
+    var last = 0;
+    var match;
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > last) { parent.appendChild(document.createTextNode(text.slice(last, match.index))); }
+      if (match[1] !== undefined) { parent.appendChild(el('strong', '', match[1])); }
+      else if (match[2] !== undefined) { parent.appendChild(el('code', '', match[2])); }
+      else {
+        var a = el('a', '', match[3]);
+        a.href = match[4];
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        parent.appendChild(a);
+      }
+      last = pattern.lastIndex;
+    }
+    if (last < text.length) { parent.appendChild(document.createTextNode(text.slice(last))); }
+  }
+
+  function previewText(tag, className, text) {
+    var node = el(tag, className);
+    addInline(node, text);
+    return node;
+  }
+
+  // Paragraphs are separated by blank lines
+  function previewParagraphs(parent, text, className) {
+    String(text || '').split(/\n\s*\n/).forEach(function (chunk) {
+      if (chunk.trim()) { parent.appendChild(previewText('p', className || 'preview-p', chunk.trim())); }
+    });
+  }
+
+  // Draws a page the way a reader sees it: title, description, then the blocks in order. No editor.
+  function renderPreview(text) {
+    var sections = W.fields(text).sections;
+    function body(name) { return sections[name] ? sections[name].join('\n').trim() : ''; }
+    var article = el('article', 'preview');
+    article.appendChild(el('h1', 'preview-title', body('TITLE') || 'Untitled page'));
+    var description = body('DESCRIPTION') || body('SUMMARY');
+    if (description) { previewParagraphs(article, description, 'preview-description'); }
+
+    var numbers = {};
+    Object.keys(sections).forEach(function (name) {
+      var match = /^BLOCK (\d+) /.exec(name);
+      if (match) { numbers[Number(match[1])] = true; }
+    });
+    Object.keys(numbers).map(Number).sort(function (x, y) { return x - y; }).forEach(function (n) {
+      var prefix = 'BLOCK ' + n + ' ';
+      var level = [1, 2, 3, 4, 5].filter(function (l) { return sections[prefix + 'HEADER ' + l]; })[0];
+      if (level) {
+        article.appendChild(previewText('h' + Math.min(level + 1, 6), 'preview-h', body(prefix + 'HEADER ' + level)));
+      } else if (sections[prefix + 'CODE']) {
+        article.appendChild(el('pre', 'preview-code', sections[prefix + 'CODE'].join('\n').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '')));
+      } else if (sections[prefix + 'NOTE'] || sections[prefix + 'WARNING']) {
+        var isWarning = !!sections[prefix + 'WARNING'];
+        var callout = el('div', 'preview-callout ' + (isWarning ? 'preview-warning' : 'preview-note'));
+        callout.appendChild(el('strong', '', isWarning ? 'Warning: ' : 'Note: '));
+        addInline(callout, body(prefix + (isWarning ? 'WARNING' : 'NOTE')));
+        article.appendChild(callout);
+      } else if (sections[prefix + 'PARAGRAPH']) {
+        previewParagraphs(article, body(prefix + 'PARAGRAPH'));
+      } else if (sections[prefix + 'STEP TITLE'] || sections[prefix + 'STEP TEXT']) {
+        var step = el('div', 'preview-step');
+        var number = body(prefix + 'STEP NUMBER');
+        step.appendChild(el('div', 'preview-step-number', number || ''));
+        var content = el('div', 'preview-step-body');
+        content.appendChild(previewText('h3', 'preview-step-title', body(prefix + 'STEP TITLE')));
+        previewParagraphs(content, body(prefix + 'STEP TEXT'));
+        Object.keys(sections).map(function (name) {
+          var found = name.indexOf(prefix) === 0 && /^STEP (CODE|NOTE|WARNING) ([0-9]+)$/.exec(name.slice(prefix.length));
+          return found ? { type: found[1], order: Number(found[2]), name: name } : null;
+        }).filter(Boolean).sort(function (x, y) { return x.order - y.order; }).forEach(function (item) {
+          if (item.type === 'CODE') {
+            content.appendChild(el('pre', 'preview-code', sections[item.name].join('\n').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '')));
+          } else if (body(item.name)) {
+            var box = el('div', 'preview-callout ' + (item.type === 'WARNING' ? 'preview-warning' : 'preview-note'));
+            box.appendChild(el('strong', '', item.type === 'WARNING' ? 'Warning: ' : 'Note: '));
+            addInline(box, body(item.name));
+            content.appendChild(box);
+          }
+        });
+        step.appendChild(content);
+        article.appendChild(step);
+      }
+    });
+    return article;
+  }
+
+  // Opens a live page as a reader sees it. Staff see Internal-Only and Client-Safe pages; the page's
+  // owner, reviewer and other setup details are not part of the preview.
   async function openPublicPage(id) {
     var mine = routing;
+    var detail;
     var data;
-    try { data = await backend().publicGet(id); } catch (error) { if (mine === routing) { notice('That page is not public.'); location.hash = '#/public'; } return; }
+    try {
+      detail = await backend().get(id);
+      if (!detail.page.liveVersion) { throw new Error('not live'); }
+      data = await backend().getVersion(id, detail.page.liveVersion);
+    } catch (error) { if (mine === routing) { notice('That page is not live, so it has no preview.'); location.hash = '#/public'; } return; }
     if (mine !== routing) { return; }
-    showScreen('editor', true);
-    window.PageEditor.load(data.text, true);
-    window.PageEditor.setLabel(data.title + ' (public view)');
-    window.PageEditor.setStatus('Public', true);
-    current = { id: null, n: null, backTo: '#/public' };
-    setBanner(editorBanner(['This is how the page looks to the public.']));
+    showScreen('library', true);
+    main.textContent = '';
+    var bar = el('div', 'preview-bar');
+    bar.appendChild(link('← Back to search', '#/public', 'lib-page-link'));
+    bar.appendChild(visibilityPill(detail.page.visibility));
+    main.appendChild(bar);
+    main.appendChild(renderPreview(data.text));
+    setBanner(null);
   }
 
   /* ---------- What app.js calls when someone saves, submits or leaves ---------- */
