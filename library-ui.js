@@ -127,6 +127,7 @@
       select.addEventListener('change', function () {
         window.Store.setActor(select.value);
         mountActing();
+        window.PageEditor.refresh();   // Publish shows only for people allowed to use it
         route();   // the buttons each person is allowed depend on who they are
       });
       label.appendChild(select);
@@ -164,11 +165,17 @@
     titles.appendChild(el('h1', 'lib-title', 'Library'));
     titles.appendChild(el('p', 'lib-sub', team.name + ' · ' + (team.locations || []).join(', ')));
     head.appendChild(titles);
-    head.appendChild(link('New page', '#/new', 'primary-link'));
+    var headActions = el('div', 'lib-actions');
+    headActions.appendChild(button('Download backup', 'secondary-link', downloadBackup));
+    headActions.appendChild(button('Restore from backup', 'secondary-link', function () { restoreInput.click(); }));
+    headActions.appendChild(link('New page', '#/new', 'primary-link'));
+    head.appendChild(headActions);
     main.appendChild(head);
 
+    var backupLine = el('p', 'lib-backup');
+    main.appendChild(backupLine);
     if (window.Store.backend.mode === 'local') {
-      var note = el('p', 'lib-note', 'Pages here are kept only in this browser, for trying the workflow. The server version keeps them as files.');
+      var note = el('p', 'lib-note', 'Pages here are kept only in this browser, for trying the workflow. Download a backup now and then: clearing the browser\u2019s data would remove them.');
       main.appendChild(note);
     }
 
@@ -201,6 +208,7 @@
     async function refresh() {
       var result = await attempt(backend().list(libraryFilters.q));
       if (!result || mine !== routing) { return; }
+      renderBackupLine(backupLine, result.pages);
       renderQueue(queue, result.pages);
       renderList(listBox, result.pages);
     }
@@ -214,6 +222,82 @@
     status.addEventListener('change', function () { libraryFilters.status = status.value; refresh(); });
     refresh();
   }
+
+  /* ---------- Backups ----------
+     A backup is one file with every page and all its versions. It is the safety net while pages live only
+     in this browser (or on one computer): it can be restored on any copy of the app for this team. */
+  function renderBackupLine(line, pages) {
+    line.className = 'lib-backup';
+    if (backend().isMemoryOnly()) {
+      line.textContent = 'This browser is not keeping pages: they will be lost when you reload or close this page. Download a backup before you do.';
+      line.classList.add('lib-backup-warn');
+      return;
+    }
+    if (!pages.length) { line.textContent = ''; return; }
+    var last = window.Store.getLastBackup();
+    var newest = pages.reduce(function (latest, p) { return String(p.updatedAt) > latest ? String(p.updatedAt) : latest; }, '');
+    if (!last) {
+      line.textContent = 'No backup yet. Download one so your pages are safe if this browser is cleared.';
+      line.classList.add('lib-backup-warn');
+    } else if (newest > last) {
+      line.textContent = 'Last backup: ' + formatDate(last) + '. Pages have changed since, so download a new one.';
+      line.classList.add('lib-backup-warn');
+    } else {
+      line.textContent = 'Last backup: ' + formatDate(last) + '. Up to date.';
+    }
+  }
+
+  // Saves a file: through Claude's download when this is the artifact, otherwise as a normal download
+  async function saveFile(filename, text, mime) {
+    var downloads = null;
+    if (window.claude && typeof window.claude.use === 'function') { downloads = await window.claude.use('downloads').catch(function () { return null; }); }
+    if (downloads) {
+      try { await downloads.save({ filename: filename, data: text }); return true; } catch (error) {
+        if (error && error.code === 'declined') { return false; }
+        throw error;
+      }
+    }
+    var url = URL.createObjectURL(new Blob([text], { type: (mime || 'application/json') + ';charset=utf-8' }));
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+    return true;
+  }
+
+  async function downloadBackup() {
+    var data = await attempt(backend().exportBackup());
+    if (!data) { return; }
+    var filename = 'wiki-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    var saved;
+    try { saved = await saveFile(filename, JSON.stringify(data, null, 2)); } catch (error) { notice('The backup could not be saved. Try again.'); return; }
+    if (!saved) { return; }
+    window.Store.markBackup();
+    notice('Backup saved as ' + filename + ' (' + data.pages.length + (data.pages.length === 1 ? ' page' : ' pages') + ', every version).');
+    route();
+  }
+
+  // The hidden file picker behind "Restore from backup"
+  var restoreInput = el('input');
+  restoreInput.type = 'file';
+  restoreInput.accept = '.json,application/json';
+  restoreInput.hidden = true;
+  document.body.appendChild(restoreInput);
+  restoreInput.addEventListener('change', async function () {
+    var file = restoreInput.files && restoreInput.files[0];
+    restoreInput.value = '';
+    if (!file) { return; }
+    var data;
+    try { data = JSON.parse(await file.text()); } catch (error) { notice('That file could not be read. Choose a backup file ending in .json.'); return; }
+    if (!confirm('Restore pages from this backup? Pages that are new are added, and pages the backup has a newer copy of are replaced. Nothing is deleted.')) { return; }
+    var result = await attempt(backend().restoreBackup(data));
+    if (!result) { return; }
+    notice('Restored: ' + result.added + ' added, ' + result.updated + ' updated, ' + result.skipped + ' unchanged.');
+    route();
+  });
 
   function renderQueue(box, pages) {
     var waiting = pages.filter(function (p) { return p.workingVersion && p.workingVersion.status === 'submitted'; });
@@ -328,9 +412,9 @@
       row.appendChild(el('td', 'lib-date', formatDate(v.updatedAt)));
       var reviewCell = el('td');
       if (v.decidedBy) {
-        reviewCell.appendChild(el('div', '', (v.status === 'sent_back' ? 'Sent back by ' : v.status === 'unpublished' ? 'Unpublished by ' : 'Approved by ') + v.decidedBy));
+        reviewCell.appendChild(el('div', '', (v.status === 'sent_back' ? 'Sent back by ' : v.status === 'unpublished' ? 'Unpublished by ' : v.directPublish ? 'Published by ' : 'Approved by ') + v.decidedBy + (v.directPublish ? ' (review skipped)' : '')));
         reviewCell.appendChild(el('div', 'lib-row-sub', formatDate(v.decidedAt)));
-        if (v.decisionComment) { reviewCell.appendChild(el('div', 'lib-comment', '“' + v.decisionComment + '”')); }
+        if (v.decisionComment && !v.directPublish) { reviewCell.appendChild(el('div', 'lib-comment', '“' + v.decisionComment + '”')); }
       } else if (v.submittedBy) {
         reviewCell.appendChild(el('div', 'lib-row-sub', 'Submitted by ' + v.submittedBy));
       }
@@ -351,6 +435,7 @@
     nodes.push(link('View', '#/view/' + id + '/' + v.n, 'row-link'));
     if (can('edit')) { nodes.push(link('Edit', '#/edit/' + id + '/' + v.n, 'row-link')); }
     if (can('submit')) { nodes.push(button('Submit', 'row-btn', function () { runAction(id, v.n, 'submit', 'Submitted for review.'); })); }
+    if (can('publish')) { nodes.push(button('Publish', 'row-btn row-btn-go', function () { publishVersion(id, v.n); })); }
     if (can('withdraw')) { nodes.push(button('Withdraw', 'row-btn', function () { runAction(id, v.n, 'withdraw', 'Withdrawn. It is a draft again.'); })); }
     if (can('approve')) { nodes.push(button('Approve', 'row-btn row-btn-go', function () { runAction(id, v.n, 'approve', 'Approved. It is now live.'); })); }
     if (can('send_back')) { nodes.push(button('Send back', 'row-btn', function () { sendBackWithComment(id, v.n); })); }
@@ -359,6 +444,35 @@
       if (result) { notice('Restored as a new draft (v' + result.version + '). It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
     })); }
     return nodes;
+  }
+
+  // A file name for the downloaded copy: the page title, lowercase, with hyphens
+  function textFileName(title) {
+    return ((title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'page') + '.txt';
+  }
+
+  // Publishes a version without review and downloads its text. The page is published first, so the
+  // download can be declined without losing anything. Resolves to a message to show.
+  async function publishAndDownload(id, n, text, title) {
+    await backend().act(id, n, 'publish');
+    var filename = textFileName(title);
+    var downloaded = false;
+    try { downloaded = await saveFile(filename, text, 'text/plain'); } catch (error) { downloaded = false; }
+    return 'Published: it is live in the library (review skipped). ' +
+      (downloaded ? 'A copy was downloaded as ' + filename + '.' : 'The text file was not downloaded.');
+  }
+
+  async function publishVersion(id, n) {
+    if (!confirm('Publish this version now? It goes live right away, without review, and a copy is downloaded as a text file.')) { return; }
+    var data = await attempt(backend().getVersion(id, n));
+    if (!data) { return; }
+    try {
+      notice(await publishAndDownload(id, n, data.text, data.version.title));
+    } catch (error) {
+      notice(error && error.message ? error.message : 'That did not work.');
+      return;
+    }
+    if (/^#\/view\//.test(location.hash)) { location.hash = '#/page/' + id; } else { route(); }
   }
 
   async function runAction(id, n, action, doneMessage, body) {
@@ -534,6 +648,17 @@
       notice('Submitted for review. ' + team.lead + ' (' + personFor(team.lead) + ') can approve it or send it back.');
       location.hash = '#/page/' + id;
       return 'Submitted for review.';
+    },
+    canPublish: function () { return !!team && W.canPublishDirectly(actor(), team); },
+    // Skips review: saves, makes it live, and downloads the text. (Who may do this is the team's
+    // "directPublish" setting; the server and store both enforce it.)
+    publish: async function (text) {
+      await this.save(text);
+      var id = current.id;
+      var message = await publishAndDownload(id, current.n, text, window.PageEditor.title());
+      notice(message);
+      location.hash = '#/page/' + id;
+      return message;
     },
     leave: function () {
       if (window.PageEditor.isDirty() && !confirm('Leave without saving? Your changes will be lost.')) { return; }

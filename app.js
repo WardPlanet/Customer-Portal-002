@@ -820,7 +820,7 @@
     // Grey out Save draft and Submit until every required field is filled in
     function updateSaveState() {
       var complete = isDraftComplete();
-      ['save-draft', 'submit-draft'].forEach(function (id) {
+      ['save-draft', 'submit-draft', 'publish-draft'].forEach(function (id) {
         var button = byId(id);
         button.setAttribute('aria-disabled', String(!complete));
         button.title = complete ? '' : 'Fill in the required fields (*) first';
@@ -829,6 +829,8 @@
       // AI assist unlocks under the same rule: every required field is filled in
       var aiAssist = byId('ai-assist');
       aiAssist.setAttribute('aria-disabled', String(!complete || aiUnavailable));
+      // Publish (skips review) is offered only to whoever the team allows. The server checks again.
+      byId('publish-draft').hidden = !(window.PageHost && window.PageHost.canPublish && window.PageHost.canPublish());
       var importBtn = byId('import-doc');
       importBtn.setAttribute('aria-disabled', String(aiUnavailable || isImporting));
       if (aiUnavailable) { importBtn.title = 'Importing needs the AI, which isn\u2019t available in this view'; }
@@ -1350,14 +1352,16 @@
     }
 
     var isSaving = false;
-    async function saveAndMaybeSubmit(submit) {
+    // action is 'save', 'submit' or 'publish'
+    async function saveAndMaybeSubmit(action) {
       if (isSaving) { return; }
       isSaving = true;
       try {
         var text = await prepareDraftText();
         if (text === null) { return; }
-        var message = submit ? await window.PageHost.submit(text) : await window.PageHost.save(text);
-        setStatus(submit ? 'Submitted for review' : 'Saved just now', true);
+        if (action === 'publish' && !window.confirm('Publish this page now? It goes live right away, without review, and a copy is downloaded as a text file.')) { return; }
+        var message = await window.PageHost[action](text);
+        setStatus(action === 'publish' ? 'Published' : action === 'submit' ? 'Submitted for review' : 'Saved just now', true);
         showNotice(message);
       } catch (error) {
         showNotice(error && error.message ? error.message : 'That did not work. Try again.');
@@ -2234,11 +2238,15 @@
     /* ---------- Wire up events ---------- */
     byId('save-draft').addEventListener('click', function () {
       if (byId('save-draft').getAttribute('aria-disabled') === 'true') { validateRequired(); showNotice('Fill in the required fields (*) before saving.'); return; }
-      saveAndMaybeSubmit(false);
+      saveAndMaybeSubmit('save');
     });
     byId('submit-draft').addEventListener('click', function () {
       if (byId('submit-draft').getAttribute('aria-disabled') === 'true') { validateRequired(); showNotice('Fill in the required fields (*) before submitting.'); return; }
-      saveAndMaybeSubmit(true);
+      saveAndMaybeSubmit('submit');
+    });
+    byId('publish-draft').addEventListener('click', function () {
+      if (byId('publish-draft').getAttribute('aria-disabled') === 'true') { validateRequired(); showNotice('Fill in the required fields (*) before publishing.'); return; }
+      saveAndMaybeSubmit('publish');
     });
     byId('leave-btn').addEventListener('click', function () { window.PageHost.leave(); });
 
@@ -3085,6 +3093,7 @@
         if (readOnly) { lockEditing(true); }
       },
       getText: serializeDraft,
+      refresh: updateSaveState,
       isDirty: function () { return byId('save-status').classList.contains('is-unsaved') && pageHasContent(); },
       setStatus: setStatus,
       showNotice: showNotice,

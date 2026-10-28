@@ -148,6 +148,26 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json({ pages: summaries });
   }));
 
+  // Every page with all of its versions, as one file the screen offers for download
+  app.get('/api/library/backup', staff(async function (req, res, ctx) {
+    res.json(Workflow.makeBackup(ctx.team, await loadAllPages(draftsDir, ctx.team), ctx.now));
+  }));
+
+  // Adds new pages and replaces ones the backup has newer copies of. Team lead only: a restored file can
+  // change a page's review status, so it must not be a way around the review.
+  app.post('/api/library/restore', staff(async function (req, res, ctx) {
+    if (!Workflow.isLead(ctx.actor, ctx.team)) {
+      throw new Workflow.WorkflowError('not_lead', 'Only the team lead (' + ctx.team.lead + ') can restore a backup.', 403);
+    }
+    var incoming = Workflow.validateBackup(req.body && req.body.backup, ctx.team);
+    var existing = await loadAllPages(draftsDir, ctx.team);
+    var merged = Workflow.mergeBackup(existing, incoming);
+    for (var page of merged.pages) {
+      if (existing.indexOf(page) < 0) { await savePage(draftsDir, ctx.team, page); }   // only what is new or replaced
+    }
+    res.json({ added: merged.added, updated: merged.updated, skipped: merged.skipped });
+  }));
+
   app.post('/api/library/pages', staff(async function (req, res, ctx) {
     var page = Workflow.createPage(ctx.team, textBody(req), ctx.actor, ctx.now);
     await savePage(draftsDir, ctx.team, page);
@@ -178,13 +198,14 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json(Object.assign(detail(page, ctx), { version: version.n }));
   }));
 
-  // submit | withdraw | approve | send-back | restore, on one version
-  ['submit', 'withdraw', 'approve', 'send-back', 'restore'].forEach(function (action) {
+  // submit | publish | withdraw | approve | send-back | restore, on one version
+  ['submit', 'publish', 'withdraw', 'approve', 'send-back', 'restore'].forEach(function (action) {
     app.post('/api/library/pages/:id/versions/:n/' + action, staff(async function (req, res, ctx) {
       var page = await open(req, ctx);
       var n = req.params.n;
       var made;
       if (action === 'submit') { Workflow.submit(page, n, ctx.actor, ctx.team, ctx.now); }
+      else if (action === 'publish') { Workflow.publish(page, n, ctx.actor, ctx.team, ctx.now); }
       else if (action === 'withdraw') { Workflow.withdraw(page, n, ctx.actor, ctx.team, ctx.now); }
       else if (action === 'approve') { Workflow.approve(page, n, ctx.actor, ctx.team, ctx.now); }
       else if (action === 'send-back') { Workflow.sendBack(page, n, req.body && req.body.comment, ctx.actor, ctx.team, ctx.now); }

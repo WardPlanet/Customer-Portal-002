@@ -43,7 +43,7 @@ variables take priority). `.env.example` documents each one.
 | `guidelines/style-guide.md` | The writing and formatting standard every AI feature follows (names, capitalization, quotation marks, punctuation). Edit freely; takes effect on the next AI request. |
 | `guidelines/import-guidelines.md` | Plain-text rules for how imported documents become pages. Edit freely; takes effect on the next import. |
 | `guidelines.js` | Reads the two guideline files on every request. |
-| `teams.js`, `teams/legwork-web-team.json` | The team and who holds each role. Pages name roles; edit the `person` for a role when someone changes jobs and every page updates. |
+| `teams.js`, `teams/legwork-web-team.json` | The team: who holds each role (edit `person` when someone changes jobs and every page updates), its locations, the lead, and `directPublish` (`"anyone"` or `"lead"`: who may publish without review). |
 | `index.html`, `styles.css`, `app.js` | The editor. Plain HTML, CSS and JavaScript, served as is. |
 | `workflow.cjs` | The rules for versions, review, search and the public view (used by the server and the browser). Tested by `npm test`. |
 | `library.js` | Stores pages and versions as files and serves the library and public routes. |
@@ -61,6 +61,7 @@ variables take priority). `.env.example` documents each one.
 | `POST /api/import` | Takes an uploaded .docx, .pdf, .txt or .md and returns a standardized page for review. |
 | `GET /api/team` | The team and who holds each role today. |
 | `/api/library/...` | Pages and versions for staff (list, read, save, submit, approve, send back, withdraw, restore, unpublish). Needs the `X-Acting-As` header until real login exists. |
+| `/api/library/backup`, `/api/library/restore` | Download every page and version as one file; restore from one (team lead only). |
 | `/api/public/pages`, `/api/public/pages/:id` | The public side: no login, only live Client-Safe pages, no ownership details. |
 
 ## Things to decide before going live

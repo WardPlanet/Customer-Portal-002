@@ -277,7 +277,23 @@ stays in the history). Restoring an old version makes a new draft, which needs a
 
 **Who may do what.** Anyone on the team: create pages, edit drafts, submit, withdraw their own submission,
 restore. The **team lead only** (Web Team Manager, currently Micah): approve, send back, unpublish. Submitting
-needs a title, description, owner role and at least one step title. These rules are in one file,
+needs a title, description, owner role and at least one step title.
+
+**Publish (skips review).** Review is not in use yet, so the editor has a **Publish** button (and a Publish
+button on each draft in the page history). It saves the page, makes that version **live at once** (the
+previous live version becomes "Replaced"), and **downloads the page as a `.txt` file** (the same draft text the
+app stores, named after the page title). It asks to confirm first, needs the same required fields as
+submitting, and shows in the history as "Published by <name> (review skipped)". Who may use it is one setting
+in `teams/legwork-web-team.json`: `"directPublish": "anyone"` (now: anyone on the team) or `"lead"` (only the
+team lead; the button then disappears for everyone else and the server refuses their requests). Switching to
+`"lead"` is how to remove it for non-managers later. Submit for review, Approve and Send back still work.
+
+**Backups.** The library has **Download backup** (one `.json` file with every page and all versions) and
+**Restore from backup** (team lead only, because a restored file can change a page's review status). Restoring
+adds pages that are new and replaces pages the backup has a newer copy of; it never deletes. The file is checked
+strictly before anything is changed (wrong team, damaged, or a draft claiming to be live is refused). The
+library shows when the last backup was made and warns if pages have changed since, and warns clearly if the
+browser will not keep pages. The rules are in one file,
 `workflow.cjs`, used by both the server and the artifact build, with unit tests in `tests/` (`npm test`).
 
 **Search and the public site only see the live version.** There is one search entry per page, built from the

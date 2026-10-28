@@ -27,6 +27,8 @@ const DRAFTS_DIR = path.resolve(process.env.DRAFTS_DIR || path.join(here, 'draft
 const DRAFT_NAME = /^[a-z0-9][a-z0-9-]{0,79}-draft\.txt$/;
 
 const app = express();
+// A backup file holds every page, so that one route accepts a much larger body
+app.use('/api/library/restore', express.json({ limit: '50mb' }));
 app.use(express.json({ limit: '1mb' }));
 
 /* ---------- Team ----------

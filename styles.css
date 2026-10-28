@@ -1546,6 +1546,7 @@
   body.is-readonly .required-mark,
   body.is-readonly #import-doc,
   body.is-readonly #save-draft,
+  body.is-readonly #publish-draft,
   body.is-readonly #submit-draft { display: none; }
   body.is-readonly [contenteditable="false"] { cursor: text; }
   body.is-readonly .step-block:focus-within,
@@ -1556,3 +1557,7 @@
   body.is-public .required-note { display: none; }
   body.is-public .workspace { grid-template-columns: minmax(0, 1fr); }
   .is-public .lib-top .acting { visibility: hidden; }
+
+  .lib-backup { margin: 0 0 12px; color: var(--text-muted); font-size: 13px; }
+  .lib-backup:empty { display: none; }
+  .lib-backup-warn { padding: 8px 12px; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 8px; color: var(--text); }

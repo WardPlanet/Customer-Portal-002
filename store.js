@@ -20,6 +20,9 @@
     return error;
   }
 
+  /* ---------- When the last backup was downloaded (so the library can nag) ---------- */
+  var BACKUP_KEY = 'pageEditor.lastBackup';
+
   /* ---------- Who is acting (prototype stand-in for login) ---------- */
   var actingAs = '';
   try { actingAs = localStorage.getItem(ACTOR_KEY) || ''; } catch (error) { /* storage unavailable */ }
@@ -50,6 +53,9 @@
     edit: function (id) { return this.call('POST', '/api/library/pages/' + id + '/edit'); },
     act: function (id, n, action, body) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/' + action, body || {}); },
     unpublish: function (id) { return this.call('POST', '/api/library/pages/' + id + '/unpublish'); },
+    isMemoryOnly: function () { return false; },
+    exportBackup: function () { return this.call('GET', '/api/library/backup'); },
+    restoreBackup: function (data) { return this.call('POST', '/api/library/restore', { backup: data }); },
     publicList: function (q) { return fetch('/api/public/pages' + (q ? '?q=' + encodeURIComponent(q) : '')).then(function (r) { return r.json(); }); },
     publicGet: async function (id) {
       var response = await fetch('/api/public/pages/' + id);
@@ -155,6 +161,7 @@
       act: async function (id, n, action, body) {
         return change(id, function (page, who, at) {
           if (action === 'submit') { W.submit(page, n, who, team, at); }
+          else if (action === 'publish') { W.publish(page, n, who, team, at); }
           else if (action === 'withdraw') { W.withdraw(page, n, who, team, at); }
           else if (action === 'approve') { W.approve(page, n, who, team, at); }
           else if (action === 'send-back') { W.sendBack(page, n, body && body.comment, who, team, at); }
@@ -163,6 +170,23 @@
       },
       unpublish: async function (id) {
         return change(id, function (page, who, at) { W.unpublish(page, who, team, at); });
+      },
+      // Everything, as one object the screen saves to a file
+      exportBackup: async function () {
+        actor();
+        return W.makeBackup(team, readAll().pages, now());
+      },
+      // Adds new pages and replaces ones the backup has newer copies of. Only the team lead may restore,
+      // because a restored file can change a page's review status.
+      restoreBackup: async function (data) {
+        var who = actor();
+        if (!W.isLead(who, team)) { throw fail('not_lead', 'Only the team lead (' + team.lead + ') can restore a backup.'); }
+        var incoming = guard(function () { return W.validateBackup(data, team); });
+        var all = readAll();
+        var merged = W.mergeBackup(all.pages, incoming);
+        all.pages = merged.pages;
+        writeAll(all);
+        return { added: merged.added, updated: merged.updated, skipped: merged.skipped };
       },
       publicList: async function (q) {
         var entries = W.searchPages(readAll().pages, q, 'public');
@@ -181,6 +205,12 @@
   window.Store = {
     backend: null,
     getActor: function () { return actingAs; },
+    getLastBackup: function () {
+      try { return localStorage.getItem(BACKUP_KEY) || ''; } catch (error) { return ''; }
+    },
+    markBackup: function () {
+      try { localStorage.setItem(BACKUP_KEY, new Date().toISOString()); } catch (error) { /* storage unavailable */ }
+    },
     setActor: function (name) {
       actingAs = name || '';
       try { localStorage.setItem(ACTOR_KEY, actingAs); } catch (error) { /* storage unavailable */ }

@@ -19,6 +19,10 @@ export async function readTeam() {
   team.roles = team.roles.filter(function (role) { return role && typeof role.title === 'string' && role.title.trim(); });
   // "locations" are the areas of the wiki this team's pages live in (for now just "Websites")
   team.locations = Array.isArray(team.locations) ? team.locations.filter(function (name) { return typeof name === 'string' && name.trim(); }) : [];
+  // "directPublish" says who may publish a page straight away, skipping review: "anyone" on the team (the
+  // default while review is not in use) or only the "lead". Changing it to "lead" removes the option for
+  // everyone else.
+  team.directPublish = team.directPublish === 'lead' ? 'lead' : 'anyone';
   // "lead" names the role of the team lead. That role is every page's reviewer and cannot be changed per page.
   if (team.lead && team.roles.every(function (role) { return role.title !== team.lead; })) {
     throw new Error('The "lead" in teams/legwork-web-team.json must be one of the roles.');

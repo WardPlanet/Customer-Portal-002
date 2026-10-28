@@ -188,12 +188,91 @@ test('the public text leaves out ownership, roles, reviewer, keywords, location 
 
 test('the buttons each person is offered match the rules', () => {
   const page = W.createPage(team, draftText('Refunds'), scott, t(1));
-  assert.deepEqual(W.history(page, scott, team)[0].actions, ['view', 'edit', 'submit']);
+  assert.deepEqual(W.history(page, scott, team)[0].actions, ['view', 'edit', 'submit', 'publish']);
   W.submit(page, 1, scott, team, t(2));
-  assert.deepEqual(W.history(page, scott, team)[0].actions, ['view', 'withdraw']);
-  assert.deepEqual(W.history(page, micah, team)[0].actions, ['view', 'withdraw', 'approve', 'send_back']);
+  assert.deepEqual(W.history(page, scott, team)[0].actions, ['view', 'publish', 'withdraw']);
+  assert.deepEqual(W.history(page, micah, team)[0].actions, ['view', 'publish', 'withdraw', 'approve', 'send_back']);
   W.approve(page, 1, micah, team, t(3));
   assert.deepEqual(W.pageActions(page, scott, team), ['edit']);
   assert.deepEqual(W.pageActions(page, micah, team), ['edit', 'unpublish']);
   assert.deepEqual(W.history(page, null, team)[0].actions, ['view']);
+});
+
+test('a backup restores the same pages, with every version', () => {
+  const page = livePage();
+  W.startEdit(page, scott, t(4));
+  W.saveDraft(page, 2, draftText('Refunds', 'SECOND'), scott, t(5));
+  const file = JSON.parse(JSON.stringify(W.makeBackup(team, [page], t(6))));   // as if saved to a file and read back
+  const pages = W.validateBackup(file, team);
+  assert.equal(pages.length, 1);
+  assert.equal(pages[0].versions.length, 2);
+  assert.equal(pages[0].liveVersion, 1);
+  assert.equal(pages[0].versions[1].text.includes('SECOND'), true);
+  assert.equal(W.summary(pages[0]).state, 'live_edit_in_progress');
+});
+
+test('a backup that is not from this app, or is for another team, or is damaged, is refused', () => {
+  const good = JSON.parse(JSON.stringify(W.makeBackup(team, [livePage()], t(6))));
+  assert.throws(() => W.validateBackup({ hello: 'world' }, team), (e) => e.code === 'bad_backup');
+  assert.throws(() => W.validateBackup(null, team), (e) => e.code === 'bad_backup');
+  assert.throws(() => W.validateBackup(Object.assign({}, good, { team: 'other-team' }), team), /different team/);
+  assert.throws(() => W.validateBackup(Object.assign({}, good, { version: 2 }), team), /newer version/);
+  const badId = JSON.parse(JSON.stringify(good)); badId.pages[0].id = '../etc/passwd';
+  assert.throws(() => W.validateBackup(badId, team), /invalid id/);
+  const badStatus = JSON.parse(JSON.stringify(good)); badStatus.pages[0].versions[0].status = 'hacked';
+  assert.throws(() => W.validateBackup(badStatus, team), /unknown status/);
+  const badLive = JSON.parse(JSON.stringify(good)); badLive.pages[0].liveVersion = 7;
+  assert.throws(() => W.validateBackup(badLive, team), /live version/);
+});
+
+test('a backup cannot smuggle in a page as live that was never approved', () => {
+  const draft = W.createPage(team, draftText('Sneaky'), scott, t(1));
+  const file = JSON.parse(JSON.stringify(W.makeBackup(team, [draft], t(2))));
+  file.pages[0].liveVersion = 1;   // claims v1 is live although it is a draft
+  assert.throws(() => W.validateBackup(file, team), /live version/);
+});
+
+test('restoring merges: new pages are added, newer copies replace older, nothing is deleted', () => {
+  const keep = livePage();
+  const older = W.createPage(team, draftText('Shared'), scott, t(1)); older.id = 'shared';
+  const newer = JSON.parse(JSON.stringify(older)); newer.updatedAt = t(9);
+  const extra = W.createPage(team, draftText('Extra'), scott, t(1));
+  const merged = W.mergeBackup([keep, older], W.validateBackup(JSON.parse(JSON.stringify(W.makeBackup(team, [newer, extra], t(9)))), team));
+  assert.equal(merged.added, 1);
+  assert.equal(merged.updated, 1);
+  assert.equal(merged.pages.length, 3);
+  assert.ok(merged.pages.some((p) => p.id === keep.id));
+  const again = W.mergeBackup(merged.pages, W.validateBackup(JSON.parse(JSON.stringify(W.makeBackup(team, [newer], t(9)))), team));
+  assert.equal(again.skipped, 1);
+  assert.equal(again.updated, 0);
+});
+
+test('publishing skips review: it goes live at once and replaces the old live version', () => {
+  const page = livePage();
+  W.startEdit(page, scott, t(4));
+  W.saveDraft(page, 2, draftText('Refunds', 'DIRECTWORD'), scott, t(5));
+  const v = W.publish(page, 2, scott, team, t(6));          // Scott is not the lead
+  assert.equal(v.status, 'approved');
+  assert.equal(v.directPublish, true);
+  assert.equal(page.liveVersion, 2);
+  assert.equal(page.versions[0].status, 'superseded');
+  assert.equal(W.searchPages([page], 'DIRECTWORD', 'staff').length, 1);
+  assert.equal(W.history(page, scott, team)[0].directPublish, true);
+});
+
+test('publishing still needs the required fields, and only works on a draft', () => {
+  const thin = W.createPage(team, '[TITLE]\nOnly a title\n', scott, t(1));
+  assert.throws(() => W.publish(thin, 1, scott, team, t(2)), (e) => e.code === 'incomplete');
+  const page = livePage();
+  assert.throws(() => W.publish(page, 1, scott, team, t(3)), (e) => e.code === 'not_editable');   // already live
+});
+
+test('the team setting can limit direct publishing to the lead', () => {
+  const strict = Object.assign({}, team, { directPublish: 'lead' });
+  const page = W.createPage(strict, draftText('Refunds'), scott, t(1));
+  assert.deepEqual(W.history(page, scott, strict)[0].actions, ['view', 'edit', 'submit']);            // no Publish for Scott
+  assert.ok(W.history(page, micah, strict)[0].actions.includes('publish'));
+  assert.throws(() => W.publish(page, 1, scott, strict, t(2)), (e) => e.code === 'not_lead');
+  W.publish(page, 1, micah, strict, t(3));
+  assert.equal(page.liveVersion, 1);
 });

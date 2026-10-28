@@ -2,6 +2,7 @@
   "name": "Legwork Web Team",
   "slug": "legwork-web-team",
   "lead": "Web Team Manager",
+  "directPublish": "anyone",
   "locations": [
     "Websites"
   ],

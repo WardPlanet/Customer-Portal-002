@@ -16,6 +16,7 @@
 // Who may do what (prototype: whoever the person is "acting as"; real login comes later)
 //   anyone on the team: create pages, edit drafts, submit, withdraw their own submission, restore, view
 //   the team lead only:  approve, send back, unpublish
+//   publish (skips review): anyone on the team for now; the team's "directPublish" setting can limit it to the lead
 //
 // Search and the public site only ever see the LIVE version (see searchEntry), so old versions cannot
 // appear in results: they are never put in the index.
@@ -241,6 +242,40 @@
     return version;
   }
 
+  // Publishing without review (a stop-gap while review is not in use). Who may do it is the team's
+  // "directPublish" setting: anyone on the team, or only the lead.
+  function canPublishDirectly(actor, team) {
+    if (!actor || !actor.name) { return false; }
+    return team && team.directPublish === 'lead' ? isLead(actor, team) : true;
+  }
+
+  function publish(page, n, actor, team, now) {
+    requireActor(actor);
+    if (!canPublishDirectly(actor, team)) {
+      throw new WorkflowError('not_lead', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can publish without review.', 403);
+    }
+    var version = versionOf(page, n);
+    if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK && version.status !== STATUS.SUBMITTED) {
+      throw new WorkflowError('not_editable', 'Only a draft can be published.', 409);
+    }
+    var missing = missingForSubmit(version.text, team);
+    if (missing.length) {
+      throw new WorkflowError('incomplete', 'Still needed before it can be published: ' + missing.join(', ') + '.', 422);
+    }
+    var previous = liveVersion(page);
+    if (previous) { previous.status = STATUS.SUPERSEDED; }
+    version.status = STATUS.APPROVED;
+    version.submittedAt = version.submittedAt || now;
+    version.submittedBy = version.submittedBy || actor.name;
+    version.decidedBy = actor.name;
+    version.decidedAt = now;
+    version.decisionComment = 'Published directly, without review.';
+    version.directPublish = true;
+    page.liveVersion = version.n;
+    touch(page, version, actor, now);
+    return version;
+  }
+
   function withdraw(page, n, actor, team, now) {
     requireActor(actor);
     var version = versionOf(page, n);
@@ -347,6 +382,7 @@
     if (!actor || !actor.name) { return actions; }
     var lead = isLead(actor, team);
     if (v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK) { actions.push('edit', 'submit'); }
+    if ((v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK || v.status === STATUS.SUBMITTED) && canPublishDirectly(actor, team)) { actions.push('publish'); }
     if (v.status === STATUS.SUBMITTED) {
       if (v.submittedBy === actor.name || lead) { actions.push('withdraw'); }
       if (lead) { actions.push('approve', 'send_back'); }
@@ -364,6 +400,7 @@
         createdAt: v.createdAt, updatedAt: v.updatedAt,
         submittedBy: v.submittedBy, submittedAt: v.submittedAt,
         decidedBy: v.decidedBy, decidedAt: v.decidedAt, decisionComment: v.decisionComment,
+        directPublish: v.directPublish === true,
         live: page.liveVersion === v.n,
         actions: versionActions(page, v, actor, team)
       };
@@ -437,7 +474,90 @@
     return out.join('\n');
   }
 
+  /* ---------- Backups ----------
+     One file holds every page with all of its versions. Restoring reads a file from outside, so nothing in
+     it is trusted: it is checked, rebuilt field by field, and only then merged. */
+  var BACKUP_FORMAT = 'page-editor-backup';
+  var KNOWN_STATUS = Object.keys(STATUS).map(function (key) { return STATUS[key]; });
+
+  function makeBackup(team, pages, now) {
+    return { format: BACKUP_FORMAT, version: 1, exportedAt: now, team: team.slug, pages: pages };
+  }
+
+  function text(value, limit) {
+    return typeof value === 'string' ? value.slice(0, limit || 500) : '';
+  }
+
+  function badBackup(message) {
+    return new WorkflowError('bad_backup', message, 422);
+  }
+
+  // Returns clean pages from a parsed backup, or throws a WorkflowError saying what is wrong
+  function validateBackup(data, team) {
+    if (!data || data.format !== BACKUP_FORMAT) { throw badBackup('That file is not a backup from this app.'); }
+    if (data.version !== 1) { throw badBackup('That backup is from a newer version of the app and cannot be read.'); }
+    if (data.team !== team.slug) { throw badBackup('That backup is for a different team (' + text(data.team, 60) + ').'); }
+    if (!Array.isArray(data.pages) || data.pages.length > 5000) { throw badBackup('That backup has no pages in a form this app can read.'); }
+    var seen = {};
+    return data.pages.map(function (raw, index) {
+      var label = 'Page ' + (index + 1) + ' in the backup';
+      if (!raw || typeof raw.id !== 'string' || !/^[a-z0-9][a-z0-9-]{0,80}$/.test(raw.id)) { throw badBackup(label + ' has an invalid id.'); }
+      if (seen[raw.id]) { throw badBackup(label + ' repeats an id.'); }
+      seen[raw.id] = true;
+      if (!Array.isArray(raw.versions) || !raw.versions.length || raw.versions.length > 1000) { throw badBackup(label + ' has no versions.'); }
+      var page = {
+        id: raw.id, team: team.slug,
+        createdAt: text(raw.createdAt, 40), updatedAt: text(raw.updatedAt, 40),
+        liveVersion: null, versions: []
+      };
+      raw.versions.forEach(function (v, i) {
+        if (!v || v.n !== i + 1) { throw badBackup(label + ' has versions out of order.'); }
+        if (KNOWN_STATUS.indexOf(v.status) < 0) { throw badBackup(label + ' has an unknown status.'); }
+        if (typeof v.text !== 'string' || v.text.length > 1000000) { throw badBackup(label + ' has version text that cannot be read.'); }
+        var version = {
+          n: v.n, status: v.status, text: v.text,
+          author: text(v.author, 120), createdAt: text(v.createdAt, 40), updatedAt: text(v.updatedAt, 40), updatedBy: text(v.updatedBy, 120),
+          note: text(v.note, 300), submittedAt: text(v.submittedAt, 40), submittedBy: text(v.submittedBy, 120),
+          decidedBy: text(v.decidedBy, 120), decidedAt: text(v.decidedAt, 40), decisionComment: text(v.decisionComment, 2000),
+          directPublish: v.directPublish === true
+        };
+        copyFields(version);   // the facts the library shows are re-read from the text, not taken on trust
+        page.versions.push(version);
+      });
+      var live = page.versions.filter(function (v) { return v.status === STATUS.APPROVED; });
+      if (live.length > 1) { throw badBackup(label + ' has more than one live version.'); }
+      if (raw.liveVersion !== (live[0] ? live[0].n : null)) { throw badBackup(label + ' names a live version that does not match its versions.'); }
+      page.liveVersion = live[0] ? live[0].n : null;
+      var working = page.versions.filter(function (v) { return v.status === STATUS.DRAFT || v.status === STATUS.SUBMITTED || v.status === STATUS.SENT_BACK; });
+      if (working.length > 1) { throw badBackup(label + ' has more than one version being worked on.'); }
+      return page;
+    });
+  }
+
+  // Adds pages that are new and replaces pages the backup has a newer copy of; never deletes anything
+  function mergeBackup(existing, incoming) {
+    var byId = {};
+    existing.forEach(function (page) { byId[page.id] = page; });
+    var result = { added: 0, updated: 0, skipped: 0, pages: existing.slice() };
+    incoming.forEach(function (page) {
+      var current = byId[page.id];
+      if (!current) {
+        result.pages.push(page);
+        result.added += 1;
+      } else if (String(page.updatedAt) > String(current.updatedAt)) {
+        result.pages[result.pages.indexOf(current)] = page;
+        result.updated += 1;
+      } else {
+        result.skipped += 1;
+      }
+    });
+    return result;
+  }
+
   return {
+    makeBackup: makeBackup,
+    validateBackup: validateBackup,
+    mergeBackup: mergeBackup,
     STATUS: STATUS,
     WorkflowError: WorkflowError,
     fields: fields,
@@ -452,6 +572,8 @@
     startEdit: startEdit,
     restore: restore,
     submit: submit,
+    publish: publish,
+    canPublishDirectly: canPublishDirectly,
     withdraw: withdraw,
     approve: approve,
     sendBack: sendBack,
