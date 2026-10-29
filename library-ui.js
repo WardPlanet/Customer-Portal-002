@@ -64,8 +64,8 @@
 
   function backend() { return window.Store.backend; }
 
-  // The address of a page's live view, for opening in a new tab
-  function liveUrl(id) { return location.href.split('#')[0] + '#/public/' + id; }
+  // The address of a page's preview (what a reader sees), for opening in a new tab
+  function previewUrl(id) { return location.href.split('#')[0] + '#/preview/' + id; }
 
   function personFor(title) {
     var role = team.roles.filter(function (r) { return r.title === title; })[0];
@@ -326,7 +326,7 @@
       box.appendChild(el('h2', 'lib-queue-title', 'Deletion requests (' + requests.length + ')'));
       requests.forEach(function (p) {
         var row = el('div', 'lib-queue-row');
-        var requestLink = link(p.title, liveUrl(p.id), 'lib-queue-name');
+        var requestLink = link(p.title, previewUrl(p.id), 'lib-queue-name');
         requestLink.target = '_blank';
         requestLink.rel = 'noopener';
         row.appendChild(requestLink);
@@ -424,11 +424,10 @@
     sortRows(shown).forEach(function (p) {
       var row = el('tr', 'lib-row');
       var nameCell = el('td');
-      // A live page opens its live version in a new tab; a page that is not live opens its latest version for reading
-      var titleLink = p.liveVersion
-        ? link(p.title, liveUrl(p.id), 'lib-page-link')
-        : link(p.title, '#/view/' + p.id + '/' + (p.workingVersion ? p.workingVersion.n : p.versionCount), 'lib-page-link');
-      if (p.liveVersion) { titleLink.target = '_blank'; titleLink.rel = 'noopener'; }
+      // The title opens the public preview of the page in a new tab (its live version, or its latest if it is not live yet)
+      var titleLink = link(p.title, previewUrl(p.id), 'lib-page-link');
+      titleLink.target = '_blank';
+      titleLink.rel = 'noopener';
       nameCell.appendChild(titleLink);
       nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.versionCount > 1 ? ' · ' + p.versionCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
       row.appendChild(nameCell);
@@ -1101,21 +1100,24 @@
 
   // Opens a live page as a reader sees it. Staff see Internal-Only and Client-Safe pages; the page's
   // owner, reviewer and other setup details are not part of the preview.
-  async function openPublicPage(id) {
+  async function openPublicPage(id, fromLibrary) {
     var mine = routing;
     var detail;
     var data;
+    var shownVersion;
     try {
       detail = await backend().get(id);
-      if (!detail.page.liveVersion) { throw new Error('not live'); }
-      data = await backend().getVersion(id, detail.page.liveVersion);
-    } catch (error) { if (mine === routing) { notice('That page is not live, so it has no preview.'); location.hash = '#/public'; } return; }
+      // A page that is not live yet previews its version being worked on, or its latest
+      shownVersion = detail.page.liveVersion || (detail.page.workingVersion && detail.page.workingVersion.n) || detail.page.versionCount;
+      data = await backend().getVersion(id, shownVersion);
+    } catch (error) { if (mine === routing) { notice('That page could not be opened.'); location.hash = fromLibrary ? '#/' : '#/public'; } return; }
     if (mine !== routing) { return; }
     showScreen('library', true);
     main.textContent = '';
     var bar = el('div', 'preview-bar');
-    bar.appendChild(link('← Back to search', '#/public', 'lib-page-link'));
+    bar.appendChild(link(fromLibrary ? '← Library' : '← Back to search', fromLibrary ? '#/' : '#/public', 'lib-page-link'));
     bar.appendChild(visibilityPill(detail.page.visibility));
+    if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet · version ' + shownVersion)); }
     main.appendChild(bar);
     var isClientSafe = detail.page.visibility === 'Client-Safe';
     var layout = el('div', 'preview-layout');
@@ -1206,7 +1208,8 @@
     if (screen === 'new') { openNewPage(); }
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
-    else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1]); }
+    else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false); }
+    else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true); }
     else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; } }); }
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }

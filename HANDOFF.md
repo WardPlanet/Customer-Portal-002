@@ -366,8 +366,8 @@ moves that one page (its live and in-progress versions) to it at once; linked ro
 **Transfer pages to…** drop-down lists the other team members; choosing one (after a confirmation) moves all of that role's
 pages to them.
 
-**Library page titles, versions and the old page screen.** Clicking a live page's title opens its live version in a new
-tab (a reader view); a page that is not live opens its latest version for reading in the same tab. The separate
+**Library page titles, versions and the old page screen.** Clicking a page's title opens the **public preview** of it in a new
+tab (`#/preview/<id>`): its live version, or for a page that is not live yet the version being worked on, marked "Not live yet". The separate
 page screen with the version table is gone (`#/page/<id>` now shows the library). Version information is a **Versions**
 button in the editor's banner: it opens a pop-up listing every version (who, when, status), with a **Notes** link
 where a version has notes (how it was made, the reviewer's comment) and the actions each person may use (View, Restore,
