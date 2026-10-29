@@ -337,8 +337,10 @@ into the page; they are not part of the backup file.
 
 **Side panel on a live page.** The page view (Public preview screen) has a right-hand panel (it drops below the page on narrow screens). **Contacts**: the page owner (name, role,
 email), then the team lead, then anyone in LINKED ROLES, looked up from the roster so they update when the roster does.
-**Related pages**: other live pages with the same owner role or a linked role in common (up to 8). The real public routes
-(`/api/public/...`) still return no owner or contact details.
+**Related pages**: other live pages with the same owner role or a linked role in common (up to 8). Contacts are for employees only. On Client-Safe pages a **View as the public** button
+shows what the public gets: no contacts, a "Need help?" card linking to the team's `supportUrl` (in
+`teams/legwork-web-team.json`, empty until the support link is decided), and only Client-Safe related pages. The real
+public routes (`/api/public/...`) return no owner or contact details.
 
 **Deleting a page.** The team lead has a **Delete page** button on a page's screen. It names the page, says how many
 versions go and whether it is live (it then leaves the library, search and the public site at once), and asks

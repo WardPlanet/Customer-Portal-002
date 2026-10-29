@@ -846,12 +846,12 @@
   }
 
   // Other live pages that share this page's owner role or a linked role
-  async function relatedPages(id, pageFields) {
+  async function relatedPages(id, pageFields, publicOnly) {
     var roles = [pageFields.owner].concat(pageFields.linkedRoles).filter(Boolean);
     var all = await attempt(backend().list(''));
     if (!all) { return null; }
     var matches = all.pages.filter(function (p) {
-      if (p.id === id || !p.liveVersion) { return false; }
+      if (p.id === id || !p.liveVersion || (publicOnly && p.visibility !== 'Client-Safe')) { return false; }
       return roles.indexOf(p.owner) >= 0 || (p.linkedRoles || []).some(function (role) { return roles.indexOf(role) >= 0; });
     }).slice(0, 8);
     if (!matches.length) { return null; }
@@ -942,18 +942,45 @@
     bar.appendChild(link('← Back to search', '#/public', 'lib-page-link'));
     bar.appendChild(visibilityPill(detail.page.visibility));
     main.appendChild(bar);
+    var isClientSafe = detail.page.visibility === 'Client-Safe';
     var layout = el('div', 'preview-layout');
-    layout.appendChild(renderPreview(data.text));
-    var side = el('aside', 'preview-side');
-    side.setAttribute('aria-label', 'Contacts and related pages');
-    var contacts = renderContacts(W.fields(data.text));
-    if (contacts) { side.appendChild(contacts); }
-    var related = await relatedPages(id, W.fields(data.text));
-    if (mine !== routing) { return; }
-    if (related) { side.appendChild(related); }
-    layout.appendChild(side);
     main.appendChild(layout);
     setBanner(null);
+
+    // Employees see contacts. The public sees a support link instead (the address is set by the team's
+    // "supportUrl"; until it is set the card says so). "View as the public" shows exactly that.
+    async function draw(asPublic) {
+      layout.textContent = '';
+      layout.appendChild(renderPreview(asPublic ? W.publicText(data.text) : data.text));
+      var side = el('aside', 'preview-side');
+      side.setAttribute('aria-label', asPublic ? 'Support and related pages' : 'Contacts and related pages');
+      if (asPublic) {
+        var support = el('section', 'side-card');
+        support.appendChild(el('h2', 'side-title', 'Need help?'));
+        if (team.supportUrl) { support.appendChild(link('Contact support', team.supportUrl)); }
+        else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
+        side.appendChild(support);
+      } else {
+        var contacts = renderContacts(W.fields(data.text));
+        if (contacts) { side.appendChild(contacts); }
+      }
+      var related = await relatedPages(id, W.fields(data.text), asPublic);
+      if (mine !== routing) { return; }
+      if (related) { side.appendChild(related); }
+      layout.appendChild(side);
+    }
+
+    if (isClientSafe) {
+      var viewing = false;
+      var toggle = button('View as the public', 'secondary-link', async function () {
+        viewing = !viewing;
+        toggle.textContent = viewing ? 'Back to staff view' : 'View as the public';
+        bar.classList.toggle('is-public-view', viewing);
+        await draw(viewing);
+      });
+      bar.appendChild(toggle);
+    }
+    await draw(false);
   }
 
   /* ---------- What app.js calls when someone saves, submits or leaves ---------- */

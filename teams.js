@@ -25,6 +25,8 @@ export async function readTeam() {
   // default while review is not in use) or only the "lead". Changing it to "lead" removes the option for
   // everyone else.
   team.directPublish = team.directPublish === 'lead' ? 'lead' : 'anyone';
+  // "supportUrl" is where the public is sent for help on Client-Safe pages (empty until it is decided)
+  team.supportUrl = typeof team.supportUrl === 'string' && /^https?:\/\/\S+$/.test(team.supportUrl.trim()) ? team.supportUrl.trim() : '';
   // "lead" names the role of the team lead. That role is every page's reviewer and cannot be changed per page.
   if (team.lead && team.roles.every(function (role) { return role.title !== team.lead; })) {
     throw new Error('The "lead" in teams/legwork-web-team.json must be one of the roles.');
