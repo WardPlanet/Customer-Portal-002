@@ -81,8 +81,8 @@
 
   var STATE_LABELS = {
     live: ['Live', 'live'],
-    live_edit_in_progress: ['Live · edit in progress', 'live'],
-    live_edit_in_review: ['Live · edit in review', 'review'],
+    live_edit_in_progress: ['Live', 'live'],   // the page's status is just Live; the edit is its own draft
+    live_edit_in_review: ['Live', 'live'],
     draft: ['Draft', 'draft'],
     in_review: ['In review', 'review'],
     sent_back: ['Sent back', 'sent-back'],
@@ -429,7 +429,7 @@
       titleLink.target = '_blank';
       titleLink.rel = 'noopener';
       nameCell.appendChild(titleLink);
-      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.versionCount > 1 ? ' · ' + p.versionCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
+      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
       row.appendChild(nameCell);
       var statusCell = el('td');
       statusCell.appendChild(badge(STATE_LABELS[p.state]));
@@ -517,6 +517,9 @@
     box.appendChild(table);
   }
 
+  // "Version" only means a published version: Version 1, Version 2... A draft is just a draft.
+  function versionName(v) { return v && v.release ? 'Version ' + v.release : 'Draft'; }
+
   /* ---------- Versions: a pop-up in the editor ---------- */
   // Lists every version of a page with who wrote it and when, a Notes link where a version has notes, and the
   // actions each person may use (Restore, View, and the review steps). Kept out of the editing area itself.
@@ -539,7 +542,7 @@
     data.history.forEach(function (v) {
       var row = el('tr', 'lib-row');
       var versionCell = el('td');
-      versionCell.appendChild(el('strong', '', 'v' + v.n + (v.live ? ' (live)' : '')));
+      versionCell.appendChild(el('strong', '', versionName(v) + (v.live ? ' (live)' : '')));
       row.appendChild(versionCell);
       var statusCell = el('td');
       statusCell.appendChild(badge(VERSION_LABELS[v.status]));
@@ -618,7 +621,7 @@
     if (can('send_back')) { nodes.push(button('Send back', 'row-btn', function () { sendBackWithComment(id, v.n); })); }
     if (can('restore')) { nodes.push(button('Restore', 'row-btn', async function () {
       var result = await attempt(backend().act(id, v.n, 'restore'));
-      if (result) { notice('Restored as a new draft (v' + result.version + '). It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
+      if (result) { notice('Restored as a new draft. It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
     })); }
     return nodes;
   }
@@ -706,10 +709,10 @@
     window.PageEditor.load(data.text, false);
     window.PageEditor.setLabel(data.version.title || 'Untitled page');
     current = { id: id, n: Number(n), backTo: '#/' };
-    var lines = ['Editing version ' + n + ' (' + (VERSION_LABELS[data.version.status][0].toLowerCase()) + '). Saving keeps it as a draft; Submit for review sends it to the team lead.'];
+    var lines = ['Editing a draft. It saves itself every ' + window.PageEditor.autosaveSeconds() + ' seconds; Submit for review sends it to the team lead.'];
     var detail = await attempt(backend().get(id));
     if (mine !== routing) { return; }
-    if (detail && detail.page.liveVersion) { lines.push('Version ' + detail.page.liveVersion + ' stays live until this one is approved.'); }
+    if (detail && detail.page.liveVersion) { lines.push('The live version stays live until this draft is approved or published.'); }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
     var tone = 'info';
     // A page made by an import keeps the points the AI flagged for the person who checks it
@@ -730,7 +733,7 @@
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
     current = { id: null, n: null, backTo: '#/' };
-    setBanner(editorBanner(['A new page. Save draft keeps it in the library as version 1; Submit for review sends it to the team lead.']));
+    setBanner(editorBanner(['A new page. Save draft keeps it in the library; Submit for review sends it to the team lead.']));
   }
 
   /* ---------- The editor, locked for reading ---------- */
@@ -741,16 +744,17 @@
     if (!data) { location.hash = '#/'; return; }
     showScreen('editor', false);
     window.PageEditor.load(data.text, true);
-    window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · version ' + n);
     window.PageEditor.setStatus(VERSION_LABELS[data.version.status][0], true);
     current = { id: id, n: Number(n), backTo: '#/' };
 
     var detail = await attempt(backend().get(id));
     if (mine !== routing) { return; }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
+    var name = versionName(hist).toLowerCase();   // "version 2" or "draft"
+    window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · ' + name);
     var box = el('div', 'banner banner-info');
-    box.appendChild(el('p', '', 'Reading version ' + n + ' — ' + describe(data.version.status) + '.'));
-    if (hist && hist.decisionComment) { box.appendChild(el('p', '', 'Review note: “' + hist.decisionComment + '”')); }
+    box.appendChild(el('p', '', 'Reading ' + (hist && hist.release ? name : 'a draft') + ' — ' + describe(data.version.status) + '.'));
+    if (hist && hist.decisionComment) { box.appendChild(el('p', '', 'Review note: \u201c' + hist.decisionComment + '\u201d')); }
     var row = el('div', 'banner-actions');
     row.appendChild(versionsButton(id));
     versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
@@ -1117,7 +1121,7 @@
     var bar = el('div', 'preview-bar');
     bar.appendChild(link(fromLibrary ? '← Library' : '← Back to search', fromLibrary ? '#/' : '#/public', 'lib-page-link'));
     bar.appendChild(visibilityPill(detail.page.visibility));
-    if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet · version ' + shownVersion)); }
+    if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet')); }
     main.appendChild(bar);
     var isClientSafe = detail.page.visibility === 'Client-Safe';
     var layout = el('div', 'preview-layout');
@@ -1171,7 +1175,7 @@
         await backend().save(current.id, current.n, text);
       }
       window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
-      return 'Saved as version ' + current.n + ' (a draft). It is in the library.';
+      return 'Draft saved. It is in the library.';
     },
     submit: async function (text) {
       await this.save(text);
@@ -1184,6 +1188,14 @@
     canPublish: function () { return !!team && W.canPublishDirectly(actor(), team); },
     // Skips review: saves, makes it live, and downloads the text. (Who may do this is the team's
     // "directPublish" setting; the server and store both enforce it.)
+    // Called by the editor on a timer. Saves the draft quietly when the page already exists in the library;
+    // a brand-new page is only kept once the person has saved it themselves. Resolves to true when it saved.
+    autosave: async function (text) {
+      if (current.id === null) { return false; }
+      await backend().save(current.id, current.n, text);
+      window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
+      return true;
+    },
     publish: async function (text) {
       await this.save(text);
       var id = current.id;

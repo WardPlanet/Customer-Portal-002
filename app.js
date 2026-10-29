@@ -114,7 +114,8 @@
       byId('save-status').classList.toggle('is-unsaved', !isSaved);
     }
 
-    function markDirty() { setStatus('Unsaved changes', false); }
+    var editCount = 0;   // goes up on every edit, so a save can tell whether anything changed while it ran
+    function markDirty() { editCount += 1; setStatus('Unsaved changes', false); }
 
     var noticeTimer = null;
     function showNotice(message) {
@@ -1382,6 +1383,27 @@
         isSaving = false;
       }
     }
+
+    /* ---------- Autosave ----------
+       While a page that is already in the library is being edited, its draft is saved every AUTOSAVE_SECONDS
+       if anything changed. It saves quietly: nothing is required, no keywords are refreshed, no message. */
+    var AUTOSAVE_SECONDS = 30;
+    async function autosave() {
+      if (isSaving || !window.PageHost || !window.PageHost.autosave) { return; }
+      if (document.body.classList.contains('is-readonly') || byId('editor-screen').hidden) { return; }
+      if (!byId('save-status').classList.contains('is-unsaved')) { return; }
+      var seen = editCount;
+      isSaving = true;
+      try {
+        var saved = await window.PageHost.autosave(serializeDraft());
+        if (saved && seen === editCount) { setStatus('Autosaved just now', true); }
+      } catch (error) {
+        // Stay "unsaved"; Save draft will explain the problem if it persists
+      } finally {
+        isSaving = false;
+      }
+    }
+    setInterval(autosave, AUTOSAVE_SECONDS * 1000);
 
     /* ---------- Rich text (paragraph blocks only) ----------
        Formatted text is stored in the draft file as plain text:
@@ -3208,6 +3230,8 @@
       refresh: updateSaveState,
       isDirty: function () { return byId('save-status').classList.contains('is-unsaved') && pageHasContent(); },
       setStatus: setStatus,
+      autosaveNow: autosave,
+      autosaveSeconds: function () { return AUTOSAVE_SECONDS; },
       showNotice: showNotice,
       setLabel: function (text) { byId('page-name').textContent = text; },
       title: function () { return readText(titleEl); },

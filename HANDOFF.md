@@ -374,6 +374,15 @@ where a version has notes (how it was made, the reviewer's comment) and the acti
 and the review steps). The lead's **Unpublish** button moved to the library rows. "Internal-Only" is shown as "Internal"
 in pills so it does not wrap. In Team & roles, **Transfer pages** opens a small window to pick the receiving person.
 
+**Status, autosave and what "version" means.** A page has one status in the library: Live, Draft, In review, Sent back
+or Unpublished. A live page that is being edited is still just Live (the edit is its own draft; the lead sees pages
+waiting in the review box and can open them from the Versions pop-up). While a saved page is open in the editor its
+draft is autosaved every 30 seconds if anything changed (`AUTOSAVE_SECONDS` in `app.js`; it needs no required fields and
+shows "Autosaved just now"); a brand-new page is first kept when the person saves it. The word "version" is used only
+for published versions: Version 1, Version 2... in the order they were published. A draft, a version in review or a
+sent-back one is just a draft. (Internally every save still has a number `n`; `history` returns `release` for the
+published ones and the summary has `releaseCount` and `liveRelease`.)
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.

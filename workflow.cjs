@@ -211,7 +211,7 @@
     var working = workingVersion(page);
     if (working) { return working; }
     var base = liveVersion(page) || latestVersion(page);
-    return newVersion(page, base.text, actor, now, 'Edit of version ' + base.n);
+    return newVersion(page, base.text, actor, now, base === liveVersion(page) ? 'Started from the live version' : 'Started from the latest version');
   }
 
   // Restore an old version: it becomes a new draft (it still has to be approved like any edit)
@@ -221,7 +221,8 @@
       throw new WorkflowError('edit_in_progress', 'There is already a version being edited or reviewed. Finish or withdraw it first.', 409);
     }
     var source = versionOf(page, n);
-    return newVersion(page, source.text, actor, now, 'Restored from version ' + source.n);
+    var release = releaseNumber(page, source);
+    return newVersion(page, source.text, actor, now, release ? 'Restored from version ' + release : 'Restored from an earlier draft');
   }
 
   function submit(page, n, actor, team, now) {
@@ -402,6 +403,18 @@
   }
 
   // One row for the library list
+  // Only a version that has been published counts as a "version" people see: Version 1, Version 2 and so on, in the
+  // order they were published. Drafts, versions in review and sent-back ones have no number (the internal number n
+  // still tells them apart, but it is not shown).
+  function isPublished(version) {
+    return version.status === STATUS.APPROVED || version.status === STATUS.SUPERSEDED || version.status === STATUS.UNPUBLISHED;
+  }
+
+  function releaseNumber(page, version) {
+    if (!isPublished(version)) { return null; }
+    return page.versions.filter(function (v) { return isPublished(v) && v.n <= version.n; }).length;
+  }
+
   function summary(page) {
     var live = liveVersion(page);
     var working = workingVersion(page);
@@ -424,6 +437,8 @@
       liveVersion: page.liveVersion,
       workingVersion: working ? { n: working.n, status: working.status } : null,
       versionCount: page.versions.length,
+      releaseCount: page.versions.filter(isPublished).length,
+      liveRelease: live ? releaseNumber(page, live) : null,
       updatedAt: page.updatedAt
     };
   }
@@ -449,7 +464,7 @@
   function history(page, actor, team) {
     return page.versions.slice().reverse().map(function (v) {
       return {
-        n: v.n, status: v.status, title: v.title, author: v.author, note: v.note,
+        n: v.n, release: releaseNumber(page, v), status: v.status, title: v.title, author: v.author, note: v.note,
         createdAt: v.createdAt, updatedAt: v.updatedAt,
         submittedBy: v.submittedBy, submittedAt: v.submittedAt,
         decidedBy: v.decidedBy, decidedAt: v.decidedAt, decisionComment: v.decisionComment,

@@ -386,3 +386,16 @@ test('the lead can change the owner of one page; linked roles stay; others canno
   assert.deepEqual(W.summary(page).linkedRoles, ['Website Editor']);
   assert.equal(W.setOwner(page, 'Web Designer', micah, bigTeam, t(3)), false);
 });
+
+test('only published versions are numbered: Version 1, Version 2; drafts have no number', () => {
+  const page = livePage();   // version 1, live
+  assert.equal(W.history(page, scott, team)[0].release, 1);
+  W.startEdit(page, scott, t(4));   // a draft, internal number 2
+  assert.equal(W.history(page, scott, team)[0].release, null);
+  assert.equal(W.summary(page).releaseCount, 1);
+  W.publish(page, 2, scott, team, t(5));
+  const history = W.history(page, scott, team);
+  assert.deepEqual(history.map(h => h.release), [2, 1]);
+  assert.equal(W.summary(page).liveRelease, 2);
+  assert.equal(W.summary(page).releaseCount, 2);
+});
