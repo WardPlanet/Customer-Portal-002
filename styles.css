@@ -1598,11 +1598,7 @@
 .preview-description { font-size: 1.1rem; color: var(--muted, #555); }
 .preview-h { margin: 28px 0 8px; }
 .preview-p { margin: 0 0 12px; }
-.preview-code { background: #1e2430; color: #e6e9ef; padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-family: "Courier New", monospace; font-size: 0.9rem; }
 .preview code { font-family: "Courier New", monospace; background: rgba(127, 127, 127, 0.15); padding: 1px 4px; border-radius: 3px; }
-.preview-callout { margin: 12px 0; padding: 10px 14px; border-left: 4px solid; border-radius: 4px; }
-.preview-note { border-color: #2f6fd1; background: rgba(47, 111, 209, 0.08); }
-.preview-warning { border-color: #c0392b; background: rgba(192, 57, 43, 0.08); }
 .preview-step { display: flex; gap: 14px; margin: 18px 0; }
 .preview-step-number { flex: none; width: 32px; height: 32px; border-radius: 50%; background: #2f6fd1; color: #fff; text-align: center; line-height: 32px; font-weight: 700; }
 .preview-step-body { flex: 1; min-width: 0; }
@@ -1673,3 +1669,13 @@
 .versions-dialog .lib-row-actions { white-space: normal; }
 .versions-notes td { background: var(--surface-alt, rgba(127, 127, 127, 0.08)); }
 .versions-notes .lib-row-sub { margin: 2px 0; }
+
+/* Notes, warnings and code in the reader view look the same as in the editor */
+.preview-callout { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0; padding: 10px 14px; border: 1px solid; border-radius: 8px; font-size: 0.95rem; line-height: 1.5; }
+.preview-note { background: var(--warn-bg); border-color: var(--warn-border); }
+.preview-warning { background: var(--danger-soft); border-color: var(--danger-border); }
+.preview-callout-icon { flex: none; display: grid; margin-top: 2px; }
+.preview-note .preview-callout-icon { color: var(--warn-icon); }
+.preview-warning .preview-callout-icon { color: var(--danger); }
+.preview-callout-text { flex: 1; min-width: 0; }
+.preview-code { margin: 12px 0; padding: 12px 14px; overflow-x: auto; background: var(--code-bg); color: var(--code-text); border: 1px solid var(--border); border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; line-height: 1.55; white-space: pre; tab-size: 2; }

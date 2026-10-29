@@ -980,6 +980,25 @@
     if (last < text.length) { parent.appendChild(document.createTextNode(text.slice(last))); }
   }
 
+  // The same symbols the editor uses for notes and warnings
+  var NOTE_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5M12 8h.01"/></svg>';
+  var WARNING_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>';
+
+  // A note (yellow, circle symbol) or warning (red, triangle symbol), drawn like the editor draws them
+  function previewCallout(isWarning, text) {
+    var box = el('div', 'preview-callout ' + (isWarning ? 'preview-warning' : 'preview-note'));
+    box.setAttribute('role', 'note');
+    var icon = el('span', 'preview-callout-icon');
+    icon.setAttribute('role', 'img');
+    icon.setAttribute('aria-label', isWarning ? 'Warning' : 'Note');
+    icon.innerHTML = isWarning ? WARNING_ICON : NOTE_ICON;   // fixed markup above, no page text
+    box.appendChild(icon);
+    var body = el('div', 'preview-callout-text');
+    addInline(body, text);
+    box.appendChild(body);
+    return box;
+  }
+
   function previewText(tag, className, text) {
     var node = el(tag, className);
     addInline(node, text);
@@ -1064,10 +1083,7 @@
         article.appendChild(el('pre', 'preview-code', sections[prefix + 'CODE'].join('\n').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '')));
       } else if (sections[prefix + 'NOTE'] || sections[prefix + 'WARNING']) {
         var isWarning = !!sections[prefix + 'WARNING'];
-        var callout = el('div', 'preview-callout ' + (isWarning ? 'preview-warning' : 'preview-note'));
-        callout.appendChild(el('strong', '', isWarning ? 'Warning: ' : 'Note: '));
-        addInline(callout, body(prefix + (isWarning ? 'WARNING' : 'NOTE')));
-        article.appendChild(callout);
+        article.appendChild(previewCallout(isWarning, body(prefix + (isWarning ? 'WARNING' : 'NOTE'))));
       } else if (sections[prefix + 'PARAGRAPH']) {
         previewParagraphs(article, body(prefix + 'PARAGRAPH'));
       } else if ((body(prefix + 'STEP TITLE') || body(prefix + 'STEP TEXT') || Object.keys(sections).some(function (name) { return name.indexOf(prefix + 'STEP ') === 0 && /^STEP (CODE|NOTE|WARNING) /.test(name.slice(prefix.length)) && body(name); })) && (sections[prefix + 'STEP TITLE'] || sections[prefix + 'STEP TEXT'])) {
@@ -1084,10 +1100,7 @@
           if (item.type === 'CODE') {
             content.appendChild(el('pre', 'preview-code', sections[item.name].join('\n').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '')));
           } else if (body(item.name)) {
-            var box = el('div', 'preview-callout ' + (item.type === 'WARNING' ? 'preview-warning' : 'preview-note'));
-            box.appendChild(el('strong', '', item.type === 'WARNING' ? 'Warning: ' : 'Note: '));
-            addInline(box, body(item.name));
-            content.appendChild(box);
+            content.appendChild(previewCallout(item.type === 'WARNING', body(item.name)));
           }
         });
         step.appendChild(content);

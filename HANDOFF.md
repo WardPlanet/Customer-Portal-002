@@ -383,6 +383,9 @@ for published versions: Version 1, Version 2... in the order they were published
 sent-back one is just a draft. (Internally every save still has a number `n`; `history` returns `release` for the
 published ones and the summary has `releaseCount` and `liveRelease`.)
 
+**Notes, warnings and code in the reader view** are drawn like the editor draws them: yellow note with the circle symbol, red
+warning with the triangle, and the same dark code box, in light and dark mode (`previewCallout` in `library-ui.js`).
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.
