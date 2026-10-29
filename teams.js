@@ -17,6 +17,8 @@ export async function readTeam() {
   var valid = team && typeof team.name === 'string' && /^[a-z0-9-]+$/.test(team.slug || '') && Array.isArray(team.roles);
   if (!valid) { throw new Error('teams/legwork-web-team.json needs a name, a slug (lowercase letters, numbers, hyphens) and a roles list.'); }
   team.roles = team.roles.filter(function (role) { return role && typeof role.title === 'string' && role.title.trim(); });
+  // Each role has a contact email, shown on a page's live view as the way to reach its owner
+  team.roles.forEach(function (role) { role.email = typeof role.email === 'string' ? role.email.trim() : ''; });
   // "locations" are the areas of the wiki this team's pages live in (for now just "Websites")
   team.locations = Array.isArray(team.locations) ? team.locations.filter(function (name) { return typeof name === 'string' && name.trim(); }) : [];
   // "directPublish" says who may publish a page straight away, skipping review: "anyone" on the team (the

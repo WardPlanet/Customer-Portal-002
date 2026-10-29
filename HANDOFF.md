@@ -325,7 +325,7 @@ nothing. Every "are you sure?" now goes through `window.askConfirm(message, { ti
 draws a normal dialog in the page. Use that for any new confirmation, never `confirm()`.
 
 **Team & roles (team lead only).** The library's **Team & roles** button opens a pop-up on the library page that:
-- lists each person, their role and how many pages the role has;
+- lists each person, their role, contact email and how many pages the role has (every role needs an email);
 - **adds a person and role** (a new hire);
 - **transfers a role's pages** to another person/role (all of them: owner and linked role, on the live and in-progress
   versions, in place; older versions are untouched and no new review is needed);
@@ -334,6 +334,10 @@ To replace someone who leaves: add the new person and role, transfer the old rol
 On the server these write `teams/legwork-web-team.json` (`PUT /api/library/roster`, `POST /api/library/reassign`, lead
 only). In the artifact the changes are kept in the browser (key `pageEditor.roster.v1`) and replace the roster built
 into the page; they are not part of the backup file.
+
+**Contacts on a live page.** The page view (Public preview screen) ends with a Contacts block: the page owner (name, role,
+email), then the team lead, then anyone in LINKED ROLES, looked up from the roster so they update when the roster does.
+The real public routes (`/api/public/...`) still return no owner or contact details.
 
 **Deleting a page.** The team lead has a **Delete page** button on a page's screen. It names the page, says how many
 versions go and whether it is live (it then leaves the library, search and the public site at once), and asks

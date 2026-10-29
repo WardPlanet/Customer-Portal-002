@@ -96,7 +96,14 @@
     // Changes the lead made to the team earlier in this browser replace the roster built into the page
     try {
       var savedRoles = JSON.parse(localStorage.getItem(ROSTER_KEY) || 'null');
-      if (Array.isArray(savedRoles) && savedRoles.length) { team.roles = savedRoles; }
+      if (Array.isArray(savedRoles) && savedRoles.length) {
+        // Roles saved before emails existed take the email of the built-in role with the same title
+        savedRoles.forEach(function (saved) {
+          var builtIn = team.roles.filter(function (r) { return r.title === saved.title; })[0];
+          if (!saved.email && builtIn) { saved.email = builtIn.email || ''; }
+        });
+        team.roles = savedRoles;
+      }
     } catch (error) { /* storage unavailable or damaged: keep the built-in roster */ }
 
     function now() { return new Date().toISOString(); }

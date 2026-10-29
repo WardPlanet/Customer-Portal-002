@@ -570,11 +570,13 @@
     var clean = roles.map(function (role) {
       var title = text(role && role.title, 80).trim().replace(/\s+/g, ' ');
       var person = text(role && role.person, 80).trim().replace(/\s+/g, ' ');
+      var email = text(role && role.email, 120).trim();
       if (!title) { throw new WorkflowError('bad_roster', 'Every role needs a title.', 400); }
       if (/[\[\]~]/.test(title) || /[\[\]~]/.test(person)) { throw new WorkflowError('bad_roster', 'Names and titles cannot contain [ ] or ~.', 400); }
       if (seen[title.toLowerCase()]) { throw new WorkflowError('bad_roster', 'The role "' + title + '" is listed twice.', 400); }
       seen[title.toLowerCase()] = true;
-      return { title: title, person: person };
+      if (!/^[^\s@\[\]~<>,;]+@[^\s@\[\]~<>,;]+\.[^\s@\[\]~<>,;]+$/.test(email)) { throw new WorkflowError('bad_roster', 'The role "' + title + '" needs a contact email address.', 400); }
+      return { title: title, person: person, email: email };
     });
     var titles = clean.map(function (role) { return role.title; });
     if (team.lead && titles.indexOf(team.lead) < 0) {

@@ -9,23 +9,28 @@
   "roles": [
     {
       "title": "Website Editor",
-      "person": "Scott Archer"
+      "person": "Scott Archer",
+      "email": "sarcher@planetdds.com"
     },
     {
       "title": "Domain Manager",
-      "person": "Mataya"
+      "person": "Mataya",
+      "email": "mataya.arnold@planetdds.com"
     },
     {
       "title": "SEM Manager",
-      "person": "Stephanie"
+      "person": "Stephanie",
+      "email": "smorales@planetdds.com"
     },
     {
       "title": "Web Designer",
-      "person": "Molly"
+      "person": "Molly",
+      "email": "molly.joseph@planetdds.com"
     },
     {
       "title": "Web Team Manager",
-      "person": "Micah"
+      "person": "Micah",
+      "email": "mrubart@planetdds.com"
     }
   ]
 }

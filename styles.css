@@ -1621,3 +1621,9 @@
 .team-actions .row-btn, .team-actions select { margin-right: 6px; }
 .team-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 .team-add .lib-search { flex: 1 1 180px; max-width: 260px; margin: 0; }
+.row-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.team-email { font-size: 0.9rem; word-break: break-all; }
+.team-add .lib-search { flex: 1 1 140px; max-width: 200px; }
+.preview-contacts { margin-top: 36px; padding-top: 8px; border-top: 1px solid var(--border); }
+.preview-contact { padding: 8px 0; }
+.preview-contact-label { display: inline-block; min-width: 84px; margin-right: 8px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted, #555); }

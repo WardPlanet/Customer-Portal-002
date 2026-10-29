@@ -311,12 +311,19 @@ test('role usage counts owner and linked roles on current versions', () => {
 
 test('the roster is checked: lead stays, unique roles and people, roles in use cannot be removed', () => {
   const usage = { 'Website Editor': 2 };
-  const ok = [{ title: 'Website Editor', person: 'Sam' }, { title: 'Web Team Manager', person: 'Micah' }, { title: 'SEO Analyst', person: 'Ana' }];
+  const ok = [{ title: 'Website Editor', person: 'Sam', email: 'sam@x.com' }, { title: 'Web Team Manager', person: 'Micah', email: 'm@x.com' }, { title: 'SEO Analyst', person: 'Ana', email: 'ana@x.com' }];
   assert.equal(W.checkRoster(team, ok, usage, micah).length, 3);
   assert.throws(() => W.checkRoster(team, ok, usage, scott), /Only the team lead/);
   assert.throws(() => W.checkRoster(team, ok.slice(0, 1), usage, micah), /cannot be removed/);
   assert.throws(() => W.checkRoster(team, [ok[1]], usage, micah), /still used by 2 pages/);
-  assert.throws(() => W.checkRoster(team, ok.concat([{ title: 'website editor', person: 'X' }]), usage, micah), /twice/);
-  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: 'Sam' }], usage, micah), /holds two roles/);
-  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: '' }], usage, micah), /needs a person/);
+  assert.throws(() => W.checkRoster(team, ok.concat([{ title: 'website editor', person: 'X', email: 'x@x.com' }]), usage, micah), /twice/);
+  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: 'Sam', email: 'm@x.com' }], usage, micah), /holds two roles/);
+  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: '', email: 'm@x.com' }], usage, micah), /needs a person/);
+});
+
+test('every role needs a plausible contact email', () => {
+  const base = [{ title: 'Website Editor', person: 'Sam', email: 'sam@x.com' }, { title: 'Web Team Manager', person: 'Micah', email: 'm@x.com' }];
+  assert.throws(() => W.checkRoster(team, [{ title: 'Website Editor', person: 'Sam' }, base[1]], {}, micah), /contact email/);
+  assert.throws(() => W.checkRoster(team, [{ title: 'Website Editor', person: 'Sam', email: 'not an email' }, base[1]], {}, micah), /contact email/);
+  assert.equal(W.checkRoster(team, base, {}, micah)[0].email, 'sam@x.com');
 });

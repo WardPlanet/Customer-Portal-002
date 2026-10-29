@@ -635,12 +635,12 @@
       return true;
     }
 
-    function currentRoles() { return team.roles.map(function (r) { return { title: r.title, person: r.person }; }); }
+    function currentRoles() { return team.roles.map(function (r) { return { title: r.title, person: r.person, email: r.email || '' }; }); }
 
     /* ----- a) The people and roles ----- */
     var table = el('table', 'lib-table');
     var headRow = el('tr');
-    ['Person', 'Role', 'Pages', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
+    ['Person', 'Role', 'Email', 'Pages', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
     var thead = el('thead');
     thead.appendChild(headRow);
     table.appendChild(thead);
@@ -650,6 +650,7 @@
       var row = el('tr', 'lib-row');
       row.appendChild(el('td', '', role.person || 'Unassigned'));
       row.appendChild(el('td', '', role.title + (role.title === team.lead ? ' (team lead)' : '')));
+      row.appendChild(el('td', 'team-email', role.email || 'No email'));
       row.appendChild(el('td', '', String(count)));
       var actions = el('td', 'team-actions');
 
@@ -703,12 +704,19 @@
     roleInput.placeholder = 'Role (for example SEO Analyst)';
     roleInput.setAttribute('aria-label', 'New role');
     roleInput.maxLength = 80;
+    var emailInput = el('input', 'lib-search');
+    emailInput.type = 'email';
+    emailInput.placeholder = 'Email';
+    emailInput.setAttribute('aria-label', 'New email');
+    emailInput.maxLength = 120;
     add.appendChild(personInput);
     add.appendChild(roleInput);
+    add.appendChild(emailInput);
     add.appendChild(button('Add person & role', 'secondary-link', async function () {
       if (!personInput.value.trim()) { personInput.focus(); return; }
       if (!roleInput.value.trim()) { roleInput.focus(); return; }
-      await save(currentRoles().concat([{ title: roleInput.value.trim(), person: personInput.value.trim() }]), 'Added ' + personInput.value.trim() + ' as ' + roleInput.value.trim() + '.');
+      if (!emailInput.value.trim()) { emailInput.focus(); return; }
+      await save(currentRoles().concat([{ title: roleInput.value.trim(), person: personInput.value.trim(), email: emailInput.value.trim() }]), 'Added ' + personInput.value.trim() + ' as ' + roleInput.value.trim() + '.');
     }));
     box.appendChild(add);
 
@@ -812,6 +820,31 @@
     });
   }
 
+  // Who to contact about a page: its owner first, then the team lead, then anyone linked to it
+  function renderContacts(fieldsOfPage) {
+    var wanted = [];
+    [fieldsOfPage.owner, team.lead].concat(fieldsOfPage.linkedRoles).forEach(function (title) {
+      if (title && wanted.indexOf(title) < 0) { wanted.push(title); }
+    });
+    if (!wanted.length) { return null; }
+    var box = el('section', 'preview-contacts');
+    box.appendChild(el('h2', 'preview-h', 'Contacts'));
+    wanted.forEach(function (title, index) {
+      var role = team.roles.filter(function (r) { return r.title === title; })[0];
+      var label = index === 0 && title === fieldsOfPage.owner ? 'Page owner' : title === team.lead ? 'Team lead' : 'Linked';
+      var card = el('div', 'preview-contact');
+      card.appendChild(el('span', 'preview-contact-label', label));
+      card.appendChild(el('strong', '', role && role.person ? role.person : 'Unassigned'));
+      card.appendChild(document.createTextNode(' · ' + title));
+      if (role && role.email) {
+        card.appendChild(document.createTextNode(' · '));
+        card.appendChild(link(role.email, 'mailto:' + role.email));
+      }
+      box.appendChild(card);
+    });
+    return box;
+  }
+
   // Draws a page the way a reader sees it: title, description, then the blocks in order. No editor.
   function renderPreview(text) {
     var sections = W.fields(text).sections;
@@ -865,6 +898,8 @@
         article.appendChild(step);
       }
     });
+    var contacts = renderContacts(W.fields(text));
+    if (contacts) { article.appendChild(contacts); }
     return article;
   }
 
