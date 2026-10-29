@@ -1666,3 +1666,4 @@
 .mini-bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; background: var(--accent); border-radius: 999px; animation: bar-slide 1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .bar-track.is-busy .bar-fill, .mini-bar::after { animation: none; left: 0; } }
 .batch-field[hidden] { display: none; }
+.lib-row-error { margin-top: 4px; color: var(--danger); font-size: 12px; font-weight: 600; }

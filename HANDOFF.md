@@ -363,8 +363,8 @@ when it is done. If the person importing is not the team lead, every draft is ow
 menus are not shown.
 
 **Publish button in the library (testing shortcut).** The team lead's library rows have a **Publish** button on any page
-with a draft, sent-back or in-review version: it asks, then publishes that version without review (the same rules as
-the editor's Publish: title, description, owner and a step are still required). It is for testing so drafts need not be
+with a draft, sent-back or in-review version: it publishes that version at once, with no confirmation and without review (the same rules as
+the editor's Publish: title, description, owner and a step are still required; a missing one is shown in red on the row). It is for testing so drafts need not be
 opened one by one. In the finished system the lead reviews each draft and publishes from there; remove the button then
 (search for "Testing shortcut" in `library-ui.js`).
 

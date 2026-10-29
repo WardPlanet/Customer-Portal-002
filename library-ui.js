@@ -436,8 +436,17 @@
         // finished system the lead reviews the draft and publishes from there. Remove this button then.
         if (lead && p.workingVersion) {
           var publishButton = button('Publish', 'row-btn row-btn-publish', async function () {
-            if (!(await window.askConfirm('Make \u201c' + p.title + '\u201d live now, without opening or reviewing it?', { title: 'Publish this page?', ok: 'Publish' }))) { return; }
-            if (await attempt(backend().act(p.id, p.workingVersion.n, 'publish'))) { notice('Published \u201c' + p.title + '\u201d.'); route(); }
+            // No confirmation: this is a dev shortcut. A problem (for example a missing owner) is shown on the row.
+            var problem = nameCell.querySelector('.lib-row-error');
+            if (problem) { problem.remove(); }
+            try {
+              await backend().act(p.id, p.workingVersion.n, 'publish');
+            } catch (error) {
+              nameCell.appendChild(el('div', 'lib-row-error', 'Not published: ' + (error && error.message ? error.message : 'that did not work.')));
+              return;
+            }
+            notice('Published \u201c' + p.title + '\u201d.');
+            route();
           });
           publishButton.setAttribute('aria-label', 'Publish ' + p.title);
           deleteCell.appendChild(publishButton);
