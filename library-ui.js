@@ -1,7 +1,6 @@
 // The library screens and the router that moves between them and the editor.
 //
 //   #/                    the library: every page in the team, filters, search, the review queue
-//   #/page/<id>           one page: its status and its version history, with what each person can do
 //   (pop-up)              Team & roles, on the library page: who holds each role, add roles, move pages between roles
 //   #/batch               batch import: one file with several documents becomes several draft pages
 //   #/new                 the editor, on a blank page
@@ -65,6 +64,9 @@
 
   function backend() { return window.Store.backend; }
 
+  // The address of a page's live view, for opening in a new tab
+  function liveUrl(id) { return location.href.split('#')[0] + '#/public/' + id; }
+
   function personFor(title) {
     var role = team.roles.filter(function (r) { return r.title === title; })[0];
     return role ? role.person : '';
@@ -101,7 +103,8 @@
   }
 
   function visibilityPill(visibility) {
-    return el('span', 'pill ' + (visibility === 'Client-Safe' ? 'pill-public' : 'pill-internal'), visibility);
+    // "Internal-Only" is shortened to "Internal" so it stays on one line in the table
+    return el('span', 'pill ' + (visibility === 'Client-Safe' ? 'pill-public' : 'pill-internal'), visibility === 'Client-Safe' ? visibility : 'Internal');
   }
 
   // Runs an action and reports a problem in plain words instead of failing silently
@@ -323,7 +326,10 @@
       box.appendChild(el('h2', 'lib-queue-title', 'Deletion requests (' + requests.length + ')'));
       requests.forEach(function (p) {
         var row = el('div', 'lib-queue-row');
-        row.appendChild(link(p.title, '#/page/' + p.id, 'lib-queue-name'));
+        var requestLink = link(p.title, liveUrl(p.id), 'lib-queue-name');
+        requestLink.target = '_blank';
+        requestLink.rel = 'noopener';
+        row.appendChild(requestLink);
         row.appendChild(el('span', 'lib-queue-meta', p.deleteRequest.by + ' asked ' + formatDate(p.deleteRequest.at)));
         var decide = el('span', 'lib-queue-actions');
         decide.appendChild(button('Delete page', 'row-btn row-btn-danger', async function () { if (await confirmAndDelete(p)) { route(); } }));
@@ -418,7 +424,12 @@
     sortRows(shown).forEach(function (p) {
       var row = el('tr', 'lib-row');
       var nameCell = el('td');
-      nameCell.appendChild(link(p.title, '#/page/' + p.id, 'lib-page-link'));
+      // A live page opens its live version in a new tab; a page that is not live opens its latest version for reading
+      var titleLink = p.liveVersion
+        ? link(p.title, liveUrl(p.id), 'lib-page-link')
+        : link(p.title, '#/view/' + p.id + '/' + (p.workingVersion ? p.workingVersion.n : p.versionCount), 'lib-page-link');
+      if (p.liveVersion) { titleLink.target = '_blank'; titleLink.rel = 'noopener'; }
+      nameCell.appendChild(titleLink);
       nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.versionCount > 1 ? ' · ' + p.versionCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
       row.appendChild(nameCell);
       var statusCell = el('td');
@@ -479,6 +490,14 @@
           publishButton.setAttribute('aria-label', 'Publish ' + p.title);
           deleteCell.appendChild(publishButton);
         }
+        if (lead && p.liveVersion) {
+          var unpublishButton = button('Unpublish', 'row-btn', async function () {
+            if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }
+            if (await attempt(backend().unpublish(p.id))) { notice('Unpublished \u201c' + p.title + '\u201d.'); route(); }
+          });
+          unpublishButton.setAttribute('aria-label', 'Unpublish ' + p.title);
+          deleteCell.appendChild(unpublishButton);
+        }
         var rowButton;
         if (lead || !p.liveVersion) {
           rowButton = button('Delete', 'row-btn row-btn-danger', async function () { if (await confirmAndDelete(p)) { route(); } });
@@ -499,66 +518,21 @@
     box.appendChild(table);
   }
 
-  /* ---------- One page and its history ---------- */
-  async function showDetail(id) {
-    var mine = routing;
-    showScreen('library', false);
-    main.textContent = '';
+  /* ---------- Versions: a pop-up in the editor ---------- */
+  // Lists every version of a page with who wrote it and when, a Notes link where a version has notes, and the
+  // actions each person may use (Restore, View, and the review steps). Kept out of the editing area itself.
+  async function openVersionsDialog(id) {
     var data = await attempt(backend().get(id));
-    if (mine !== routing) { return; }
-    if (!data) { main.appendChild(link('Back to the library', '#/', 'secondary-link')); return; }
-    var page = data.page;
-
-    main.appendChild(link('← Library', '#/', 'back-link'));
-    var head = el('div', 'lib-head');
-    var titles = el('div');
-    var h1 = el('h1', 'lib-title', page.title);
-    titles.appendChild(h1);
-    var meta = el('p', 'lib-sub');
-    meta.appendChild(badge(STATE_LABELS[page.state]));
-    meta.appendChild(visibilityPill(page.visibility));
-    meta.appendChild(document.createTextNode(' Owner: ' + roleLabel(page.owner) + ' · ' + (page.location || '') + (page.deleteRequest ? ' · deletion requested by ' + page.deleteRequest.by : '')));
-    titles.appendChild(meta);
-    head.appendChild(titles);
-
-    var actions = el('div', 'lib-actions');
-    if (data.actions.indexOf('edit') >= 0) {
-      actions.appendChild(button(page.workingVersion ? 'Continue editing' : 'Edit this page', 'primary-btn', async function () {
-        var result = await attempt(backend().edit(id));
-        if (result) { location.hash = '#/edit/' + id + '/' + result.version; }
-      }));
+    if (!data) { return; }
+    var dialog = el('dialog', 'draft-dialog versions-dialog');
+    dialog.setAttribute('aria-label', 'Versions');
+    dialog.appendChild(el('h2', 'dialog-title', 'Versions of “' + data.page.title + '”'));
+    if (window.PageEditor.isDirty()) {
+      dialog.appendChild(el('p', 'dialog-hint is-error', 'You have unsaved changes. Save the draft first: opening or restoring another version leaves this one.'));
     }
-    if (page.liveVersion) {
-      actions.appendChild(link('Read the live version', '#/view/' + id + '/' + page.liveVersion, 'secondary-link'));
-    }
-    if (data.actions.indexOf('delete') >= 0) {
-      actions.appendChild(button('Delete page', 'danger-btn', async function () {
-        if (await confirmAndDelete(page)) { location.hash = '#/'; }
-      }));
-    }
-    if (data.actions.indexOf('request_delete') >= 0) {
-      actions.appendChild(button('Request deletion', 'danger-btn', async function () {
-        if (await confirmAndRequestDelete(page)) { showDetail(id); }
-      }));
-    }
-    if (data.actions.indexOf('cancel_delete_request') >= 0 || data.actions.indexOf('decline_delete') >= 0) {
-      actions.appendChild(button(data.actions.indexOf('decline_delete') >= 0 ? 'Keep this page (decline request)' : 'Cancel deletion request', 'secondary-link', async function () {
-        if (await cancelDeletionRequest(page)) { showDetail(id); }
-      }));
-    }
-    if (data.actions.indexOf('unpublish') >= 0) {
-      actions.appendChild(button('Unpublish', 'danger-btn', async function () {
-        if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }
-        if (await attempt(backend().unpublish(id))) { notice('Unpublished.'); showDetail(id); }
-      }));
-    }
-    head.appendChild(actions);
-    main.appendChild(head);
-
-    main.appendChild(el('h2', 'lib-h2', 'Version history'));
     var table = el('table', 'lib-table');
     var headRow = el('tr');
-    ['Version', 'Status', 'Written by', 'Last changed', 'Review', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
+    ['Version', 'Status', 'Written by', 'Last changed', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
     var thead = el('thead');
     thead.appendChild(headRow);
     table.appendChild(thead);
@@ -566,30 +540,70 @@
     data.history.forEach(function (v) {
       var row = el('tr', 'lib-row');
       var versionCell = el('td');
-      versionCell.appendChild(el('strong', '', 'v' + v.n));
-      if (v.note) { versionCell.appendChild(el('div', 'lib-row-sub', v.note)); }
+      versionCell.appendChild(el('strong', '', 'v' + v.n + (v.live ? ' (live)' : '')));
       row.appendChild(versionCell);
       var statusCell = el('td');
       statusCell.appendChild(badge(VERSION_LABELS[v.status]));
       row.appendChild(statusCell);
       row.appendChild(el('td', '', v.author || ''));
       row.appendChild(el('td', 'lib-date', formatDate(v.updatedAt)));
-      var reviewCell = el('td');
-      if (v.decidedBy) {
-        reviewCell.appendChild(el('div', '', (v.status === 'sent_back' ? 'Sent back by ' : v.status === 'unpublished' ? 'Unpublished by ' : v.directPublish ? 'Published by ' : 'Approved by ') + v.decidedBy + (v.directPublish ? ' (review skipped)' : '')));
-        reviewCell.appendChild(el('div', 'lib-row-sub', formatDate(v.decidedAt)));
-        if (v.decisionComment && !v.directPublish) { reviewCell.appendChild(el('div', 'lib-comment', '“' + v.decisionComment + '”')); }
-      } else if (v.submittedBy) {
-        reviewCell.appendChild(el('div', 'lib-row-sub', 'Submitted by ' + v.submittedBy));
-      }
-      row.appendChild(reviewCell);
       var actionCell = el('td', 'lib-row-actions');
+
+      // The notes for a version: how it was made, and what the reviewer said. Shown under the row on request.
+      var notes = [];
+      if (v.note) { notes.push(v.note); }
+      if (v.decidedBy) {
+        notes.push((v.status === 'sent_back' ? 'Sent back by ' : v.status === 'unpublished' ? 'Unpublished by ' : v.directPublish ? 'Published by ' : 'Approved by ') + v.decidedBy + (v.directPublish ? ' (review skipped)' : '') + ' on ' + formatDate(v.decidedAt) + '.');
+        if (v.decisionComment && !v.directPublish) { notes.push('“' + v.decisionComment + '”'); }
+      } else if (v.submittedBy) {
+        notes.push('Submitted for review by ' + v.submittedBy + '.');
+      }
+      var notesRow = null;
+      if (notes.length) {
+        var notesLink = el('button', 'link-btn', 'Notes');
+        notesLink.type = 'button';
+        notesLink.setAttribute('aria-expanded', 'false');
+        notesLink.addEventListener('click', function () {
+          var open = notesLink.getAttribute('aria-expanded') !== 'true';
+          notesLink.setAttribute('aria-expanded', String(open));
+          notesRow.hidden = !open;
+        });
+        actionCell.appendChild(notesLink);
+      }
       versionButtons(id, v).forEach(function (node) { actionCell.appendChild(node); });
+      // Anything that opens another version or changes the page closes this window
+      actionCell.addEventListener('click', function (event) {
+        if (event.target.closest('a, .row-btn')) { setTimeout(function () { dialog.close(); }, 0); }
+      });
       row.appendChild(actionCell);
       body.appendChild(row);
+      if (notes.length) {
+        notesRow = el('tr', 'versions-notes');
+        notesRow.hidden = true;
+        var notesCell = el('td');
+        notesCell.colSpan = 5;
+        notes.forEach(function (line) { notesCell.appendChild(el('p', 'lib-row-sub', line)); });
+        notesRow.appendChild(notesCell);
+        body.appendChild(notesRow);
+      }
     });
     table.appendChild(body);
-    main.appendChild(table);
+    dialog.appendChild(table);
+    var actions = el('div', 'dialog-actions');
+    actions.appendChild(button('Close', 'primary-btn', function () { dialog.close(); }));
+    dialog.appendChild(actions);
+    dialog.addEventListener('close', function () { dialog.remove(); });
+    window.addEventListener('hashchange', function closeOnNavigate() {
+      window.removeEventListener('hashchange', closeOnNavigate);
+      if (dialog.open) { dialog.close(); }
+    });
+    document.body.appendChild(dialog);
+    dialog.showModal();
+  }
+
+  // The "Versions" button shown in the banner above the editor
+  function versionsButton(id) {
+    return button('Versions', 'secondary-link', function () { openVersionsDialog(id); });
   }
 
   // The buttons offered for one version, only the ones this person may use
@@ -636,7 +650,7 @@
       notice(error && error.message ? error.message : 'That did not work.');
       return;
     }
-    if (/^#\/view\//.test(location.hash)) { location.hash = '#/page/' + id; } else { route(); }
+    if (/^#\/view\//.test(location.hash)) { location.hash = '#/'; } else { route(); }
   }
 
   async function runAction(id, n, action, doneMessage, body) {
@@ -644,7 +658,7 @@
     if (!result) { return false; }
     notice(doneMessage);
     // After deciding on a version you were reading, show the page's history (where the result is)
-    if (/^#\/view\//.test(location.hash)) { location.hash = '#/page/' + id; } else { route(); }
+    if (/^#\/view\//.test(location.hash)) { location.hash = '#/'; } else { route(); }
     return true;
   }
 
@@ -692,7 +706,7 @@
     showScreen('editor', false);
     window.PageEditor.load(data.text, false);
     window.PageEditor.setLabel(data.version.title || 'Untitled page');
-    current = { id: id, n: Number(n), backTo: '#/page/' + id };
+    current = { id: id, n: Number(n), backTo: '#/' };
     var lines = ['Editing version ' + n + ' (' + (VERSION_LABELS[data.version.status][0].toLowerCase()) + '). Saving keeps it as a draft; Submit for review sends it to the team lead.'];
     var detail = await attempt(backend().get(id));
     if (mine !== routing) { return; }
@@ -705,7 +719,11 @@
       lines.unshift('Sent back by ' + hist.decidedBy + ': “' + hist.decisionComment + '”');
       tone = 'warn';
     }
-    setBanner(editorBanner(lines, tone));
+    var editorBox = editorBanner(lines, tone);
+    var editorActions = el('div', 'banner-actions');
+    editorActions.appendChild(versionsButton(id));
+    editorBox.appendChild(editorActions);
+    setBanner(editorBox);
   }
 
   function openNewPage() {
@@ -721,12 +739,12 @@
     var mine = routing;
     var data = await attempt(backend().getVersion(id, n));
     if (mine !== routing) { return; }
-    if (!data) { location.hash = '#/page/' + id; return; }
+    if (!data) { location.hash = '#/'; return; }
     showScreen('editor', false);
     window.PageEditor.load(data.text, true);
     window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · version ' + n);
     window.PageEditor.setStatus(VERSION_LABELS[data.version.status][0], true);
-    current = { id: id, n: Number(n), backTo: '#/page/' + id };
+    current = { id: id, n: Number(n), backTo: '#/' };
 
     var detail = await attempt(backend().get(id));
     if (mine !== routing) { return; }
@@ -735,6 +753,7 @@
     box.appendChild(el('p', '', 'Reading version ' + n + ' — ' + describe(data.version.status) + '.'));
     if (hist && hist.decisionComment) { box.appendChild(el('p', '', 'Review note: “' + hist.decisionComment + '”')); }
     var row = el('div', 'banner-actions');
+    row.appendChild(versionsButton(id));
     versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
     if (row.childNodes.length) { box.appendChild(row); }
     setBanner(box);
@@ -787,29 +806,18 @@
       row.appendChild(el('td', '', String(count)));
       var actions = el('td', 'team-actions');
 
-      // c) Transfer: choose another team member and all of this role's pages go to them
-      var transfer = el('select', 'acting-select transfer-select');
-      transfer.setAttribute('aria-label', 'Transfer pages of ' + role.title + ' to');
-      var prompt = el('option', '', 'Transfer pages to…');
-      prompt.value = '';
-      transfer.appendChild(prompt);
-      team.roles.filter(function (other) { return other.title !== role.title; }).forEach(function (other) {
-        var option = el('option', '', other.person + ' — ' + other.title);
-        option.value = other.title;
-        transfer.appendChild(option);
-      });
-      transfer.disabled = !count;
-      transfer.title = count ? '' : 'This role has no pages to transfer.';
-      transfer.addEventListener('change', async function () {
-        var target = transfer.value;
+      // c) Transfer: a button that opens a small window to choose another team member
+      var transfer = button('Transfer pages', 'row-btn', async function () {
+        var target = await askTransferTarget(role, count);
         if (!target) { return; }
-        var question = 'Move all ' + count + (count === 1 ? ' page' : ' pages') + ' from \u201c' + role.title + '\u201d to \u201c' + target + '\u201d?';
-        if (!(await window.askConfirm(question, { title: 'Transfer these pages?', ok: 'Transfer' }))) { transfer.value = ''; return; }
         var result = await attempt(backend().reassign(role.title, target, null));
-        if (!result) { transfer.value = ''; return; }
+        if (!result) { return; }
         notice('Transferred ' + result.moved + (result.moved === 1 ? ' page' : ' pages') + ' to ' + target + '.');
         showTeam(box, dialog);
       });
+      transfer.disabled = !count;
+      transfer.title = count ? '' : 'This role has no pages to transfer.';
+      transfer.setAttribute('aria-label', 'Transfer pages of ' + role.title);
       actions.appendChild(transfer);
 
       // d) Remove: only when the role no longer has any pages (and never the team lead)
@@ -856,6 +864,40 @@
     var done = el('div', 'dialog-actions');
     done.appendChild(button('Done', 'primary-btn', function () { dialog.close(); }));
     box.appendChild(done);
+  }
+
+  // A small window: choose which team member receives all of a role's pages. Resolves to their role, or null.
+  function askTransferTarget(role, count) {
+    return new Promise(function (resolve) {
+      var dialog = el('dialog', 'draft-dialog transfer-dialog');
+      dialog.setAttribute('aria-label', 'Transfer pages');
+      dialog.appendChild(el('h2', 'dialog-title', 'Transfer pages'));
+      dialog.appendChild(el('p', 'dialog-hint', 'Move all ' + count + (count === 1 ? ' page' : ' pages') + ' owned by ' + role.person + ' (' + role.title + ') to:'));
+      var select = el('select', 'acting-select');
+      select.setAttribute('aria-label', 'Transfer pages to');
+      var prompt = el('option', '', 'Choose a team member…');
+      prompt.value = '';
+      select.appendChild(prompt);
+      team.roles.filter(function (other) { return other.title !== role.title; }).forEach(function (other) {
+        var option = el('option', '', other.person + ' — ' + other.title);
+        option.value = other.title;
+        select.appendChild(option);
+      });
+      dialog.appendChild(select);
+      var actions = el('div', 'dialog-actions');
+      var cancel = button('Cancel', 'secondary-link', function () { dialog.close(); });
+      var go = button('Transfer', 'primary-btn', function () { answer = select.value; dialog.close(); });
+      go.disabled = true;
+      select.addEventListener('change', function () { go.disabled = !select.value; });
+      actions.appendChild(cancel);
+      actions.appendChild(go);
+      dialog.appendChild(actions);
+      var answer = null;
+      dialog.addEventListener('close', function () { dialog.remove(); resolve(answer); });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+      select.focus();
+    });
   }
 
   // The "Team & roles" pop-up on the library page. Closing it redraws the library, since owners may have changed.
@@ -1121,7 +1163,7 @@
     save: async function (text) {
       if (current.id === null) {
         var created = await backend().create(text);
-        current = { id: created.page.id, n: created.version, backTo: '#/page/' + created.page.id };
+        current = { id: created.page.id, n: created.version, backTo: '#/' };
         history.replaceState(null, '', '#/edit/' + current.id + '/' + current.n);   // no reload of the editor
       } else {
         await backend().save(current.id, current.n, text);
@@ -1134,7 +1176,7 @@
       await backend().act(current.id, current.n, 'submit');
       var id = current.id;
       notice('Submitted for review. ' + team.lead + ' (' + personFor(team.lead) + ') can approve it or send it back.');
-      location.hash = '#/page/' + id;
+      location.hash = '#/';
       return 'Submitted for review.';
     },
     canPublish: function () { return !!team && W.canPublishDirectly(actor(), team); },
@@ -1145,7 +1187,7 @@
       var id = current.id;
       var message = await publishAndDownload(id, current.n, text, window.PageEditor.title());
       notice(message);
-      location.hash = '#/page/' + id;
+      location.hash = '#/';
       return message;
     },
     leave: async function () {
@@ -1161,8 +1203,7 @@
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
     setBanner(null);
-    if (screen === 'page' && parts[1]) { await showDetail(parts[1]); }
-    else if (screen === 'new') { openNewPage(); }
+    if (screen === 'new') { openNewPage(); }
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1]); }

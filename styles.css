@@ -1669,3 +1669,7 @@
 .lib-row-error { margin-top: 4px; color: var(--danger); font-size: 12px; font-weight: 600; }
 .owner-select { max-width: 220px; }
 .team-actions .transfer-select { max-width: 190px; }
+.versions-dialog { width: min(820px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.versions-dialog .lib-row-actions { white-space: normal; }
+.versions-notes td { background: var(--surface-alt, rgba(127, 127, 127, 0.08)); }
+.versions-notes .lib-row-sub { margin: 2px 0; }

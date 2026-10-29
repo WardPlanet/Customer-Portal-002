@@ -287,7 +287,6 @@ is also one file in the artifact build.
 | Route | Screen |
 | --- | --- |
 | `#/` | Library: list, status filter, search of live pages, and (for the lead) a "Needs your review" box |
-| `#/page/<id>` | One page: status, owner, and the **version history** with the buttons each person may use |
 | `#/new`, `#/edit/<id>/<n>` | The editor (blank, or on a version that can still be edited) |
 | `#/view/<id>/<n>` | The editor locked, for reading a version. The lead sees Approve / Send back here |
 | `#/public`, `#/public/<id>` | **Public preview**: only live, Client-Safe pages, with nothing about owners or reviewers |
@@ -367,9 +366,17 @@ moves that one page (its live and in-progress versions) to it at once; linked ro
 **Transfer pages to…** drop-down lists the other team members; choosing one (after a confirmation) moves all of that role's
 pages to them.
 
+**Library page titles, versions and the old page screen.** Clicking a live page's title opens its live version in a new
+tab (a reader view); a page that is not live opens its latest version for reading in the same tab. The separate
+page screen with the version table is gone (`#/page/<id>` now shows the library). Version information is a **Versions**
+button in the editor's banner: it opens a pop-up listing every version (who, when, status), with a **Notes** link
+where a version has notes (how it was made, the reviewer's comment) and the actions each person may use (View, Restore,
+and the review steps). The lead's **Unpublish** button moved to the library rows. "Internal-Only" is shown as "Internal"
+in pills so it does not wrap. In Team & roles, **Transfer pages** opens a small window to pick the receiving person.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
-button on the page's own screen.
+button the page used to have.
 
 **Publish button in the library (testing shortcut).** The team lead's library rows have a **Publish** button on any page
 with a draft, sent-back or in-review version: it publishes that version at once, with no confirmation and without review (the same rules as
