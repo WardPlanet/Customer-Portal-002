@@ -64,6 +64,7 @@
     // Team lead only: who holds each role, how many pages use each, and changes to both
     getRoster: function () { return this.call('GET', '/api/library/roster'); },
     saveRoster: function (roles) { return this.call('PUT', '/api/library/roster', { roles: roles }); },
+    setOwner: function (id, owner) { return this.call('POST', '/api/library/pages/' + id + '/owner', { owner: owner }); },
     reassign: function (from, to, ids) { return this.call('POST', '/api/library/reassign', { from: from, to: to, ids: ids }); },
     isMemoryOnly: function () { return false; },
     exportBackup: function () { return this.call('GET', '/api/library/backup'); },
@@ -243,6 +244,14 @@
         team.roles = clean;
         try { localStorage.setItem(ROSTER_KEY, JSON.stringify(clean)); } catch (error) { /* kept for this visit only */ }
         return { roles: clean, usage: usage };
+      },
+      setOwner: async function (id, owner) {
+        var who = actor();
+        var data = readAll();
+        var page = find(data, id);
+        guard(function () { W.setOwner(page, owner, who, team, now()); });
+        writeAll(data);
+        return detail(page, who);
       },
       reassign: async function (from, to, ids) {
         var who = actor();

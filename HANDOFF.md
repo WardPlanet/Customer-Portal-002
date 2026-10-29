@@ -327,7 +327,7 @@ draws a normal dialog in the page. Use that for any new confirmation, never `con
 **Team & roles (team lead only).** The library's **Team & roles** button opens a pop-up on the library page that:
 - lists each person, their role, contact email and how many pages the role has (every role needs an email);
 - **adds a person and role** (a new hire);
-- **transfers a role's pages** to another person/role (all of them: owner and linked role, on the live and in-progress
+- **transfers a role's pages** to another person/role, chosen from a drop-down on the row (all of them: owner and linked role, on the live and in-progress
   versions, in place; older versions are untouched and no new review is needed);
 - **removes a person and role** only when the role has no pages (never the team lead).
 To replace someone who leaves: add the new person and role, transfer the old role's pages, remove the old role.
@@ -361,6 +361,11 @@ file becomes its own document, so nothing is scanned or split, and it goes strai
 scanned for several documents. Reading, scanning and creating show a loading bar, and each document gets a green check
 when it is done. If the person importing is not the team lead, every draft is owned by their own role and the owner
 menus are not shown.
+
+**Changing one page's owner.** In the library the team lead's Owner column is a drop-down on every row: picking another role
+moves that one page (its live and in-progress versions) to it at once; linked roles stay. In Team & roles, each row's
+**Transfer pages to…** drop-down lists the other team members; choosing one (after a confirmation) moves all of that role's
+pages to them.
 
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
@@ -412,7 +417,10 @@ role holder. Not built yet; today the Team & roles pop-up accepts any typed name
 - the signed-in account decides who is acting, replacing "Acting as" (map the account to the role it holds; an
   account with no role can read pages but not edit them, or is refused, as decided then);
 - the team lead's add/remove actions (`PUT /api/library/roster`) must check the account exists in Azure before saving;
-- keep the existing rules: each role holds one person, and a role with pages cannot be removed.
+- keep the existing rules: each role holds one person, and a role with pages cannot be removed;
+- **invitations:** adding an Azure account to a team sends it an invitation. Until that account accepts, it cannot receive
+  transferred documents (Transfer pages, and changing a page's owner, must refuse a role whose person has not accepted).
+  Show such people as "invited" in the Team & roles list.
 
 **Where pages live.** On the server: `drafts/<team>/pages/<id>/page.json` (the page and the facts about each
 version) plus `v1.txt`, `v2.txt` ... (each version's text in the draft format). In the artifact: this

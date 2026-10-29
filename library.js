@@ -194,6 +194,14 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json({ moved: moved });
   }));
 
+  // Team lead only: changes the owner role of one page
+  app.post('/api/library/pages/:id/owner', staff(async function (req, res, ctx) {
+    var page = await open(req, ctx);
+    Workflow.setOwner(page, req.body && req.body.owner, ctx.actor, ctx.team, ctx.now);
+    await savePage(draftsDir, ctx.team, page);
+    res.json(detail(page, ctx));
+  }));
+
   // Every page with all of its versions, as one file the screen offers for download
   app.get('/api/library/backup', staff(async function (req, res, ctx) {
     res.json(Workflow.makeBackup(ctx.team, await loadAllPages(draftsDir, ctx.team), ctx.now));

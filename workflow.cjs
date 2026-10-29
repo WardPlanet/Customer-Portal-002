@@ -561,6 +561,17 @@
     }).filter(function (line) { return line !== null; }).join('\n');
   }
 
+  // Sets the OWNER ROLE section of a version's text (adds the section when the page has none)
+  function setOwnerInText(text, to) {
+    var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+    var start = lines.indexOf('[OWNER ROLE]');
+    if (start < 0) { return lines.join('\n').replace(/\s*$/, '\n') + '\n[OWNER ROLE]\n' + to + '\n'; }
+    var end = start + 1;
+    while (end < lines.length && !/^\[[A-Z0-9 ]+\]$/.test(lines[end])) { end += 1; }
+    lines.splice(start + 1, end - start - 1, to, '');
+    return lines.join('\n');
+  }
+
   function usesRole(version, role) {
     var f = fields(version.text);
     return f.owner === role || f.linkedRoles.indexOf(role) >= 0;
@@ -595,6 +606,23 @@
     currentVersions(page).forEach(function (version) {
       if (!usesRole(version, from)) { return; }
       version.text = replaceRoleInText(version.text, from, to);
+      copyFields(version);
+      version.updatedAt = now;
+      version.updatedBy = actor.name;
+      changed = true;
+    });
+    if (changed) { page.updatedAt = now; }
+    return changed;
+  }
+
+  // Changes the owner of one page (team lead only), on its live and in-progress versions. Linked roles stay as they are.
+  function setOwner(page, to, actor, team, now) {
+    requireLead(actor, team, 'change a page\'s owner');
+    if (team.roles.every(function (role) { return role.title !== to; })) { throw new WorkflowError('bad_role', 'Choose a role on the team.', 400); }
+    var changed = false;
+    currentVersions(page).forEach(function (version) {
+      if (fields(version.text).owner === to) { return; }
+      version.text = setOwnerInText(version.text, to);
       copyFields(version);
       version.updatedAt = now;
       version.updatedBy = actor.name;
@@ -767,6 +795,8 @@
     publicText: publicText,
     roleUsage: roleUsage,
     reassignRole: reassignRole,
+    setOwner: setOwner,
+    setOwnerInText: setOwnerInText,
     checkReassignRoles: checkReassignRoles,
     checkRoster: checkRoster,
     requireLeadFor: requireLead,

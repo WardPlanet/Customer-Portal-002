@@ -424,7 +424,28 @@
       var statusCell = el('td');
       statusCell.appendChild(badge(STATE_LABELS[p.state]));
       row.appendChild(statusCell);
-      row.appendChild(el('td', '', roleLabel(p.owner)));
+      var ownerCell = el('td');
+      if (actorIsLead()) {
+        // The team lead can give any page to another role right here. Linked roles stay as they are.
+        var ownerSelect = el('select', 'acting-select owner-select');
+        ownerSelect.setAttribute('aria-label', 'Owner of ' + p.title);
+        if (!p.owner) { var noOwner = el('option', '', 'No owner'); noOwner.value = ''; ownerSelect.appendChild(noOwner); }
+        team.roles.forEach(function (role) {
+          var option = el('option', '', role.title + ' — ' + (role.person || 'unassigned'));
+          option.value = role.title;
+          ownerSelect.appendChild(option);
+        });
+        ownerSelect.value = p.owner || '';
+        ownerSelect.addEventListener('change', async function () {
+          if (!ownerSelect.value) { ownerSelect.value = p.owner || ''; return; }
+          if (await attempt(backend().setOwner(p.id, ownerSelect.value))) { notice('\u201c' + p.title + '\u201d is now owned by ' + roleLabel(ownerSelect.value) + '.'); route(); }
+          else { ownerSelect.value = p.owner || ''; }
+        });
+        ownerCell.appendChild(ownerSelect);
+      } else {
+        ownerCell.textContent = roleLabel(p.owner);
+      }
+      row.appendChild(ownerCell);
       var visCell = el('td');
       visCell.appendChild(visibilityPill(p.visibility));
       row.appendChild(visCell);
@@ -766,29 +787,29 @@
       row.appendChild(el('td', '', String(count)));
       var actions = el('td', 'team-actions');
 
-      // c) Transfer: all of this role's pages go to another role
-      var transfer = button('Transfer pages', 'row-btn', function () {
-        actions.textContent = '';
-        var target = el('select', 'acting-select');
-        target.setAttribute('aria-label', 'Transfer ' + role.title + ' pages to');
-        team.roles.filter(function (other) { return other.title !== role.title; }).forEach(function (other) {
-          var option = el('option', '', other.person + ' — ' + other.title);
-          option.value = other.title;
-          target.appendChild(option);
-        });
-        actions.appendChild(target);
-        actions.appendChild(button('Transfer', 'row-btn', async function () {
-          var question = 'Move all ' + count + (count === 1 ? ' page' : ' pages') + ' from “' + role.title + '” to “' + target.value + '”?';
-          if (!(await window.askConfirm(question, { title: 'Transfer these pages?', ok: 'Transfer' }))) { return; }
-          var result = await attempt(backend().reassign(role.title, target.value, null));
-          if (!result) { return; }
-          notice('Transferred ' + result.moved + (result.moved === 1 ? ' page' : ' pages') + ' to ' + target.value + '.');
-          showTeam(box, dialog);
-        }));
-        actions.appendChild(button('Cancel', 'row-btn', function () { showTeam(box, dialog); }));
+      // c) Transfer: choose another team member and all of this role's pages go to them
+      var transfer = el('select', 'acting-select transfer-select');
+      transfer.setAttribute('aria-label', 'Transfer pages of ' + role.title + ' to');
+      var prompt = el('option', '', 'Transfer pages to…');
+      prompt.value = '';
+      transfer.appendChild(prompt);
+      team.roles.filter(function (other) { return other.title !== role.title; }).forEach(function (other) {
+        var option = el('option', '', other.person + ' — ' + other.title);
+        option.value = other.title;
+        transfer.appendChild(option);
       });
       transfer.disabled = !count;
-      transfer.setAttribute('aria-label', 'Transfer pages of ' + role.title);
+      transfer.title = count ? '' : 'This role has no pages to transfer.';
+      transfer.addEventListener('change', async function () {
+        var target = transfer.value;
+        if (!target) { return; }
+        var question = 'Move all ' + count + (count === 1 ? ' page' : ' pages') + ' from \u201c' + role.title + '\u201d to \u201c' + target + '\u201d?';
+        if (!(await window.askConfirm(question, { title: 'Transfer these pages?', ok: 'Transfer' }))) { transfer.value = ''; return; }
+        var result = await attempt(backend().reassign(role.title, target, null));
+        if (!result) { transfer.value = ''; return; }
+        notice('Transferred ' + result.moved + (result.moved === 1 ? ' page' : ' pages') + ' to ' + target + '.');
+        showTeam(box, dialog);
+      });
       actions.appendChild(transfer);
 
       // d) Remove: only when the role no longer has any pages (and never the team lead)

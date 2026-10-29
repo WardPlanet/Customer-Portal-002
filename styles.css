@@ -1667,3 +1667,5 @@
 @media (prefers-reduced-motion: reduce) { .bar-track.is-busy .bar-fill, .mini-bar::after { animation: none; left: 0; } }
 .batch-field[hidden] { display: none; }
 .lib-row-error { margin-top: 4px; color: var(--danger); font-size: 12px; font-weight: 600; }
+.owner-select { max-width: 220px; }
+.team-actions .transfer-select { max-width: 190px; }

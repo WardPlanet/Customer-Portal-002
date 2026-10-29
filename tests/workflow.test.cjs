@@ -374,3 +374,15 @@ test('a deletion request on a live page: owner asks, owner or lead can cancel, o
   const draft = W.createPage(team, draftText('Drafty'), scott, t(1));
   assert.throws(() => W.requestDelete(draft, scott, team, t(4)), /not live/);
 });
+
+test('the lead can change the owner of one page; linked roles stay; others cannot', () => {
+  const bigTeam = Object.assign({}, team, { roles: team.roles.concat([{ title: 'Web Designer', person: 'Molly' }]) });
+  const text = draftText('Refunds') + '\n[LINKED ROLES]\nWebsite Editor\n';
+  const page = W.createPage(bigTeam, text, scott, t(1));
+  assert.throws(() => W.setOwner(page, 'Web Designer', scott, bigTeam, t(2)), /Only the team lead/);
+  assert.throws(() => W.setOwner(page, 'Nobody', micah, bigTeam, t(2)), /Choose a role/);
+  assert.equal(W.setOwner(page, 'Web Designer', micah, bigTeam, t(2)), true);
+  assert.equal(page.versions[0].owner, 'Web Designer');
+  assert.deepEqual(W.summary(page).linkedRoles, ['Website Editor']);
+  assert.equal(W.setOwner(page, 'Web Designer', micah, bigTeam, t(3)), false);
+});
