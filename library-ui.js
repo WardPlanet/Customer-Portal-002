@@ -2,7 +2,7 @@
 //
 //   #/                    the library: every page in the team, filters, search, the review queue
 //   #/page/<id>           one page: its status and its version history, with what each person can do
-//   #/team                the team lead's screen: who holds each role, add roles, move pages between roles
+//   (pop-up)              Team & roles, on the library page: who holds each role, add roles, move pages between roles
 //   #/batch               batch import: one file with several documents becomes several draft pages
 //   #/new                 the editor, on a blank page
 //   #/edit/<id>/<n>       the editor, on a version that can still be changed
@@ -169,7 +169,7 @@
     head.appendChild(titles);
     var headActions = el('div', 'lib-actions');
     headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
-    if (actorIsLead()) { headActions.appendChild(link('Team & roles', '#/team', 'secondary-link')); }
+    if (actorIsLead()) { headActions.appendChild(button('Team & roles', 'secondary-link', openTeamDialog)); }
     headActions.appendChild(button('Download backup', 'secondary-link', downloadBackup));
     headActions.appendChild(button('Restore from backup', 'secondary-link', function () { restoreInput.click(); }));
     headActions.appendChild(link('New page', '#/new', 'primary-link'));
@@ -610,26 +610,21 @@
   function describe(status) { return W.describeStatus(status); }
 
   /* ---------- The team lead's screen: people, roles and moving pages between roles ---------- */
-  async function showTeam() {
-    var mine = routing;
-    showScreen('library', false);
-    main.textContent = '';
-    var head = el('div', 'lib-head');
-    var titles = el('div');
-    titles.appendChild(link('← Library', '#/', 'back-link'));
-    titles.appendChild(el('h1', 'lib-title', 'Team & roles'));
-    titles.appendChild(el('p', 'lib-sub', 'Pages belong to a role, not a person. When someone leaves, put the new person next to their role and every page for that role follows. Nothing on the pages needs editing.'));
-    head.appendChild(titles);
-    main.appendChild(head);
+  // Draws the team screen into the pop-up's body. Called again after each change.
+  async function showTeam(box, dialog) {
+    box.textContent = '';
+    var titles = el('div', 'team-head');
+    titles.appendChild(el('h2', 'dialog-title', 'Team & roles'));
+    titles.appendChild(el('p', 'dialog-hint', 'Pages belong to a role, not a person. When someone leaves, put the new person next to their role and every page for that role follows. Nothing on the pages needs editing.'));
+    box.appendChild(titles);
 
     if (!actorIsLead()) {
-      main.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
+      box.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
       return;
     }
     var info = await attempt(backend().getRoster());
     var pages = await attempt(backend().list(''));
-    if (mine !== routing) { return; }
-    if (!info || !pages) { main.appendChild(el('p', 'lib-empty', 'The team could not be loaded.')); return; }
+    if (!info || !pages) { box.appendChild(el('p', 'lib-empty', 'The team could not be loaded.')); return; }
 
     var inputs = {};   // role title -> the person's text box
 
@@ -645,7 +640,7 @@
       else if (!team.roles.some(function (r) { return r.person === window.Store.getActor(); })) { window.Store.setActor(leadNow); }
       mountActing();
       notice(doneMessage);
-      showTeam();
+      showTeam(box, dialog);
       return true;
     }
 
@@ -714,7 +709,7 @@
       await save(typedRoles().concat([{ title: roleInput.value.trim(), person: personInput.value.trim() }]), 'Added the role “' + roleInput.value.trim() + '”.');
     }));
     people.appendChild(add);
-    main.appendChild(people);
+    box.appendChild(people);
 
     /* ----- Moving pages from one role to another ----- */
     var move = el('section', 'batch-card');
@@ -751,7 +746,7 @@
       var result = await attempt(backend().reassign(fromSelect.value, toSelect.value, chosen));
       if (!result) { return; }
       notice('Moved ' + result.moved + (result.moved === 1 ? ' page' : ' pages') + ' to ' + toSelect.value + '.');
-      showTeam();
+      showTeam(box, dialog);
     });
 
     function drawPages() {
@@ -776,8 +771,24 @@
     toSelect.addEventListener('change', drawPages);
     drawPages();
     move.appendChild(moveButton);
-    main.appendChild(move);
+    box.appendChild(move);
+    var actions = el('div', 'dialog-actions');
+    actions.appendChild(button('Done', 'primary-btn', function () { dialog.close(); }));
+    box.appendChild(actions);
   }
+
+  // The "Team & roles" pop-up on the library page. Closing it redraws the library, since owners may have changed.
+  function openTeamDialog() {
+    var dialog = el('dialog', 'draft-dialog team-dialog');
+    dialog.setAttribute('aria-label', 'Team and roles');
+    var box = el('div');
+    dialog.appendChild(box);
+    dialog.addEventListener('close', function () { dialog.remove(); route(); });
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    showTeam(box, dialog);
+  }
+
 
   /* ---------- The public preview ---------- */
   async function showPublic() {
@@ -991,7 +1002,6 @@
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1]); }
     else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend }); }
     else if (screen === 'public') { await showPublic(); }
-    else if (screen === 'team') { await showTeam(); }
     else { await showLibrary(); }
   }
 

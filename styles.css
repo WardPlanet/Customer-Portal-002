@@ -1612,3 +1612,7 @@
 .team-pages { margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
 .team-page { display: block; }
 .batch-settings .lib-search { margin: 0 8px 8px 0; max-width: 260px; }
+.team-dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.team-dialog .batch-card { margin-top: 14px; }
+.team-dialog .batch-card > .primary-btn { margin-top: 12px; }
+.team-dialog .batch-settings { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }

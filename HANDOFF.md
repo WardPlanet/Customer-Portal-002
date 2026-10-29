@@ -324,7 +324,7 @@ a sandboxed frame, so the browser ignores them and answers "no"), which made but
 nothing. Every "are you sure?" now goes through `window.askConfirm(message, { title, ok })` in `app.js`, which
 draws a normal dialog in the page. Use that for any new confirmation, never `confirm()`.
 
-**Team & roles (team lead only).** The library's **Team & roles** button opens a screen where the lead:
+**Team & roles (team lead only).** The library's **Team & roles** button opens a pop-up on the library page where the lead:
 - **changes who holds a role** (someone leaves: type the replacement's name next to the role and save). Pages name
   roles, so every page follows with no edits;
 - **adds a role and its person** (a new hire), or **removes a role** nobody uses (the lead role cannot be removed, and
