@@ -64,8 +64,8 @@
 
   function backend() { return window.Store.backend; }
 
-  // The address of a page's preview (what a reader sees), for opening in a new tab
-  function previewUrl(id) { return location.href.split('#')[0] + '#/preview/' + id; }
+  // The address of a page's preview (what a reader sees)
+  function previewUrl(id) { return '#/preview/' + id; }
 
   function personFor(title) {
     var role = team.roles.filter(function (r) { return r.title === title; })[0];
@@ -326,10 +326,7 @@
       box.appendChild(el('h2', 'lib-queue-title', 'Deletion requests (' + requests.length + ')'));
       requests.forEach(function (p) {
         var row = el('div', 'lib-queue-row');
-        var requestLink = link(p.title, previewUrl(p.id), 'lib-queue-name');
-        requestLink.target = '_blank';
-        requestLink.rel = 'noopener';
-        row.appendChild(requestLink);
+        row.appendChild(link(p.title, previewUrl(p.id), 'lib-queue-name'));
         row.appendChild(el('span', 'lib-queue-meta', p.deleteRequest.by + ' asked ' + formatDate(p.deleteRequest.at)));
         var decide = el('span', 'lib-queue-actions');
         decide.appendChild(button('Delete page', 'row-btn row-btn-danger', async function () { if (await confirmAndDelete(p)) { route(); } }));
@@ -424,10 +421,8 @@
     sortRows(shown).forEach(function (p) {
       var row = el('tr', 'lib-row');
       var nameCell = el('td');
-      // The title opens the public preview of the page in a new tab (its live version, or its latest if it is not live yet)
+      // The title opens the public preview of the page (its live version, or its latest if it is not live yet)
       var titleLink = link(p.title, previewUrl(p.id), 'lib-page-link');
-      titleLink.target = '_blank';
-      titleLink.rel = 'noopener';
       nameCell.appendChild(titleLink);
       nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
       row.appendChild(nameCell);
@@ -1118,8 +1113,9 @@
     if (mine !== routing) { return; }
     showScreen('library', true);
     main.textContent = '';
+    // The same "← Library" link as at the top of Batch import
+    main.appendChild(link(fromLibrary ? '← Library' : '← Back to search', fromLibrary ? '#/' : '#/public', 'back-link'));
     var bar = el('div', 'preview-bar');
-    bar.appendChild(link(fromLibrary ? '← Library' : '← Back to search', fromLibrary ? '#/' : '#/public', 'lib-page-link'));
     bar.appendChild(visibilityPill(detail.page.visibility));
     if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet')); }
     main.appendChild(bar);
