@@ -1795,6 +1795,12 @@
         }
       };
     }
+    // Only exists when the page runs as a Claude artifact
+    function getDownloads() {
+      if (!window.claude || typeof window.claude.use !== 'function') { return Promise.resolve(null); }
+      return window.claude.use('downloads').catch(function () { return null; });
+    }
+
     function getSample() {
       if (!aiStatusCheck) {
         aiStatusCheck = fetch('/api/ai/status')
@@ -2939,6 +2945,7 @@
           showNotice('PDF not saved.');
         } else {
           // The library could not run here: use the browser's print window instead
+          console.error('PDF export failed, falling back to print:', error);
           showNotice('In the print window, choose Save as PDF as the destination.');
           buildPrintView();
           window.print();
