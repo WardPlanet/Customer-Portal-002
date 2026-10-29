@@ -1616,3 +1616,8 @@
 .team-dialog .batch-card { margin-top: 14px; }
 .team-dialog .batch-card > .primary-btn { margin-top: 12px; }
 .team-dialog .batch-settings { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.team-dialog .lib-table { margin-top: 12px; }
+.team-actions { white-space: nowrap; }
+.team-actions .row-btn, .team-actions select { margin-right: 6px; }
+.team-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.team-add .lib-search { flex: 1 1 180px; max-width: 260px; margin: 0; }

@@ -324,18 +324,16 @@ a sandboxed frame, so the browser ignores them and answers "no"), which made but
 nothing. Every "are you sure?" now goes through `window.askConfirm(message, { title, ok })` in `app.js`, which
 draws a normal dialog in the page. Use that for any new confirmation, never `confirm()`.
 
-**Team & roles (team lead only).** The library's **Team & roles** button opens a pop-up on the library page where the lead:
-- **changes who holds a role** (someone leaves: type the replacement's name next to the role and save). Pages name
-  roles, so every page follows with no edits;
-- **adds a role and its person** (a new hire), or **removes a role** nobody uses (the lead role cannot be removed, and
-  each person holds one role for now);
-- **moves pages from one role to another** (when a role itself goes away or splits): pick From and To, untick any
-  page to leave it, confirm. It rewrites OWNER ROLE (and a LINKED ROLE) on each page's live and in-progress versions
-  in place; older versions are untouched and no new review is needed.
+**Team & roles (team lead only).** The library's **Team & roles** button opens a pop-up on the library page that:
+- lists each person, their role and how many pages the role has;
+- **adds a person and role** (a new hire);
+- **transfers a role's pages** to another person/role (all of them: owner and linked role, on the live and in-progress
+  versions, in place; older versions are untouched and no new review is needed);
+- **removes a person and role** only when the role has no pages (never the team lead).
+To replace someone who leaves: add the new person and role, transfer the old role's pages, remove the old role.
 On the server these write `teams/legwork-web-team.json` (`PUT /api/library/roster`, `POST /api/library/reassign`, lead
 only). In the artifact the changes are kept in the browser (key `pageEditor.roster.v1`) and replace the roster built
-into the page; they are not part of the backup file. If the lead changes who holds their own role, the "Acting as"
-choice moves to the new person.
+into the page; they are not part of the backup file.
 
 **Deleting a page.** The team lead has a **Delete page** button on a page's screen. It names the page, says how many
 versions go and whether it is live (it then leaves the library, search and the public site at once), and asks
