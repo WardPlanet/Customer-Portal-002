@@ -324,6 +324,19 @@ a sandboxed frame, so the browser ignores them and answers "no"), which made but
 nothing. Every "are you sure?" now goes through `window.askConfirm(message, { title, ok })` in `app.js`, which
 draws a normal dialog in the page. Use that for any new confirmation, never `confirm()`.
 
+**Team & roles (team lead only).** The library's **Team & roles** button opens a screen where the lead:
+- **changes who holds a role** (someone leaves: type the replacement's name next to the role and save). Pages name
+  roles, so every page follows with no edits;
+- **adds a role and its person** (a new hire), or **removes a role** nobody uses (the lead role cannot be removed, and
+  each person holds one role for now);
+- **moves pages from one role to another** (when a role itself goes away or splits): pick From and To, untick any
+  page to leave it, confirm. It rewrites OWNER ROLE (and a LINKED ROLE) on each page's live and in-progress versions
+  in place; older versions are untouched and no new review is needed.
+On the server these write `teams/legwork-web-team.json` (`PUT /api/library/roster`, `POST /api/library/reassign`, lead
+only). In the artifact the changes are kept in the browser (key `pageEditor.roster.v1`) and replace the roster built
+into the page; they are not part of the backup file. If the lead changes who holds their own role, the "Acting as"
+choice moves to the new person.
+
 **Deleting a page.** The team lead has a **Delete page** button on a page's screen. It names the page, says how many
 versions go and whether it is live (it then leaves the library, search and the public site at once), and asks
 first. It removes the page and every version, on the server (the page's folder) or from the browser's storage.

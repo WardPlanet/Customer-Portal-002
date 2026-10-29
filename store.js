@@ -16,6 +16,7 @@
   var ACTOR_KEY = 'pageEditor.actingAs.v2';
   var DEFAULT_ACTOR = 'Micah';
   var PAGES_KEY = 'pageEditor.library.v1';
+  var ROSTER_KEY = 'pageEditor.roster.v1';   // the artifact keeps changes to the team here
 
   function fail(code, message) {
     var error = new Error(message);
@@ -57,6 +58,10 @@
     act: function (id, n, action, body) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/' + action, body || {}); },
     unpublish: function (id) { return this.call('POST', '/api/library/pages/' + id + '/unpublish'); },
     remove: function (id) { return this.call('DELETE', '/api/library/pages/' + id); },
+    // Team lead only: who holds each role, how many pages use each, and changes to both
+    getRoster: function () { return this.call('GET', '/api/library/roster'); },
+    saveRoster: function (roles) { return this.call('PUT', '/api/library/roster', { roles: roles }); },
+    reassign: function (from, to, ids) { return this.call('POST', '/api/library/reassign', { from: from, to: to, ids: ids }); },
     isMemoryOnly: function () { return false; },
     exportBackup: function () { return this.call('GET', '/api/library/backup'); },
     restoreBackup: function (data) { return this.call('POST', '/api/library/restore', { backup: data }); },
@@ -87,6 +92,12 @@
 
   function local(team) {
     var W = window.Workflow;
+
+    // Changes the lead made to the team earlier in this browser replace the roster built into the page
+    try {
+      var savedRoles = JSON.parse(localStorage.getItem(ROSTER_KEY) || 'null');
+      if (Array.isArray(savedRoles) && savedRoles.length) { team.roles = savedRoles; }
+    } catch (error) { /* storage unavailable or damaged: keep the built-in roster */ }
 
     function now() { return new Date().toISOString(); }
 
@@ -184,6 +195,31 @@
         data.pages = data.pages.filter(function (p) { return p.id !== id; });
         writeAll(data);
         return { deleted: id };
+      },
+      getRoster: async function () {
+        var who = actor();
+        guard(function () { W.requireLeadFor(who, team, 'manage the team'); });
+        return { roles: team.roles, usage: W.roleUsage(readAll().pages) };
+      },
+      saveRoster: async function (roles) {
+        var who = actor();
+        var usage = W.roleUsage(readAll().pages);
+        var clean = guard(function () { return W.checkRoster(team, roles, usage, who); });
+        team.roles = clean;
+        try { localStorage.setItem(ROSTER_KEY, JSON.stringify(clean)); } catch (error) { /* kept for this visit only */ }
+        return { roles: clean, usage: usage };
+      },
+      reassign: async function (from, to, ids) {
+        var who = actor();
+        guard(function () { W.requireLeadFor(who, team, 'reassign pages'); W.checkReassignRoles(team, from, to); });
+        var data = readAll();
+        var moved = 0;
+        data.pages.forEach(function (page) {
+          if (ids && ids.indexOf(page.id) < 0) { return; }
+          if (guard(function () { return W.reassignRole(page, from, to, who, team, now()); })) { moved += 1; }
+        });
+        writeAll(data);
+        return { moved: moved };
       },
       // Everything, as one object the screen saves to a file
       exportBackup: async function () {

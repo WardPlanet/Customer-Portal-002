@@ -2,6 +2,7 @@
 //
 //   #/                    the library: every page in the team, filters, search, the review queue
 //   #/page/<id>           one page: its status and its version history, with what each person can do
+//   #/team                the team lead's screen: who holds each role, add roles, move pages between roles
 //   #/batch               batch import: one file with several documents becomes several draft pages
 //   #/new                 the editor, on a blank page
 //   #/edit/<id>/<n>       the editor, on a version that can still be changed
@@ -168,6 +169,7 @@
     head.appendChild(titles);
     var headActions = el('div', 'lib-actions');
     headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
+    if (actorIsLead()) { headActions.appendChild(link('Team & roles', '#/team', 'secondary-link')); }
     headActions.appendChild(button('Download backup', 'secondary-link', downloadBackup));
     headActions.appendChild(button('Restore from backup', 'secondary-link', function () { restoreInput.click(); }));
     headActions.appendChild(link('New page', '#/new', 'primary-link'));
@@ -607,6 +609,176 @@
 
   function describe(status) { return W.describeStatus(status); }
 
+  /* ---------- The team lead's screen: people, roles and moving pages between roles ---------- */
+  async function showTeam() {
+    var mine = routing;
+    showScreen('library', false);
+    main.textContent = '';
+    var head = el('div', 'lib-head');
+    var titles = el('div');
+    titles.appendChild(link('← Library', '#/', 'back-link'));
+    titles.appendChild(el('h1', 'lib-title', 'Team & roles'));
+    titles.appendChild(el('p', 'lib-sub', 'Pages belong to a role, not a person. When someone leaves, put the new person next to their role and every page for that role follows. Nothing on the pages needs editing.'));
+    head.appendChild(titles);
+    main.appendChild(head);
+
+    if (!actorIsLead()) {
+      main.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
+      return;
+    }
+    var info = await attempt(backend().getRoster());
+    var pages = await attempt(backend().list(''));
+    if (mine !== routing) { return; }
+    if (!info || !pages) { main.appendChild(el('p', 'lib-empty', 'The team could not be loaded.')); return; }
+
+    var inputs = {};   // role title -> the person's text box
+
+    // Saves the roles with the people currently typed in, plus any change passed in
+    async function save(roles, doneMessage) {
+      var result = await attempt(backend().saveRoster(roles));
+      if (!result) { return false; }
+      var leadBefore = personFor(team.lead);
+      team.roles = result.roles;
+      var leadNow = personFor(team.lead);
+      // The lead changed who holds their own role: keep acting as whoever holds it now
+      if (window.Store.getActor() === leadBefore && leadNow !== leadBefore) { window.Store.setActor(leadNow); }
+      else if (!team.roles.some(function (r) { return r.person === window.Store.getActor(); })) { window.Store.setActor(leadNow); }
+      mountActing();
+      notice(doneMessage);
+      showTeam();
+      return true;
+    }
+
+    function typedRoles() {
+      return team.roles.map(function (role) { return { title: role.title, person: inputs[role.title] ? inputs[role.title].value.trim() : role.person }; });
+    }
+
+    /* ----- People and roles ----- */
+    var people = el('section', 'batch-card');
+    people.appendChild(el('h2', 'lib-h2', 'Who holds each role'));
+    people.appendChild(el('p', 'lib-hint', 'Someone left? Type their replacement’s name next to the role and choose Save changes. A new hire? Add their role below, or put them on an existing role. Each person holds one role for now.'));
+    var table = el('table', 'lib-table');
+    var headRow = el('tr');
+    ['Role', 'Person', 'Pages', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
+    var thead = el('thead');
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    var tbody = el('tbody');
+    team.roles.forEach(function (role) {
+      var row = el('tr', 'lib-row');
+      row.appendChild(el('td', '', role.title + (role.title === team.lead ? ' (team lead)' : '')));
+      var personCell = el('td');
+      var input = el('input', 'lib-search');
+      input.type = 'text';
+      input.value = role.person;
+      input.maxLength = 80;
+      input.setAttribute('aria-label', 'Person who holds ' + role.title);
+      inputs[role.title] = input;
+      personCell.appendChild(input);
+      row.appendChild(personCell);
+      var count = info.usage[role.title] || 0;
+      row.appendChild(el('td', '', String(count)));
+      var actions = el('td');
+      var canRemove = role.title !== team.lead && count === 0;
+      var remove = button('Remove', 'row-btn row-btn-danger', async function () {
+        if (!(await window.askConfirm('No page uses the role “' + role.title + '”, so removing it only takes it off the team list.', { title: 'Remove this role?', ok: 'Remove' }))) { return; }
+        await save(typedRoles().filter(function (r) { return r.title !== role.title; }), 'Removed the role “' + role.title + '”.');
+      });
+      remove.disabled = !canRemove;
+      remove.title = role.title === team.lead ? 'The team lead role cannot be removed.' : count ? 'Move its pages to another role first.' : '';
+      remove.setAttribute('aria-label', 'Remove ' + role.title);
+      actions.appendChild(remove);
+      row.appendChild(actions);
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    people.appendChild(table);
+    people.appendChild(button('Save changes', 'primary-btn', async function () {
+      await save(typedRoles(), 'Saved. Every page now shows the people next to its roles.');
+    }));
+
+    var add = el('div', 'batch-settings');
+    add.appendChild(el('h2', 'lib-h2', 'Add a role'));
+    var roleInput = el('input', 'lib-search');
+    roleInput.placeholder = 'Role (for example SEO Analyst)';
+    roleInput.setAttribute('aria-label', 'New role');
+    roleInput.maxLength = 80;
+    var personInput = el('input', 'lib-search');
+    personInput.placeholder = 'Person';
+    personInput.setAttribute('aria-label', 'Person for the new role');
+    personInput.maxLength = 80;
+    add.appendChild(roleInput);
+    add.appendChild(personInput);
+    add.appendChild(button('Add role', 'secondary-link', async function () {
+      if (!roleInput.value.trim()) { roleInput.focus(); return; }
+      await save(typedRoles().concat([{ title: roleInput.value.trim(), person: personInput.value.trim() }]), 'Added the role “' + roleInput.value.trim() + '”.');
+    }));
+    people.appendChild(add);
+    main.appendChild(people);
+
+    /* ----- Moving pages from one role to another ----- */
+    var move = el('section', 'batch-card');
+    move.appendChild(el('h2', 'lib-h2', 'Move pages to another role'));
+    move.appendChild(el('p', 'lib-hint', 'Use this when a role itself goes away or splits, not when a person leaves. It changes the owner (and the linked role, if listed) on each chosen page’s live and in-progress versions. Older versions stay as they were, and no new review is needed.'));
+    var fromSelect = el('select', 'acting-select');
+    fromSelect.setAttribute('aria-label', 'Move pages from this role');
+    var toSelect = el('select', 'acting-select');
+    toSelect.setAttribute('aria-label', 'Move pages to this role');
+    team.roles.forEach(function (role) {
+      var from = el('option', '', role.title + ' (' + (info.usage[role.title] || 0) + ' pages)');
+      from.value = role.title;
+      fromSelect.appendChild(from);
+      var to = el('option', '', role.title + ' — ' + (role.person || 'unassigned'));
+      to.value = role.title;
+      toSelect.appendChild(to);
+    });
+    var firstUsed = team.roles.filter(function (r) { return info.usage[r.title]; })[0];
+    fromSelect.value = firstUsed ? firstUsed.title : team.roles[0].title;
+    toSelect.value = (team.roles.filter(function (r) { return r.title !== fromSelect.value; })[0] || team.roles[0]).title;
+    var line = el('div', 'batch-field');
+    line.appendChild(document.createTextNode('From '));
+    line.appendChild(fromSelect);
+    line.appendChild(document.createTextNode(' to '));
+    line.appendChild(toSelect);
+    move.appendChild(line);
+    var listBox = el('div', 'team-pages');
+    move.appendChild(listBox);
+    var moveButton = button('Move pages', 'primary-btn', async function () {
+      var chosen = Array.prototype.filter.call(listBox.querySelectorAll('input[type=checkbox]'), function (box) { return box.checked; }).map(function (box) { return box.value; });
+      if (!chosen.length) { return; }
+      var question = 'Move ' + chosen.length + (chosen.length === 1 ? ' page' : ' pages') + ' from “' + fromSelect.value + '” to “' + toSelect.value + '”?';
+      if (!(await window.askConfirm(question, { title: 'Move these pages?', ok: 'Move them' }))) { return; }
+      var result = await attempt(backend().reassign(fromSelect.value, toSelect.value, chosen));
+      if (!result) { return; }
+      notice('Moved ' + result.moved + (result.moved === 1 ? ' page' : ' pages') + ' to ' + toSelect.value + '.');
+      showTeam();
+    });
+
+    function drawPages() {
+      listBox.textContent = '';
+      var from = fromSelect.value;
+      var affected = pages.pages.filter(function (p) { return p.owner === from || (p.linkedRoles || []).indexOf(from) >= 0; });
+      moveButton.disabled = !affected.length || fromSelect.value === toSelect.value;
+      if (fromSelect.value === toSelect.value) { listBox.appendChild(el('p', 'lib-empty', 'Choose two different roles.')); return; }
+      if (!affected.length) { listBox.appendChild(el('p', 'lib-empty', 'No page uses ' + from + '.')); return; }
+      affected.forEach(function (p) {
+        var label = el('label', 'team-page');
+        var box = el('input');
+        box.type = 'checkbox';
+        box.value = p.id;
+        box.checked = true;
+        label.appendChild(box);
+        label.appendChild(document.createTextNode(' ' + p.title + (p.owner === from ? '' : ' (linked role)')));
+        listBox.appendChild(label);
+      });
+    }
+    fromSelect.addEventListener('change', drawPages);
+    toSelect.addEventListener('change', drawPages);
+    drawPages();
+    move.appendChild(moveButton);
+    main.appendChild(move);
+  }
+
   /* ---------- The public preview ---------- */
   async function showPublic() {
     var mine = routing;
@@ -819,6 +991,7 @@
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1]); }
     else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend }); }
     else if (screen === 'public') { await showPublic(); }
+    else if (screen === 'team') { await showTeam(); }
     else { await showLibrary(); }
   }
 

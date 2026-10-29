@@ -285,3 +285,38 @@ test('only the team lead may delete a page', () => {
   assert.ok(W.pageActions(page, micah, team).includes('delete'));
   assert.equal(W.pageActions(page, scott, team).includes('delete'), false);
 });
+
+test('the lead can move a page to another role, in the live and in-progress versions only', () => {
+  const page = livePage();
+  W.startEdit(page, scott, t(4));   // version 2, a draft copy
+  const designer = { title: 'Web Designer', person: 'Molly' };
+  const bigTeam = Object.assign({}, team, { roles: team.roles.concat([designer]) });
+  assert.throws(() => W.reassignRole(page, 'Website Editor', 'Web Designer', scott, bigTeam, t(5)), /Only the team lead/);
+  assert.equal(W.reassignRole(page, 'Website Editor', 'Web Designer', micah, bigTeam, t(5)), true);
+  assert.equal(page.versions[0].owner, 'Web Designer');
+  assert.equal(page.versions[1].owner, 'Web Designer');
+  assert.equal(page.versions[0].status, 'approved');   // still live, no new review
+  assert.equal(W.reassignRole(page, 'Website Editor', 'Web Designer', micah, bigTeam, t(6)), false);
+});
+
+test('moving a page also swaps a linked role without repeating it', () => {
+  const text = W.replaceRoleInText('[OWNER ROLE]\nA\n\n[LINKED ROLES]\nA\nB\n', 'A', 'B');
+  assert.equal(text, '[OWNER ROLE]\nB\n\n[LINKED ROLES]\nB\n');
+});
+
+test('role usage counts owner and linked roles on current versions', () => {
+  const page = livePage();
+  assert.deepEqual(W.roleUsage([page]), { 'Website Editor': 1 });
+});
+
+test('the roster is checked: lead stays, unique roles and people, roles in use cannot be removed', () => {
+  const usage = { 'Website Editor': 2 };
+  const ok = [{ title: 'Website Editor', person: 'Sam' }, { title: 'Web Team Manager', person: 'Micah' }, { title: 'SEO Analyst', person: 'Ana' }];
+  assert.equal(W.checkRoster(team, ok, usage, micah).length, 3);
+  assert.throws(() => W.checkRoster(team, ok, usage, scott), /Only the team lead/);
+  assert.throws(() => W.checkRoster(team, ok.slice(0, 1), usage, micah), /cannot be removed/);
+  assert.throws(() => W.checkRoster(team, [ok[1]], usage, micah), /still used by 2 pages/);
+  assert.throws(() => W.checkRoster(team, ok.concat([{ title: 'website editor', person: 'X' }]), usage, micah), /twice/);
+  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: 'Sam' }], usage, micah), /holds two roles/);
+  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: '' }], usage, micah), /needs a person/);
+});

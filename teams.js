@@ -39,3 +39,13 @@ export function rosterNote(team) {
     team.roles.map(function (role) { return '- ' + role.title + ': ' + (role.person || 'unassigned'); }).join('\n')
   ].join('\n');
 }
+
+// Saves a new list of roles and the people who hold them (the team lead's Team screen). Everything else in
+// the file stays as it is. Written to a temporary file first so a failed write cannot leave half a file.
+export async function writeRoles(roles) {
+  var team = JSON.parse(await fs.readFile(TEAM_FILE, 'utf8'));
+  team.roles = roles;
+  var temporary = TEAM_FILE + '.tmp';
+  await fs.writeFile(temporary, JSON.stringify(team, null, 2) + '\n', 'utf8');
+  await fs.rename(temporary, TEAM_FILE);
+}

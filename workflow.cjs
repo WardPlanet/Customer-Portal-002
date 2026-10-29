@@ -79,6 +79,7 @@
       location: first(sections, 'WHERE THIS LIVES').split('\n')[0] || '',
       visibility: first(sections, 'VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only',
       owner: first(sections, 'OWNER ROLE'),
+      linkedRoles: (sections['LINKED ROLES'] || []).map(function (line) { return line.trim(); }).filter(Boolean),
       pageType: first(sections, 'PAGE TYPE'),
       keywords: (sections.KEYWORDS || []).map(function (line) { return line.trim(); }).filter(Boolean),
       hasStepTitle: stepTitles.length > 0,
@@ -373,6 +374,7 @@
       location: shown.location,
       visibility: shown.visibility,
       owner: shown.owner,
+      linkedRoles: fields(shown.text).linkedRoles,
       state: state,
       liveVersion: page.liveVersion,
       workingVersion: working ? { n: working.n, status: working.status } : null,
@@ -479,6 +481,120 @@
       if (keep) { out.push(line); }
     });
     return out.join('\n');
+  }
+
+  /* ---------- The roster and reassigning pages ----------
+     A page names a ROLE, so when someone leaves, change who holds the role and every page follows. These
+     are for the other cases: adding a role, retiring one, or moving pages from one role to another. Team
+     lead only. Changing the owner is not a change to the content, so it is made in place on the live and
+     in-progress versions and does not need a new review. */
+  var MAX_ROLES = 60;
+
+  // Rewrites the roles in one version's text: OWNER ROLE becomes the new role, LINKED ROLES swaps the role
+  // (and drops a repeat if the new role was already linked)
+  function replaceRoleInText(text, from, to) {
+    var section = '';
+    var seenLinked = {};
+    return String(text || '').replace(/\r\n?/g, '\n').split('\n').map(function (line) {
+      var header = /^\[([A-Z0-9 ]+)\]$/.exec(line);
+      if (header) { section = header[1]; seenLinked = {}; return line; }
+      var value = line.trim();
+      if (section === 'OWNER ROLE' && value === from) { return to; }
+      if (section === 'LINKED ROLES' && value) {
+        var role = value === from ? to : value;
+        if (seenLinked[role]) { return null; }
+        seenLinked[role] = true;
+        return role;
+      }
+      return line;
+    }).filter(function (line) { return line !== null; }).join('\n');
+  }
+
+  function usesRole(version, role) {
+    var f = fields(version.text);
+    return f.owner === role || f.linkedRoles.indexOf(role) >= 0;
+  }
+
+  // The versions a reassignment changes: the live one and any being worked on. Old versions stay as they were.
+  function currentVersions(page) {
+    return page.versions.filter(function (version) {
+      return version.n === page.liveVersion || version.status === STATUS.DRAFT || version.status === STATUS.SUBMITTED || version.status === STATUS.SENT_BACK;
+    });
+  }
+
+  // How many pages use each role (as owner or linked role), counting the versions a reassignment would change
+  function roleUsage(pages) {
+    var usage = {};
+    pages.forEach(function (page) {
+      var roles = {};
+      currentVersions(page).forEach(function (version) {
+        var f = fields(version.text);
+        if (f.owner) { roles[f.owner] = true; }
+        f.linkedRoles.forEach(function (role) { roles[role] = true; });
+      });
+      Object.keys(roles).forEach(function (role) { usage[role] = (usage[role] || 0) + 1; });
+    });
+    return usage;
+  }
+
+  // Moves one page from a role to another. Returns true if anything changed.
+  function reassignRole(page, from, to, actor, team, now) {
+    requireLead(actor, team, 'reassign pages');
+    var changed = false;
+    currentVersions(page).forEach(function (version) {
+      if (!usesRole(version, from)) { return; }
+      version.text = replaceRoleInText(version.text, from, to);
+      copyFields(version);
+      version.updatedAt = now;
+      version.updatedBy = actor.name;
+      changed = true;
+    });
+    if (changed) { page.updatedAt = now; }
+    return changed;
+  }
+
+  function checkReassignRoles(team, from, to) {
+    var titles = team.roles.map(function (role) { return role.title; });
+    if (titles.indexOf(from) < 0 || titles.indexOf(to) < 0) { throw new WorkflowError('bad_role', 'Choose two roles on the team.', 400); }
+    if (from === to) { throw new WorkflowError('same_role', 'Choose two different roles.', 400); }
+  }
+
+  // Checks a new list of roles from the team lead and returns a clean copy. A role in use cannot be removed
+  // (reassign its pages first), and the lead role must stay.
+  function checkRoster(team, roles, usage, actor) {
+    requireLead(actor, team, 'change the team');
+    if (!Array.isArray(roles) || !roles.length || roles.length > MAX_ROLES) {
+      throw new WorkflowError('bad_roster', 'The team needs between 1 and ' + MAX_ROLES + ' roles.', 400);
+    }
+    var seen = {};
+    var clean = roles.map(function (role) {
+      var title = text(role && role.title, 80).trim().replace(/\s+/g, ' ');
+      var person = text(role && role.person, 80).trim().replace(/\s+/g, ' ');
+      if (!title) { throw new WorkflowError('bad_roster', 'Every role needs a title.', 400); }
+      if (/[\[\]~]/.test(title) || /[\[\]~]/.test(person)) { throw new WorkflowError('bad_roster', 'Names and titles cannot contain [ ] or ~.', 400); }
+      if (seen[title.toLowerCase()]) { throw new WorkflowError('bad_roster', 'The role "' + title + '" is listed twice.', 400); }
+      seen[title.toLowerCase()] = true;
+      return { title: title, person: person };
+    });
+    var titles = clean.map(function (role) { return role.title; });
+    if (team.lead && titles.indexOf(team.lead) < 0) {
+      throw new WorkflowError('bad_roster', 'The ' + team.lead + ' role is the team lead and cannot be removed.', 400);
+    }
+    if (team.lead && !clean.filter(function (role) { return role.title === team.lead; })[0].person) {
+      throw new WorkflowError('bad_roster', 'The ' + team.lead + ' role needs a person.', 400);
+    }
+    var people = {};
+    clean.forEach(function (role) {
+      var key = role.person.toLowerCase();
+      if (key && people[key]) { throw new WorkflowError('bad_roster', role.person + ' holds two roles. Give each person one role for now.', 400); }
+      people[key] = true;
+    });
+    team.roles.forEach(function (role) {
+      if (titles.indexOf(role.title) < 0 && usage[role.title]) {
+        throw new WorkflowError('role_in_use', 'The role "' + role.title + '" is still used by ' + usage[role.title] + (usage[role.title] === 1 ? ' page' : ' pages') + '. Reassign them first.', 409);
+      }
+    });
+    return clean;
   }
 
   /* ---------- Backups ----------
@@ -591,6 +707,12 @@
     history: history,
     pageActions: pageActions,
     publicText: publicText,
+    roleUsage: roleUsage,
+    reassignRole: reassignRole,
+    checkReassignRoles: checkReassignRoles,
+    checkRoster: checkRoster,
+    requireLeadFor: requireLead,
+    replaceRoleInText: replaceRoleInText,
     searchEntry: searchEntry,
     searchPages: searchPages,
     canSeePublic: canSeePublic

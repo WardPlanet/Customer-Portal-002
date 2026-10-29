@@ -1607,3 +1607,8 @@
 .preview-step-number { flex: none; width: 32px; height: 32px; border-radius: 50%; background: #2f6fd1; color: #fff; text-align: center; line-height: 32px; font-weight: 700; }
 .preview-step-body { flex: 1; min-width: 0; }
 .preview-step-title { margin: 3px 0 6px; font-size: 1.1rem; }
+
+/* Team & roles screen */
+.team-pages { margin: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+.team-page { display: block; }
+.batch-settings .lib-search { margin: 0 8px 8px 0; max-width: 260px; }

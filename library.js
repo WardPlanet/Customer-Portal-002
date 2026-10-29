@@ -13,7 +13,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { readTeam } from './teams.js';
+import { readTeam, writeRoles } from './teams.js';
 
 const Workflow = createRequire(import.meta.url)('./workflow.cjs');
 
@@ -146,6 +146,38 @@ export function registerLibraryRoutes(app, draftsDir) {
     }
     summaries.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
     res.json({ pages: summaries });
+  }));
+
+  // Team lead only: who holds each role, and how many pages use each role
+  app.get('/api/library/roster', staff(async function (req, res, ctx) {
+    Workflow.requireLeadFor(ctx.actor, ctx.team, 'manage the team');
+    res.json({ roles: ctx.team.roles, usage: Workflow.roleUsage(await loadAllPages(draftsDir, ctx.team)) });
+  }));
+
+  // Team lead only: replaces the list of roles and people (add a person or role, change who holds a role)
+  app.put('/api/library/roster', staff(async function (req, res, ctx) {
+    var usage = Workflow.roleUsage(await loadAllPages(draftsDir, ctx.team));
+    var roles = Workflow.checkRoster(ctx.team, req.body && req.body.roles, usage, ctx.actor);
+    await writeRoles(roles);
+    res.json({ roles: roles, usage: usage });
+  }));
+
+  // Team lead only: moves pages from one role to another (all of that role's pages, or the ids given)
+  app.post('/api/library/reassign', staff(async function (req, res, ctx) {
+    var from = req.body && req.body.from;
+    var to = req.body && req.body.to;
+    Workflow.requireLeadFor(ctx.actor, ctx.team, 'reassign pages');
+    Workflow.checkReassignRoles(ctx.team, from, to);
+    var ids = Array.isArray(req.body.ids) ? req.body.ids : null;
+    var moved = 0;
+    for (var page of await loadAllPages(draftsDir, ctx.team)) {
+      if (ids && ids.indexOf(page.id) < 0) { continue; }
+      if (Workflow.reassignRole(page, from, to, ctx.actor, ctx.team, ctx.now)) {
+        await savePage(draftsDir, ctx.team, page);
+        moved += 1;
+      }
+    }
+    res.json({ moved: moved });
   }));
 
   // Every page with all of its versions, as one file the screen offers for download
