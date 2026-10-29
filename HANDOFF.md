@@ -342,6 +342,16 @@ shows what the public gets: no contacts, a "Need help?" card linking to the team
 `teams/legwork-web-team.json`, empty until the support link is decided), and only Client-Safe related pages. The real
 public routes (`/api/public/...`) return no owner or contact details.
 
+**Who sees which pages.** The team lead's library lists every page. Anyone else sees only their own: pages whose owner
+role is one of theirs, plus pages they wrote. Other staff can still search and read every *live* page (Public preview
+screen); they cannot open, edit or act on another person's drafts. The server enforces this (`?live=1` is the list of
+all live pages).
+
+**Deleting, for people who are not the lead.** They may delete their own pages straight away while the page is not
+live. A live page needs the lead: the owner chooses **Request deletion** (the page stays live), the request shows in the
+lead's "Deletion requests" box at the top of the library, and the lead chooses **Delete page** or **Keep it**. The owner
+can cancel their request. Restoring a backup does not bring back pending requests.
+
 **Deleting a page.** The team lead has a **Delete page** button on a page's screen. It names the page, says how many
 versions go and whether it is live (it then leaves the library, search and the public site at once), and asks
 first. It removes the page and every version, on the server (the page's folder) or from the browser's storage.

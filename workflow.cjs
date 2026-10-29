@@ -327,8 +327,53 @@
 
   // Deleting a whole page (every version) is the team lead's alone. This only checks the rule; the server
   // or the browser store then removes the page. A deleted page can only come back from a downloaded backup.
-  function assertCanDelete(actor, team) {
-    requireLead(actor, team, 'delete a page');
+  //
+  // Anyone else may delete only their own pages, and only while the page is not live. A live page needs the
+  // team lead: the owner sends a deletion request (below) and the lead deletes it or keeps it.
+  function assertCanDelete(actor, team, page) {
+    if (!page || isLead(actor, team)) { requireLead(actor, team, 'delete a page'); return; }
+    requireActor(actor);
+    if (!isMine(page, actor)) { throw new WorkflowError('not_yours', 'You can only delete your own pages.', 403); }
+    if (page.liveVersion) {
+      throw new WorkflowError('needs_lead', 'This page is live, so deleting it needs the team lead (' + team.lead + '). Send a deletion request instead.', 403);
+    }
+  }
+
+  // A page is "mine" when its owner role is one of the person's roles, or the person wrote its first version
+  function isMine(page, actor) {
+    if (!actor || !actor.name) { return false; }
+    var shown = liveVersion(page) || workingVersion(page) || latestVersion(page);
+    if (shown && shown.owner && actor.roles.indexOf(shown.owner) >= 0) { return true; }
+    return !!page.versions.length && page.versions[0].author === actor.name;
+  }
+
+  // The team lead sees every page; everyone else sees their own, and may read any page that is live
+  function canSeeInLibrary(page, actor, team) {
+    return isLead(actor, team) || isMine(page, actor);
+  }
+
+  function canReadVersion(page, version, actor, team) {
+    return canSeeInLibrary(page, actor, team) || page.liveVersion === version.n;
+  }
+
+  // The owner of a live page asks the lead to delete it. The page stays live until the lead agrees.
+  function requestDelete(page, actor, team, now) {
+    requireActor(actor);
+    if (isLead(actor, team)) { throw new WorkflowError('is_lead', 'The team lead can delete a page directly.', 409); }
+    if (!isMine(page, actor)) { throw new WorkflowError('not_yours', 'You can only ask to delete your own pages.', 403); }
+    if (!page.liveVersion) { throw new WorkflowError('not_live', 'This page is not live, so you can delete it yourself.', 409); }
+    if (page.deleteRequest) { throw new WorkflowError('already_requested', 'A deletion request is already waiting for the team lead.', 409); }
+    page.deleteRequest = { by: actor.name, at: now };
+  }
+
+  // The person who asked can take the request back; the team lead can decline it (the page just stays)
+  function cancelDeleteRequest(page, actor, team) {
+    requireActor(actor);
+    if (!page.deleteRequest) { throw new WorkflowError('no_request', 'There is no deletion request on this page.', 409); }
+    if (!isLead(actor, team) && page.deleteRequest.by !== actor.name) {
+      throw new WorkflowError('not_yours', 'Only the person who asked, or the team lead, can cancel the request.', 403);
+    }
+    delete page.deleteRequest;
   }
 
   // Pull the live version down at once (for example a Client-Safe page that should not be public)
@@ -376,6 +421,7 @@
       owner: shown.owner,
       linkedRoles: fields(shown.text).linkedRoles,
       state: state,
+      deleteRequest: page.deleteRequest ? { by: page.deleteRequest.by, at: page.deleteRequest.at } : null,
       liveVersion: page.liveVersion,
       workingVersion: working ? { n: working.n, status: working.status } : null,
       versionCount: page.versions.length,
@@ -421,7 +467,13 @@
     var actions = [];
     if (actor && actor.name) { actions.push('edit'); }
     if (isLead(actor, team) && page.liveVersion) { actions.push('unpublish'); }
-    if (isLead(actor, team)) { actions.push('delete'); }
+    if (isLead(actor, team)) {
+      actions.push('delete');
+      if (page.deleteRequest) { actions.push('decline_delete'); }
+    } else if (isMine(page, actor)) {
+      if (!page.liveVersion) { actions.push('delete'); }
+      else { actions.push(page.deleteRequest ? 'cancel_delete_request' : 'request_delete'); }
+    }
     return actions;
   }
 
@@ -704,6 +756,11 @@
     sendBack: sendBack,
     unpublish: unpublish,
     assertCanDelete: assertCanDelete,
+    isMine: isMine,
+    canSeeInLibrary: canSeeInLibrary,
+    canReadVersion: canReadVersion,
+    requestDelete: requestDelete,
+    cancelDeleteRequest: cancelDeleteRequest,
     describeStatus: describeStatus,
     summary: summary,
     history: history,

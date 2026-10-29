@@ -49,7 +49,8 @@
       }
       return data;
     },
-    list: function (q) { return this.call('GET', '/api/library/pages' + (q ? '?q=' + encodeURIComponent(q) : '')); },
+    // liveOnly: every live page, for reading (the library itself shows the team lead everything, others their own)
+    list: function (q, liveOnly) { return this.call('GET', '/api/library/pages?' + (q ? 'q=' + encodeURIComponent(q) + '&' : '') + (liveOnly ? 'live=1' : '')); },
     create: function (text, note) { return this.call('POST', '/api/library/pages', { text: text, note: note || '' }); },
     get: function (id) { return this.call('GET', '/api/library/pages/' + id); },
     getVersion: function (id, n) { return this.call('GET', '/api/library/pages/' + id + '/versions/' + n); },
@@ -58,6 +59,8 @@
     act: function (id, n, action, body) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/' + action, body || {}); },
     unpublish: function (id) { return this.call('POST', '/api/library/pages/' + id + '/unpublish'); },
     remove: function (id) { return this.call('DELETE', '/api/library/pages/' + id); },
+    requestDelete: function (id) { return this.call('POST', '/api/library/pages/' + id + '/request-delete'); },
+    cancelDeleteRequest: function (id) { return this.call('POST', '/api/library/pages/' + id + '/cancel-delete-request'); },
     // Team lead only: who holds each role, how many pages use each, and changes to both
     getRoster: function () { return this.call('GET', '/api/library/roster'); },
     saveRoster: function (roles) { return this.call('PUT', '/api/library/roster', { roles: roles }); },
@@ -138,6 +141,7 @@
       var who = actor();
       var data = readAll();
       var page = find(data, id);
+      if (!W.canSeeInLibrary(page, who, team)) { throw fail('not_yours', 'That page belongs to someone else.'); }
       var extra = guard(function () { return fn(page, who, now()); });
       writeAll(data);
       return Object.assign(detail(page, who), extra || {});
@@ -146,9 +150,11 @@
     return {
       mode: 'local',
       isMemoryOnly: function () { return !!memory; },
-      list: async function (q) {
-        actor();
-        var pages = readAll().pages;
+      list: async function (q, liveOnly) {
+        var who = actor();
+        var pages = readAll().pages.filter(function (page) {
+          return liveOnly ? !!page.liveVersion : W.canSeeInLibrary(page, who, team);
+        });
         var found = null;
         if (q) {
           found = {};
@@ -166,11 +172,17 @@
         writeAll(data);
         return Object.assign(detail(page, who), { version: page.versions[0].n });
       },
-      get: async function (id) { var who = actor(); return detail(find(readAll(), id), who); },
+      get: async function (id) {
+        var who = actor();
+        var page = find(readAll(), id);
+        if (!page.liveVersion && !W.canSeeInLibrary(page, who, team)) { throw fail('not_yours', 'That page belongs to someone else.'); }
+        return detail(page, who);
+      },
       getVersion: async function (id, n) {
         var who = actor();
         var page = find(readAll(), id);
         var version = guard(function () { return W.versionOf(page, n); });
+        if (!W.canReadVersion(page, version, who, team)) { throw fail('not_yours', 'That version belongs to someone else.'); }
         var mine = W.history(page, who, team).filter(function (h) { return h.n === version.n; })[0];
         return { version: { n: version.n, status: version.status, title: version.title }, text: version.text, actions: mine.actions };
       },
@@ -190,15 +202,31 @@
           else if (action === 'restore') { return { version: W.restore(page, n, who, at).n }; }
         });
       },
+      requestDelete: async function (id) {
+        var who = actor();
+        var data = readAll();
+        var page = find(data, id);
+        guard(function () { W.requestDelete(page, who, team, now()); });
+        writeAll(data);
+        return detail(page, who);
+      },
+      cancelDeleteRequest: async function (id) {
+        var who = actor();
+        var data = readAll();
+        var page = find(data, id);
+        guard(function () { W.cancelDeleteRequest(page, who, team); });
+        writeAll(data);
+        return detail(page, who);
+      },
       unpublish: async function (id) {
         return change(id, function (page, who, at) { W.unpublish(page, who, team, at); });
       },
       // Removes the page and every version (team lead only)
       remove: async function (id) {
         var who = actor();
-        guard(function () { W.assertCanDelete(who, team); });
         var data = readAll();
-        find(data, id);
+        var page = find(data, id);
+        guard(function () { W.assertCanDelete(who, team, page); });
         data.pages = data.pages.filter(function (p) { return p.id !== id; });
         writeAll(data);
         return { deleted: id };

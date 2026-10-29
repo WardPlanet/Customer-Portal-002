@@ -193,7 +193,7 @@ test('the buttons each person is offered match the rules', () => {
   assert.deepEqual(W.history(page, scott, team)[0].actions, ['view', 'publish', 'withdraw']);
   assert.deepEqual(W.history(page, micah, team)[0].actions, ['view', 'publish', 'withdraw', 'approve', 'send_back']);
   W.approve(page, 1, micah, team, t(3));
-  assert.deepEqual(W.pageActions(page, scott, team), ['edit']);
+  assert.deepEqual(W.pageActions(page, scott, team), ['edit', 'request_delete']);
   assert.deepEqual(W.pageActions(page, micah, team), ['edit', 'unpublish', 'delete']);
   assert.deepEqual(W.history(page, null, team)[0].actions, ['view']);
 });
@@ -326,4 +326,51 @@ test('every role needs a plausible contact email', () => {
   assert.throws(() => W.checkRoster(team, [{ title: 'Website Editor', person: 'Sam' }, base[1]], {}, micah), /contact email/);
   assert.throws(() => W.checkRoster(team, [{ title: 'Website Editor', person: 'Sam', email: 'not an email' }, base[1]], {}, micah), /contact email/);
   assert.equal(W.checkRoster(team, base, {}, micah)[0].email, 'sam@x.com');
+});
+
+const sam = { name: 'Sam', roles: [] };
+const molly = W.actorFor('Molly', Object.assign({}, team, { roles: team.roles.concat([{ title: 'Web Designer', person: 'Molly' }]) }));
+
+test('the library shows the lead every page and everyone else only their own', () => {
+  const page = W.createPage(team, draftText('Refunds'), scott, t(1));   // owned by the Website Editor, Scott
+  assert.equal(W.canSeeInLibrary(page, scott, team), true);
+  assert.equal(W.canSeeInLibrary(page, micah, team), true);
+  assert.equal(W.canSeeInLibrary(page, molly, team), false);
+  // a page Scott wrote for another role is still his, because he wrote it
+  const forMolly = W.createPage(team, draftText('Colors').replace('Website Editor', 'Web Designer'), scott, t(1));
+  assert.equal(W.canSeeInLibrary(forMolly, scott, team), true);
+  assert.equal(W.canSeeInLibrary(forMolly, molly, team), true);
+});
+
+test('anyone may read a live page, but not another person\'s draft', () => {
+  const page = W.createPage(team, draftText('Refunds'), scott, t(1));
+  assert.equal(W.canReadVersion(page, page.versions[0], molly, team), false);
+  const live = livePage();
+  assert.equal(W.canReadVersion(live, live.versions[0], molly, team), true);
+});
+
+test('deleting: a person may delete their own page until it is live; live pages go through the lead', () => {
+  const page = W.createPage(team, draftText('Refunds'), scott, t(1));
+  assert.doesNotThrow(() => W.assertCanDelete(scott, team, page));
+  assert.throws(() => W.assertCanDelete(molly, team, page), /your own pages/);
+  W.submit(page, 1, scott, team, t(2));
+  W.approve(page, 1, micah, team, t(3));
+  assert.throws(() => W.assertCanDelete(scott, team, page), /needs the team lead/);
+  assert.doesNotThrow(() => W.assertCanDelete(micah, team, page));
+  assert.throws(() => W.assertCanDelete(scott, team), /Only the team lead/);   // no page given: lead only
+});
+
+test('a deletion request on a live page: owner asks, owner or lead can cancel, others cannot', () => {
+  const page = livePage();
+  assert.throws(() => W.requestDelete(page, molly, team, t(4)), /your own pages/);
+  W.requestDelete(page, scott, team, t(4));
+  assert.deepEqual(W.summary(page).deleteRequest, { by: 'Scott Archer', at: t(4) });
+  assert.throws(() => W.requestDelete(page, scott, team, t(5)), /already/);
+  assert.deepEqual(W.pageActions(page, scott, team), ['edit', 'cancel_delete_request']);
+  assert.deepEqual(W.pageActions(page, micah, team), ['edit', 'unpublish', 'delete', 'decline_delete']);
+  assert.throws(() => W.cancelDeleteRequest(page, molly, team), /Only the person who asked/);
+  W.cancelDeleteRequest(page, micah, team);
+  assert.equal(W.summary(page).deleteRequest, null);
+  const draft = W.createPage(team, draftText('Drafty'), scott, t(1));
+  assert.throws(() => W.requestDelete(draft, scott, team, t(4)), /not live/);
 });

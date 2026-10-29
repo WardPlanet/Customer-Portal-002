@@ -135,9 +135,23 @@ export function registerLibraryRoutes(app, draftsDir) {
 
   async function open(req, ctx) { return loadPage(draftsDir, ctx.team, req.params.id); }
 
+  // Opens a page for changing it: the team lead, or the person it belongs to
+  async function openMine(req, ctx) {
+    var page = await open(req, ctx);
+    if (!Workflow.canSeeInLibrary(page, ctx.actor, ctx.team)) {
+      throw new Workflow.WorkflowError('not_yours', 'That page belongs to someone else.', 403);
+    }
+    return page;
+  }
+
   app.get('/api/library/pages', staff(async function (req, res, ctx) {
     var pages = await loadAllPages(draftsDir, ctx.team);
     var q = String(req.query.q || '').trim();
+    // ?live=1 is every live page (what any staff member can read); otherwise it is the library: the team lead
+    // sees every page, everyone else only their own
+    pages = pages.filter(function (page) {
+      return req.query.live ? !!page.liveVersion : Workflow.canSeeInLibrary(page, ctx.actor, ctx.team);
+    });
     var summaries = pages.map(Workflow.summary);
     if (q) {
       var found = {};
@@ -208,24 +222,31 @@ export function registerLibraryRoutes(app, draftsDir) {
   }));
 
   app.get('/api/library/pages/:id', staff(async function (req, res, ctx) {
-    res.json(detail(await open(req, ctx), ctx));
+    var page = await open(req, ctx);
+    if (!page.liveVersion && !Workflow.canSeeInLibrary(page, ctx.actor, ctx.team)) {
+      throw new Workflow.WorkflowError('not_yours', 'That page belongs to someone else.', 403);
+    }
+    res.json(detail(page, ctx));
   }));
 
   app.get('/api/library/pages/:id/versions/:n', staff(async function (req, res, ctx) {
     var page = await open(req, ctx);
     var version = Workflow.versionOf(page, req.params.n);
+    if (!Workflow.canReadVersion(page, version, ctx.actor, ctx.team)) {
+      throw new Workflow.WorkflowError('not_yours', 'That version belongs to someone else.', 403);
+    }
     res.json({ version: { n: version.n, status: version.status, title: version.title }, text: version.text, actions: Workflow.history(page, ctx.actor, ctx.team).filter(function (h) { return h.n === version.n; })[0].actions });
   }));
 
   app.put('/api/library/pages/:id/versions/:n', staff(async function (req, res, ctx) {
-    var page = await open(req, ctx);
+    var page = await openMine(req, ctx);
     Workflow.saveDraft(page, req.params.n, textBody(req), ctx.actor, ctx.now);
     await savePage(draftsDir, ctx.team, page);
     res.json(detail(page, ctx));
   }));
 
   app.post('/api/library/pages/:id/edit', staff(async function (req, res, ctx) {
-    var page = await open(req, ctx);
+    var page = await openMine(req, ctx);
     var version = Workflow.startEdit(page, ctx.actor, ctx.now);
     await savePage(draftsDir, ctx.team, page);
     res.json(Object.assign(detail(page, ctx), { version: version.n }));
@@ -234,7 +255,7 @@ export function registerLibraryRoutes(app, draftsDir) {
   // submit | publish | withdraw | approve | send-back | restore, on one version
   ['submit', 'publish', 'withdraw', 'approve', 'send-back', 'restore'].forEach(function (action) {
     app.post('/api/library/pages/:id/versions/:n/' + action, staff(async function (req, res, ctx) {
-      var page = await open(req, ctx);
+      var page = await openMine(req, ctx);
       var n = req.params.n;
       var made;
       if (action === 'submit') { Workflow.submit(page, n, ctx.actor, ctx.team, ctx.now); }
@@ -250,10 +271,25 @@ export function registerLibraryRoutes(app, draftsDir) {
 
   // Removes the page and every version. Team lead only; there is no undo except a downloaded backup.
   app.delete('/api/library/pages/:id', staff(async function (req, res, ctx) {
-    Workflow.assertCanDelete(ctx.actor, ctx.team);
     var page = await open(req, ctx);   // also checks the id is a valid page id, so the path below stays inside the pages folder
+    Workflow.assertCanDelete(ctx.actor, ctx.team, page);
     await fs.rm(path.join(pagesFolder(draftsDir, ctx.team), page.id), { recursive: true, force: true });
     res.json({ deleted: page.id });
+  }));
+
+  // The owner of a live page asks the team lead to delete it; the owner or the lead can cancel the request
+  app.post('/api/library/pages/:id/request-delete', staff(async function (req, res, ctx) {
+    var page = await open(req, ctx);
+    Workflow.requestDelete(page, ctx.actor, ctx.team, ctx.now);
+    await savePage(draftsDir, ctx.team, page);
+    res.json(detail(page, ctx));
+  }));
+
+  app.post('/api/library/pages/:id/cancel-delete-request', staff(async function (req, res, ctx) {
+    var page = await open(req, ctx);
+    Workflow.cancelDeleteRequest(page, ctx.actor, ctx.team);
+    await savePage(draftsDir, ctx.team, page);
+    res.json(detail(page, ctx));
   }));
 
   app.post('/api/library/pages/:id/unpublish', staff(async function (req, res, ctx) {

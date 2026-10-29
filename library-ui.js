@@ -165,7 +165,7 @@
     var head = el('div', 'lib-head');
     var titles = el('div');
     titles.appendChild(el('h1', 'lib-title', 'Library'));
-    titles.appendChild(el('p', 'lib-sub', team.name + ' · ' + (team.locations || []).join(', ')));
+    titles.appendChild(el('p', 'lib-sub', team.name + ' · ' + (team.locations || []).join(', ') + (actorIsLead() ? '' : ' · showing your pages and drafts')));
     head.appendChild(titles);
     var headActions = el('div', 'lib-actions');
     headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
@@ -305,17 +305,50 @@
 
   function renderQueue(box, pages) {
     var waiting = pages.filter(function (p) { return p.workingVersion && p.workingVersion.status === 'submitted'; });
-    box.hidden = !(actorIsLead() && waiting.length);
+    var requests = pages.filter(function (p) { return p.deleteRequest; });
+    box.hidden = !(actorIsLead() && (waiting.length || requests.length));
     box.textContent = '';
     if (box.hidden) { return; }
-    box.appendChild(el('h2', 'lib-queue-title', 'Needs your review (' + waiting.length + ')'));
-    waiting.forEach(function (p) {
-      var row = el('div', 'lib-queue-row');
-      row.appendChild(el('span', 'lib-queue-name', p.title));
-      row.appendChild(el('span', 'lib-queue-meta', 'version ' + p.workingVersion.n + ' · ' + formatDate(p.updatedAt)));
-      row.appendChild(link('Review', '#/view/' + p.id + '/' + p.workingVersion.n, 'secondary-link'));
-      box.appendChild(row);
-    });
+    if (waiting.length) {
+      box.appendChild(el('h2', 'lib-queue-title', 'Needs your review (' + waiting.length + ')'));
+      waiting.forEach(function (p) {
+        var row = el('div', 'lib-queue-row');
+        row.appendChild(el('span', 'lib-queue-name', p.title));
+        row.appendChild(el('span', 'lib-queue-meta', 'version ' + p.workingVersion.n + ' · ' + formatDate(p.updatedAt)));
+        row.appendChild(link('Review', '#/view/' + p.id + '/' + p.workingVersion.n, 'secondary-link'));
+        box.appendChild(row);
+      });
+    }
+    if (requests.length) {
+      box.appendChild(el('h2', 'lib-queue-title', 'Deletion requests (' + requests.length + ')'));
+      requests.forEach(function (p) {
+        var row = el('div', 'lib-queue-row');
+        row.appendChild(link(p.title, '#/page/' + p.id, 'lib-queue-name'));
+        row.appendChild(el('span', 'lib-queue-meta', p.deleteRequest.by + ' asked ' + formatDate(p.deleteRequest.at)));
+        var decide = el('span', 'lib-queue-actions');
+        decide.appendChild(button('Delete page', 'row-btn row-btn-danger', async function () { if (await confirmAndDelete(p)) { route(); } }));
+        decide.appendChild(button('Keep it', 'row-btn', async function () {
+          if (await attempt(backend().cancelDeleteRequest(p.id))) { notice('Kept \u201c' + p.title + '\u201d. The request was cleared.'); route(); }
+        }));
+        row.appendChild(decide);
+        box.appendChild(row);
+      });
+    }
+  }
+
+  // A person who is not the team lead asks for a live page to be deleted. It stays live until the lead agrees.
+  async function confirmAndRequestDelete(page) {
+    var question = 'Ask ' + personFor(team.lead) + ' (' + team.lead + ') to delete \u201c' + page.title + '\u201d? It stays live until they agree.';
+    if (!(await window.askConfirm(question, { title: 'Ask to delete this live page?', ok: 'Send request' }))) { return false; }
+    if (!(await attempt(backend().requestDelete(page.id)))) { return false; }
+    notice('Asked ' + personFor(team.lead) + ' to delete \u201c' + page.title + '\u201d. It stays live until then.');
+    return true;
+  }
+
+  async function cancelDeletionRequest(page) {
+    if (!(await attempt(backend().cancelDeleteRequest(page.id)))) { return false; }
+    notice('The request to delete \u201c' + page.title + '\u201d was cancelled.');
+    return true;
   }
 
   // Asks, then deletes a page and every version. `page` is a library row (title, versionCount, liveVersion).
@@ -360,7 +393,7 @@
     }
     var table = el('table', 'lib-table');
     var headRow = el('tr');
-    var canDelete = actorIsLead();   // only the team lead gets Delete buttons; the server checks again
+    var canDelete = true;   // every row has a delete-type button; which one depends on who is asking and whether the page is live
     // Each heading sorts the list; choosing the same one again reverses it
     [['title', 'Page'], ['status', 'Status'], ['owner', 'Owner'], ['visibility', 'Visibility'], ['updated', 'Updated']].forEach(function (pair) {
       var th = el('th');
@@ -386,7 +419,7 @@
       var row = el('tr', 'lib-row');
       var nameCell = el('td');
       nameCell.appendChild(link(p.title, '#/page/' + p.id, 'lib-page-link'));
-      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.versionCount > 1 ? ' · ' + p.versionCount + ' versions' : '')));
+      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.versionCount > 1 ? ' · ' + p.versionCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
       row.appendChild(nameCell);
       var statusCell = el('td');
       statusCell.appendChild(badge(STATE_LABELS[p.state]));
@@ -398,11 +431,19 @@
       row.appendChild(el('td', 'lib-date', formatDate(p.updatedAt)));
       if (canDelete) {
         var deleteCell = el('td', 'lib-row-actions');
-        var deleteButton = button('Delete', 'row-btn row-btn-danger', async function () {
-          if (await confirmAndDelete(p)) { route(); }
-        });
-        deleteButton.setAttribute('aria-label', 'Delete ' + p.title);
-        deleteCell.appendChild(deleteButton);
+        var lead = actorIsLead();
+        var rowButton;
+        if (lead || !p.liveVersion) {
+          rowButton = button('Delete', 'row-btn row-btn-danger', async function () { if (await confirmAndDelete(p)) { route(); } });
+          rowButton.setAttribute('aria-label', 'Delete ' + p.title);
+        } else if (p.deleteRequest) {
+          rowButton = button('Cancel request', 'row-btn', async function () { if (await cancelDeletionRequest(p)) { route(); } });
+          rowButton.setAttribute('aria-label', 'Cancel the request to delete ' + p.title);
+        } else {
+          rowButton = button('Request deletion', 'row-btn row-btn-danger', async function () { if (await confirmAndRequestDelete(p)) { route(); } });
+          rowButton.setAttribute('aria-label', 'Ask to delete ' + p.title);
+        }
+        deleteCell.appendChild(rowButton);
         row.appendChild(deleteCell);
       }
       body.appendChild(row);
@@ -429,7 +470,7 @@
     var meta = el('p', 'lib-sub');
     meta.appendChild(badge(STATE_LABELS[page.state]));
     meta.appendChild(visibilityPill(page.visibility));
-    meta.appendChild(document.createTextNode(' Owner: ' + roleLabel(page.owner) + ' · ' + (page.location || '')));
+    meta.appendChild(document.createTextNode(' Owner: ' + roleLabel(page.owner) + ' · ' + (page.location || '') + (page.deleteRequest ? ' · deletion requested by ' + page.deleteRequest.by : '')));
     titles.appendChild(meta);
     head.appendChild(titles);
 
@@ -446,6 +487,16 @@
     if (data.actions.indexOf('delete') >= 0) {
       actions.appendChild(button('Delete page', 'danger-btn', async function () {
         if (await confirmAndDelete(page)) { location.hash = '#/'; }
+      }));
+    }
+    if (data.actions.indexOf('request_delete') >= 0) {
+      actions.appendChild(button('Request deletion', 'danger-btn', async function () {
+        if (await confirmAndRequestDelete(page)) { showDetail(id); }
+      }));
+    }
+    if (data.actions.indexOf('cancel_delete_request') >= 0 || data.actions.indexOf('decline_delete') >= 0) {
+      actions.appendChild(button(data.actions.indexOf('decline_delete') >= 0 ? 'Keep this page (decline request)' : 'Cancel deletion request', 'secondary-link', async function () {
+        if (await cancelDeletionRequest(page)) { showDetail(id); }
       }));
     }
     if (data.actions.indexOf('unpublish') >= 0) {
@@ -801,7 +852,7 @@
         listBox.appendChild(el('p', 'lib-empty', 'Type in the box to search live pages.'));
         return;
       }
-      var result = await backend().list(q);
+      var result = await backend().list(q, true);
       if (mine !== routing || q !== search.value.trim()) { return; }
       listBox.textContent = '';
       var live = result.pages.filter(function (p) { return p.liveVersion; });
@@ -883,7 +934,7 @@
   // Other live pages that share this page's owner role or a linked role
   async function relatedPages(id, pageFields, publicOnly) {
     var roles = [pageFields.owner].concat(pageFields.linkedRoles).filter(Boolean);
-    var all = await attempt(backend().list(''));
+    var all = await attempt(backend().list('', true));
     if (!all) { return null; }
     var matches = all.pages.filter(function (p) {
       if (p.id === id || !p.liveVersion || (publicOnly && p.visibility !== 'Client-Safe')) { return false; }
