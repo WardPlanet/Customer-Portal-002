@@ -432,6 +432,13 @@
       if (canDelete) {
         var deleteCell = el('td', 'lib-row-actions');
         var lead = actorIsLead();
+        // Edit: opens the version being worked on, or starts a new draft from the live one (same as the page's own Edit button)
+        var editButton = button('Edit', 'row-btn', async function () {
+          var result = await attempt(backend().edit(p.id));
+          if (result) { location.hash = '#/edit/' + p.id + '/' + result.version; }
+        });
+        editButton.setAttribute('aria-label', 'Edit ' + p.title);
+        deleteCell.appendChild(editButton);
         // Testing shortcut for the team lead: publish the draft (or version in review) without opening it. In the
         // finished system the lead reviews the draft and publishes from there. Remove this button then.
         if (lead && p.workingVersion) {

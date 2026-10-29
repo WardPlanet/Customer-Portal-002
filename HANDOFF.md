@@ -362,6 +362,10 @@ scanned for several documents. Reading, scanning and creating show a loading bar
 when it is done. If the person importing is not the team lead, every draft is owned by their own role and the owner
 menus are not shown.
 
+**Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
+others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
+button on the page's own screen.
+
 **Publish button in the library (testing shortcut).** The team lead's library rows have a **Publish** button on any page
 with a draft, sent-back or in-review version: it publishes that version at once, with no confirmation and without review (the same rules as
 the editor's Publish: title, description and owner are still required; a missing one is shown in red on the row). It is for testing so drafts need not be
