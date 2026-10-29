@@ -1648,3 +1648,7 @@
 .sort-btn:hover, .sort-btn.is-active { color: var(--accent); }
 .sort-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lib-queue-actions { margin-left: auto; display: inline-flex; gap: 8px; }
+.row-btn-publish { color: var(--accent); border-color: var(--accent); }
+.lib-row-actions { white-space: nowrap; }
+.lib-row-actions .row-btn + .row-btn { margin-left: 6px; }
+.batch-field .has-error { border-color: var(--danger); }

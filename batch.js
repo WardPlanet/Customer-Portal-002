@@ -323,6 +323,9 @@
       review();
     }
 
+    // The team lead has to choose an owner for each document before any drafts are made
+    function needsOwner() { return !!(ui.isLead && ui.isLead()); }
+
     /* ----- 3. Review the proposed split ----- */
     function review() {
       clear();
@@ -333,14 +336,18 @@
       if (session.imageCount) { root.appendChild(el('p', 'batch-note', session.imageCount + ' image(s) in the file are not imported. Add them back by hand where needed.')); }
 
       var settings = el('section', 'batch-card batch-settings');
-      var ownerLabel = el('label', 'batch-field', 'Owner role for all of them ');
+      var ownerLabel = el('label', 'batch-field', 'Set the owner role of every document to ');
       var owner = el('select', 'acting-select');
-      var none = el('option', '', 'Choose later');
+      var none = el('option', '', needsOwner() ? 'Choose a role…' : 'Choose later');
       none.value = '';
       owner.appendChild(none);
       window.PageEditor.roles().forEach(function (title) { var o = el('option', '', title); o.value = title; owner.appendChild(o); });
-      owner.value = session.owner || '';
-      owner.addEventListener('change', function () { session.owner = owner.value; });
+      owner.value = '';
+      owner.addEventListener('change', function () {
+        // A shortcut: fills in every document at once. Each one can still be changed below.
+        plan.documents.forEach(function (doc) { doc.owner = owner.value; });
+        review();
+      });
       ownerLabel.appendChild(owner);
       settings.appendChild(ownerLabel);
       var visLabel = el('label', 'batch-field', 'Visibility for all of them ');
@@ -350,7 +357,7 @@
       vis.addEventListener('change', function () { session.visibility = vis.value; });
       visLabel.appendChild(vis);
       settings.appendChild(visLabel);
-      settings.appendChild(el('p', 'lib-hint', 'Pages are created as drafts for you to check. The owner can be changed on each page later.'));
+      settings.appendChild(el('p', 'lib-hint', needsOwner() ? 'Every document needs an owner role before the drafts can be created. Choose one for each below, or set them all above.' : 'Pages are created as drafts for you to check. The owner can be changed on each page later.'));
       root.appendChild(settings);
 
       var list = el('div', 'batch-list');
@@ -366,12 +373,15 @@
       var bar = el('div', 'batch-bar');
       var count = plan.documents.filter(function (d) { return d.include !== false; }).length;
       var create = ui.button('Create ' + count + (count === 1 ? ' draft' : ' drafts'), 'primary-btn', function () { create_(); });
-      if (!count || !session.aiOk) { create.disabled = true; }
+      var missingOwner = needsOwner() ? plan.documents.filter(function (d) { return d.include !== false && !d.owner; }).length : 0;
+      if (!count || !session.aiOk || missingOwner) { create.disabled = true; }
+      if (missingOwner) { create.title = 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + ' first'; }
       if (!session.aiOk) { create.title = 'Creating pages needs the AI, which is not available here'; }
       bar.appendChild(create);
       bar.appendChild(ui.button('Scan again', 'secondary-link', scan));
       bar.appendChild(ui.button('Choose another file', 'secondary-link', function () { session = null; stepChoose(); }));
-      if (count) { bar.appendChild(el('span', 'lib-hint', 'Uses about ' + count + ' AI request' + (count === 1 ? '' : 's') + ' and takes a minute or so each.')); }
+      if (missingOwner) { bar.appendChild(el('span', 'batch-problem', 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + '.')); }
+      else if (count) { bar.appendChild(el('span', 'lib-hint', 'Uses about ' + count + ' AI request' + (count === 1 ? '' : 's') + ' and takes a minute or so each.')); }
       root.appendChild(bar);
     }
 
@@ -391,6 +401,19 @@
       title.setAttribute('aria-label', 'Title');
       title.addEventListener('input', function () { doc.title = title.value; doc.edited = true; });
       body.appendChild(title);
+
+      var ownerRow = el('label', 'batch-field', 'Owner role ');
+      var docOwner = el('select', 'acting-select');
+      docOwner.setAttribute('aria-label', 'Owner role for ' + doc.title);
+      var blank = el('option', '', needsOwner() ? 'Choose a role…' : 'Choose later');
+      blank.value = '';
+      docOwner.appendChild(blank);
+      window.PageEditor.roles().forEach(function (roleTitle) { var o = el('option', '', roleTitle); o.value = roleTitle; docOwner.appendChild(o); });
+      docOwner.value = doc.owner || '';
+      docOwner.addEventListener('change', function () { doc.owner = docOwner.value; review(); });
+      if (needsOwner() && doc.include !== false && !doc.owner) { docOwner.classList.add('has-error'); }
+      ownerRow.appendChild(docOwner);
+      body.appendChild(ownerRow);
 
       var words = Core.wordCount(session.segments, doc.first, doc.last);
       var meta = el('p', 'lib-row-sub', 'Pieces ' + doc.first + '–' + doc.last + ' · about ' + words.toLocaleString() + ' words');
@@ -417,8 +440,11 @@
       row.appendChild(el('span', 'batch-skipped-text', 'Pieces ' + gap.first + '–' + gap.last + ' · ' + gap.reason + ': ' + (text.length > 120 ? text.slice(0, 119) + '…' : text)));
       row.appendChild(ui.button('Make this a document', 'row-btn', function () {
         var firstHeading = session.segments.slice(gap.first - 1, gap.last).filter(function (s) { return /^H[1-6]$/.test(s.tag); })[0];
+        var owners = {};   // the plan is rebuilt below, so keep the owners already chosen
+        session.plan.documents.forEach(function (d) { if (d.owner) { owners[d.first + '-' + d.last] = d.owner; } });
         session.plan.documents.push({ title: (firstHeading || session.segments[gap.first - 1]).text.slice(0, 150), first: gap.first, last: gap.last });
         session.plan = Core.normalizePlan({ documents: session.plan.documents, skipped: [] }, session.segments.length);
+        session.plan.documents.forEach(function (d) { if (owners[d.first + '-' + d.last]) { d.owner = owners[d.first + '-' + d.last]; } });
         review();
       }));
       return row;
@@ -489,7 +515,7 @@
       var source = session.fileName + ' (document ' + job.number + ' of ' + job.of + ')';
       result.source = source;
       if (doc.edited && String(doc.title).trim()) { result.title = String(doc.title).trim(); }   // a title you typed wins
-      var text = window.PageEditor.draftTextFromResult(result, { owner: session.owner, visibility: session.visibility, source: source });
+      var text = window.PageEditor.draftTextFromResult(result, { owner: doc.owner || '', visibility: session.visibility, source: source });
       var notes = result.review_notes.slice();
       if (session.imageCount) { notes.push('Images in the original file were not imported.'); }
       var note = ('Imported from ' + source + '.' + (notes.length ? ' Check: ' + notes.join(' • ') : '')).slice(0, 2000);

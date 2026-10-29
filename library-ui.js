@@ -432,6 +432,16 @@
       if (canDelete) {
         var deleteCell = el('td', 'lib-row-actions');
         var lead = actorIsLead();
+        // Testing shortcut for the team lead: publish the draft (or version in review) without opening it. In the
+        // finished system the lead reviews the draft and publishes from there. Remove this button then.
+        if (lead && p.workingVersion) {
+          var publishButton = button('Publish', 'row-btn row-btn-publish', async function () {
+            if (!(await window.askConfirm('Make \u201c' + p.title + '\u201d live now, without opening or reviewing it?', { title: 'Publish this page?', ok: 'Publish' }))) { return; }
+            if (await attempt(backend().act(p.id, p.workingVersion.n, 'publish'))) { notice('Published \u201c' + p.title + '\u201d.'); route(); }
+          });
+          publishButton.setAttribute('aria-label', 'Publish ' + p.title);
+          deleteCell.appendChild(publishButton);
+        }
         var rowButton;
         if (lead || !p.liveVersion) {
           rowButton = button('Delete', 'row-btn row-btn-danger', async function () { if (await confirmAndDelete(p)) { route(); } });
@@ -1119,7 +1129,7 @@
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1]); }
-    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend }); }
+    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead }); }
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }
   }

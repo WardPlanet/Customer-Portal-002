@@ -352,6 +352,16 @@ live. A live page needs the lead: the owner chooses **Request deletion** (the pa
 lead's "Deletion requests" box at the top of the library, and the lead chooses **Delete page** or **Keep it**. The owner
 can cancel their request. Restoring a backup does not bring back pending requests.
 
+**Batch import owners.** Each document in the batch review has its own owner role (a "set every document to" menu fills
+them all at once). When the team lead imports, every included document must have an owner before **Create drafts**
+turns on; for anyone else the owner stays optional.
+
+**Publish button in the library (testing shortcut).** The team lead's library rows have a **Publish** button on any page
+with a draft, sent-back or in-review version: it asks, then publishes that version without review (the same rules as
+the editor's Publish: title, description, owner and a step are still required). It is for testing so drafts need not be
+opened one by one. In the finished system the lead reviews each draft and publishes from there; remove the button then
+(search for "Testing shortcut" in `library-ui.js`).
+
 **Deleting a page.** The team lead has a **Delete page** button on a page's screen. It names the page, says how many
 versions go and whether it is live (it then leaves the library, search and the public site at once), and asks
 first. It removes the page and every version, on the server (the page's folder) or from the browser's storage.
