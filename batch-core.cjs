@@ -153,7 +153,7 @@
     var documents = plan.documents.slice();
     var previous = documents[index - 1];
     var current = documents[index];
-    documents[index - 1] = { title: previous.title, first: previous.first, last: current.last, owner: previous.owner };
+    documents[index - 1] = { title: previous.title, first: previous.first, last: current.last, owner: previous.owner, fileName: previous.fileName };
     documents.splice(index, 1);
     // Anything skipped between the two is now inside the merged document
     var skipped = plan.skipped.filter(function (gap) { return !(gap.first > previous.last && gap.last < current.first); });

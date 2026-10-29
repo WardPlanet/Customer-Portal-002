@@ -221,20 +221,68 @@
       root.appendChild(box);
     }
 
+    /* ----- Progress bar and marks ----- */
+    // A loading bar. Call set(fraction, caption) as work completes; set(null, caption) for "busy, no number".
+    function progressBar(caption) {
+      var wrap = el('div', 'batch-progressbar');
+      var track = el('div', 'bar-track');
+      track.setAttribute('role', 'progressbar');
+      track.setAttribute('aria-label', 'Progress');
+      var fill = el('div', 'bar-fill');
+      track.appendChild(fill);
+      var text = el('p', 'batch-working', caption || '');
+      wrap.appendChild(track);
+      wrap.appendChild(text);
+      function set(fraction, words) {
+        if (words !== undefined) { text.textContent = words; }
+        if (fraction === null) {
+          track.classList.add('is-busy');
+          track.removeAttribute('aria-valuenow');
+          fill.style.width = '';
+        } else {
+          track.classList.remove('is-busy');
+          var percent = Math.max(0, Math.min(100, Math.round(fraction * 100)));
+          track.setAttribute('aria-valuenow', String(percent));
+          fill.style.width = percent + '%';
+        }
+      }
+      return { node: wrap, set: set };
+    }
+
+    // The state shown beside a document: a green check when done, a small bar while it is being worked on
+    function stateMark(kind) {
+      var mark = el('span', 'batch-state');
+      if (kind === 'done') { mark.classList.add('batch-state-done'); mark.textContent = '\u2713'; mark.setAttribute('aria-label', 'Done'); }
+      else if (kind === 'working') { mark.classList.add('batch-state-working'); mark.setAttribute('aria-label', 'In progress'); mark.appendChild(el('span', 'mini-bar')); }
+      else if (kind === 'failed') { mark.classList.add('batch-state-failed'); mark.textContent = '\u2715'; mark.setAttribute('aria-label', 'Failed'); }
+      else { mark.textContent = '\u00b7'; mark.setAttribute('aria-label', 'Waiting'); }
+      return mark;
+    }
+
+    function setMark(row, kind) { row.replaceChild(stateMark(kind), row.firstChild); }
+
+    // Who the drafts belong to. The team lead chooses an owner per document; anyone else owns what they upload.
+    function ownerFor(doc) { return needsOwner() ? (doc.owner || '') : (ui.myRole ? ui.myRole() : ''); }
+
     /* ----- 1. Choose the file ----- */
     function stepChoose(message) {
       clear();
-      head('Batch import', 'One file with several documents becomes several draft pages.');
+      head('Batch import', 'One file with several documents, or several files, become draft pages.');
       if (message) { root.appendChild(el('p', 'batch-problem', message)); }
 
       var card = el('section', 'batch-card');
-      card.appendChild(el('h2', 'lib-h2', '1. Choose the file'));
-      card.appendChild(el('p', 'lib-hint', 'A Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text or Markdown file. The app finds where each document starts and ends, and you check the split before anything is created. Images are not imported.'));
+      card.appendChild(el('h2', 'lib-h2', '1. Choose the file or files'));
+      card.appendChild(el('p', 'lib-hint', 'A Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text or Markdown file. Choose one file and the app finds where each document starts and ends. Choose several files and each one is treated as its own document. You check everything before anything is created. Images are not imported.'));
 
       var input = el('input');
       input.type = 'file';
       input.accept = '.docx,.pdf,.odt,.rtf,.html,.htm,.txt,.md';
-      input.addEventListener('change', function () { if (input.files[0]) { load(input.files[0]); } });
+      input.multiple = true;
+      input.setAttribute('aria-label', 'Files to import');
+      input.addEventListener('change', function () {
+        if (input.files.length > 1) { loadSeveral(Array.prototype.slice.call(input.files)); }
+        else if (input.files[0]) { load(input.files[0]); }
+      });
       card.appendChild(input);
 
       card.appendChild(el('p', 'lib-hint', 'Or paste the text of the whole file:'));
@@ -249,39 +297,104 @@
       root.appendChild(card);
     }
 
+    function plainError(message) {
+      var error = new Error(message);
+      error.userMessage = message;
+      return error;
+    }
+
+    // Reads one file into pieces. Throws an error with a plain-words message when it cannot.
+    async function readFile(file) {
+      if (file.size > MAX_FILE_BYTES) { throw plainError(file.name + ' is over 25 MB. Split it into smaller files first.'); }
+      var segments;
+      var images = 0;
+      if (/\.docx$/i.test(file.name)) {
+        var word = await window.PageEditor.wordToHtml(file);
+        segments = htmlToSegments(word.html);
+        images = word.imageCount;
+      } else if (/\.pdf$/i.test(file.name)) {
+        var pdfText = await window.PageEditor.extractPdfText(file);
+        if (!pdfText.trim()) { throw plainError(file.name + ' has no selectable text (it may be a scan), so it cannot be read.'); }
+        segments = pdfTextToSegments(pdfText);
+      } else if (/\.odt$/i.test(file.name)) {
+        try { segments = htmlToSegments(await odtToHtml(file)); }
+        catch (odtError) { throw plainError(file.name + ' could not be read. Open it in a word processor and save it as .docx instead.'); }
+      } else if (/\.rtf$/i.test(file.name)) {
+        segments = textToSegments(rtfToText(await file.text()));
+      } else if (/\.html?$/i.test(file.name)) {
+        segments = htmlToSegments(await file.text());
+      } else if (/\.(txt|md)$/i.test(file.name)) {
+        segments = textToSegments(await file.text());
+      } else {
+        throw plainError(file.name + ' is not a type Batch import reads. It reads .docx, .pdf, .odt, .rtf, .html, .txt and .md files. (Older .doc files: open them in Word and save as .docx.)');
+      }
+      return { segments: segments, images: images };
+    }
+
     async function load(file) {
-      if (file.size > MAX_FILE_BYTES) { stepChoose('That file is over 25 MB. Split it into smaller files first.'); return; }
       clear();
       head('Batch import');
-      root.appendChild(el('p', 'batch-working', 'Reading ' + file.name + '…'));
+      var bar = progressBar('Reading ' + file.name);
+      bar.set(null);
+      root.appendChild(bar.node);
       try {
-        var segments;
-        var images = 0;
-        if (/\.docx$/i.test(file.name)) {
-          var word = await window.PageEditor.wordToHtml(file);
-          segments = htmlToSegments(word.html);
-          images = word.imageCount;
-        } else if (/\.pdf$/i.test(file.name)) {
-          var pdfText = await window.PageEditor.extractPdfText(file);
-          if (!pdfText.trim()) { stepChoose('That PDF has no selectable text (it may be a scan), so it cannot be read.'); return; }
-          segments = pdfTextToSegments(pdfText);
-        } else if (/\.odt$/i.test(file.name)) {
-          try { segments = htmlToSegments(await odtToHtml(file)); }
-          catch (odtError) { stepChoose('That .odt file could not be read. Open it in a word processor and save it as .docx instead.'); return; }
-        } else if (/\.rtf$/i.test(file.name)) {
-          segments = textToSegments(rtfToText(await file.text()));
-        } else if (/\.html?$/i.test(file.name)) {
-          segments = htmlToSegments(await file.text());
-        } else if (/\.(txt|md)$/i.test(file.name)) {
-          segments = textToSegments(await file.text());
-        } else {
-          stepChoose('Batch import reads .docx, .pdf, .odt, .rtf, .html, .txt and .md files. (Older .doc files: open them in Word and save as .docx.)');
-          return;
-        }
-        loadSegments(file.name, segments, images);
+        var read = await readFile(file);
+        loadSegments(file.name, read.segments, read.images);
       } catch (error) {
         stepChoose(window.PageEditor.errorMessage(error));
       }
+    }
+
+    // Several files at once: every file is its own document, so there is nothing to scan for. They go
+    // straight to the review.
+    var MAX_FILES = 40;
+    async function loadSeveral(files) {
+      if (files.length > MAX_FILES) { stepChoose('That is ' + files.length + ' files. Choose up to ' + MAX_FILES + ' at a time.'); return; }
+      clear();
+      head('Batch import', files.length + ' files');
+      var bar = progressBar('Reading the files…');
+      root.appendChild(bar.node);
+      var list = el('div', 'batch-list');
+      var marks = files.map(function (file) {
+        var row = el('div', 'batch-progress');
+        row.appendChild(stateMark('waiting'));
+        row.appendChild(el('span', 'batch-progress-title', file.name));
+        list.appendChild(row);
+        return row;
+      });
+      root.appendChild(list);
+
+      var segments = [];
+      var documents = [];
+      var notes = [];
+      var images = 0;
+      for (var i = 0; i < files.length; i += 1) {
+        bar.set(i / files.length, 'Reading ' + (i + 1) + ' of ' + files.length + ': ' + files[i].name);
+        setMark(marks[i], 'working');
+        try {
+          var read = await readFile(files[i]);
+          if (!read.segments.length) { throw plainError(files[i].name + ' has no text.'); }
+          var first = segments.length + 1;
+          read.segments.forEach(function (piece) { segments.push(piece); });
+          var heading = read.segments.filter(function (piece) { return /^H[1-6]$/.test(piece.tag); })[0];
+          documents.push({ title: (heading ? heading.text : files[i].name.replace(/\.[^.]+$/, '')).slice(0, 150), first: first, last: segments.length, fileName: files[i].name });
+          images += read.images;
+          setMark(marks[i], 'done');
+        } catch (error) {
+          notes.push(window.PageEditor.errorMessage(error) + ' It was left out.');
+          setMark(marks[i], 'failed');
+          marks[i].appendChild(el('span', 'lib-row-sub', window.PageEditor.errorMessage(error)));
+        }
+      }
+      bar.set(1, 'Done reading');
+      if (!documents.length) { stepChoose('None of those files could be read. ' + notes.join(' ')); return; }
+      session = { fileName: files.length + ' files', segments: segments, imageCount: images, plan: { documents: documents, skipped: [], problems: [] }, notes: ['Each file is treated as one separate document.'].concat(notes), multiFile: true, edited: {} };
+      session.aiOk = await window.PageEditor.aiAvailable();
+      if (!session.aiOk) { session.notes.push('The AI is not available, so the drafts cannot be created here.'); }
+      var pages = await ui.backend().list('').catch(function () { return { pages: [] }; });
+      existingTitles = {};
+      pages.pages.forEach(function (p) { existingTitles[p.title.toLowerCase()] = true; });
+      review();
     }
 
     async function loadSegments(fileName, segments, images) {
@@ -298,7 +411,9 @@
     async function scan() {
       clear();
       head('Batch import', session.fileName + ' · ' + session.segments.length + ' pieces');
-      root.appendChild(el('p', 'batch-working', 'Looking for separate documents…'));
+      var scanBar = progressBar('Looking for separate documents…');
+      scanBar.set(null);
+      root.appendChild(scanBar.node);
       var plan;
       var usedAi = false;
       var note = '';
@@ -337,6 +452,7 @@
 
       var settings = el('section', 'batch-card batch-settings');
       var ownerLabel = el('label', 'batch-field', 'Set the owner role of every document to ');
+      if (!needsOwner()) { ownerLabel.hidden = true; }   // not the lead: uploads belong to the uploader
       var owner = el('select', 'acting-select');
       var none = el('option', '', needsOwner() ? 'Choose a role…' : 'Choose later');
       none.value = '';
@@ -357,7 +473,7 @@
       vis.addEventListener('change', function () { session.visibility = vis.value; });
       visLabel.appendChild(vis);
       settings.appendChild(visLabel);
-      settings.appendChild(el('p', 'lib-hint', needsOwner() ? 'Every document needs an owner role before the drafts can be created. Choose one for each below, or set them all above.' : 'Pages are created as drafts for you to check. The owner can be changed on each page later.'));
+      settings.appendChild(el('p', 'lib-hint', needsOwner() ? 'Every document needs an owner role before the drafts can be created. Choose one for each below, or set them all above.' : 'Pages are created as drafts for you to check. They will be owned by ' + ((ui.myRole && ui.myRole()) || 'you') + ', your role.'));
       root.appendChild(settings);
 
       var list = el('div', 'batch-list');
@@ -378,7 +494,7 @@
       if (missingOwner) { create.title = 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + ' first'; }
       if (!session.aiOk) { create.title = 'Creating pages needs the AI, which is not available here'; }
       bar.appendChild(create);
-      bar.appendChild(ui.button('Scan again', 'secondary-link', scan));
+      if (!session.multiFile) { bar.appendChild(ui.button('Scan again', 'secondary-link', scan)); }
       bar.appendChild(ui.button('Choose another file', 'secondary-link', function () { session = null; stepChoose(); }));
       if (missingOwner) { bar.appendChild(el('span', 'batch-problem', 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + '.')); }
       else if (count) { bar.appendChild(el('span', 'lib-hint', 'Uses about ' + count + ' AI request' + (count === 1 ? '' : 's') + ' and takes a minute or so each.')); }
@@ -403,6 +519,7 @@
       body.appendChild(title);
 
       var ownerRow = el('label', 'batch-field', 'Owner role ');
+      if (!needsOwner()) { ownerRow.hidden = true; }
       var docOwner = el('select', 'acting-select');
       docOwner.setAttribute('aria-label', 'Owner role for ' + doc.title);
       var blank = el('option', '', needsOwner() ? 'Choose a role…' : 'Choose later');
@@ -463,14 +580,16 @@
 
       clear();
       head('Creating drafts', session.fileName);
-      var status = el('p', 'batch-working', '');
-      root.appendChild(status);
+      var createBar = progressBar('');
+      var already = chosen.filter(function (d) { return session.results[d.first + '-' + d.last] && session.results[d.first + '-' + d.last].id; }).length;
+      createBar.set(chosen.length ? already / chosen.length : 0, 'Starting…');
+      root.appendChild(createBar.node);
       var rows = {};
       var listBox = el('div', 'batch-list');
       chosen.forEach(function (doc) {
         var row = el('div', 'batch-progress');
         var done = session.results[doc.first + '-' + doc.last];
-        row.appendChild(el('span', 'batch-state', done && done.id ? 'Done' : 'Waiting'));
+        row.appendChild(stateMark(done && done.id ? 'done' : 'waiting'));
         row.appendChild(el('span', 'batch-progress-title', doc.title));
         listBox.appendChild(row);
         rows[doc.first + '-' + doc.last] = row;
@@ -483,17 +602,18 @@
         var job = jobs[i];
         var key = job.doc.first + '-' + job.doc.last;
         var row = rows[key];
-        status.textContent = 'Converting ' + (i + 1) + ' of ' + jobs.length + ': ' + job.doc.title;
-        row.firstChild.textContent = 'Working…';
+        createBar.set((already + i) / chosen.length, 'Creating ' + (already + i + 1) + ' of ' + chosen.length + ': ' + job.doc.title);
+        setMark(row, 'working');
         try {
           session.results[key] = await createOne(job);
-          row.firstChild.textContent = 'Done';
+          setMark(row, 'done');
         } catch (error) {
           session.results[key] = { error: window.PageEditor.errorMessage(error) };
-          row.firstChild.textContent = 'Failed';
+          setMark(row, 'failed');
           row.appendChild(el('span', 'lib-row-sub', session.results[key].error));
         }
       }
+      createBar.set(1, session.cancelled ? 'Stopped' : 'All done');
       summary(chosen);
     }
 
@@ -501,7 +621,8 @@
     async function createOne(job) {
       var doc = job.doc;
       var html = Core.joinHtml(session.segments, doc.first, doc.last);
-      var base = (session.fileName.replace(/\.[^.]+$/, '') || 'file') + ' part ' + job.number;
+      var origin = doc.fileName || session.fileName;
+      var base = (origin.replace(/\.[^.]+$/, '') || 'file') + (doc.fileName ? '' : ' part ' + job.number);
       var file = new File([html], base + '.html', { type: 'text/html' });
       var result;
       try {
@@ -512,10 +633,10 @@
           result = await window.PageEditor.convert(file);
         } else { throw error; }
       }
-      var source = session.fileName + ' (document ' + job.number + ' of ' + job.of + ')';
+      var source = doc.fileName ? doc.fileName : session.fileName + ' (document ' + job.number + ' of ' + job.of + ')';
       result.source = source;
       if (doc.edited && String(doc.title).trim()) { result.title = String(doc.title).trim(); }   // a title you typed wins
-      var text = window.PageEditor.draftTextFromResult(result, { owner: doc.owner || '', visibility: session.visibility, source: source });
+      var text = window.PageEditor.draftTextFromResult(result, { owner: ownerFor(doc), visibility: session.visibility, source: source });
       var notes = result.review_notes.slice();
       if (session.imageCount) { notes.push('Images in the original file were not imported.'); }
       var note = ('Imported from ' + source + '.' + (notes.length ? ' Check: ' + notes.join(' • ') : '')).slice(0, 2000);
@@ -530,13 +651,13 @@
       var failed = chosen.filter(function (d) { var r = session.results[d.first + '-' + d.last]; return !r || r.error; });
       head(made.length + (made.length === 1 ? ' draft created' : ' drafts created'), session.fileName);
       if (session.cancelled) { root.appendChild(el('p', 'batch-note', 'You stopped it, so some documents were not converted. They are listed below.')); }
-      root.appendChild(el('p', 'lib-hint', 'They are drafts in the library. Open each one to check it, set the owner if you have not, and publish or submit it. The points the AI flagged are shown when you open a draft.'));
+      root.appendChild(el('p', 'lib-hint', 'They are drafts in the library. Open each one to check it, and publish or submit it. The points the AI flagged are shown when you open a draft.'));
 
       var list = el('div', 'batch-list');
       made.forEach(function (doc) {
         var r = session.results[doc.first + '-' + doc.last];
         var row = el('div', 'batch-progress');
-        row.appendChild(el('span', 'batch-state', 'Draft'));
+        row.appendChild(stateMark('done'));
         row.appendChild(ui.link(r.title, '#/page/' + r.id, 'lib-page-link'));
         row.appendChild(el('span', 'lib-row-sub', r.notes.length ? r.notes.length + ' point' + (r.notes.length === 1 ? '' : 's') + ' to check' : 'nothing flagged'));
         list.appendChild(row);
@@ -544,7 +665,7 @@
       failed.forEach(function (doc) {
         var r = session.results[doc.first + '-' + doc.last];
         var row = el('div', 'batch-progress');
-        row.appendChild(el('span', 'batch-state batch-state-failed', r && r.error ? 'Failed' : 'Not done'));
+        row.appendChild(stateMark('failed'));
         row.appendChild(el('span', 'batch-progress-title', doc.title));
         if (r && r.error) { row.appendChild(el('span', 'lib-row-sub', r.error)); }
         list.appendChild(row);

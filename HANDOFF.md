@@ -356,6 +356,12 @@ can cancel their request. Restoring a backup does not bring back pending request
 them all at once). When the team lead imports, every included document must have an owner before **Create drafts**
 turns on; for anyone else the owner stays optional.
 
+**Several files, progress and owners in batch import.** The file box accepts several files at once (up to 40): each
+file becomes its own document, so nothing is scanned or split, and it goes straight to the review. One file is still
+scanned for several documents. Reading, scanning and creating show a loading bar, and each document gets a green check
+when it is done. If the person importing is not the team lead, every draft is owned by their own role and the owner
+menus are not shown.
+
 **Publish button in the library (testing shortcut).** The team lead's library rows have a **Publish** button on any page
 with a draft, sent-back or in-review version: it asks, then publishes that version without review (the same rules as
 the editor's Publish: title, description, owner and a step are still required). It is for testing so drafts need not be

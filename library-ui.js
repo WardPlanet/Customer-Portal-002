@@ -1129,7 +1129,7 @@
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1]); }
-    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead }); }
+    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; } }); }
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }
   }

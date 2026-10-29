@@ -1652,3 +1652,17 @@
 .lib-row-actions { white-space: nowrap; }
 .lib-row-actions .row-btn + .row-btn { margin-left: 6px; }
 .batch-field .has-error { border-color: var(--danger); }
+
+/* Batch import: loading bar and marks */
+.batch-progressbar { margin: 12px 0 16px; max-width: 560px; }
+.bar-track { height: 10px; background: var(--border); border-radius: 999px; overflow: hidden; position: relative; }
+.bar-fill { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.25s ease; }
+.bar-track.is-busy .bar-fill { position: absolute; width: 35%; animation: bar-slide 1.2s ease-in-out infinite; }
+@keyframes bar-slide { 0% { left: -35%; } 100% { left: 100%; } }
+.batch-state-done { color: #1a8f3c; font-size: 18px; font-weight: 700; }
+.batch-state-failed { font-size: 16px; }
+.batch-state-working { display: inline-flex; align-items: center; }
+.mini-bar { display: inline-block; position: relative; width: 56px; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.mini-bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; background: var(--accent); border-radius: 999px; animation: bar-slide 1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .bar-track.is-busy .bar-fill, .mini-bar::after { animation: none; left: 0; } }
+.batch-field[hidden] { display: none; }
