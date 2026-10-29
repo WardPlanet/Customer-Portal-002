@@ -86,7 +86,7 @@ refreshes the outline. Call it after any structural change.
 
 **Required fields**
 
-- Required: title, description, an Owner role, and at least one step with a title. (The Reviewer is also
+- Required: title, description and an Owner role (a page does not need any steps). (The Reviewer is also
   required but is filled in automatically, see below. With no roster, for example the page opened from
   disk with no server, there is nobody to choose, so Owner and Reviewer do not block saving.) The first
   step on the page carries the red `*`.
@@ -105,7 +105,7 @@ refreshes the outline. Call it after any structural change.
   formatting and no spell check, and keeps indentation and line breaks exactly. It is never rewritten by
   the AI (no sparkle button, scans skip it) and the style guide does not apply inside it. In the PDF it
   prints in Courier on a light grey box. Imports put commands, queries and config into Code blocks.
-- Every block except the required first step has a red `x` in its corner to remove it.
+- Every block has a red `x` in its corner to remove it. Steps are not required; an empty step is left out of the PDF and the preview.
 
 **Header hierarchy:** the first header is H1. A new header may be at most one level deeper than
 the nearest header above it (after H1: H1 or H2; after H2: H1, H2 or H3). Disallowed levels are
@@ -308,7 +308,7 @@ stays in the history). Restoring an old version makes a new draft, which needs a
 
 **Who may do what.** Anyone on the team: create pages, edit drafts, submit, withdraw their own submission,
 restore. The **team lead only** (Web Team Manager, currently Micah): approve, send back, unpublish, **delete a page**. Submitting
-needs a title, description, owner role and at least one step title.
+needs a title, description and owner role.
 
 **Publish (skips review).** Review is not in use yet, so the editor has a **Publish** button (and a Publish
 button on each draft in the page history). It saves the page, makes that version **live at once** (the
@@ -364,7 +364,7 @@ menus are not shown.
 
 **Publish button in the library (testing shortcut).** The team lead's library rows have a **Publish** button on any page
 with a draft, sent-back or in-review version: it publishes that version at once, with no confirmation and without review (the same rules as
-the editor's Publish: title, description, owner and a step are still required; a missing one is shown in red on the row). It is for testing so drafts need not be
+the editor's Publish: title, description and owner are still required; a missing one is shown in red on the row). It is for testing so drafts need not be
 opened one by one. In the finished system the lead reviews each draft and publishes from there; remove the button then
 (search for "Testing shortcut" in `library-ui.js`).
 

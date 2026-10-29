@@ -94,7 +94,6 @@
     if (!f.title) { missing.push('a page title'); }
     if (!f.description) { missing.push('a description'); }
     if (team && team.roles && team.roles.length && !f.owner) { missing.push('an owner role'); }
-    if (!f.hasStepTitle) { missing.push('at least one step with a title'); }
     return missing;
   }
 

@@ -1002,7 +1002,7 @@
         article.appendChild(callout);
       } else if (sections[prefix + 'PARAGRAPH']) {
         previewParagraphs(article, body(prefix + 'PARAGRAPH'));
-      } else if (sections[prefix + 'STEP TITLE'] || sections[prefix + 'STEP TEXT']) {
+      } else if ((body(prefix + 'STEP TITLE') || body(prefix + 'STEP TEXT') || Object.keys(sections).some(function (name) { return name.indexOf(prefix + 'STEP ') === 0 && /^STEP (CODE|NOTE|WARNING) /.test(name.slice(prefix.length)) && body(name); })) && (sections[prefix + 'STEP TITLE'] || sections[prefix + 'STEP TEXT'])) {
         var step = el('div', 'preview-step');
         var number = body(prefix + 'STEP NUMBER');
         step.appendChild(el('div', 'preview-step-number', number || ''));

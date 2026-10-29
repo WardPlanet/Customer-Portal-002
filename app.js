@@ -280,7 +280,7 @@
       return button;
     }
 
-    // The first step is required (red *). Every other block can be removed (red x).
+    // No block is required except the title, description and owner above, so every block can be removed (red x).
     function setRequiredDecoration(block, isRequired) {
       var mark = block.querySelector('.required-mark');
       var removeButton = block.querySelector('.remove-block');
@@ -317,7 +317,6 @@
           var endsSection = !(next && next.classList.contains('step-block'));
 
           stepNumber = startsSection ? 1 : stepNumber + 1;
-          isRequired = !sawFirstStep;
           sawFirstStep = true;
 
           child.querySelector('.step-number').textContent = String(stepNumber);
@@ -840,15 +839,9 @@
       { el: descriptionEl, label: 'description', message: 'Add a description to save a draft.' }
     ];
 
-    function anyStepHasTitle() {
-      return stepBlocks().some(function (block) {
-        return readText(block.querySelector('.step-title')) !== '';
-      });
-    }
-
     function isDraftComplete() {
       var fieldsFilled = REQUIRED_FIELDS.every(function (field) { return readText(field.el) !== ''; });
-      return fieldsFilled && anyStepHasTitle() && !ownerIsMissing();
+      return fieldsFilled && !ownerIsMissing();
     }
 
     // Grey out Save draft and Submit until every required field is filled in
@@ -887,20 +880,6 @@
       if (ownerIsMissing()) {
         flagBlock(byId('owner-field'), 'Choose an owner role to save a draft.');
         missing.push({ label: 'owner role', target: byId('owner') });
-      }
-
-      var steps = stepBlocks();
-      if (!steps.length) {
-        addStep('', '');
-        steps = stepBlocks();
-      }
-      var hasStepTitle = steps.some(function (block) {
-        return readText(block.querySelector('.step-title')) !== '';
-      });
-      if (!hasStepTitle) {
-        var firstTitle = steps[0].querySelector('.step-title');
-        flagBlock(steps[0], 'Add at least one step with a title to save a draft.', firstTitle.parentNode);
-        missing.push({ label: 'at least one step', target: firstTitle });
       }
 
       return missing;
@@ -2868,7 +2847,7 @@
         } else if (block.type === 'paragraph') {
           content = content.concat(pdfRichText(block.text));
         } else if (block.type === 'step') {
-          content.push(pdfStep(block));
+          if (block.title || block.text || (block.items && block.items.length)) { content.push(pdfStep(block)); }   // an empty step is left out
         } else if (block.type === 'code') {
           content.push(pdfCode(block.text));
         } else if (block.type === 'warning') {
