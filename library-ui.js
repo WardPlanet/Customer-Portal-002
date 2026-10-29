@@ -827,8 +827,8 @@
       if (title && wanted.indexOf(title) < 0) { wanted.push(title); }
     });
     if (!wanted.length) { return null; }
-    var box = el('section', 'preview-contacts');
-    box.appendChild(el('h2', 'preview-h', 'Contacts'));
+    var box = el('section', 'side-card');
+    box.appendChild(el('h2', 'side-title', 'Contacts'));
     wanted.forEach(function (title, index) {
       var role = team.roles.filter(function (r) { return r.title === title; })[0];
       var label = index === 0 && title === fieldsOfPage.owner ? 'Page owner' : title === team.lead ? 'Team lead' : 'Linked';
@@ -842,6 +842,29 @@
       }
       box.appendChild(card);
     });
+    return box;
+  }
+
+  // Other live pages that share this page's owner role or a linked role
+  async function relatedPages(id, pageFields) {
+    var roles = [pageFields.owner].concat(pageFields.linkedRoles).filter(Boolean);
+    var all = await attempt(backend().list(''));
+    if (!all) { return null; }
+    var matches = all.pages.filter(function (p) {
+      if (p.id === id || !p.liveVersion) { return false; }
+      return roles.indexOf(p.owner) >= 0 || (p.linkedRoles || []).some(function (role) { return roles.indexOf(role) >= 0; });
+    }).slice(0, 8);
+    if (!matches.length) { return null; }
+    var box = el('section', 'side-card');
+    box.appendChild(el('h2', 'side-title', 'Related pages'));
+    var list = el('ul', 'side-list');
+    matches.forEach(function (p) {
+      var item = el('li');
+      item.appendChild(link(p.title, '#/public/' + p.id));
+      item.appendChild(visibilityPill(p.visibility));
+      list.appendChild(item);
+    });
+    box.appendChild(list);
     return box;
   }
 
@@ -898,8 +921,6 @@
         article.appendChild(step);
       }
     });
-    var contacts = renderContacts(W.fields(text));
-    if (contacts) { article.appendChild(contacts); }
     return article;
   }
 
@@ -921,7 +942,17 @@
     bar.appendChild(link('← Back to search', '#/public', 'lib-page-link'));
     bar.appendChild(visibilityPill(detail.page.visibility));
     main.appendChild(bar);
-    main.appendChild(renderPreview(data.text));
+    var layout = el('div', 'preview-layout');
+    layout.appendChild(renderPreview(data.text));
+    var side = el('aside', 'preview-side');
+    side.setAttribute('aria-label', 'Contacts and related pages');
+    var contacts = renderContacts(W.fields(data.text));
+    if (contacts) { side.appendChild(contacts); }
+    var related = await relatedPages(id, W.fields(data.text));
+    if (mine !== routing) { return; }
+    if (related) { side.appendChild(related); }
+    layout.appendChild(side);
+    main.appendChild(layout);
     setBanner(null);
   }
 

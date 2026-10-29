@@ -1627,3 +1627,19 @@
 .preview-contacts { margin-top: 36px; padding-top: 8px; border-top: 1px solid var(--border); }
 .preview-contact { padding: 8px 0; }
 .preview-contact-label { display: inline-block; min-width: 84px; margin-right: 8px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted, #555); }
+
+/* Preview with a right-hand side panel */
+.preview-layout { display: flex; align-items: flex-start; gap: 40px; }
+.preview-layout .preview { flex: 1 1 auto; min-width: 0; max-width: 760px; }
+.preview-side { flex: 0 0 280px; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; }
+.side-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 14px 16px; }
+.side-title { margin: 0 0 8px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted, #555); }
+.side-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.side-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.preview-contact { padding: 8px 0; border-top: 1px solid var(--border); font-size: 0.92rem; overflow-wrap: anywhere; }
+.preview-contact:first-of-type { border-top: 0; padding-top: 0; }
+.preview-contact-label { display: block; min-width: 0; margin: 0 0 2px; }
+@media (max-width: 860px) {
+  .preview-layout { flex-direction: column; }
+  .preview-side { position: static; flex-basis: auto; width: 100%; }
+}

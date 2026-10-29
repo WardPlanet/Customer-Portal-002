@@ -335,9 +335,10 @@ On the server these write `teams/legwork-web-team.json` (`PUT /api/library/roste
 only). In the artifact the changes are kept in the browser (key `pageEditor.roster.v1`) and replace the roster built
 into the page; they are not part of the backup file.
 
-**Contacts on a live page.** The page view (Public preview screen) ends with a Contacts block: the page owner (name, role,
+**Side panel on a live page.** The page view (Public preview screen) has a right-hand panel (it drops below the page on narrow screens). **Contacts**: the page owner (name, role,
 email), then the team lead, then anyone in LINKED ROLES, looked up from the roster so they update when the roster does.
-The real public routes (`/api/public/...`) still return no owner or contact details.
+**Related pages**: other live pages with the same owner role or a linked role in common (up to 8). The real public routes
+(`/api/public/...`) still return no owner or contact details.
 
 **Deleting a page.** The team lead has a **Delete page** button on a page's screen. It names the page, says how many
 versions go and whether it is live (it then leaves the library, search and the public site at once), and asks
