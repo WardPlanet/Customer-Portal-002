@@ -371,6 +371,16 @@ person is using the app, and the server trusts it, so anyone can claim to be any
 workflow can be tried as Scott (writes) and as Micah (reviews). Microsoft Entra ID replaces it, mapping each
 signed-in person to the roles they hold. Everything that checks "who" already goes through that one person.
 
+**Planned requirement: sign-in and who can be on a team.** The editor will be operated through Planet DDS Azure
+(Microsoft Entra ID) sign-in. Only people who already have a Planet DDS Azure account may be added to a team as a
+role holder. Not built yet; today the Team & roles pop-up accepts any typed name and email. When sign-in is added:
+- the person and email on a role should come from the directory (pick an existing account, never free text), and a
+  role's email should be that account's sign-in address;
+- the signed-in account decides who is acting, replacing "Acting as" (map the account to the role it holds; an
+  account with no role can read pages but not edit them, or is refused, as decided then);
+- the team lead's add/remove actions (`PUT /api/library/roster`) must check the account exists in Azure before saving;
+- keep the existing rules: each role holds one person, and a role with pages cannot be removed.
+
 **Where pages live.** On the server: `drafts/<team>/pages/<id>/page.json` (the page and the facts about each
 version) plus `v1.txt`, `v2.txt` ... (each version's text in the draft format). In the artifact: this
 browser's storage (so pages exist only in that browser; clearing it loses them). API: `/api/library/...`

@@ -73,6 +73,10 @@ variables take priority). `.env.example` documents each one.
   public routes (`/api/public/...`) are safe by design (live Client-Safe pages only) but everything else needs
   real sign-in, for example Microsoft Entra ID, before this is hosted. Put it behind your single sign-on or an
   internal-only network until then.
+- **Team membership must follow Azure.** The editor is meant to be used through Planet DDS Azure (Microsoft Entra ID)
+  sign-in, and only people with an existing Planet DDS Azure account should be addable to a team as a role holder.
+  Today the Team & roles pop-up takes any typed name and email, so the add step needs to check the directory. See
+  HANDOFF.md, "Planned requirement: sign-in and who can be on a team".
 - **Pages are files with version history.** Every version is kept (`page.json` and one `.txt` per version), so
   put `DRAFTS_DIR` on a backed-up volume. Only the team lead can delete a page (it removes every version), so keep backups.
 - **One instance only.** Pages live on local disk, so running several copies would give each its own set.
