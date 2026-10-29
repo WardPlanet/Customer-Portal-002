@@ -24,7 +24,7 @@
 
   var team = null;
   var current = { id: null, n: null, backTo: '#/' };   // what the editor is showing
-  var libraryFilters = { q: '', status: '' };
+  var libraryFilters = { q: '', status: '', sortKey: 'updated', sortDown: true };   // sortDown: newest / Z first
 
   // Counts navigations. A screen that finishes loading after the person has already moved on must not
   // draw itself, so each screen remembers the count when it started and checks it after every wait.
@@ -330,6 +330,25 @@
     return true;
   }
 
+  // Sorts a copy of the rows by the chosen heading. Ties keep the newest page first.
+  function sortRows(rows) {
+    var value = {
+      title: function (p) { return p.title.toLowerCase(); },
+      status: function (p) { return STATE_LABELS[p.state][0].toLowerCase(); },
+      owner: function (p) { return (p.owner || '\uffff').toLowerCase(); },   // pages with no owner go last
+      visibility: function (p) { return p.visibility; },
+      updated: function (p) { return String(p.updatedAt); }
+    }[libraryFilters.sortKey];
+    var direction = libraryFilters.sortDown ? -1 : 1;
+    return rows.slice().sort(function (a, b) {
+      var x = value(a);
+      var y = value(b);
+      if (x < y) { return -direction; }
+      if (x > y) { return direction; }
+      return String(b.updatedAt).localeCompare(String(a.updatedAt));
+    });
+  }
+
   function renderList(box, pages) {
     box.textContent = '';
     var shown = pages.filter(function (p) {
@@ -342,12 +361,28 @@
     var table = el('table', 'lib-table');
     var headRow = el('tr');
     var canDelete = actorIsLead();   // only the team lead gets Delete buttons; the server checks again
-    ['Page', 'Status', 'Owner', 'Visibility', 'Updated'].concat(canDelete ? [''] : []).forEach(function (h) { headRow.appendChild(el('th', '', h)); });
+    // Each heading sorts the list; choosing the same one again reverses it
+    [['title', 'Page'], ['status', 'Status'], ['owner', 'Owner'], ['visibility', 'Visibility'], ['updated', 'Updated']].forEach(function (pair) {
+      var th = el('th');
+      var active = libraryFilters.sortKey === pair[0];
+      th.setAttribute('aria-sort', active ? (libraryFilters.sortDown ? 'descending' : 'ascending') : 'none');
+      var sorter = el('button', 'sort-btn' + (active ? ' is-active' : ''), pair[1] + (active ? (libraryFilters.sortDown ? ' \u25BE' : ' \u25B4') : ''));
+      sorter.type = 'button';
+      sorter.setAttribute('aria-label', 'Sort by ' + pair[1].toLowerCase());
+      sorter.addEventListener('click', function () {
+        if (libraryFilters.sortKey === pair[0]) { libraryFilters.sortDown = !libraryFilters.sortDown; }
+        else { libraryFilters.sortKey = pair[0]; libraryFilters.sortDown = pair[0] === 'updated'; }   // dates start newest first, words A to Z
+        renderList(box, pages);
+      });
+      th.appendChild(sorter);
+      headRow.appendChild(th);
+    });
+    if (canDelete) { headRow.appendChild(el('th')); }
     var thead = el('thead');
     thead.appendChild(headRow);
     table.appendChild(thead);
     var body = el('tbody');
-    shown.forEach(function (p) {
+    sortRows(shown).forEach(function (p) {
       var row = el('tr', 'lib-row');
       var nameCell = el('td');
       nameCell.appendChild(link(p.title, '#/page/' + p.id, 'lib-page-link'));

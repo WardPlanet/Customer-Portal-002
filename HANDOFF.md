@@ -366,6 +366,9 @@ reviewer, keywords, location and source file from the page text. The search itse
 over those entries; the real search engine (Azure AI Search) replaces it later and should be fed the same
 entries.
 
+**Sorting the library.** Each heading of the library table (Page, Status, Owner, Visibility, Updated) sorts the list;
+clicking it again reverses the order. The default is Updated, newest first. The choice is kept while the page is open.
+
 **Acting as (stand-in for login).** There is no login yet. The "Acting as" menu (top right) chooses which
 person is using the app, and the server trusts it, so anyone can claim to be anyone. It exists so the
 workflow can be tried as Scott (writes) and as Micah (reviews). Microsoft Entra ID replaces it, mapping each
