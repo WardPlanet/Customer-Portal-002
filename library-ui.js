@@ -65,9 +65,9 @@
   function backend() { return window.Store.backend; }
 
   // A small picture beside a search result showing which team made the page. The Web Team's pages get a
-  // website (globe) icon. The picture is named in the team file ("icon": "website").
+  // website (browser window) icon. The picture is named in the team file ("icon": "website").
   var TEAM_ICONS = {
-    website: { label: 'Web Team', svg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.6 2.6 4 6 4 9.5s-1.4 6.9-4 9.5c-2.6-2.6-4-6-4-9.5s1.4-6.9 4-9.5z"/></svg>' }
+    website: { label: 'Web Team', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="M2.5 9h19M6 6.8h.01M8.8 6.8h.01"/></svg>' }
   };
 
   function teamIcon(page) {
@@ -1108,7 +1108,7 @@
     return slug;
   }
 
-  var LINK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
+  var LINK_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
 
   // A heading with a small link button: choosing it copies the address of that section, so you can send someone
   // straight to it. `base` is the page's address (for example "#/preview/<id>").
@@ -1126,7 +1126,7 @@
       var copied = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(full) : Promise.reject();
       copied.then(function () { notice('Link to this section copied.'); }, function () { notice('The link to this section is now in the address bar.'); });
     });
-    heading.appendChild(anchor);
+    heading.insertBefore(anchor, heading.firstChild);   // on the left of the heading, where it is easy to spot
     return heading;
   }
 

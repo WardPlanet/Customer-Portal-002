@@ -387,16 +387,17 @@ published ones and the summary has `releaseCount` and `liveRelease`.)
 warning with the triangle, and the same dark code box, in light and dark mode (`previewCallout` in `library-ui.js`).
 
 **Team icon in search results.** Each search result shows a small icon for the team that made the page. The Web Team's pages
-get a website (globe) icon, set by `"icon": "website"` in `teams/legwork-web-team.json` (only `website` exists so far;
+get a website (browser window) icon, set by `"icon": "website"` in `teams/legwork-web-team.json` (only `website` exists so far;
 more pictures go in `TEAM_ICONS` in `library-ui.js`). Search itself is still the simple word match.
 
 **Lists and section links in the reader view.** In the live view, lines that start with "- " (or a bullet or en-dash
 character) become bullet lists and "1. " lines numbered lists, in descriptions, paragraphs and step text. (The reader
-view used to show them as plain text.) Each heading has a small link button that appears on hover: it copies the address
+view used to show them as plain text.) Each heading has a small blue link button on its left, always visible: it copies the address
 of that section (`#/preview/<id>/<section>`, or `#/public/<id>/<section>`). Opening such an address scrolls to the
 section and highlights it, with everything under it up to the next heading of the same or higher level, in very light
 yellow (`--linked-bg`). Section names come from the heading text, with `-2`, `-3` added for repeated headings. The import
-guidelines now tell the AI to turn dash and bullet-character lines into "- " list items, and the editor treats a
+guidelines and the style guide now both make this a rule: every list is a real list ("- " or "1. " lines) and dash or
+bullet-character lines in a source document are converted. The editor treats a
 pasted bullet or en-dash line start as a bullet.
 
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,

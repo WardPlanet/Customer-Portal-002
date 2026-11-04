@@ -66,6 +66,10 @@ standardizes on a different guide (for example Chicago or AP).
 ## Lists, links and emphasis
 
 - Use a numbered list only when the order matters. Otherwise use bullets.
+- Always write a list as a real list: each item on its own line starting with "- " (bullets) or "1. " (numbers).
+  Never type a dash, en dash, bullet character or "*" in front of an item and leave it as ordinary text, and
+  never run list items together in one paragraph. If a source document uses dashes or bullet characters, they
+  are list items: convert every one to "- ".
 - Keep list items parallel: all start with a verb, or all are noun phrases.
 - Link text says where the link goes ("the refund policy"), never "click here".
 - Use bold for button and menu names, and for a key term the first time it is defined. Use italics rarely,

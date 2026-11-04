@@ -1688,8 +1688,8 @@
 /* Lists and section links in the reader view */
 .preview-list { margin: 0 0 12px; padding-left: 1.4em; }
 .preview-list li { margin: 3px 0; }
-.preview-anchor { display: inline-grid; vertical-align: middle; margin-left: 8px; color: var(--text-faint); opacity: 0; text-decoration: none; }
-.preview-h:hover .preview-anchor, .preview-anchor:focus-visible { opacity: 1; }
-.preview-anchor:hover { color: var(--accent); }
 .section-linked { background: var(--linked-bg); border-radius: 10px; padding: 2px 14px 6px; margin: 0 -14px 12px; }
 .section-linked > .preview-h:first-child { margin-top: 10px; }
+.preview-anchor { display: inline-grid; place-items: center; width: 26px; height: 26px; margin: 0 8px 0 -34px; vertical-align: middle; color: var(--accent); background: var(--accent-soft); border-radius: 8px; text-decoration: none; }
+.preview-anchor:hover, .preview-anchor:focus-visible { color: #fff; background: var(--accent); }
+@media (max-width: 860px) { .preview-anchor { margin-left: 0; } }
