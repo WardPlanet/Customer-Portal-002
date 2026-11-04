@@ -1243,8 +1243,8 @@
     if (scroll !== false) { wrapper.scrollIntoView({ block: 'start' }); }
   }
 
-  // "On this page": the headings as an outline. It starts partly folded: only the top-level headings show (the first
-  // eight if there are more), and an Expand button opens everything. Smaller headings sit under the bigger one above
+  // "On this page": the headings as an outline. It starts partly folded: the first five top-level headings show, the next
+  // two fade out, the rest are hidden, and an Expand button underneath opens everything. Smaller headings sit under the bigger one above
   // them, joined by a line, and any group can be opened or folded with its own arrow. A link scrolls to its heading
   // and does not highlight it.
   function renderOnThisPage(article) {
@@ -1261,16 +1261,16 @@
       stack.push(node);
     });
 
-    var VISIBLE_WHEN_FOLDED = 8;
+    var VISIBLE_WHEN_FOLDED = 5;   // top-level headings shown in full while folded
+    var FADED_WHEN_FOLDED = 2;     // the headings after those, shown faded to say there is more
     var box = el('nav', 'side-card toc-card');
     box.setAttribute('aria-label', 'On this page');
     var top = el('div', 'toc-head');
     top.appendChild(el('h2', 'side-title', 'On this page'));
+    box.appendChild(top);
     var expandButton = el('button', 'toc-fold', 'Expand');
     expandButton.type = 'button';
     expandButton.setAttribute('aria-expanded', 'false');
-    top.appendChild(expandButton);
-    box.appendChild(top);
 
     var groups = [];   // { toggle, children } for every group that has something under it
     var extras = [];   // top-level items past the first eight, hidden while folded
@@ -1311,17 +1311,18 @@
           groups.push(group);
           setGroup(group, false);
         }
-        if (depth === 0 && index >= VISIBLE_WHEN_FOLDED) { item.hidden = true; extras.push(item); }
+        if (depth === 0 && index >= VISIBLE_WHEN_FOLDED) {
+          var place = index - VISIBLE_WHEN_FOLDED;
+          extras.push(item);
+          if (place < FADED_WHEN_FOLDED) { item.classList.add('toc-fade-' + (place + 1)); } else { item.hidden = true; }
+        }
         list.appendChild(item);
       });
       return list;
     }
     box.appendChild(build(roots, 0));
 
-    var hiddenCount = extras.length;
-    var more = el('p', 'toc-more', '+ ' + hiddenCount + ' more');
-    more.hidden = !hiddenCount;
-    box.appendChild(more);
+    box.appendChild(expandButton);
 
     // Nothing to expand: a short, flat outline
     if (!groups.length && !extras.length) { expandButton.hidden = true; }
@@ -1331,8 +1332,10 @@
       expandButton.setAttribute('aria-expanded', String(open));
       expandButton.textContent = open ? 'Collapse' : 'Expand';
       groups.forEach(function (group) { setGroup(group, open); });
-      extras.forEach(function (item) { item.hidden = !open; });
-      more.hidden = open || !hiddenCount;
+      extras.forEach(function (item, place) {
+        if (place < FADED_WHEN_FOLDED) { item.classList.toggle('toc-fade-' + (place + 1), !open); }   // the faded look goes while open
+        else { item.hidden = !open; }
+      });
     });
     return box;
   }

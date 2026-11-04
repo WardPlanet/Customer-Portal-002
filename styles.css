@@ -1776,3 +1776,14 @@
 @media (max-width: 860px) { .preview-follow { position: static; max-height: none; overflow: visible; } }
 .toc-more { margin: 2px 0 0 22px; font-size: 0.8rem; color: var(--text-faint); }
 .toc-more[hidden], .toc-tree li[hidden] { display: none; }
+
+/* On this page: faded tail while folded, Expand underneath, bigger arrows */
+.toc-fade-1 { opacity: 0.45; }
+.toc-fade-2 { opacity: 0.2; }
+.toc-fade-1 a, .toc-fade-2 a { pointer-events: none; }
+.toc-card .toc-fold { display: block; width: 100%; margin-top: 8px; padding: 6px 0 2px; border-top: 1px solid var(--border); text-align: center; font-size: 0.85rem; font-weight: 600; }
+.toc-card .toc-fold[hidden] { display: none; }
+.toc-toggle { width: 26px; height: 26px; margin: -3px 0; font-size: 17px; line-height: 1; display: inline-grid; place-items: center; border-radius: 6px; }
+.toc-toggle:hover { background: var(--accent-soft); }
+.toc-spacer { width: 26px; }
+.toc-row { align-items: center; }

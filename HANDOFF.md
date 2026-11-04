@@ -443,8 +443,9 @@ bar (Import document, Export PDF, Save draft, Submit, Publish) stays at the bott
 joined by a line, with the top level in bold; a group with something under it folds with its arrow, and the whole box folds
 with Hide/Show. The side panel has the owner's contacts (or the support card in the public view) on top, then the related pages; both scroll
 away with the page. "On this page" is last and stays in view as you scroll; if it is taller than the window it scrolls
-inside its own box, so nothing is cut off. It starts partly folded: only the top-level headings show (the first eight, with
-"+ N more"), and **Expand** opens everything (**Collapse** folds it again). The link button beside a heading copies the link to its section every time it is
+inside its own box, so nothing is cut off. It starts partly folded: only the top-level headings show, the first five in full and the next two faded out
+(the rest hidden), with **Expand** underneath to open everything (**Collapse** folds it again). The group arrows are large
+enough to hit easily. The link button beside a heading copies the link to its section every time it is
 clicked (when it highlights and when it takes the highlight off), and the live view has a **Copy link** button next to
 Export PDF that copies the page's own link. If the browser refuses to copy (some frames do), the link is shown in the
 message so it can be copied by hand.
