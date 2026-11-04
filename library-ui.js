@@ -1147,6 +1147,31 @@
     return box;
   }
 
+  // Copies text to the clipboard. The clipboard API is refused inside some frames, so an older method is tried next.
+  // Resolves to true when it worked.
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); return true; }
+    } catch (error) { /* fall through to the older method */ }
+    var box = document.createElement('textarea');
+    box.value = text;
+    box.setAttribute('readonly', '');
+    box.style.position = 'fixed';
+    box.style.opacity = '0';
+    document.body.appendChild(box);
+    box.select();
+    var worked = false;
+    try { worked = document.execCommand('copy'); } catch (error) { worked = false; }
+    box.remove();
+    return worked;
+  }
+
+  // Copies a link and says so; if copying is not allowed here, shows the link so it can be copied by hand
+  async function copyLinkWithNotice(url, doneMessage) {
+    if (await copyText(url)) { notice(doneMessage + ' Link copied.'); }
+    else { notice(doneMessage + ' Copy this link: ' + url); }
+  }
+
   // A short, URL-safe name for a heading, unique within the page: "Editing the home page" -> "editing-the-home-page"
   function sectionSlug(text, used) {
     var base = String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'section';
@@ -1174,19 +1199,18 @@
     anchor.addEventListener('click', function (event) {
       event.preventDefault();
       var article = anchor.closest('article');
+      var sectionUrl = location.href.split('#')[0] + anchor.getAttribute('href');
       // Highlighted already? (this heading is the first thing in the highlight). A heading inside a highlighted bigger section starts its own highlight.
       var isHighlighted = heading.parentNode.classList && heading.parentNode.classList.contains('section-linked') && heading.parentNode.firstChild === heading;
       if (isHighlighted) {
         clearHighlight(article);
         history.replaceState(null, '', location.href.split('#')[0] + base);   // back to the page's own address
-        notice('Highlight removed.');
+        copyLinkWithNotice(sectionUrl, 'Highlight removed.');
         return;
       }
       highlightSection(article, slug, false);
-      history.replaceState(null, '', location.href.split('#')[0] + anchor.getAttribute('href'));
-      var full = location.href;
-      var copied = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(full) : Promise.reject();
-      copied.then(function () { notice('Section highlighted. A link to it was copied.'); }, function () { notice('Section highlighted. The link to it is in the address bar.'); });
+      history.replaceState(null, '', sectionUrl);
+      copyLinkWithNotice(sectionUrl, 'Section highlighted.');
     });
     heading.insertBefore(anchor, heading.firstChild);   // on the left of the heading, where it is easy to spot
     return heading;
@@ -1219,27 +1243,78 @@
     if (scroll !== false) { wrapper.scrollIntoView({ block: 'start' }); }
   }
 
-  // "On this page": a link to each heading, indented by level. A link scrolls to its heading and does not highlight it.
-  function renderOnThisPage(article) {
+  // "On this page": the headings as an outline. Smaller headings sit under the bigger one above them, joined by a line, and
+  // a group with something under it can be folded. A link scrolls to its heading and does not highlight it. The whole
+  // box can be folded too, so a long outline never hides the contacts below it.
+  function renderOnThisPage(article, refit) {
     var headings = Array.prototype.slice.call(article.querySelectorAll('[data-section]'));
     if (!headings.length) { return null; }
-    var box = el('nav', 'side-card');
-    box.setAttribute('aria-label', 'On this page');
-    box.appendChild(el('h2', 'side-title', 'On this page'));
-    var list = el('ul', 'side-list toc-list');
+
+    // Build the tree: each heading goes under the nearest earlier heading with a smaller level number
+    var roots = [];
+    var stack = [];
     headings.forEach(function (heading) {
-      var item = el('li', 'toc-level-' + heading.getAttribute('data-level'));
-      var label = heading.textContent;
-      var a = el('a', '', label);
-      a.href = '#' + heading.getAttribute('data-section');
-      a.addEventListener('click', function (event) {
-        event.preventDefault();
-        heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-      item.appendChild(a);
-      list.appendChild(item);
+      var node = { heading: heading, level: Number(heading.getAttribute('data-level')), children: [] };
+      while (stack.length && stack[stack.length - 1].level >= node.level) { stack.pop(); }
+      (stack.length ? stack[stack.length - 1].children : roots).push(node);
+      stack.push(node);
     });
-    box.appendChild(list);
+
+    var box = el('nav', 'side-card toc-card');
+    box.setAttribute('aria-label', 'On this page');
+    var top = el('div', 'toc-head');
+    top.appendChild(el('h2', 'side-title', 'On this page'));
+    var fold = el('button', 'toc-fold', 'Hide');
+    fold.type = 'button';
+    fold.setAttribute('aria-expanded', 'true');
+    top.appendChild(fold);
+    box.appendChild(top);
+
+    function build(nodes, depth) {
+      var list = el('ul', 'toc-tree toc-depth-' + Math.min(depth, 3));
+      nodes.forEach(function (node) {
+        var item = el('li');
+        var row = el('div', 'toc-row');
+        var children = null;
+        if (node.children.length) {
+          var toggle = el('button', 'toc-toggle', '\u25BE');
+          toggle.type = 'button';
+          toggle.setAttribute('aria-expanded', 'true');
+          toggle.setAttribute('aria-label', 'Fold \u201c' + node.heading.textContent + '\u201d');
+          toggle.addEventListener('click', function () {
+            var open = toggle.getAttribute('aria-expanded') !== 'true';
+            toggle.setAttribute('aria-expanded', String(open));
+            toggle.textContent = open ? '\u25BE' : '\u25B8';
+            children.hidden = !open;
+            refit();
+          });
+          row.appendChild(toggle);
+        } else {
+          row.appendChild(el('span', 'toc-spacer'));
+        }
+        var a = el('a', '', node.heading.textContent);
+        a.href = '#' + node.heading.getAttribute('data-section');
+        a.addEventListener('click', function (event) {
+          event.preventDefault();
+          node.heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        row.appendChild(a);
+        item.appendChild(row);
+        if (node.children.length) { children = build(node.children, depth + 1); item.appendChild(children); }
+        list.appendChild(item);
+      });
+      return list;
+    }
+    var tree = build(roots, 0);
+    box.appendChild(tree);
+
+    fold.addEventListener('click', function () {
+      var open = fold.getAttribute('aria-expanded') !== 'true';
+      fold.setAttribute('aria-expanded', String(open));
+      fold.textContent = open ? 'Hide' : 'Show';
+      tree.hidden = !open;
+      refit();
+    });
     return box;
   }
 
@@ -1325,6 +1400,13 @@
     main.appendChild(layout);
     setBanner(null);
 
+    // The side panel follows you down the page, unless it is taller than the window: then it scrolls with the page, so
+    // nothing in it is cut off. Folding the outline makes it short enough to follow again.
+    function fitSide(side) {
+      side.classList.remove('is-tall');
+      if (side.scrollHeight > window.innerHeight - 32) { side.classList.add('is-tall'); }
+    }
+
     // Employees see contacts. The public sees a support link instead (the address is set by the team's
     // "supportUrl"; until it is set the card says so). "View as the public" shows exactly that.
     async function draw(asPublic) {
@@ -1334,7 +1416,7 @@
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
       side.setAttribute('aria-label', asPublic ? 'On this page, support and related pages' : 'On this page, contacts and related pages');
-      var toc = renderOnThisPage(article);
+      var toc = renderOnThisPage(article, function () { fitSide(side); });
       if (toc) { side.appendChild(toc); }
       if (asPublic) {
         var support = el('section', 'side-card');
@@ -1350,6 +1432,7 @@
       if (mine !== routing) { return; }
       if (related) { side.appendChild(related); }
       layout.appendChild(side);
+      fitSide(side);
     }
 
     // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)
@@ -1367,6 +1450,11 @@
       }
     });
     bar.appendChild(exportButton);
+    var copyButton = button('Copy link', 'secondary-link', async function () {
+      var pageUrl = location.href.split('#')[0] + (fromLibrary ? '#/preview/' : '#/public/') + id;
+      await copyLinkWithNotice(pageUrl, 'Page link ready.');
+    });
+    bar.appendChild(copyButton);
 
     if (isClientSafe) {
       var viewing = false;
