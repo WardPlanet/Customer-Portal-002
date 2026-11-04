@@ -1813,3 +1813,7 @@
 .preview-footer-message { flex: 1; min-width: 0; color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
 .preview-footer-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
 .preview-footer .primary-btn { padding: 8px 22px; }
+
+/* The buttons under "On this page" stay at the bottom of its box while the list is scrolled, so Collapse is always there */
+.toc-card { padding-bottom: 0; }
+.toc-actions { position: sticky; bottom: 0; z-index: 2; margin: 8px -16px 0; padding: 4px 16px 8px; background: var(--surface); border-radius: 0 0 16px 16px; box-shadow: 0 -8px 8px -6px rgba(0, 0, 0, 0.12); }

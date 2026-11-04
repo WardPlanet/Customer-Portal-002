@@ -1174,6 +1174,29 @@
     else { notice(doneMessage + ' Copy this link: ' + url); }
   }
 
+  // Keeps a box inside the window: its height is limited to the room between its top edge (or the window's top margin once
+  // it has stuck there) and the bottom of the window. If its content is longer it scrolls inside it, so the buttons at the
+  // bottom of "On this page" (Collapse, Expand all) are always in view.
+  function keepOnScreen(box) {
+    var waiting = false;
+    function fit() {
+      waiting = false;
+      if (!document.body.contains(box)) {
+        window.removeEventListener('scroll', schedule, true);
+        window.removeEventListener('resize', schedule);
+        return;
+      }
+      var top = Math.max(box.getBoundingClientRect().top, 16);
+      var footer = document.querySelector('.preview-footer');   // the fixed bottom bar must not cover the box
+      var reserved = (footer ? footer.offsetHeight : 0) + 16;
+      box.style.maxHeight = Math.max(180, window.innerHeight - top - reserved) + 'px';
+    }
+    function schedule() { if (!waiting) { waiting = true; window.requestAnimationFrame(fit); } }
+    window.addEventListener('scroll', schedule, true);
+    window.addEventListener('resize', schedule);
+    fit();
+  }
+
   // A short, URL-safe name for a heading, unique within the page: "Editing the home page" -> "editing-the-home-page"
   function sectionSlug(text, used) {
     var base = String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'section';
@@ -1464,13 +1487,16 @@
       if (related) { side.appendChild(related); }
       // "On this page" is last and follows you down the page. If it is taller than the window it scrolls inside its own
       // box, so none of it is ever cut off.
+      var followBox = null;
       var toc = renderOnThisPage(article);
       if (toc) {
         var follow = el('div', 'preview-follow');
         follow.appendChild(toc);
         side.appendChild(follow);
+        followBox = follow;
       }
       layout.appendChild(side);
+      if (followBox) { keepOnScreen(followBox); }   // once it is on the page, so its position can be measured
     }
 
     // The fixed bar along the bottom: Edit (the team lead and the page's owner), Export PDF and Copy link

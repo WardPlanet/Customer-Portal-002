@@ -461,6 +461,10 @@ If words were selected when an address was pasted, they become the link text. Th
 address fields. The AI assist prompt, the import guidelines and the style guide all say a bare web address should be a link
 with words that say where it goes, written as `[link text](https://address)`.
 
+**Collapse always in reach.** The "On this page" box is never taller than the room between its top edge and the fixed
+bottom bar (`keepOnScreen` in `library-ui.js`, re-measured as you scroll), so a long outline scrolls inside it. The buttons
+under it (Expand all, Collapse) stay at the bottom of the box, over the end of the list, whatever is scrolled.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.
