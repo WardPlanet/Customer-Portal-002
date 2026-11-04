@@ -64,6 +64,23 @@
 
   function backend() { return window.Store.backend; }
 
+  // A small picture beside a search result showing which team made the page. The Web Team's pages get a
+  // website (globe) icon. The picture is named in the team file ("icon": "website").
+  var TEAM_ICONS = {
+    website: { label: 'Web Team', svg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.6 2.6 4 6 4 9.5s-1.4 6.9-4 9.5c-2.6-2.6-4-6-4-9.5s1.4-6.9 4-9.5z"/></svg>' }
+  };
+
+  function teamIcon(page) {
+    var icon = team && page.team === team.slug ? TEAM_ICONS[team.icon] : null;
+    if (!icon) { return null; }
+    var node = el('span', 'team-icon');
+    node.setAttribute('role', 'img');
+    node.setAttribute('aria-label', icon.label + ' page');
+    node.title = icon.label;
+    node.innerHTML = icon.svg;   // fixed markup above, no page text
+    return node;
+  }
+
   // The address of a page's preview (what a reader sees)
   function previewUrl(id) { return '#/preview/' + id; }
 
@@ -949,6 +966,8 @@
       }
       live.forEach(function (p) {
         var card = el('div', 'public-card');
+        var icon = teamIcon(p);
+        if (icon) { card.appendChild(icon); }
         card.appendChild(link(p.title, '#/public/' + p.id, 'lib-page-link'));
         card.appendChild(visibilityPill(p.visibility));
         listBox.appendChild(card);

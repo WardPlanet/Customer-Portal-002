@@ -1679,3 +1679,5 @@
 .preview-warning .preview-callout-icon { color: var(--danger); }
 .preview-callout-text { flex: 1; min-width: 0; }
 .preview-code { margin: 12px 0; padding: 12px 14px; overflow-x: auto; background: var(--code-bg); color: var(--code-text); border: 1px solid var(--border); border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; line-height: 1.55; white-space: pre; tab-size: 2; }
+.public-card { display: flex; align-items: center; gap: 10px; }
+.team-icon { flex: none; display: inline-grid; color: var(--accent); }

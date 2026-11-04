@@ -386,6 +386,10 @@ published ones and the summary has `releaseCount` and `liveRelease`.)
 **Notes, warnings and code in the reader view** are drawn like the editor draws them: yellow note with the circle symbol, red
 warning with the triangle, and the same dark code box, in light and dark mode (`previewCallout` in `library-ui.js`).
 
+**Team icon in search results.** Each search result shows a small icon for the team that made the page. The Web Team's pages
+get a website (globe) icon, set by `"icon": "website"` in `teams/legwork-web-team.json` (only `website` exists so far;
+more pictures go in `TEAM_ICONS` in `library-ui.js`). Search itself is still the simple word match.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.
