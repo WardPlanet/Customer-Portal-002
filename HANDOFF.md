@@ -392,9 +392,9 @@ more pictures go in `TEAM_ICONS` in `library-ui.js`). Search itself is still the
 
 **Lists and section links in the reader view.** In the live view, lines that start with "- " (or a bullet or en-dash
 character) become bullet lists and "1. " lines numbered lists, in descriptions, paragraphs and step text. (The reader
-view used to show them as plain text.) Each heading has a small blue link button on its left, always visible: it copies the address
-of that section (`#/preview/<id>/<section>`, or `#/public/<id>/<section>`). Opening such an address scrolls to the
-section and highlights it, with everything under it up to the next heading of the same or higher level, in very light
+view used to show them as plain text.) Each heading has a small blue link button on its left, always visible: choosing it highlights that section and copies its
+address (`#/preview/<id>/<section>`, or `#/public/<id>/<section>`); choosing it again takes the highlight off. An address
+with a section in it scrolls to the section and highlights it, with everything under it up to the next heading of the same or higher level, in very light
 yellow (`--linked-bg`). Section names come from the heading text, with `-2`, `-3` added for repeated headings. The import
 guidelines and the style guide now both make this a rule: every list is a real list ("- " or "1. " lines) and dash or
 bullet-character lines in a source document are converted. The editor treats a
@@ -433,6 +433,11 @@ order, then fills up to eight with pages that share its owner or a linked role.
 it (and bold, italic, links). Typing "- ", "* ", a bullet character or "1. " at the start of a line also starts a list, in
 any Text block or step detail (`startListFromLine` in `app.js`; the browser's own list command was not used because it
 merged neighbouring lines). Lists are saved as "- " and "1. " lines and show as lists in the live view, the PDF and print.
+
+**Live view: On this page, Export PDF, fixed footer.** The side panel starts with "On this page": a link to each heading,
+indented by level. These links only scroll to the heading; they never highlight it (only the heading's own link button does).
+The live view has an **Export PDF** button (in the public view it exports what the public sees). In the editor the bottom
+bar (Import document, Export PDF, Save draft, Submit, Publish) stays at the bottom of the window while the page scrolls.
 
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit

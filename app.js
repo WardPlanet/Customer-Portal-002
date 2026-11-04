@@ -3609,7 +3609,16 @@
       showNotice: showNotice,
       setLabel: function (text) { byId('page-name').textContent = text; },
       title: function () { return readText(titleEl); },
-      exportPdf: function () { byId('export-pdf').click(); }
+      exportPdf: function () { byId('export-pdf').click(); },
+      // Makes a PDF of any saved text without opening it for editing (the live view's Export PDF). The text is
+      // loaded into the editor's hidden page, read-only, and the same PDF code as the editor's button is used.
+      exportPdfFromText: async function (text) {
+        lockEditing(false);
+        applyDraft(parseDraft(text));
+        lockEditing(true);
+        setStatus('Saved', true);
+        return exportPdfFile();
+      }
     };
 
     /* ---------- Initial render ---------- */

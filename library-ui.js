@@ -1159,29 +1159,51 @@
 
   var LINK_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
 
-  // A heading with a small link button: choosing it copies the address of that section, so you can send someone
-  // straight to it. `base` is the page's address (for example "#/preview/<id>").
+  // A heading with a small link button: choosing it highlights that section (and copies a link to it, so you can send
+  // someone straight there). Choosing it again takes the highlight off. `base` is the page's address (for example
+  // "#/preview/<id>"). The "On this page" links only scroll; they never highlight.
   function previewHeading(level, text, slug, base) {
     var heading = previewText('h' + Math.min(level + 1, 6), 'preview-h', text);
     heading.setAttribute('data-section', slug);
     heading.setAttribute('data-level', String(level));
     var anchor = el('a', 'preview-anchor');
     anchor.href = base + '/' + slug;
-    anchor.setAttribute('aria-label', 'Link to the section \u201c' + text + '\u201d');
-    anchor.title = 'Copy a link to this section';
+    anchor.setAttribute('aria-label', 'Highlight and link to the section \u201c' + text + '\u201d');
+    anchor.title = 'Highlight this section and copy a link to it';
     anchor.innerHTML = LINK_ICON;   // fixed markup above
-    anchor.addEventListener('click', function () {
-      var full = location.href.split('#')[0] + anchor.getAttribute('href');
+    anchor.addEventListener('click', function (event) {
+      event.preventDefault();
+      var article = anchor.closest('article');
+      // Highlighted already? (this heading is the first thing in the highlight). A heading inside a highlighted bigger section starts its own highlight.
+      var isHighlighted = heading.parentNode.classList && heading.parentNode.classList.contains('section-linked') && heading.parentNode.firstChild === heading;
+      if (isHighlighted) {
+        clearHighlight(article);
+        history.replaceState(null, '', location.href.split('#')[0] + base);   // back to the page's own address
+        notice('Highlight removed.');
+        return;
+      }
+      highlightSection(article, slug, false);
+      history.replaceState(null, '', location.href.split('#')[0] + anchor.getAttribute('href'));
+      var full = location.href;
       var copied = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(full) : Promise.reject();
-      copied.then(function () { notice('Link to this section copied.'); }, function () { notice('The link to this section is now in the address bar.'); });
+      copied.then(function () { notice('Section highlighted. A link to it was copied.'); }, function () { notice('Section highlighted. The link to it is in the address bar.'); });
     });
     heading.insertBefore(anchor, heading.firstChild);   // on the left of the heading, where it is easy to spot
     return heading;
   }
 
+  // Takes the highlight off (puts the section's pieces back where they were)
+  function clearHighlight(article) {
+    Array.prototype.slice.call(article.querySelectorAll('.section-linked')).forEach(function (wrapper) {
+      while (wrapper.firstChild) { wrapper.parentNode.insertBefore(wrapper.firstChild, wrapper); }
+      wrapper.remove();
+    });
+  }
+
   // Marks one section as the linked one: its heading and everything under it, up to the next heading of the same
-  // or a higher level, are put on a light yellow background and scrolled into view.
-  function highlightSection(article, slug) {
+  // or a higher level, are put on a light yellow background (and scrolled into view when asked).
+  function highlightSection(article, slug, scroll) {
+    clearHighlight(article);
     var heading = article.querySelector('[data-section="' + slug.replace(/[^a-z0-9-]/g, '') + '"]');
     if (!heading) { return; }
     var level = Number(heading.getAttribute('data-level'));
@@ -1194,7 +1216,31 @@
       if (!next || (next.getAttribute && next.getAttribute('data-level') && Number(next.getAttribute('data-level')) <= level)) { break; }
       node = next;
     }
-    wrapper.scrollIntoView({ block: 'start' });
+    if (scroll !== false) { wrapper.scrollIntoView({ block: 'start' }); }
+  }
+
+  // "On this page": a link to each heading, indented by level. A link scrolls to its heading and does not highlight it.
+  function renderOnThisPage(article) {
+    var headings = Array.prototype.slice.call(article.querySelectorAll('[data-section]'));
+    if (!headings.length) { return null; }
+    var box = el('nav', 'side-card');
+    box.setAttribute('aria-label', 'On this page');
+    box.appendChild(el('h2', 'side-title', 'On this page'));
+    var list = el('ul', 'side-list toc-list');
+    headings.forEach(function (heading) {
+      var item = el('li', 'toc-level-' + heading.getAttribute('data-level'));
+      var label = heading.textContent;
+      var a = el('a', '', label);
+      a.href = '#' + heading.getAttribute('data-section');
+      a.addEventListener('click', function (event) {
+        event.preventDefault();
+        heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      item.appendChild(a);
+      list.appendChild(item);
+    });
+    box.appendChild(list);
+    return box;
   }
 
   // Draws a page the way a reader sees it: title, description, then the blocks in order. No editor.
@@ -1264,7 +1310,7 @@
       // A page that is not live yet previews its version being worked on, or its latest
       shownVersion = detail.page.liveVersion || (detail.page.workingVersion && detail.page.workingVersion.n) || detail.page.versionCount;
       data = await backend().getVersion(id, shownVersion);
-    } catch (error) { if (mine === routing) { notice('That page could not be opened.'); location.hash = fromLibrary ? '#/' : '#/public'; } return; }
+    } catch (error) { console.error('Opening the preview failed:', error); if (mine === routing) { notice('That page could not be opened.'); location.hash = fromLibrary ? '#/' : '#/public'; } return; }
     if (mine !== routing) { return; }
     showScreen('library', true);
     main.textContent = '';
@@ -1285,9 +1331,11 @@
       layout.textContent = '';
       var article = renderPreview(asPublic ? W.publicText(data.text) : data.text, (fromLibrary ? '#/preview/' : '#/public/') + id);
       layout.appendChild(article);
-      if (section) { highlightSection(article, section); section = ''; }   // only the first time the page is drawn
+      if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
-      side.setAttribute('aria-label', asPublic ? 'Support and related pages' : 'Contacts and related pages');
+      side.setAttribute('aria-label', asPublic ? 'On this page, support and related pages' : 'On this page, contacts and related pages');
+      var toc = renderOnThisPage(article);
+      if (toc) { side.appendChild(toc); }
       if (asPublic) {
         var support = el('section', 'side-card');
         support.appendChild(el('h2', 'side-title', 'Need help?'));
@@ -1304,10 +1352,27 @@
       layout.appendChild(side);
     }
 
+    // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)
+    var asPublicNow = false;
+    var exportButton = button('Export PDF', 'secondary-link', async function () {
+      exportButton.disabled = true;
+      try {
+        var name = await window.PageEditor.exportPdfFromText(asPublicNow ? W.publicText(data.text) : data.text);
+        notice('PDF saved as ' + name + '.');
+      } catch (error) {
+        if (error && error.code === 'declined') { notice('PDF not saved.'); }
+        else { notice('The PDF could not be made. ' + (error && error.message ? error.message : '')); }
+      } finally {
+        exportButton.disabled = false;
+      }
+    });
+    bar.appendChild(exportButton);
+
     if (isClientSafe) {
       var viewing = false;
       var toggle = button('View as the public', 'secondary-link', async function () {
         viewing = !viewing;
+        asPublicNow = viewing;
         toggle.textContent = viewing ? 'Back to staff view' : 'View as the public';
         bar.classList.toggle('is-public-view', viewing);
         await draw(viewing);

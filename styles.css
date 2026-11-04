@@ -559,6 +559,10 @@
    padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px));
    background: var(--surface);
    border-top: 1px solid var(--border);
+   /* Stays at the bottom of the window while the page scrolls, so Import, Export, Save and Publish are always in reach */
+   position: sticky;
+   bottom: 0;
+   z-index: 30;
  }
   .submit-btn {
     padding: 8px 28px;
@@ -1725,3 +1729,9 @@
 .related-suggestions li:first-child .related-pick { border-top: 0; }
 .related-pick:hover, .related-pick:focus-visible { background: var(--accent-soft); }
 .related-none { padding: 8px 10px; color: var(--text-faint); font-size: 13px; }
+.toc-list li { display: block; }
+.toc-list a { color: var(--text); text-decoration: none; font-size: 0.92rem; }
+.toc-list a:hover { color: var(--accent); text-decoration: underline; }
+.toc-level-2 { padding-left: 12px; } .toc-level-3 { padding-left: 24px; } .toc-level-4 { padding-left: 36px; } .toc-level-5 { padding-left: 48px; }
+.preview-side { max-height: calc(100vh - 32px); overflow-y: auto; }
+.preview-bar .secondary-link + .secondary-link { margin-left: 0; }
