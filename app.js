@@ -572,7 +572,9 @@
       paragraph.contentEditable = 'true';
       paragraph.spellcheck = true;
       paragraph.setAttribute('data-placeholder', 'Add detail (optional)');
-      paragraph.textContent = text || '';
+      // Step details take bullets and numbers (and bold, italic and links) like a text block does
+      paragraph.setAttribute('data-rich', '');
+      paragraph.innerHTML = markdownToHtml(text || '');
 
       body.appendChild(heading);
       body.appendChild(paragraph);
@@ -1979,6 +1981,70 @@
       }
     });
 
+    // Typing "- " (or "* ", "1. ") at the start of a line in a text field starts a bullet (or numbered) list.
+    // The browser's own list command muddles neighbouring lines, so the list is built here: the line (a div made
+    // by pressing Enter, or the first line sitting straight in the field) becomes a list item, and joins the list
+    // above it when there is one.
+    function startListFromLine(field, node, ordered) {
+      var tag = ordered ? 'ol' : 'ul';
+      var parent = node.parentNode;
+      var item = document.createElement('li');
+      var list = document.createElement(tag);
+      list.appendChild(item);
+
+      if (parent === field) {
+        // The first line: the text and inline pieces up to the next line break or block
+        var piece = node;
+        var next;
+        var broke = null;
+        while (piece) {
+          next = piece.nextSibling;
+          if (piece.nodeName === 'BR') { broke = piece; break; }
+          if (piece.nodeType === 1 && /^(DIV|P|UL|OL)$/.test(piece.nodeName)) { break; }
+          item.appendChild(piece);
+          piece = next;
+        }
+        field.insertBefore(list, piece && piece !== broke ? piece : (broke ? broke.nextSibling : null));
+        if (broke) { broke.remove(); }
+      } else if (parent.parentNode === field && parent.nodeName === 'DIV') {
+        while (parent.firstChild) { item.appendChild(parent.firstChild); }
+        field.replaceChild(list, parent);
+      } else {
+        return false;
+      }
+
+      // Join a list of the same kind that sits right above
+      var above = list.previousElementSibling;
+      if (above && above.nodeName.toLowerCase() === tag) { above.appendChild(item); list.remove(); list = above; }
+      var below = list.nextElementSibling;
+      if (below && below.nodeName.toLowerCase() === tag) { while (below.firstChild) { list.appendChild(below.firstChild); } below.remove(); }
+
+      var range = document.createRange();
+      range.setStart(node, 0);
+      range.collapse(true);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    }
+
+    document.addEventListener('input', function (event) {
+      var field = event.target.closest && event.target.closest('[data-rich]');
+      if (!field || event.inputType !== 'insertText' || event.data !== ' ') { return; }
+      var selection = window.getSelection();
+      if (!selection.rangeCount || !selection.isCollapsed) { return; }
+      var node = selection.anchorNode;
+      if (!node || node.nodeType !== 3) { return; }
+      var upToCaret = node.nodeValue.slice(0, selection.anchorOffset);
+      var marker = /^(-|\*|\u2022|\d+[.)])\s$/.exec(upToCaret);
+      var startsLine = !node.previousSibling || node.previousSibling.nodeName === 'BR';
+      if (!marker || !startsLine) { return; }
+      var before = node.nodeValue;
+      node.nodeValue = before.slice(selection.anchorOffset);   // take the marker out
+      if (!startListFromLine(field, node, /^\d/.test(marker[1]))) { node.nodeValue = before; }   // not a place for a list: leave the text alone
+      markDirty();
+    });
+
     // Bold / italic / underline keyboard shortcuts work in paragraph fields only
     document.addEventListener('keydown', function (event) {
       var target = event.target;
@@ -2938,7 +3004,7 @@
           step.appendChild(printElement('div', 'print-step-number', String(block.number)));
           var body = printElement('div', 'print-step-body');
           if (block.title) { body.appendChild(printElement('h3', 'print-step-title', block.title)); }
-          if (block.text) { body.appendChild(printElement('p', 'print-plain', block.text)); }
+          if (block.text) { body.appendChild(printRichText(block.text)); }
           block.items.forEach(function (item) {
             if (item.type === 'code') {
               body.appendChild(printElement('pre', 'print-code', item.text));
@@ -3138,7 +3204,7 @@
           },
           { width: '*', stack: [].concat(
             block.title ? [{ text: block.title, bold: true, fontSize: 12, color: PDF_COLORS.navy, margin: [0, 1, 0, 2] }] : [],
-            block.text ? [{ text: block.text }] : [],
+            block.text ? pdfRichText(block.text) : [],
             block.items.map(function (item) {
               var box = item.type === 'code' ? pdfCode(item.text)
                 : item.type === 'warning' ? pdfCallout('Warning', item.text, '#FDECEA', '#C62828', '#8A1C1C')

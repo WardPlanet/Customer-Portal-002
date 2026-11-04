@@ -429,6 +429,11 @@ author searches live pages (the same search; the best five show under the box, t
 moves them up or down. They are saved in `[RELATED PAGES]` as `id | title`, and the live page shows them first, in that
 order, then fills up to eight with pages that share its owner or a linked role.
 
+**Bullets in step details.** A step's detail text is a rich field like a Text block: the toolbar's bullet and number buttons work in
+it (and bold, italic, links). Typing "- ", "* ", a bullet character or "1. " at the start of a line also starts a list, in
+any Text block or step detail (`startListFromLine` in `app.js`; the browser's own list command was not used because it
+merged neighbouring lines). Lists are saved as "- " and "1. " lines and show as lists in the live view, the PDF and print.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.
