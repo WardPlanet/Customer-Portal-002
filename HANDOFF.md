@@ -413,6 +413,12 @@ view, the PDF and the printed page. Imports: the AI returns `{ "type": "table", 
 Word or HTML file is kept as a table (see the import guidelines and style guide). The parsing and writing rules are shared
 in `workflow.cjs` (`parseTableLines`, `tableToLines`, `normalizeTable`) and tested.
 
+**Which AI the page uses.** The single-file Claude artifact (the hosted copy) uses Claude's built-in AI, the chat it
+lives in, and never looks for an AI server; the server version uses the API key on the server (`npm start`). When the real
+API is plugged in, run the server version. "Not available" is only a guess: the AI buttons stay clickable inside Claude and
+a click always tries again. A failure to write the search keywords when saving never switches AI assist off. A new page
+starts with no blocks (no empty Step 1); the person adds what they need from "+ Add a block".
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.

@@ -993,13 +993,15 @@
 
       // AI assist unlocks under the same rule: every required field is filled in
       var aiAssist = byId('ai-assist');
-      aiAssist.setAttribute('aria-disabled', String(!complete || aiUnavailable));
+      // Greyed out only when there is no AI at all. After a failed try inside Claude it stays clickable, and a click retries.
+      var aiGone = aiUnavailable && !(window.claude && typeof window.claude.use === 'function') && aiMode !== 'server';
+      aiAssist.setAttribute('aria-disabled', String(!complete || aiGone));
       // Publish (skips review) is offered only to whoever the team allows. The server checks again.
       byId('publish-draft').hidden = !(window.PageHost && window.PageHost.canPublish && window.PageHost.canPublish());
       var importBtn = byId('import-doc');
-      importBtn.setAttribute('aria-disabled', String(aiUnavailable || isImporting));
-      if (aiUnavailable) { importBtn.title = 'Importing needs the AI, which isn\u2019t available in this view'; }
-      if (aiUnavailable) { aiAssist.title = 'AI assist isn\u2019t available in this view'; }
+      importBtn.setAttribute('aria-disabled', String(aiGone || isImporting));
+      if (aiGone) { importBtn.title = 'Importing needs the AI, which isn\u2019t available in this view'; }
+      if (aiGone) { aiAssist.title = 'AI assist isn\u2019t available in this view'; }
       else { aiAssist.title = complete ? 'Scan this page and suggest improvements' : 'Fill in the required fields (*) first'; }
     }
 
@@ -1945,8 +1947,11 @@
 
     function getSample() {
       if (!aiStatusCheck) {
-        aiStatusCheck = fetch('/api/ai/status')
-          .then(function (response) { return response.ok ? response.json() : { available: false }; })
+        // The single-file Claude artifact has no server of its own: it uses Claude's built-in AI (the chat it is
+        // hosted in) and does not look for an AI server. When the real API is plugged in, run the server version.
+        var hostedInClaude = !!window.IMPORT_INSTRUCTIONS;
+        aiStatusCheck = (hostedInClaude ? Promise.resolve({ available: false }) : fetch('/api/ai/status')
+          .then(function (response) { return response.ok ? response.json() : { available: false }; }))
           .catch(function () { return { available: false }; })
           .then(function (status) {
             if (status.available) {
@@ -1968,10 +1973,23 @@
     // Grey out the AI buttons right away when the server can't do AI
     getSample().then(function (sample) {
       if (!sample) {
-        aiUnavailable = true;
-        updateSaveState();
+        // Only grey the buttons out when there is truly nothing to ask. Inside Claude the AI may just be slow to
+        // start or waiting for permission, so the buttons stay on and the first click tries again.
+        aiStatusCheck = null;
+        if (!(window.claude && typeof window.claude.use === 'function')) {
+          aiUnavailable = true;
+          updateSaveState();
+        }
       }
     });
+
+    // "Not available" is only a guess made after one failed try, so a click on any AI button tries again first
+    function retryAi() {
+      if (!aiUnavailable) { return; }
+      aiUnavailable = false;
+      aiStatusCheck = null;
+      updateSaveState();
+    }
 
     // The whole page as plain text, with each section labelled so a suggestion can point at it
     function describePageForAi() {
@@ -2214,6 +2232,7 @@
 
     async function runAiAssist() {
       if (aiController) { aiController.abort(); return; }   // a click while scanning cancels
+      retryAi();
       if (aiUnavailable) {
         showNotice('AI assist isn\u2019t available in this view.');
         return;
@@ -2231,8 +2250,9 @@
         var sample = await getSample();
         if (!sample) {
           aiUnavailable = true;
+          aiStatusCheck = null;   // the next click looks again
           updateSaveState();
-          showNotice('AI assist isn\u2019t available in this view.');
+          showNotice('AI assist isn\u2019t available: Claude didn\u2019t give this page its AI. Click AI assist again to retry.');
           return;
         }
         clearSuggestions();
@@ -2303,11 +2323,8 @@
           state.keywords = keywords;
         }
       } catch (error) {
-        var code = error && error.code;
-        if (code === 'not_granted' || code === 'sampling_disabled' || code === 'not_declared' || code === 'capability_disabled' || code === 'capability_removed') {
-          aiUnavailable = true;
-          updateSaveState();
-        }
+        // Keywords are a background extra. If they fail the page is saved without them; it must not switch off AI assist.
+        console.warn('Search keywords were not made:', error);
       } finally {
         isMakingKeywords = false;
       }
@@ -2363,6 +2380,7 @@
         showNotice('AI assist is already working on something. Try again in a moment.');
         return;
       }
+      retryAi();
       if (aiUnavailable) {
         showNotice('AI assist isn\u2019t available in this view.');
         return;
@@ -2731,6 +2749,7 @@
     }
 
     importButton.addEventListener('click', async function () {
+      if (!isImporting) { retryAi(); }
       if (importButton.getAttribute('aria-disabled') === 'true') {
         showNotice(aiUnavailable ? 'Importing needs the AI, which isn\u2019t available in this view.' : 'An import is already running.');
         return;
@@ -3347,7 +3366,7 @@
       state.roles = [];
       state.keywords = [];
       state.source = '';
-      layoutContent([{ type: 'step', title: '', text: '' }], 1);
+      layoutContent([], 0);   // a new page starts with no blocks: the person adds what they need
       clearSuggestions();
       resetRichSelection();
       renderSidebar();
@@ -3433,6 +3452,6 @@
         .then(function (team) { if (team && Array.isArray(team.roles)) { setRoster(team); } })
         .catch(function () { /* no server: the panel stays empty */ });
     }
-    layoutContent([{ type: 'step', title: '', text: '' }], 1);
+    layoutContent([], 0);   // a new page starts with no blocks: the person adds what they need
     refreshOutline();
   })();
