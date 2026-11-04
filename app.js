@@ -2034,8 +2034,10 @@
       if (!item || typeof item !== 'object') { return null; }
       var target = String(item.target || '').toLowerCase().trim();
       if (target === 'summary') { target = 'description'; }   // the old name for the description
+      var blockMatch = /^block\s*#?\s*([0-9]+)\b/.exec(target);   // "block 2", "Block 2", "block 2 (step)" all mean block 2
+      if (blockMatch) { target = 'block ' + blockMatch[1]; }
       var isPageField = target === 'title' || target === 'description';
-      if (!isPageField && !/^block [0-9]+$/.test(target)) { return null; }
+      if (!isPageField && !blockMatch) { return null; }
 
       if (item.action === 'add') { return null; }   // suggestions only replace text that is already there
       var text = typeof item.text === 'string' ? item.text.trim().slice(0, 2000) : '';
@@ -2056,7 +2058,8 @@
       if (target === 'title') { return titleEl.closest('.text-block'); }
       if (target === 'description') { return descriptionEl.closest('.text-block'); }
       var block = blocks[Number(target.split(' ')[1]) - 1] || null;
-      return block && block.classList.contains('code-block') ? null : block;   // code is never rewritten by the AI
+      // Code and tables are never rewritten by the AI
+      return block && (block.classList.contains('code-block') || block.classList.contains('table-block')) ? null : block;
     }
 
     // An edit that would leave the section exactly as it is is not worth showing
@@ -2163,7 +2166,13 @@
     }
 
     // Puts each suggestion next to its section; returns how many were shown
+    // Returns { shown, offered }: how many cards were put on the page, and how many the AI sent
     function showSuggestions(result) {
+      // The reply should be a list; accept an object that holds the list too ({ "suggestions": [...] }) or one suggestion
+      if (result && !Array.isArray(result) && typeof result === 'object') {
+        var inner = result.suggestions || result.items || result.changes || result.recommendations;
+        result = Array.isArray(inner) ? inner : (result.target ? [result] : []);
+      }
       var list = Array.isArray(result) ? result.slice(0, AI_MAX_SUGGESTIONS) : [];
       var blocks = contentBlocks();
       var shown = 0;
@@ -2176,7 +2185,7 @@
         attachSuggestion(suggestion, host);
         shown += 1;
       });
-      return shown;
+      return { shown: shown, offered: list.length };
     }
 
     function setAiBusy(busy) {
@@ -2197,7 +2206,9 @@
       } else if (code === 'invalid_json' || code === 'empty_completion' || code === 'refused') {
         showNotice('AI assist couldn\u2019t come up with suggestions this time. Try again.');
       } else {
-        showNotice('AI assist ran into a problem. Try again.');
+        // Say what went wrong, so it can be reported, instead of a message that tells nothing
+        console.error('AI assist failed:', error);
+        showNotice('AI assist ran into a problem' + (code ? ' (' + code + ')' : error && error.message ? ' (' + String(error.message).slice(0, 80) + ')' : '') + '. Try again.');
       }
     }
 
@@ -2226,10 +2237,13 @@
         }
         clearSuggestions();
         var result = await sample.json(buildAiPrompt(), { modelTier: 'default', signal: controller.signal });
-        var count = showSuggestions(result);
+        var outcome = showSuggestions(result);
+        var count = outcome.shown;
         showNotice(count
           ? 'AI assist has ' + count + (count === 1 ? ' suggestion' : ' suggestions') + '. Use + to replace the existing text or x to dismiss it.'
-          : 'AI assist found nothing to change. This page reads well.');
+          : outcome.offered
+            ? 'AI assist sent ' + outcome.offered + (outcome.offered === 1 ? ' idea' : ' ideas') + ', but none could be shown: they matched the text already there, or pointed at a code block or table, which the AI never changes.'
+            : 'AI assist found nothing to change. This page reads well.');
       } catch (error) {
         handleAiError(error);
       } finally {
