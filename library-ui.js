@@ -57,9 +57,11 @@
 
   var noticeTimer = null;
   function notice(message) {
-    noticeEl.textContent = message;
+    // On a page's preview the message shows inside the fixed bottom bar, so the two never sit on top of each other
+    var target = document.getElementById('preview-message') || noticeEl;
+    target.textContent = message;
     clearTimeout(noticeTimer);
-    noticeTimer = setTimeout(function () { noticeEl.textContent = ''; }, 6000);
+    noticeTimer = setTimeout(function () { target.textContent = ''; }, 6000);
   }
 
   function backend() { return window.Store.backend; }
@@ -1471,9 +1473,28 @@
       layout.appendChild(side);
     }
 
+    // The fixed bar along the bottom: Edit (the team lead and the page's owner), Export PDF and Copy link
+    var footer = el('footer', 'preview-footer');
+    var footerMessage = el('span', 'preview-footer-message');
+    footerMessage.id = 'preview-message';
+    footerMessage.setAttribute('role', 'status');
+    footer.appendChild(footerMessage);
+    var footerActions = el('div', 'preview-footer-actions');
+    footer.appendChild(footerActions);
+    main.classList.add('has-preview-footer');
+    main.appendChild(footer);
+
+    var who = actor();
+    if (W.isLead(who, team) || who.roles.indexOf(detail.page.owner) >= 0) {
+      footerActions.appendChild(button(detail.page.workingVersion ? 'Continue editing' : 'Edit', 'primary-btn', async function () {
+        var result = await attempt(backend().edit(id));
+        if (result) { location.hash = '#/edit/' + id + '/' + result.version; }
+      }));
+    }
+
     // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)
     var asPublicNow = false;
-    var exportButton = button('Export PDF', 'secondary-link', async function () {
+    var exportButton = button('Export PDF', 'secondary-btn', async function () {
       exportButton.disabled = true;
       try {
         var name = await window.PageEditor.exportPdfFromText(asPublicNow ? W.publicText(data.text) : data.text);
@@ -1485,12 +1506,12 @@
         exportButton.disabled = false;
       }
     });
-    bar.appendChild(exportButton);
-    var copyButton = button('Copy link', 'secondary-link', async function () {
+    footerActions.appendChild(exportButton);
+    var copyButton = button('Copy link', 'secondary-btn', async function () {
       var pageUrl = location.href.split('#')[0] + (fromLibrary ? '#/preview/' : '#/public/') + id;
       await copyLinkWithNotice(pageUrl, 'Page link ready.');
     });
-    bar.appendChild(copyButton);
+    footerActions.appendChild(copyButton);
 
     if (isClientSafe) {
       var viewing = false;
@@ -1566,6 +1587,7 @@
   async function route() {
     if (!team) { return; }
     routing += 1;
+    main.classList.remove('has-preview-footer');   // only a page's preview has the fixed bottom bar
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
     setBanner(null);

@@ -436,7 +436,9 @@ merged neighbouring lines). Lists are saved as "- " and "1. " lines and show as 
 
 **Live view: On this page, Export PDF, fixed footer.** The side panel starts with "On this page": a link to each heading,
 indented by level. These links only scroll to the heading; they never highlight it (only the heading's own link button does).
-The live view has an **Export PDF** button (in the public view it exports what the public sees). In the editor the bottom
+The live view has a fixed bar along the bottom with **Export PDF** (in the public view it exports what the public sees), **Copy link**
+(the page's own address) and, for the team lead and the page's owner, **Edit** (**Continue editing** when a draft is already open). Messages
+show in that bar. "View as the public" stays at the top. In the editor the bottom
 bar (Import document, Export PDF, Save draft, Submit, Publish) stays at the bottom of the window while the page scrolls.
 
 **On this page as an outline; copying links.** "On this page" is an outline: smaller headings sit under the bigger one above them,
