@@ -441,9 +441,10 @@ bar (Import document, Export PDF, Save draft, Submit, Publish) stays at the bott
 
 **On this page as an outline; copying links.** "On this page" is an outline: smaller headings sit under the bigger one above them,
 joined by a line, with the top level in bold; a group with something under it folds with its arrow, and the whole box folds
-with Hide/Show. The side panel has the owner's contacts (or the support card in the public view) on top, which scroll away with the
-page; below them "On this page" and the related pages stay in view as you scroll, and if they are taller than the window
-they scroll inside their own box, so nothing is cut off. The link button beside a heading copies the link to its section every time it is
+with Hide/Show. The side panel has the owner's contacts (or the support card in the public view) on top, then the related pages; both scroll
+away with the page. "On this page" is last and stays in view as you scroll; if it is taller than the window it scrolls
+inside its own box, so nothing is cut off. It starts partly folded: only the top-level headings show (the first eight, with
+"+ N more"), and **Expand** opens everything (**Collapse** folds it again). The link button beside a heading copies the link to its section every time it is
 clicked (when it highlights and when it takes the highlight off), and the live view has a **Copy link** button next to
 Export PDF that copies the page's own link. If the browser refuses to copy (some frames do), the link is shown in the
 message so it can be copied by hand.

@@ -1774,3 +1774,5 @@
 .preview-side.is-tall { position: static; }
 .preview-follow { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 2px; margin: -2px; overscroll-behavior: contain; }
 @media (max-width: 860px) { .preview-follow { position: static; max-height: none; overflow: visible; } }
+.toc-more { margin: 2px 0 0 22px; font-size: 0.8rem; color: var(--text-faint); }
+.toc-more[hidden], .toc-tree li[hidden] { display: none; }

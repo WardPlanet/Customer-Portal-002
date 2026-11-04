@@ -1243,9 +1243,10 @@
     if (scroll !== false) { wrapper.scrollIntoView({ block: 'start' }); }
   }
 
-  // "On this page": the headings as an outline. Smaller headings sit under the bigger one above them, joined by a line, and
-  // a group with something under it can be folded. A link scrolls to its heading and does not highlight it. The whole
-  // box can be folded too, so a long outline never hides the contacts below it.
+  // "On this page": the headings as an outline. It starts partly folded: only the top-level headings show (the first
+  // eight if there are more), and an Expand button opens everything. Smaller headings sit under the bigger one above
+  // them, joined by a line, and any group can be opened or folded with its own arrow. A link scrolls to its heading
+  // and does not highlight it.
   function renderOnThisPage(article) {
     var headings = Array.prototype.slice.call(article.querySelectorAll('[data-section]'));
     if (!headings.length) { return null; }
@@ -1260,33 +1261,38 @@
       stack.push(node);
     });
 
+    var VISIBLE_WHEN_FOLDED = 8;
     var box = el('nav', 'side-card toc-card');
     box.setAttribute('aria-label', 'On this page');
     var top = el('div', 'toc-head');
     top.appendChild(el('h2', 'side-title', 'On this page'));
-    var fold = el('button', 'toc-fold', 'Hide');
-    fold.type = 'button';
-    fold.setAttribute('aria-expanded', 'true');
-    top.appendChild(fold);
+    var expandButton = el('button', 'toc-fold', 'Expand');
+    expandButton.type = 'button';
+    expandButton.setAttribute('aria-expanded', 'false');
+    top.appendChild(expandButton);
     box.appendChild(top);
+
+    var groups = [];   // { toggle, children } for every group that has something under it
+    var extras = [];   // top-level items past the first eight, hidden while folded
+
+    function setGroup(group, open) {
+      group.toggle.setAttribute('aria-expanded', String(open));
+      group.toggle.textContent = open ? '\u25BE' : '\u25B8';
+      group.children.hidden = !open;
+    }
 
     function build(nodes, depth) {
       var list = el('ul', 'toc-tree toc-depth-' + Math.min(depth, 3));
-      nodes.forEach(function (node) {
+      nodes.forEach(function (node, index) {
         var item = el('li');
         var row = el('div', 'toc-row');
-        var children = null;
+        var group = null;
         if (node.children.length) {
-          var toggle = el('button', 'toc-toggle', '\u25BE');
+          var toggle = el('button', 'toc-toggle', '\u25B8');
           toggle.type = 'button';
-          toggle.setAttribute('aria-expanded', 'true');
-          toggle.setAttribute('aria-label', 'Fold \u201c' + node.heading.textContent + '\u201d');
-          toggle.addEventListener('click', function () {
-            var open = toggle.getAttribute('aria-expanded') !== 'true';
-            toggle.setAttribute('aria-expanded', String(open));
-            toggle.textContent = open ? '\u25BE' : '\u25B8';
-            children.hidden = !open;
-          });
+          toggle.setAttribute('aria-label', 'Open or fold \u201c' + node.heading.textContent + '\u201d');
+          group = { toggle: toggle, children: null };
+          toggle.addEventListener('click', function () { setGroup(group, toggle.getAttribute('aria-expanded') !== 'true'); });
           row.appendChild(toggle);
         } else {
           row.appendChild(el('span', 'toc-spacer'));
@@ -1299,19 +1305,34 @@
         });
         row.appendChild(a);
         item.appendChild(row);
-        if (node.children.length) { children = build(node.children, depth + 1); item.appendChild(children); }
+        if (group) {
+          group.children = build(node.children, depth + 1);
+          item.appendChild(group.children);
+          groups.push(group);
+          setGroup(group, false);
+        }
+        if (depth === 0 && index >= VISIBLE_WHEN_FOLDED) { item.hidden = true; extras.push(item); }
         list.appendChild(item);
       });
       return list;
     }
-    var tree = build(roots, 0);
-    box.appendChild(tree);
+    box.appendChild(build(roots, 0));
 
-    fold.addEventListener('click', function () {
-      var open = fold.getAttribute('aria-expanded') !== 'true';
-      fold.setAttribute('aria-expanded', String(open));
-      fold.textContent = open ? 'Hide' : 'Show';
-      tree.hidden = !open;
+    var hiddenCount = extras.length;
+    var more = el('p', 'toc-more', '+ ' + hiddenCount + ' more');
+    more.hidden = !hiddenCount;
+    box.appendChild(more);
+
+    // Nothing to expand: a short, flat outline
+    if (!groups.length && !extras.length) { expandButton.hidden = true; }
+
+    expandButton.addEventListener('click', function () {
+      var open = expandButton.getAttribute('aria-expanded') !== 'true';
+      expandButton.setAttribute('aria-expanded', String(open));
+      expandButton.textContent = open ? 'Collapse' : 'Expand';
+      groups.forEach(function (group) { setGroup(group, open); });
+      extras.forEach(function (item) { item.hidden = !open; });
+      more.hidden = open || !hiddenCount;
     });
     return box;
   }
@@ -1406,7 +1427,7 @@
       layout.appendChild(article);
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
-      side.setAttribute('aria-label', asPublic ? 'Support, on this page and related pages' : 'Contacts, on this page and related pages');
+      side.setAttribute('aria-label', asPublic ? 'Support, related pages and on this page' : 'Contacts, related pages and on this page');
       // The owner (contacts, or the support link in the public view) comes first and scrolls away with the page
       if (asPublic) {
         var support = el('section', 'side-card');
@@ -1418,15 +1439,18 @@
         var contacts = renderContacts(W.fields(data.text));
         if (contacts) { side.appendChild(contacts); }
       }
-      // "On this page" and the related pages follow you down the page. If they are taller than the window they scroll
-      // inside their own box, so none of it is ever cut off.
-      var follow = el('div', 'preview-follow');
-      var toc = renderOnThisPage(article);
-      if (toc) { follow.appendChild(toc); }
+      // Related pages come next, also scrolling away with the page
       var related = await relatedPages(id, W.fields(data.text), asPublic);
       if (mine !== routing) { return; }
-      if (related) { follow.appendChild(related); }
-      if (follow.firstChild) { side.appendChild(follow); }
+      if (related) { side.appendChild(related); }
+      // "On this page" is last and follows you down the page. If it is taller than the window it scrolls inside its own
+      // box, so none of it is ever cut off.
+      var toc = renderOnThisPage(article);
+      if (toc) {
+        var follow = el('div', 'preview-follow');
+        follow.appendChild(toc);
+        side.appendChild(follow);
+      }
       layout.appendChild(side);
     }
 
