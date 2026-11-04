@@ -400,6 +400,10 @@ guidelines and the style guide now both make this a rule: every list is a real l
 bullet-character lines in a source document are converted. The editor treats a
 pasted bullet or en-dash line start as a bullet.
 
+**Publish downloads first (demo).** Every Publish (the editor's button, the library row's button, and the one in the Versions
+pop-up) now asks for no confirmation: it offers the page's text file for download first, then makes the version live,
+even if the download is declined. A page missing a required field is not downloaded or published; the reason is shown.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.

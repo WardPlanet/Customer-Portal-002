@@ -486,16 +486,17 @@
         // finished system the lead reviews the draft and publishes from there. Remove this button then.
         if (lead && p.workingVersion) {
           var publishButton = button('Publish', 'row-btn row-btn-publish', async function () {
-            // No confirmation: this is a dev shortcut. A problem (for example a missing owner) is shown on the row.
+            // No confirmation: this is a dev shortcut. It downloads the text file, then publishes. A problem (for
+            // example a missing owner) is shown on the row.
             var problem = nameCell.querySelector('.lib-row-error');
             if (problem) { problem.remove(); }
             try {
-              await backend().act(p.id, p.workingVersion.n, 'publish');
+              var version = await backend().getVersion(p.id, p.workingVersion.n);
+              notice(await publishAndDownload(p.id, p.workingVersion.n, version.text, version.version.title || p.title));
             } catch (error) {
               nameCell.appendChild(el('div', 'lib-row-error', 'Not published: ' + (error && error.message ? error.message : 'that did not work.')));
               return;
             }
-            notice('Published \u201c' + p.title + '\u201d.');
             route();
           });
           publishButton.setAttribute('aria-label', 'Publish ' + p.title);
@@ -643,19 +644,20 @@
     return ((title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'page') + '.txt';
   }
 
-  // Publishes a version without review and downloads its text. The page is published first, so the
-  // download can be declined without losing anything. Resolves to a message to show.
+  // Publishes a version without review. The text file is offered for download first, then the page goes live
+  // (for the demo, the page goes live even if the download is declined). If the page is missing something the
+  // publish needs, nothing is downloaded and the error says what. Resolves to a message to show.
   async function publishAndDownload(id, n, text, title) {
-    await backend().act(id, n, 'publish');
+    var missing = W.missingForSubmit(text, team);
+    if (missing.length) { throw new Error('Still needed before it can be published: ' + missing.join(', ') + '.'); }
     var filename = textFileName(title);
     var downloaded = false;
     try { downloaded = await saveFile(filename, text, 'text/plain'); } catch (error) { downloaded = false; }
-    return 'Published: it is live in the library (review skipped). ' +
-      (downloaded ? 'A copy was downloaded as ' + filename + '.' : 'The text file was not downloaded.');
+    await backend().act(id, n, 'publish');
+    return (downloaded ? 'Downloaded ' + filename + ' and published: ' : 'The text file was not downloaded, but the page is published: ') + 'it is live (review skipped).';
   }
 
   async function publishVersion(id, n) {
-    if (!(await window.askConfirm('It goes live right away, without review, and a copy is downloaded as a text file.', { title: 'Publish this version now?', ok: 'Publish' }))) { return; }
     var data = await attempt(backend().getVersion(id, n));
     if (!data) { return; }
     try {

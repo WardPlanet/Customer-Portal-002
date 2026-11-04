@@ -1373,7 +1373,6 @@
       try {
         var text = await prepareDraftText();
         if (text === null) { return; }
-        if (action === 'publish' && !(await window.askConfirm('It goes live right away, without review, and a copy is downloaded as a text file.', { title: 'Publish this page now?', ok: 'Publish' }))) { return; }
         var message = await window.PageHost[action](text);
         setStatus(action === 'publish' ? 'Published' : action === 'submit' ? 'Submitted for review' : 'Saved just now', true);
         showNotice(message);
