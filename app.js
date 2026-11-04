@@ -1810,6 +1810,8 @@
     var formatButtons = Array.prototype.slice.call(document.querySelectorAll('.icon-btn[data-format]'));
     var linkPopover = byId('link-popover');
     var linkInput = byId('link-input');
+    var linkTextInput = byId('link-text-input');
+    var linkContext = { afterOffset: null, trailing: 0 };   // set when the box was opened by a web address being typed or pasted
 
     function updateFormatButtons() {
       formatButtons.forEach(function (button) {
@@ -1888,17 +1890,67 @@
       return 'https://' + url;
     }
 
-    function openLinkPopover(opener) {
+    // options (all optional): url and text fill the boxes; afterOffset says where the cursor goes when the link is made
+    function openLinkPopover(opener, options) {
+      options = options || {};
       var rect = opener.getBoundingClientRect();
       var anchor = currentAnchor();
-      linkInput.value = anchor ? anchor.getAttribute('href') : '';
+      linkContext = { afterOffset: options.afterOffset === undefined ? null : options.afterOffset, trailing: options.trailing || 0 };
+      linkInput.value = options.url !== undefined ? options.url : (anchor ? anchor.getAttribute('href') : '');
+      linkTextInput.value = options.text !== undefined ? options.text
+        : anchor ? anchor.textContent
+        : (savedRange && !savedRange.collapsed ? savedRange.toString() : '');
+      var hint = byId('link-hint');
+      hint.hidden = true;
+      byId('link-suggest').hidden = aiUnavailable && !(window.claude && typeof window.claude.use === 'function');
       linkPopover.hidden = false;
       var width = linkPopover.offsetWidth;
       linkPopover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + 'px';
-      linkPopover.style.top = (rect.bottom + 8) + 'px';
-      linkInput.focus();
-      linkInput.select();
+      linkPopover.style.top = Math.min(rect.bottom + 8, window.innerHeight - linkPopover.offsetHeight - 8) + 'px';
+      // A web address was typed or pasted: ask for the link text, and let the AI offer one
+      if (options.url && !linkTextInput.value) {
+        linkTextInput.focus();
+        suggestLinkText(true);
+      } else {
+        linkInput.focus();
+        linkInput.select();
+      }
     }
+
+    // The AI offers link text for the address: short, and says where it goes. When asked for automatically it only
+    // fills the box if nothing has been typed there.
+    var suggestingLink = false;
+    async function suggestLinkText(automatic) {
+      var url = normalizeUrl(linkInput.value);
+      if (!url || suggestingLink) { return; }
+      var hint = byId('link-hint');
+      suggestingLink = true;
+      hint.hidden = false;
+      hint.textContent = 'Asking the AI for link text\u2026';
+      try {
+        retryAi();
+        var sample = await getSample();
+        if (!sample) { hint.textContent = automatic ? 'Type what the link should say.' : 'The AI isn\u2019t available. Type what the link should say.'; return; }
+        var context = activeRich ? readText(activeRich).slice(0, 400) : '';
+        var result = await sample.json([
+          'Write the link text for a web address in a process-documentation page.',
+          'Rules: 2 to 6 words, sentence case, says where the link goes (for example "the refund policy" or "Cloud 9 support portal"), never "click here", never the web address itself, no quotation marks.',
+          'Reply with ONLY JSON: {"text": "the link text"}',
+          '',
+          'Web address: ' + url,
+          'The text around it: ' + context
+        ].join(NL), { modelTier: 'quick' });
+        var text = oneLine(result && result.text, 80);
+        if (!text) { hint.textContent = 'The AI had no suggestion. Type what the link should say.'; return; }
+        if (!automatic || !linkTextInput.value.trim()) { linkTextInput.value = text; }
+        hint.textContent = 'Suggested by the AI. Change it if you like.';
+      } catch (error) {
+        hint.textContent = 'No suggestion this time. Type what the link should say.';
+      } finally {
+        suggestingLink = false;
+      }
+    }
+    byId('link-suggest').addEventListener('click', function () { suggestLinkText(false); });
 
     function closeLinkPopover() {
       linkPopover.hidden = true;
@@ -1912,20 +1964,30 @@
         showNotice('Links can start with https://, http:// or mailto:.');
         return;
       }
+      var typedText = linkTextInput.value.trim();
 
       var anchor = currentAnchor();
+      var field = activeRich;
+      var afterOffset = linkContext.afterOffset;
+      var trailing = linkContext.trailing;
       linkPopover.hidden = true;
       restoreSelection();
+      var selectedText = savedRange && !savedRange.collapsed ? savedRange.toString() : '';
       if (!url) {
         document.execCommand('unlink');
       } else if (anchor) {
         anchor.setAttribute('href', url);
+        if (typedText && anchor.textContent !== typedText) { anchor.textContent = typedText; }
         markDirty();
-      } else if (savedRange && savedRange.collapsed) {
-        document.execCommand('insertHTML', false, '<a href="' + escapeHtml(url) + '">' + escapeHtml(url) + '</a>');
-      } else {
+      } else if (selectedText && (!typedText || typedText === selectedText)) {
         document.execCommand('createLink', false, url);
+      } else {
+        // Nothing selected, or the link text differs from the selected words: the link replaces them
+        document.execCommand('insertHTML', false, '<a href="' + escapeHtml(url) + '">' + escapeHtml(typedText || url) + '</a>');
       }
+      // A web address that was typed: the cursor goes back to just after the space that followed it
+      if (afterOffset !== null && field) { placeCaretAtTextOffset(field, afterOffset + (typedText || url).length + trailing); }
+      linkContext = { afterOffset: null, trailing: 0 };
       updateFormatButtons();
     }
 
@@ -1957,9 +2019,11 @@
 
     byId('link-apply').addEventListener('click', applyLink);
     byId('link-cancel').addEventListener('click', closeLinkPopover);
-    linkInput.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter') { event.preventDefault(); applyLink(); }
-      if (event.key === 'Escape') { event.preventDefault(); closeLinkPopover(); }
+    [linkInput, linkTextInput].forEach(function (input) {
+      input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); applyLink(); }
+        if (event.key === 'Escape') { event.preventDefault(); closeLinkPopover(); }
+      });
     });
     document.addEventListener('click', function (event) {
       var onLinkControls = event.target.closest('#link-popover, .icon-btn[data-format="link"]');
@@ -1979,6 +2043,78 @@
         savedRange = selection.getRangeAt(0).cloneRange();
         updateFormatButtons();
       }
+    });
+
+    // A web address pasted or typed into a text field brings up the link box, so it can be given link text
+    // (the AI offers some). Cancel leaves the address as plain text.
+    var WEB_ADDRESS = /^https?:\/\/[^\s<>"]+[^\s<>".,;:!?)\]]$/i;
+
+    function rangeAtTextOffsets(field, start, end) {
+      var range = document.createRange();
+      var walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
+      var seen = 0;
+      var node = walker.nextNode();
+      var started = false;
+      while (node) {
+        var length = node.nodeValue.length;
+        if (!started && start <= seen + length) { range.setStart(node, start - seen); started = true; }
+        if (started && end <= seen + length) { range.setEnd(node, end - seen); return range; }
+        seen += length;
+        node = walker.nextNode();
+      }
+      return null;
+    }
+
+    function offerLinkText(field, start, url, afterOffset, trailing) {
+      if (!linkPopover.hidden) { return; }
+      var range = rangeAtTextOffsets(field, start, start + url.length);
+      if (!range) { return; }
+      activeRich = field;
+      savedRange = range.cloneRange();
+      var caret = range.cloneRange();
+      caret.collapse(false);
+      var rect = caret.getBoundingClientRect();
+      if (!rect.width && !rect.height && !rect.bottom) { rect = field.getBoundingClientRect(); }
+      openLinkPopover({ getBoundingClientRect: function () { return rect; } }, { url: url, text: '', afterOffset: afterOffset, trailing: trailing || 0 });
+    }
+
+    document.addEventListener('paste', function (event) {
+      var field = event.target.closest && event.target.closest('[data-rich]');
+      if (!field || !event.clipboardData) { return; }
+      var pasted = (event.clipboardData.getData('text/plain') || '').trim();
+      if (!WEB_ADDRESS.test(pasted)) { return; }
+      var selection = window.getSelection();
+      if (!selection.rangeCount || !field.contains(selection.anchorNode)) { return; }
+      event.preventDefault();
+      event.stopImmediatePropagation();   // the plain-text paste below must not insert it a second time
+      var selectedWords = selection.isCollapsed ? '' : selection.toString();
+      var start = Math.min(caretTextOffset(field, { anchorNode: selection.getRangeAt(0).startContainer, anchorOffset: selection.getRangeAt(0).startOffset }), 1e9);
+      document.execCommand('insertText', false, pasted);
+      markDirty();
+      if (selectedWords) {
+        // Words were selected when the address was pasted: they become the link text
+        var covered = rangeAtTextOffsets(field, start, start + pasted.length);
+        if (covered) { savedRange = covered.cloneRange(); }
+        activeRich = field;
+        openLinkPopover({ getBoundingClientRect: function () { return field.getBoundingClientRect(); } }, { url: pasted, text: selectedWords, afterOffset: start });
+        return;
+      }
+      offerLinkText(field, start, pasted, start);
+    });
+
+    // An address typed and followed by a space or Enter
+    document.addEventListener('input', function (event) {
+      var field = event.target.closest && event.target.closest('[data-rich]');
+      if (!field || (event.inputType !== 'insertText' || event.data !== ' ') && event.inputType !== 'insertParagraph') { return; }
+      var selection = window.getSelection();
+      if (!selection.rangeCount || !selection.isCollapsed || !selection.anchorNode || selection.anchorNode.nodeType !== 3) { return; }
+      var node = selection.anchorNode;
+      if (node.parentNode.closest && node.parentNode.closest('a')) { return; }
+      var textBefore = node.nodeValue.slice(0, selection.anchorOffset);
+      var word = /(\S+)\s$/.exec(textBefore);
+      if (!word || !WEB_ADDRESS.test(word[1])) { return; }
+      var start = caretTextOffset(field, selection) - word[0].length;
+      offerLinkText(field, start, word[1], start, 1);   // the space typed after the address stays after the link
     });
 
     // Typing "- " (or "* ", "1. ") at the start of a line in a text field starts a bullet (or numbered) list.
@@ -2196,6 +2332,7 @@
         '- Do not invent facts, numbers, names, systems or policies that are not on the page. If a rewrite would need a fact only the author knows, keep the original wording for that part instead of guessing.',
         '- If Visibility is Client-Safe, also flag wording that only makes sense for internal staff.',
         '- Keep the author\u2019s voice and keep edits short.',
+        '- A web address written out in the text (https://...) should be a link with words that say where it goes. Suggest the replacement text with the link written as [link text](https://address), keeping the address exactly as it is.',
         '- A step whose title already explains it needs no detail text. Never suggest adding detail to such a step, and empty step text is fine.',
         '- Text that breaks the style guide above (names in quotation marks, inconsistent capitalization, wrong formatting) is worth a suggestion, and every replacement you write must follow it.',
         '',

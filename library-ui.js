@@ -1246,7 +1246,7 @@
   // "On this page": the headings as an outline. Smaller headings sit under the bigger one above them, joined by a line, and
   // a group with something under it can be folded. A link scrolls to its heading and does not highlight it. The whole
   // box can be folded too, so a long outline never hides the contacts below it.
-  function renderOnThisPage(article, refit) {
+  function renderOnThisPage(article) {
     var headings = Array.prototype.slice.call(article.querySelectorAll('[data-section]'));
     if (!headings.length) { return null; }
 
@@ -1286,7 +1286,6 @@
             toggle.setAttribute('aria-expanded', String(open));
             toggle.textContent = open ? '\u25BE' : '\u25B8';
             children.hidden = !open;
-            refit();
           });
           row.appendChild(toggle);
         } else {
@@ -1313,7 +1312,6 @@
       fold.setAttribute('aria-expanded', String(open));
       fold.textContent = open ? 'Hide' : 'Show';
       tree.hidden = !open;
-      refit();
     });
     return box;
   }
@@ -1400,13 +1398,6 @@
     main.appendChild(layout);
     setBanner(null);
 
-    // The side panel follows you down the page, unless it is taller than the window: then it scrolls with the page, so
-    // nothing in it is cut off. Folding the outline makes it short enough to follow again.
-    function fitSide(side) {
-      side.classList.remove('is-tall');
-      if (side.scrollHeight > window.innerHeight - 32) { side.classList.add('is-tall'); }
-    }
-
     // Employees see contacts. The public sees a support link instead (the address is set by the team's
     // "supportUrl"; until it is set the card says so). "View as the public" shows exactly that.
     async function draw(asPublic) {
@@ -1415,9 +1406,8 @@
       layout.appendChild(article);
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
-      side.setAttribute('aria-label', asPublic ? 'On this page, support and related pages' : 'On this page, contacts and related pages');
-      var toc = renderOnThisPage(article, function () { fitSide(side); });
-      if (toc) { side.appendChild(toc); }
+      side.setAttribute('aria-label', asPublic ? 'Support, on this page and related pages' : 'Contacts, on this page and related pages');
+      // The owner (contacts, or the support link in the public view) comes first and scrolls away with the page
       if (asPublic) {
         var support = el('section', 'side-card');
         support.appendChild(el('h2', 'side-title', 'Need help?'));
@@ -1428,11 +1418,16 @@
         var contacts = renderContacts(W.fields(data.text));
         if (contacts) { side.appendChild(contacts); }
       }
+      // "On this page" and the related pages follow you down the page. If they are taller than the window they scroll
+      // inside their own box, so none of it is ever cut off.
+      var follow = el('div', 'preview-follow');
+      var toc = renderOnThisPage(article);
+      if (toc) { follow.appendChild(toc); }
       var related = await relatedPages(id, W.fields(data.text), asPublic);
       if (mine !== routing) { return; }
-      if (related) { side.appendChild(related); }
+      if (related) { follow.appendChild(related); }
+      if (follow.firstChild) { side.appendChild(follow); }
       layout.appendChild(side);
-      fitSide(side);
     }
 
     // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)

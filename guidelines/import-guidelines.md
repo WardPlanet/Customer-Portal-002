@@ -38,6 +38,10 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
   row and cell and the original order. If a cell holds more than one line or a list, join the items with
   "; " so each cell stays one line. A table that is only used for page layout (one wide cell holding text)
   is not a table: use its text as normal blocks. Never turn a table into a list or the reverse.
+- A web address in the original (typed out, or the text of a link) becomes a link written as [words that say where
+  it goes](https://address), with the address kept exactly. Never leave a bare web address in the text. If the
+  original link already has words, keep them. If it does not, write short link text from the sentence around it
+  and add a reviewer note.
 - Commands, queries, scripts, configuration, file contents and anything the reader is meant to copy and
   type or paste go in a Code block, copied exactly: same characters, same line breaks, same indentation.
   A command or snippet that belongs to a step goes in that step's "items" list (type "code"), so it stays

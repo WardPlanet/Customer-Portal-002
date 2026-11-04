@@ -1756,3 +1756,21 @@
 .toc-row a { color: var(--text); text-decoration: none; }
 .toc-row a:hover { color: var(--accent); text-decoration: underline; }
 .toc-depth-2 > li > .toc-row a, .toc-depth-3 > li > .toc-row a { color: var(--text-muted); }
+
+/* The link box: link text and web address */
+.link-popover { flex-direction: column; align-items: stretch; gap: 8px; width: min(380px, calc(100vw - 16px)); padding: 12px; }
+.link-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.link-text-row { display: flex; gap: 6px; }
+.link-text-row input { flex: 1; min-width: 0; }
+.link-popover input { width: 100%; box-sizing: border-box; }
+.link-hint { margin: 0; font-size: 12px; color: var(--text-faint); }
+.link-hint[hidden] { display: none; }
+.link-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.link-suggest[hidden] { display: none; }
+
+/* Side panel: the owner on top; "On this page" and related pages stay in view and scroll inside their own box if tall */
+.preview-layout { align-items: stretch; }
+.preview-side { position: static; display: flex; flex-direction: column; gap: 16px; flex: 0 0 280px; max-height: none; overflow: visible; }
+.preview-side.is-tall { position: static; }
+.preview-follow { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 2px; margin: -2px; overscroll-behavior: contain; }
+@media (max-width: 860px) { .preview-follow { position: static; max-height: none; overflow: visible; } }

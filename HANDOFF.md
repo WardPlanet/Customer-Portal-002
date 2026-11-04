@@ -441,11 +441,19 @@ bar (Import document, Export PDF, Save draft, Submit, Publish) stays at the bott
 
 **On this page as an outline; copying links.** "On this page" is an outline: smaller headings sit under the bigger one above them,
 joined by a line, with the top level in bold; a group with something under it folds with its arrow, and the whole box folds
-with Hide/Show. The side panel follows you down the page unless it is taller than the window, in which case it scrolls
-with the page so nothing is cut off. The link button beside a heading copies the link to its section every time it is
+with Hide/Show. The side panel has the owner's contacts (or the support card in the public view) on top, which scroll away with the
+page; below them "On this page" and the related pages stay in view as you scroll, and if they are taller than the window
+they scroll inside their own box, so nothing is cut off. The link button beside a heading copies the link to its section every time it is
 clicked (when it highlights and when it takes the highlight off), and the live view has a **Copy link** button next to
 Export PDF that copies the page's own link. If the browser refuses to copy (some frames do), the link is shown in the
 message so it can be copied by hand.
+
+**Web addresses become links.** In any text field with formatting (the description, Text blocks, step details), pasting a web
+address, or typing one and then a space, opens the link box with the address filled in and the cursor in **Link text**; the AI
+offers link text automatically (a **Suggest** button asks again). Apply makes the link; Cancel leaves the address as plain text.
+If words were selected when an address was pasted, they become the link text. The link box now has Link text and Web
+address fields. The AI assist prompt, the import guidelines and the style guide all say a bare web address should be a link
+with words that say where it goes, written as `[link text](https://address)`.
 
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit

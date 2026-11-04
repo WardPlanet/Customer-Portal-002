@@ -269,9 +269,20 @@
 </div>
 
 <div class="link-popover" id="link-popover" role="dialog" aria-label="Add a link" hidden>
-  <input type="text" id="link-input" placeholder="https://example.com" aria-label="Link address" autocomplete="off">
-  <button type="button" class="link-apply" id="link-apply">Apply</button>
-  <button type="button" id="link-cancel">Cancel</button>
+  <label class="link-field">Link text
+    <span class="link-text-row">
+      <input type="text" id="link-text-input" placeholder="What the link says, for example the refund policy" aria-label="Link text" autocomplete="off">
+      <button type="button" class="link-suggest" id="link-suggest" title="Ask the AI for link text">Suggest</button>
+    </span>
+  </label>
+  <label class="link-field">Web address
+    <input type="text" id="link-input" placeholder="https://example.com" aria-label="Link address" autocomplete="off">
+  </label>
+  <p class="link-hint" id="link-hint" hidden></p>
+  <div class="link-actions">
+    <button type="button" class="link-apply" id="link-apply">Apply</button>
+    <button type="button" id="link-cancel">Cancel</button>
+  </div>
 </div>
 
 <!-- Clean copy of the page that is printed or saved as PDF; filled in by the script -->

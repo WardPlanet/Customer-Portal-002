@@ -80,5 +80,6 @@ standardizes on a different guide (for example Chicago or AP).
   are list items: convert every one to "- ".
 - Keep list items parallel: all start with a verb, or all are noun phrases.
 - Link text says where the link goes ("the refund policy"), never "click here".
+- Never leave a bare web address in the text. Write it as a link with link text: [the refund policy](https://address).
 - Use bold for button and menu names, and for a key term the first time it is defined. Use italics rarely,
   for document titles. Do not underline anything except links.
