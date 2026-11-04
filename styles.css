@@ -1795,3 +1795,14 @@
 .preview-anchor:hover { opacity: 1; color: #fff; background: var(--accent); }
 .section-linked .preview-anchor { opacity: 1; color: var(--accent); }
 @media (hover: none) { .preview-anchor { opacity: 0.8; } }
+
+/* On this page: buttons underneath, and the section highlight now holds the link button inside it */
+.toc-actions { display: flex; justify-content: center; gap: 4px; margin-top: 8px; border-top: 1px solid var(--border); }
+.toc-actions[hidden] { display: none; }
+.toc-card .toc-actions .toc-fold { width: auto; margin: 0; padding: 6px 10px 2px; border-top: 0; }
+.toc-card .toc-actions .toc-fold[hidden] { display: none; }
+/* The yellow reaches left far enough to hold the link button, so the blue is never half outside it */
+.section-linked { margin-left: -40px; padding-left: 40px; margin-right: -14px; }
+.section-linked > .preview-h:first-child .preview-anchor { opacity: 1; color: #fff; background: var(--accent); }
+.section-linked .preview-anchor { opacity: 0.55; color: var(--text-faint); }
+.section-linked > .preview-h:first-child .preview-anchor { opacity: 1; color: #fff; }

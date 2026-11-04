@@ -1268,9 +1268,20 @@
     var top = el('div', 'toc-head');
     top.appendChild(el('h2', 'side-title', 'On this page'));
     box.appendChild(top);
-    var expandButton = el('button', 'toc-fold', 'Expand');
-    expandButton.type = 'button';
-    expandButton.setAttribute('aria-expanded', 'false');
+    // Three states, set by the buttons underneath: 'folded' (a few headings, the rest faded or hidden), 'top' (every
+    // top-level heading, each with its own arrow to open it) and 'all' (everything open)
+    var actions = el('div', 'toc-actions');
+    function actionButton(label) {
+      var b = el('button', 'toc-fold', label);
+      b.type = 'button';
+      return b;
+    }
+    var expandButton = actionButton('Expand');
+    var expandAllButton = actionButton('Expand all');
+    var collapseButton = actionButton('Collapse');
+    actions.appendChild(expandButton);
+    actions.appendChild(expandAllButton);
+    actions.appendChild(collapseButton);
 
     var groups = [];   // { toggle, children } for every group that has something under it
     var extras = [];   // top-level items past the first eight, hidden while folded
@@ -1322,21 +1333,24 @@
     }
     box.appendChild(build(roots, 0));
 
-    box.appendChild(expandButton);
+    box.appendChild(actions);
 
-    // Nothing to expand: a short, flat outline
-    if (!groups.length && !extras.length) { expandButton.hidden = true; }
-
-    expandButton.addEventListener('click', function () {
-      var open = expandButton.getAttribute('aria-expanded') !== 'true';
-      expandButton.setAttribute('aria-expanded', String(open));
-      expandButton.textContent = open ? 'Collapse' : 'Expand';
-      groups.forEach(function (group) { setGroup(group, open); });
+    function setState(state) {
+      var showAllTop = state !== 'folded';
+      groups.forEach(function (group) { setGroup(group, state === 'all'); });
       extras.forEach(function (item, place) {
-        if (place < FADED_WHEN_FOLDED) { item.classList.toggle('toc-fade-' + (place + 1), !open); }   // the faded look goes while open
-        else { item.hidden = !open; }
+        if (place < FADED_WHEN_FOLDED) { item.classList.toggle('toc-fade-' + (place + 1), !showAllTop); }   // the faded look goes once opened
+        else { item.hidden = !showAllTop; }
       });
-    });
+      expandButton.hidden = state !== 'folded' || !extras.length;   // "Expand" only shows the rest of the top level
+      expandAllButton.hidden = state === 'all' || !groups.length;
+      collapseButton.hidden = state === 'folded';
+      actions.hidden = expandButton.hidden && expandAllButton.hidden && collapseButton.hidden;   // a short, flat outline has nothing to open
+    }
+    expandButton.addEventListener('click', function () { setState('top'); });
+    expandAllButton.addEventListener('click', function () { setState('all'); });
+    collapseButton.addEventListener('click', function () { setState('folded'); });
+    setState('folded');
     return box;
   }
 
