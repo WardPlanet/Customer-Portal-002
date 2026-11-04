@@ -33,6 +33,11 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
 - Lists that are not a procedure stay as bullet lists inside a Text block. Write every list item on its own line
   starting with "- " (or "1. " for a numbered list). Dashes, en dashes, bullet characters and "*" at the start of
   a line in the original are all list items: convert them to "- " and do not leave the original dash in the text.
+- Information laid out in rows and columns in the original (a Word or HTML table, or columns of aligned text)
+  becomes a Table block, not paragraphs and not a bulleted list. The first row is the header row. Keep every
+  row and cell and the original order. If a cell holds more than one line or a list, join the items with
+  "; " so each cell stays one line. A table that is only used for page layout (one wide cell holding text)
+  is not a table: use its text as normal blocks. Never turn a table into a list or the reverse.
 - Commands, queries, scripts, configuration, file contents and anything the reader is meant to copy and
   type or paste go in a Code block, copied exactly: same characters, same line breaks, same indentation.
   A command or snippet that belongs to a step goes in that step's "items" list (type "code"), so it stays

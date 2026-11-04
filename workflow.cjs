@@ -97,6 +97,66 @@
     return missing;
   }
 
+  /* ---------- Tables ----------
+     A table block is stored as pipe-separated lines, the same shape Markdown uses, so it reads well as plain text:
+
+       | Role | Contact |
+       | --- | --- |
+       | Website Editor | Scott |
+
+     The first row is the header row and the second line (dashes) marks it. Cells are plain one-line text; a pipe
+     inside a cell is written \| . Every row has the same number of cells. */
+  var MAX_TABLE_ROWS = 100;
+  var MAX_TABLE_COLUMNS = 12;
+
+  // Splits one line of a table into its cells
+  function splitTableRow(line) {
+    var text = String(line).trim();
+    if (text.charAt(0) === '|') { text = text.slice(1); }
+    var cells = [];
+    var current = '';
+    for (var i = 0; i < text.length; i += 1) {
+      var ch = text.charAt(i);
+      if (ch === '\\' && (text.charAt(i + 1) === '|' || text.charAt(i + 1) === '\\')) { current += text.charAt(i + 1); i += 1; }
+      else if (ch === '|') { cells.push(current.trim()); current = ''; }
+      else { current += ch; }
+    }
+    if (current.trim() !== '' || cells.length === 0) { cells.push(current.trim()); }   // a closing | leaves nothing after it
+    return cells;
+  }
+
+  // Cleans a list of rows: every cell one line of text, every row the same length, within the size limits
+  function normalizeTable(rows) {
+    var clean = (Array.isArray(rows) ? rows : []).slice(0, MAX_TABLE_ROWS).map(function (row) {
+      return (Array.isArray(row) ? row : []).slice(0, MAX_TABLE_COLUMNS).map(function (cell) {
+        return String(cell === null || cell === undefined ? '' : cell).replace(/\s*\r?\n\s*/g, ' ').trim();
+      });
+    }).filter(function (row) { return row.length; });
+    var width = clean.reduce(function (most, row) { return Math.max(most, row.length); }, 0);
+    return clean.map(function (row) { while (row.length < width) { row.push(''); } return row; });
+  }
+
+  // The lines of a TABLE section -> rows (the dashes line is dropped)
+  function parseTableLines(lines) {
+    var rows = [];
+    (lines || []).forEach(function (line) {
+      if (String(line).trim() === '') { return; }
+      if (/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/.test(line)) { return; }
+      rows.push(splitTableRow(line));
+    });
+    return normalizeTable(rows);
+  }
+
+  // Rows -> the lines of a TABLE section
+  function tableToLines(rows) {
+    var clean = normalizeTable(rows);
+    if (!clean.length) { return []; }
+    function line(row) { return '| ' + row.map(function (cell) { return cell.replace(/\\/g, '\\\\').replace(/\|/g, '\\|'); }).join(' | ') + ' |'; }
+    var out = [line(clean[0]), '| ' + clean[0].map(function () { return '---'; }).join(' | ') + ' |'];
+    clean.slice(1).forEach(function (row) { out.push(line(row)); });
+    return out;
+  }
+
   /* ---------- People ---------- */
 
   // The roles a person holds today, from the team roster
@@ -809,6 +869,9 @@
     pageActions: pageActions,
     publicText: publicText,
     roleUsage: roleUsage,
+    parseTableLines: parseTableLines,
+    tableToLines: tableToLines,
+    normalizeTable: normalizeTable,
     reassignRole: reassignRole,
     setOwner: setOwner,
     setOwnerInText: setOwnerInText,

@@ -399,3 +399,18 @@ test('only published versions are numbered: Version 1, Version 2; drafts have no
   assert.equal(W.summary(page).liveRelease, 2);
   assert.equal(W.summary(page).releaseCount, 2);
 });
+
+test('tables: rows become pipe lines and come back unchanged, with pipes and backslashes in cells', () => {
+  const rows = [['Role', 'Contact | email'], ['Website Editor', 'a\\b'], ['Only one', '']];
+  const lines = W.tableToLines(rows);
+  assert.equal(lines[0], '| Role | Contact \\| email |');
+  assert.equal(lines[1], '| --- | --- |');
+  assert.deepEqual(W.parseTableLines(lines), rows);
+});
+
+test('tables: ragged rows are padded, line breaks in cells become spaces, and plain "a | b" lines are read', () => {
+  assert.deepEqual(W.parseTableLines(['|a|b|', '|---|---|', '|c|']), [['a', 'b'], ['c', '']]);
+  assert.deepEqual(W.parseTableLines(['a | b', 'c | d']), [['a', 'b'], ['c', 'd']]);
+  assert.deepEqual(W.normalizeTable([['one\ntwo', null], ['x']]), [['one two', ''], ['x', '']]);
+  assert.deepEqual(W.normalizeTable('nonsense'), []);
+});

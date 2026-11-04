@@ -404,6 +404,15 @@ pasted bullet or en-dash line start as a bullet.
 pop-up) now asks for no confirmation: it offers the page's text file for download first, then makes the version live,
 even if the download is declined. A page missing a required field is not downloaded or published; the reason is shown.
 
+**Tables.** A table is a block type (`Table` in the "+ Add a block" menu). It is saved as `[BLOCK n TABLE]` with pipe-separated
+lines, the same shape Markdown uses: the first row is the header, the next line is dashes, then one line per row;
+a pipe inside a cell is written `\|`. Cells are plain one-line text, every row has the same number of cells, and a table
+can have up to 100 rows and 12 columns. In the editor, Tab moves between cells (and adds a row after the last cell) and the buttons
+under the table add or remove the row or column the cursor is in. The header row is shaded and bold in the editor, the reader
+view, the PDF and the printed page. Imports: the AI returns `{ "type": "table", "rows": [[...], ...] }`, and a table in a
+Word or HTML file is kept as a table (see the import guidelines and style guide). The parsing and writing rules are shared
+in `workflow.cjs` (`parseTableLines`, `tableToLines`, `normalizeTable`) and tested.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.
@@ -503,6 +512,11 @@ Exceptions
 [BLOCK 4 PARAGRAPH]
 - first item
 - second item
+
+[BLOCK 5 TABLE]
+| Role | Contact |
+| --- | --- |
+| Website Editor | Scott |
 
 [ADD BLOCK BUTTON]
 2

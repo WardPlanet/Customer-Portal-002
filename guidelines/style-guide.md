@@ -63,6 +63,14 @@ standardizes on a different guide (for example Chicago or AP).
   (capitalization, punctuation, quotation marks, spelling) apply inside it.
 - Never edit, "fix" or suggest changes to the contents of a Code block.
 
+## Tables
+
+- Use a table only for information that has rows and columns, such as a list of things with the same
+  details for each. Do not use a table to lay out a page or to hold a single column (use a list).
+- The first row is always a header row. Every column has a short header in sentence case with no period.
+- Keep cells short, one line each, in sentence case unless they are names. Do not leave a header cell empty.
+- Put a row for each item and keep the order of the source. Do not merge cells.
+
 ## Lists, links and emphasis
 
 - Use a numbered list only when the order matters. Otherwise use bullets.

@@ -6,10 +6,13 @@
 // a page), which are read on every import so edits apply immediately.
 
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import mammoth from 'mammoth';
 import { AiError, askForJson } from './ai.js';
 import { readImportGuidelines, readStyleGuide } from './guidelines.js';
 import { readTeam, rosterNote } from './teams.js';
+// The same table rules the editor uses (cells are one line of text, every row the same length)
+const Workflow = createRequire(import.meta.url)('./workflow.cjs');
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
 const MAX_TEXT_CHARS = 200000;
 
@@ -26,6 +29,7 @@ const OUTPUT_FORMAT = [
   '    { "type": "step", "number": 1, "title": "short step title", "text": "step detail, same inline markup; an empty string when the title already says enough", "items": [{ "type": "note | warning | code", "text": "optional: a note, warning or code snippet that belongs to this step; code is copied exactly" }] },',
   '    { "type": "note", "text": "a tip or aside" },',
   '    { "type": "warning", "text": "a caution" },',
+  '    { "type": "table", "rows": [["header 1", "header 2"], ["cell", "cell"]] },',
   '    { "type": "code", "text": "a command, query, file path list, configuration or code snippet, copied exactly with its line breaks and indentation" }',
   '  ],',
   '  "review_notes": ["short notes for the person reviewing this import"]',
@@ -34,6 +38,7 @@ const OUTPUT_FORMAT = [
   'Rules for the format:',
   '- Header levels are 1 to 5. The first header must be level 1, and a header may only be one level deeper than the header before it.',
   '- Step numbers start at 1 for each separate procedure and go up by 1 within it.',
+  '- A "table" block is for real rows and columns of data. The first row of "rows" is the header row. Every row has the same number of cells, and a cell is one line of plain text (no lists or line breaks inside a cell; use "; " between items). Keep an empty cell as an empty string.',
   '- If the text itself needs a literal * _ [ ] < > or backslash, put a backslash in front of it. Do not do this inside a "code" block: its text is plain and copied exactly.',
   '- "review_notes" lists everything a person should check: gaps, guesses, omitted images, names replaced by job titles, anything out of date. Use an empty array only if there is genuinely nothing to check.'
 ].join('\n');
@@ -165,6 +170,9 @@ function cleanResult(raw) {
       case 'code':
         // Code keeps its indentation, so it is not trimmed like other text
         return { type: 'code', text: tidyCode(block.text) };
+      case 'table':
+        var rows = Workflow.normalizeTable(block.rows);
+        return { type: 'table', rows: rows, text: rows.reduce(function (all, row) { return all.concat(row); }, []).join(' ').trim() };
       case 'paragraph':
       case 'note':
       case 'warning':

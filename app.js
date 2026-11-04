@@ -134,9 +134,139 @@
     }
 
     function buildBlockElement(type, values) {
-      return type === 'step'
-        ? buildStepBlock(values.title, values.text, values.items)
-        : buildTextBlock(type, values.text, values.level);
+      if (type === 'step') { return buildStepBlock(values.title, values.text, values.items); }
+      if (type === 'table') { return buildTableBlock(values.rows); }
+      return buildTextBlock(type, values.text, values.level);
+    }
+
+    /* ---------- Tables ----------
+       A table is a block of editable cells. The first row is the header. It is saved as pipe-separated lines
+       (see "Tables" in workflow.cjs). Tab moves to the next cell (and adds a row at the end); the buttons under
+       the table add or remove the row or column the cursor is in. */
+    var TABLE_START = [['', '', ''], ['', '', ''], ['', '', '']];
+    var TABLE_MAX_ROWS = 100;
+    var TABLE_MAX_COLUMNS = 12;
+
+    function buildTableCell(text, isHeader) {
+      var cell = document.createElement('td');
+      cell.className = 'table-cell';
+      cell.contentEditable = 'true';
+      cell.spellcheck = true;
+      cell.setAttribute('data-single-line', '');
+      if (isHeader) { cell.setAttribute('data-placeholder', 'Heading'); }
+      cell.textContent = text || '';
+      return cell;
+    }
+
+    function buildTableRow(values, isHeader) {
+      var row = document.createElement('tr');
+      if (isHeader) { row.className = 'table-head'; }
+      values.forEach(function (text) { row.appendChild(buildTableCell(text, isHeader)); });
+      return row;
+    }
+
+    function buildTableBlock(rows) {
+      var data = window.Workflow.normalizeTable(rows && rows.length ? rows : TABLE_START);
+      if (!data.length) { data = window.Workflow.normalizeTable(TABLE_START); }
+
+      var block = document.createElement('div');
+      block.className = 'text-block table-block';
+
+      var tag = document.createElement('span');
+      tag.className = 'block-tag';
+      tag.textContent = 'Table';
+      block.appendChild(tag);
+
+      var scroller = document.createElement('div');
+      scroller.className = 'table-scroll';
+      var table = document.createElement('table');
+      table.className = 'edit-table';
+      var body = document.createElement('tbody');
+      data.forEach(function (row, index) { body.appendChild(buildTableRow(row, index === 0)); });
+      table.appendChild(body);
+      scroller.appendChild(table);
+      block.appendChild(scroller);
+
+      // The cell the cursor is in (or null)
+      function cursorCell() {
+        var active = document.activeElement;
+        var cell = active && active.closest ? active.closest('.table-cell') : null;
+        return cell && table.contains(cell) ? cell : null;
+      }
+      function columnOf(cell) { return Array.prototype.indexOf.call(cell.parentNode.children, cell); }
+      function changed() { markDirty(); refreshOutline(); }
+
+      function addRow() {
+        var rowsNow = body.children;
+        if (rowsNow.length >= TABLE_MAX_ROWS) { showNotice('A table can have up to ' + TABLE_MAX_ROWS + ' rows.'); return null; }
+        var cell = cursorCell();
+        var after = cell ? cell.parentNode : rowsNow[rowsNow.length - 1];
+        var row = buildTableRow(Array.prototype.map.call(rowsNow[0].children, function () { return ''; }), false);
+        body.insertBefore(row, after.nextSibling);
+        changed();
+        return row;
+      }
+      function addColumn() {
+        var width = body.children[0].children.length;
+        if (width >= TABLE_MAX_COLUMNS) { showNotice('A table can have up to ' + TABLE_MAX_COLUMNS + ' columns.'); return; }
+        var cell = cursorCell();
+        var at = cell ? columnOf(cell) + 1 : width;
+        Array.prototype.forEach.call(body.children, function (row, index) {
+          row.insertBefore(buildTableCell('', index === 0), row.children[at] || null);
+        });
+        changed();
+      }
+      function removeRow() {
+        var cell = cursorCell();
+        var row = cell ? cell.parentNode : body.lastElementChild;
+        if (row === body.firstElementChild) { showNotice(body.children.length > 1 ? 'The header row cannot be removed.' : 'A table needs its header row.'); return; }
+        row.remove();
+        changed();
+      }
+      function removeColumn() {
+        var width = body.children[0].children.length;
+        if (width <= 1) { showNotice('A table needs at least one column.'); return; }
+        var cell = cursorCell();
+        var at = cell ? columnOf(cell) : width - 1;
+        Array.prototype.forEach.call(body.children, function (row) { row.children[at].remove(); });
+        changed();
+      }
+
+      var tools = document.createElement('div');
+      tools.className = 'table-tools';
+      [['Add row', addRow], ['Add column', addColumn], ['Remove row', removeRow], ['Remove column', removeColumn]].forEach(function (pair) {
+        var tool = document.createElement('button');
+        tool.type = 'button';
+        tool.className = 'table-tool';
+        tool.textContent = pair[0];
+        // The button must not take the cursor away from the cell, or it would not know which row or column
+        tool.addEventListener('mousedown', function (event) { event.preventDefault(); });
+        tool.addEventListener('click', function () {
+          var made = pair[1]();
+          if (made && made.firstElementChild) { made.firstElementChild.focus(); }
+        });
+        tools.appendChild(tool);
+      });
+      block.appendChild(tools);
+
+      table.addEventListener('keydown', function (event) {
+        if (event.key !== 'Tab') { return; }
+        var cell = cursorCell();
+        if (!cell) { return; }
+        var cells = Array.prototype.slice.call(table.querySelectorAll('.table-cell'));
+        var index = cells.indexOf(cell);
+        if (event.shiftKey) {
+          if (index > 0) { event.preventDefault(); cells[index - 1].focus(); }
+        } else if (index < cells.length - 1) {
+          event.preventDefault();
+          cells[index + 1].focus();
+        } else {
+          var row = addRow();   // Tab in the last cell starts a new row
+          if (row) { event.preventDefault(); row.firstElementChild.focus(); }
+        }
+      });
+
+      return block;
     }
 
     // Inserts a block before beforeNode (null means the end), followed by its own insert line.
@@ -404,6 +534,13 @@
             text: readText(block.querySelector('.step-text')),
             items: stepItems(block)
           };
+        }
+        if (block.classList.contains('table-block')) {
+          var rows = Array.prototype.map.call(block.querySelectorAll('tr'), function (tr) {
+            return Array.prototype.map.call(tr.children, function (cell) { return readText(cell); });
+          });
+          // "text" is every cell run together: used to tell whether the table is empty, and for AI assist
+          return { type: 'table', rows: rows, text: rows.reduce(function (all, row) { return all.concat(row); }, []).join(' ').trim() };
         }
         var type = Object.keys(TEXT_BLOCKS).filter(function (key) {
           return block.classList.contains(TEXT_BLOCKS[key].blockClass);
@@ -1174,6 +1311,8 @@
           });
         } else if (block.type === 'header') {
           section(prefix + 'HEADER ' + block.level, textLines(block.text));
+        } else if (block.type === 'table') {
+          section(prefix + 'TABLE', window.Workflow.tableToLines(block.rows));
         } else {
           section(prefix + block.type.toUpperCase(), textLines(block.text));
         }
@@ -1242,7 +1381,7 @@
       var blocks = [];
       var numbers = {};
       Object.keys(sections).forEach(function (name) {
-        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|STEP TITLE|STEP TEXT|STEP NUMBER|STEP (?:CODE|NOTE|WARNING) [0-9]+)$/.exec(name);
+        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|TABLE|STEP TITLE|STEP TEXT|STEP NUMBER|STEP (?:CODE|NOTE|WARNING) [0-9]+)$/.exec(name);
         if (match) { numbers[Number(match[1])] = true; }
       });
 
@@ -1255,7 +1394,9 @@
         var textType = ['paragraph', 'header', 'note', 'warning', 'code'].filter(function (type) {
           return sections[prefix + type.toUpperCase()];
         })[0];
-        if (headerLevel) {
+        if (sections[prefix + 'TABLE']) {
+          blocks.push({ type: 'table', rows: window.Workflow.parseTableLines(sections[prefix + 'TABLE']) });
+        } else if (headerLevel) {
           blocks.push({ type: 'header', level: headerLevel, text: body(prefix + 'HEADER ' + headerLevel) });
         } else if (textType === 'code') {
           // Code keeps its indentation, so it is not trimmed like other text
@@ -1850,6 +1991,8 @@
           lines.push('[' + label + ', level ' + block.level + '] ' + block.text);
         } else if (block.type === 'code') {
           lines.push('[' + label + ', code snippet: never suggest changes to it] ' + block.text);
+        } else if (block.type === 'table') {
+          lines.push('[' + label + ', table: never suggest changes to it] ' + block.text);
         } else {
           lines.push('[' + label + '] ' + block.text);
         }
@@ -2326,6 +2469,8 @@
           block.items.forEach(function (item, i) { sections[prefix + 'STEP ' + item.type.toUpperCase() + ' ' + (i + 1)] = lines(item.text); });
         } else if (block.type === 'header') {
           sections[prefix + 'HEADER ' + block.level] = lines(block.text);
+        } else if (block.type === 'table') {
+          sections[prefix + 'TABLE'] = window.Workflow.tableToLines(block.rows);
         } else {
           sections[prefix + block.type.toUpperCase()] = lines(block.text);
         }
@@ -2389,6 +2534,9 @@
           case 'code':
             // Code keeps its indentation
             return { type: 'code', text: tidyCode(block.text) };
+          case 'table':
+            var rows = window.Workflow.normalizeTable(block.rows);
+            return { type: 'table', rows: rows, text: rows.reduce(function (all, row) { return all.concat(row); }, []).join(' ').trim() };
           case 'paragraph':
           case 'note':
           case 'warning':
@@ -2669,6 +2817,14 @@
           printView.appendChild(step);
         } else if (block.type === 'code') {
           printView.appendChild(printElement('pre', 'print-code', block.text));
+        } else if (block.type === 'table') {
+          var printTable = printElement('table', 'print-table');
+          block.rows.forEach(function (cells, index) {
+            var tr = printElement('tr', '');
+            cells.forEach(function (cell) { tr.appendChild(printElement(index === 0 ? 'th' : 'td', '', cell)); });
+            printTable.appendChild(tr);
+          });
+          printView.appendChild(printTable);
         } else {
           // note or warning
           var callout = printElement('div', 'print-callout print-' + block.type);
@@ -2820,6 +2976,20 @@
       };
     }
 
+    // A table: the header row is shaded and bold, every column the same width
+    function pdfTable(rows) {
+      var body = rows.map(function (row, index) {
+        return row.map(function (cell) {
+          return { text: cell, bold: index === 0, color: index === 0 ? PDF_COLORS.navy : PDF_COLORS.text, fillColor: index === 0 ? PDF_COLORS.band : null, margin: [4, 3, 4, 3] };
+        });
+      });
+      return {
+        table: { headerRows: 1, widths: rows[0].map(function () { return '*'; }), body: body },
+        layout: { hLineWidth: function () { return 0.5; }, vLineWidth: function () { return 0.5; }, hLineColor: function () { return '#D9DBEA'; }, vLineColor: function () { return '#D9DBEA'; } },
+        margin: [0, 0, 0, 10]
+      };
+    }
+
     function pdfStep(block) {
       return {
         columns: [
@@ -2872,6 +3042,8 @@
           if (block.title || block.text || (block.items && block.items.length)) { content.push(pdfStep(block)); }   // an empty step is left out
         } else if (block.type === 'code') {
           content.push(pdfCode(block.text));
+        } else if (block.type === 'table') {
+          content.push(pdfTable(block.rows));
         } else if (block.type === 'warning') {
           content.push(pdfCallout('Warning', block.text, '#FDECEA', '#C62828', '#8A1C1C'));
         } else {

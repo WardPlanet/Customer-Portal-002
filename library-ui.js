@@ -1001,6 +1001,26 @@
     if (last < text.length) { parent.appendChild(document.createTextNode(text.slice(last))); }
   }
 
+  // A table: the first row is the header. Wide tables scroll sideways instead of squashing the page.
+  function previewTable(rows) {
+    var wrap = el('div', 'preview-table-wrap');
+    var table = el('table', 'preview-table');
+    var head = el('thead');
+    var headRow = el('tr');
+    rows[0].forEach(function (cell) { headRow.appendChild(previewText('th', '', cell)); });
+    head.appendChild(headRow);
+    table.appendChild(head);
+    var body = el('tbody');
+    rows.slice(1).forEach(function (cells) {
+      var tr = el('tr');
+      cells.forEach(function (cell) { tr.appendChild(previewText('td', '', cell)); });
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
   // The same symbols the editor uses for notes and warnings
   var NOTE_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5M12 8h.01"/></svg>';
   var WARNING_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></svg>';
@@ -1176,6 +1196,9 @@
       } else if (sections[prefix + 'NOTE'] || sections[prefix + 'WARNING']) {
         var isWarning = !!sections[prefix + 'WARNING'];
         article.appendChild(previewCallout(isWarning, body(prefix + (isWarning ? 'WARNING' : 'NOTE'))));
+      } else if (sections[prefix + 'TABLE']) {
+        var tableRows = W.parseTableLines(sections[prefix + 'TABLE']);
+        if (tableRows.length) { article.appendChild(previewTable(tableRows)); }
       } else if (sections[prefix + 'PARAGRAPH']) {
         previewParagraphs(article, body(prefix + 'PARAGRAPH'));
       } else if ((body(prefix + 'STEP TITLE') || body(prefix + 'STEP TEXT') || Object.keys(sections).some(function (name) { return name.indexOf(prefix + 'STEP ') === 0 && /^STEP (CODE|NOTE|WARNING) /.test(name.slice(prefix.length)) && body(name); })) && (sections[prefix + 'STEP TITLE'] || sections[prefix + 'STEP TEXT'])) {
