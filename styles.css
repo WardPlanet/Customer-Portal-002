@@ -1787,3 +1787,11 @@
 .toc-toggle:hover { background: var(--accent-soft); }
 .toc-spacer { width: 26px; }
 .toc-row { align-items: center; }
+
+/* The section link button: quiet until you point at the heading, never hidden (so it can be found and used by touch) */
+.preview-anchor { width: 22px; height: 22px; margin: 0 8px 0 -30px; background: transparent; color: var(--text-faint); opacity: 0.55; border-radius: 6px; }
+.preview-anchor svg { width: 14px; height: 14px; }
+.preview-h:hover .preview-anchor, .preview-anchor:focus-visible { opacity: 1; color: var(--accent); background: var(--accent-soft); }
+.preview-anchor:hover { opacity: 1; color: #fff; background: var(--accent); }
+.section-linked .preview-anchor { opacity: 1; color: var(--accent); }
+@media (hover: none) { .preview-anchor { opacity: 0.8; } }

@@ -392,7 +392,7 @@ more pictures go in `TEAM_ICONS` in `library-ui.js`). Search itself is still the
 
 **Lists and section links in the reader view.** In the live view, lines that start with "- " (or a bullet or en-dash
 character) become bullet lists and "1. " lines numbered lists, in descriptions, paragraphs and step text. (The reader
-view used to show them as plain text.) Each heading has a small blue link button on its left, always visible: choosing it highlights that section and copies its
+view used to show them as plain text.) Each heading has a small link button on its left, a faint grey chain that turns blue when you point at the heading (always there, so it works by touch): choosing it highlights that section and copies its
 address (`#/preview/<id>/<section>`, or `#/public/<id>/<section>`); choosing it again takes the highlight off. An address
 with a section in it scrolls to the section and highlights it, with everything under it up to the next heading of the same or higher level, in very light
 yellow (`--linked-bg`). Section names come from the heading text, with `-2`, `-3` added for repeated headings. The import
