@@ -555,7 +555,7 @@
     data.history.forEach(function (v) {
       var row = el('tr', 'lib-row');
       var versionCell = el('td');
-      versionCell.appendChild(el('strong', '', versionName(v) + (v.live ? ' (live)' : '')));
+      versionCell.appendChild(el('strong', '', (v.release ? 'v' + v.release : 'Draft') + (v.live ? ' (live)' : '')));
       row.appendChild(versionCell);
       var statusCell = el('td');
       statusCell.appendChild(badge(VERSION_LABELS[v.status]));
@@ -564,43 +564,55 @@
       row.appendChild(el('td', 'lib-date', formatDate(v.updatedAt)));
       var actionCell = el('td', 'lib-row-actions');
 
-      // The notes for a version: how it was made, and what the reviewer said. Shown under the row on request.
+      // The details for a version: how it was made, who reviewed it and what they said, and a link to read it
       var notes = [];
       if (v.note) { notes.push(v.note); }
       if (v.decidedBy) {
         notes.push((v.status === 'sent_back' ? 'Sent back by ' : v.status === 'unpublished' ? 'Unpublished by ' : v.directPublish ? 'Published by ' : 'Approved by ') + v.decidedBy + (v.directPublish ? ' (review skipped)' : '') + ' on ' + formatDate(v.decidedAt) + '.');
-        if (v.decisionComment && !v.directPublish) { notes.push('“' + v.decisionComment + '”'); }
+        if (v.decisionComment && !v.directPublish) { notes.push('\u201c' + v.decisionComment + '\u201d'); }
       } else if (v.submittedBy) {
         notes.push('Submitted for review by ' + v.submittedBy + '.');
       }
-      var notesRow = null;
-      if (notes.length) {
-        var notesLink = el('button', 'link-btn', 'Notes');
-        notesLink.type = 'button';
-        notesLink.setAttribute('aria-expanded', 'false');
-        notesLink.addEventListener('click', function () {
-          var open = notesLink.getAttribute('aria-expanded') !== 'true';
-          notesLink.setAttribute('aria-expanded', String(open));
-          notesRow.hidden = !open;
-        });
-        actionCell.appendChild(notesLink);
-      }
-      versionButtons(id, v).forEach(function (node) { actionCell.appendChild(node); });
-      // Anything that opens another version or changes the page closes this window
-      actionCell.addEventListener('click', function (event) {
-        if (event.target.closest('a, .row-btn')) { setTimeout(function () { dialog.close(); }, 0); }
+      var notesRow = el('tr', 'versions-notes');
+      notesRow.hidden = true;
+      var notesCell = el('td');
+      notesCell.colSpan = 5;
+      notes.forEach(function (line) { notesCell.appendChild(el('p', 'lib-row-sub', line)); });
+      notesCell.appendChild(link('Read this version', '#/view/' + id + '/' + v.n, 'row-link'));
+      notesRow.appendChild(notesCell);
+      var detailsLink = el('button', 'row-btn', 'View details');
+      detailsLink.type = 'button';
+      detailsLink.setAttribute('aria-expanded', 'false');
+      detailsLink.addEventListener('click', function () {
+        var open = detailsLink.getAttribute('aria-expanded') !== 'true';
+        detailsLink.setAttribute('aria-expanded', String(open));
+        notesRow.hidden = !open;
       });
+      actionCell.appendChild(detailsLink);
+      // In the editor a draft is always open, so Restore puts the old version's text into that draft (you can undo it
+      // by restoring something else, and nothing is kept until it is saved). Elsewhere it starts a new draft from it.
+      var inEditor = current.id === id && !document.body.classList.contains('is-readonly') && !editorScreen.hidden;
+      if (inEditor ? (v.release && !v.live) : v.actions.indexOf('restore') >= 0) {
+        actionCell.appendChild(button('Restore', 'row-btn', async function () {
+          if (inEditor) {
+            if (!(await window.askConfirm('The draft you are editing will be replaced by ' + (v.release ? 'v' + v.release : 'this version') + '.', { title: 'Restore this version?', ok: 'Restore' }))) { return; }
+            var old = await attempt(backend().getVersion(id, v.n));
+            if (!old) { return; }
+            dialog.close();
+            window.PageEditor.load(old.text, false);
+            window.PageEditor.setStatus('Unsaved changes', false);
+            await updateVersionLink(id);
+            window.PageEditor.showNotice('Restored v' + v.release + ' into the editor. It is saved with your next save or autosave.');
+            return;
+          }
+          var result = await attempt(backend().act(id, v.n, 'restore'));
+          if (result) { dialog.close(); notice('Restored as a new draft. It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
+        }));
+      }
+      notesCell.addEventListener('click', function (event) { if (event.target.closest('a')) { setTimeout(function () { dialog.close(); }, 0); } });
       row.appendChild(actionCell);
       body.appendChild(row);
-      if (notes.length) {
-        notesRow = el('tr', 'versions-notes');
-        notesRow.hidden = true;
-        var notesCell = el('td');
-        notesCell.colSpan = 5;
-        notes.forEach(function (line) { notesCell.appendChild(el('p', 'lib-row-sub', line)); });
-        notesRow.appendChild(notesCell);
-        body.appendChild(notesRow);
-      }
+      body.appendChild(notesRow);
     });
     table.appendChild(body);
     dialog.appendChild(table);
@@ -614,6 +626,17 @@
     });
     document.body.appendChild(dialog);
     dialog.showModal();
+  }
+
+  // The small version link in Page Setup: "v2 · editing a draft", or "Draft" for a page never published
+  function versionLinkText(detail) {
+    var live = detail && detail.page.liveRelease;
+    return live ? 'v' + live + ' \u00b7 editing a draft' : 'Draft';
+  }
+
+  async function updateVersionLink(id) {
+    var detail = await attempt(backend().get(id));
+    if (detail) { window.PageEditor.setVersionLink(versionLinkText(detail), function () { openVersionsDialog(id); }); }
   }
 
   // The "Versions" button shown in the banner above the editor
@@ -723,23 +746,22 @@
     window.PageEditor.load(data.text, false);
     window.PageEditor.setLabel(data.version.title || 'Untitled page');
     current = { id: id, n: Number(n), backTo: '#/' };
-    var lines = ['Editing a draft. It saves itself every ' + window.PageEditor.autosaveSeconds() + ' seconds; Submit for review sends it to the team lead.'];
     var detail = await attempt(backend().get(id));
     if (mine !== routing) { return; }
-    if (detail && detail.page.liveVersion) { lines.push('The live version stays live until this draft is approved or published.'); }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
+
+    // A small "v2" link in Page Setup opens the versions (restore, or view details). No long notice up here.
+    window.PageEditor.setVersionLink(versionLinkText(detail), function () { openVersionsDialog(id); });
+
+    // The banner appears only when there is something to act on: a sent-back note, or the points flagged by an import
+    var lines = [];
     var tone = 'info';
-    // A page made by an import keeps the points the AI flagged for the person who checks it
-    if (hist && /^Imported from /.test(hist.note || '')) { lines.push(hist.note); }
     if (hist && hist.status === 'sent_back' && hist.decisionComment) {
-      lines.unshift('Sent back by ' + hist.decidedBy + ': “' + hist.decisionComment + '”');
+      lines.push('Sent back by ' + hist.decidedBy + ': \u201c' + hist.decisionComment + '\u201d');
       tone = 'warn';
     }
-    var editorBox = editorBanner(lines, tone);
-    var editorActions = el('div', 'banner-actions');
-    editorActions.appendChild(versionsButton(id));
-    editorBox.appendChild(editorActions);
-    setBanner(editorBox);
+    if (hist && /^Imported from /.test(hist.note || '')) { lines.push(hist.note); }
+    setBanner(lines.length ? editorBanner(lines, tone) : null);
   }
 
   function openNewPage() {
@@ -747,7 +769,7 @@
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
     current = { id: null, n: null, backTo: '#/' };
-    setBanner(editorBanner(['A new page. Save draft keeps it in the library; Submit for review sends it to the team lead.']));
+    setBanner(null);
   }
 
   /* ---------- The editor, locked for reading ---------- */
@@ -1097,15 +1119,20 @@
     return box;
   }
 
-  // Other live pages that share this page's owner role or a linked role
+  // The related pages for a live page: the ones the author chose come first, in the order they chose, then other live
+  // pages that share the owner role or a linked role. Up to 8; only Client-Safe ones when viewed as the public.
   async function relatedPages(id, pageFields, publicOnly) {
     var roles = [pageFields.owner].concat(pageFields.linkedRoles).filter(Boolean);
     var all = await attempt(backend().list('', true));
     if (!all) { return null; }
-    var matches = all.pages.filter(function (p) {
-      if (p.id === id || !p.liveVersion || (publicOnly && p.visibility !== 'Client-Safe')) { return false; }
+    function allowed(p) { return p.id !== id && p.liveVersion && (!publicOnly || p.visibility === 'Client-Safe'); }
+    var chosen = (pageFields.related || []).map(function (relatedId) {
+      return all.pages.filter(function (p) { return p.id === relatedId; })[0];
+    }).filter(function (p) { return p && allowed(p); });
+    var matches = chosen.concat(all.pages.filter(function (p) {
+      if (!allowed(p) || chosen.indexOf(p) >= 0) { return false; }
       return roles.indexOf(p.owner) >= 0 || (p.linkedRoles || []).some(function (role) { return roles.indexOf(role) >= 0; });
-    }).slice(0, 8);
+    })).slice(0, 8);
     if (!matches.length) { return null; }
     var box = el('section', 'side-card');
     box.appendChild(el('h2', 'side-title', 'Related pages'));
@@ -1314,6 +1341,16 @@
     canPublish: function () { return !!team && W.canPublishDirectly(actor(), team); },
     // Skips review: saves, makes it live, and downloads the text. (Who may do this is the team's
     // "directPublish" setting; the server and store both enforce it.)
+    // The related-pages box: the best five live pages for what was typed, titles that match first. The same search
+    // as everywhere else (live pages only).
+    searchRelated: async function (query) {
+      var result = await backend().list(query, true);
+      var words = String(query).toLowerCase().split(/\s+/).filter(Boolean);
+      function inTitle(page) { var title = page.title.toLowerCase(); return words.every(function (word) { return title.indexOf(word) >= 0; }); }
+      return result.pages.filter(function (page) { return page.id !== current.id; }).sort(function (a, b) {
+        return (inTitle(b) ? 1 : 0) - (inTitle(a) ? 1 : 0);
+      }).slice(0, 5).map(function (page) { return { id: page.id, title: page.title }; });
+    },
     // Called by the editor on a timer. Saves the draft quietly when the page already exists in the library;
     // a brand-new page is only kept once the person has saved it themselves. Resolves to true when it saved.
     autosave: async function (text) {

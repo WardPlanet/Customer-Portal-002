@@ -414,3 +414,9 @@ test('tables: ragged rows are padded, line breaks in cells become spaces, and pl
   assert.deepEqual(W.normalizeTable([['one\ntwo', null], ['x']]), [['one two', ''], ['x', '']]);
   assert.deepEqual(W.normalizeTable('nonsense'), []);
 });
+
+test('related pages: the chosen page ids are read in order from the RELATED PAGES section', () => {
+  const text = draftText('Refunds') + '\n[RELATED PAGES]\npgabc123 | Refund policy\npgxyz789 | Domain | renewal\n';
+  assert.deepEqual(W.fields(text).related, ['pgabc123', 'pgxyz789']);
+  assert.deepEqual(W.fields(draftText('Refunds')).related, []);
+});

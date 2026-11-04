@@ -148,12 +148,9 @@
         <p class="field-hint">Everything saved belongs to this team.</p>
       </div>
 
-      <div>
-        <label class="field-label" for="page-type">Page Type</label>
-        <div class="select-wrap">
-          <select class="select-field" id="page-type"></select>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-        </div>
+      <div id="version-field" hidden>
+        <span class="field-label">Version</span>
+        <button type="button" class="link-btn" id="version-link" aria-haspopup="dialog"></button>
       </div>
 
       <div>
@@ -177,6 +174,14 @@
           <select class="select-field" id="role-add" aria-label="Link a role"></select>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </div>
+      </div>
+
+      <div id="related-field">
+        <span class="field-label">Related Pages</span>
+        <ul class="related-list" id="related"></ul>
+        <input type="search" class="related-search" id="related-search" placeholder="Search for a page to add" aria-label="Search for a related page" autocomplete="off">
+        <ul class="related-suggestions" id="related-suggestions"></ul>
+        <p class="field-hint">Shown first on the live page, in this order.</p>
       </div>
 
       <div>

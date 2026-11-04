@@ -80,6 +80,8 @@
       visibility: first(sections, 'VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only',
       owner: first(sections, 'OWNER ROLE'),
       linkedRoles: (sections['LINKED ROLES'] || []).map(function (line) { return line.trim(); }).filter(Boolean),
+      // The pages the author chose as related, in order (each line is "id | title"; only the id is used)
+      related: (sections['RELATED PAGES'] || []).map(function (line) { return line.split(' | ')[0].trim(); }).filter(Boolean),
       pageType: first(sections, 'PAGE TYPE'),
       keywords: (sections.KEYWORDS || []).map(function (line) { return line.trim(); }).filter(Boolean),
       hasStepTitle: stepTitles.length > 0,

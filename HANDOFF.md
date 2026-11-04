@@ -419,6 +419,16 @@ API is plugged in, run the server version. "Not available" is only a guess: the 
 a click always tries again. A failure to write the search keywords when saving never switches AI assist off. A new page
 starts with no blocks (no empty Step 1); the person adds what they need from "+ Add a block".
 
+**Page Setup: version link, related pages, no page type.** The long notice about versions above the editor is gone: a small
+link in Page Setup shows the version ("v2 · editing a draft", or "Draft" for a page never published) and opens the
+Versions list, where each version has **View details** (who made it, who reviewed it, the notes, and a link to read it) and
+**Restore**. In the editor, Restore puts that version's text into the draft being edited (unsaved until saved or autosaved);
+elsewhere it starts a new draft. A banner appears above the editor only for a sent-back note or the points flagged by an
+import. The **Page Type** choice is hidden for now (every page is still saved as Process Documentation). **Related pages**: the
+author searches live pages (the same search; the best five show under the box, titles that match first), adds them, and
+moves them up or down. They are saved in `[RELATED PAGES]` as `id | title`, and the live page shows them first, in that
+order, then fills up to eight with pages that share its owner or a linked role.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.
