@@ -390,6 +390,15 @@ warning with the triangle, and the same dark code box, in light and dark mode (`
 get a website (globe) icon, set by `"icon": "website"` in `teams/legwork-web-team.json` (only `website` exists so far;
 more pictures go in `TEAM_ICONS` in `library-ui.js`). Search itself is still the simple word match.
 
+**Lists and section links in the reader view.** In the live view, lines that start with "- " (or a bullet or en-dash
+character) become bullet lists and "1. " lines numbered lists, in descriptions, paragraphs and step text. (The reader
+view used to show them as plain text.) Each heading has a small link button that appears on hover: it copies the address
+of that section (`#/preview/<id>/<section>`, or `#/public/<id>/<section>`). Opening such an address scrolls to the
+section and highlights it, with everything under it up to the next heading of the same or higher level, in very light
+yellow (`--linked-bg`). Section names come from the heading text, with `-2`, `-3` added for repeated headings. The import
+guidelines now tell the AI to turn dash and bullet-character lines into "- " list items, and the editor treats a
+pasted bullet or en-dash line start as a bullet.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.

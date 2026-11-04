@@ -1525,7 +1525,8 @@
       var needsBreak = false;
 
       markdown.split(NL).forEach(function (line) {
-        var bullet = /^- (.*)$/.exec(line);
+        // "- " is the saved form; a typed or pasted \u2022 or \u2013 at the start of a line is a bullet too
+        var bullet = /^(?:-|\u2022|\u2013) (.*)$/.exec(line);
         var numbered = /^[0-9]+[.] (.*)$/.exec(line);
         var listTag = bullet ? 'ul' : (numbered ? 'ol' : '');
 

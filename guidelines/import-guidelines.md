@@ -30,7 +30,9 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
 - Anything that can cause data loss, money loss, a compliance problem or a patient or customer
   problem if ignored becomes a Warning. Use warnings sparingly, only when the document itself
   stresses the risk.
-- Lists that are not a procedure stay as bullet lists inside a Text block.
+- Lists that are not a procedure stay as bullet lists inside a Text block. Write every list item on its own line
+  starting with "- " (or "1. " for a numbered list). Dashes, en dashes, bullet characters and "*" at the start of
+  a line in the original are all list items: convert them to "- " and do not leave the original dash in the text.
 - Commands, queries, scripts, configuration, file contents and anything the reader is meant to copy and
   type or paste go in a Code block, copied exactly: same characters, same line breaks, same indentation.
   A command or snippet that belongs to a step goes in that step's "items" list (type "code"), so it stays

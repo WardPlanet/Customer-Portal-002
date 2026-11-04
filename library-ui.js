@@ -1024,10 +1024,29 @@
     return node;
   }
 
-  // Paragraphs are separated by blank lines
+  // Text is split into paragraphs at blank lines. Inside one, lines that start with "- " (or a bullet character)
+  // become a bulleted list and lines that start with "1. " a numbered one; other lines stay together as a paragraph.
   function previewParagraphs(parent, text, className) {
     String(text || '').split(/\n\s*\n/).forEach(function (chunk) {
-      if (chunk.trim()) { parent.appendChild(previewText('p', className || 'preview-p', chunk.trim())); }
+      var lines = chunk.replace(/\s+$/, '').split('\n').filter(function (line) { return line.trim() !== ''; });
+      var run = [];        // lines of the paragraph being collected
+      var list = null;     // the open <ul> or <ol>
+      function endRun() {
+        if (run.length) { parent.appendChild(previewText('p', className || 'preview-p', run.join('\n').trim())); run = []; }
+      }
+      lines.forEach(function (line) {
+        var bullet = /^\s*(?:[-*\u2022\u2013]) +(.*\S)\s*$/.exec(line);
+        var numbered = /^\s*\d+[.)] +(.*\S)\s*$/.exec(line);
+        var kind = bullet ? 'ul' : numbered ? 'ol' : '';
+        if (!kind) { list = null; run.push(line); return; }
+        endRun();
+        if (!list || list.tagName.toLowerCase() !== kind) {
+          list = el(kind, 'preview-list');
+          parent.appendChild(list);
+        }
+        list.appendChild(previewText('li', '', (bullet || numbered)[1]));
+      });
+      endRun();
     });
   }
 
@@ -1079,12 +1098,63 @@
     return box;
   }
 
+  // A short, URL-safe name for a heading, unique within the page: "Editing the home page" -> "editing-the-home-page"
+  function sectionSlug(text, used) {
+    var base = String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'section';
+    var slug = base;
+    var n = 2;
+    while (used[slug]) { slug = base + '-' + n; n += 1; }
+    used[slug] = true;
+    return slug;
+  }
+
+  var LINK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
+
+  // A heading with a small link button: choosing it copies the address of that section, so you can send someone
+  // straight to it. `base` is the page's address (for example "#/preview/<id>").
+  function previewHeading(level, text, slug, base) {
+    var heading = previewText('h' + Math.min(level + 1, 6), 'preview-h', text);
+    heading.setAttribute('data-section', slug);
+    heading.setAttribute('data-level', String(level));
+    var anchor = el('a', 'preview-anchor');
+    anchor.href = base + '/' + slug;
+    anchor.setAttribute('aria-label', 'Link to the section \u201c' + text + '\u201d');
+    anchor.title = 'Copy a link to this section';
+    anchor.innerHTML = LINK_ICON;   // fixed markup above
+    anchor.addEventListener('click', function () {
+      var full = location.href.split('#')[0] + anchor.getAttribute('href');
+      var copied = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(full) : Promise.reject();
+      copied.then(function () { notice('Link to this section copied.'); }, function () { notice('The link to this section is now in the address bar.'); });
+    });
+    heading.appendChild(anchor);
+    return heading;
+  }
+
+  // Marks one section as the linked one: its heading and everything under it, up to the next heading of the same
+  // or a higher level, are put on a light yellow background and scrolled into view.
+  function highlightSection(article, slug) {
+    var heading = article.querySelector('[data-section="' + slug.replace(/[^a-z0-9-]/g, '') + '"]');
+    if (!heading) { return; }
+    var level = Number(heading.getAttribute('data-level'));
+    var wrapper = el('div', 'section-linked');
+    article.insertBefore(wrapper, heading);
+    var node = heading;
+    while (node) {
+      var next = node.nextSibling;
+      wrapper.appendChild(node);
+      if (!next || (next.getAttribute && next.getAttribute('data-level') && Number(next.getAttribute('data-level')) <= level)) { break; }
+      node = next;
+    }
+    wrapper.scrollIntoView({ block: 'start' });
+  }
+
   // Draws a page the way a reader sees it: title, description, then the blocks in order. No editor.
-  function renderPreview(text) {
+  function renderPreview(text, linkBase) {
     var sections = W.fields(text).sections;
     function body(name) { return sections[name] ? sections[name].join('\n').trim() : ''; }
     var article = el('article', 'preview');
     article.appendChild(el('h1', 'preview-title', body('TITLE') || 'Untitled page'));
+    var usedSlugs = {};
     var description = body('DESCRIPTION') || body('SUMMARY');
     if (description) { previewParagraphs(article, description, 'preview-description'); }
 
@@ -1097,7 +1167,8 @@
       var prefix = 'BLOCK ' + n + ' ';
       var level = [1, 2, 3, 4, 5].filter(function (l) { return sections[prefix + 'HEADER ' + l]; })[0];
       if (level) {
-        article.appendChild(previewText('h' + Math.min(level + 1, 6), 'preview-h', body(prefix + 'HEADER ' + level)));
+        var headingText = body(prefix + 'HEADER ' + level);
+        article.appendChild(previewHeading(level, headingText, sectionSlug(headingText, usedSlugs), linkBase || ''));
       } else if (sections[prefix + 'CODE']) {
         article.appendChild(el('pre', 'preview-code', sections[prefix + 'CODE'].join('\n').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '')));
       } else if (sections[prefix + 'NOTE'] || sections[prefix + 'WARNING']) {
@@ -1131,7 +1202,7 @@
 
   // Opens a live page as a reader sees it. Staff see Internal-Only and Client-Safe pages; the page's
   // owner, reviewer and other setup details are not part of the preview.
-  async function openPublicPage(id, fromLibrary) {
+  async function openPublicPage(id, fromLibrary, section) {
     var mine = routing;
     var detail;
     var data;
@@ -1160,7 +1231,9 @@
     // "supportUrl"; until it is set the card says so). "View as the public" shows exactly that.
     async function draw(asPublic) {
       layout.textContent = '';
-      layout.appendChild(renderPreview(asPublic ? W.publicText(data.text) : data.text));
+      var article = renderPreview(asPublic ? W.publicText(data.text) : data.text, (fromLibrary ? '#/preview/' : '#/public/') + id);
+      layout.appendChild(article);
+      if (section) { highlightSection(article, section); section = ''; }   // only the first time the page is drawn
       var side = el('aside', 'preview-side');
       side.setAttribute('aria-label', asPublic ? 'Support and related pages' : 'Contacts and related pages');
       if (asPublic) {
@@ -1248,8 +1321,8 @@
     if (screen === 'new') { openNewPage(); }
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
-    else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false); }
-    else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true); }
+    else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
+    else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true, parts[2]); }
     else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; } }); }
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }
