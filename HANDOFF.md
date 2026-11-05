@@ -140,7 +140,7 @@ new person, with no page edits and no restart.
 | Role | Held by |
 | --- | --- |
 | Website Editor | Scott Archer |
-| Domain Manager | Mataya |
+| Copywriter | Mataya |
 | SEM Manager | Stephanie |
 | Web Designer | Molly |
 | Web Team Manager | Micah |
@@ -663,7 +663,7 @@ Legwork Web Team
 Website Editor
 
 [LINKED ROLES]
-Domain Manager
+Copywriter
 Web Designer
 
 [REVIEWER]
@@ -782,3 +782,10 @@ recent queries are not suggested yet; that needs search analytics (not built).
 Question words and pronouns ("how do I ... my ...", "can", "what", "please" and so on) are ignored like "the" and "of"
 (they stay if nothing else is left). When no page has every word, pages are ranked by score scaled by the share of the
 words found, so a page with the topic words in its title beats one that only has more everyday words.
+
+## Copywriter role and the search review
+
+The Domain Manager role is now **Copywriter** (still held by Mataya). The Copywriter is intended to run the weekly search
+review (no-result searches, repeated searches, synonyms) once it is built (not built yet). Later, a person may
+need to hold several roles, and the review may be assignable to a role other than the lead; roles are already separate
+from people, so this is a roster change, not a code change.

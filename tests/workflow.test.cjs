@@ -181,7 +181,7 @@ test('a person is matched to the roles they hold', () => {
 });
 
 test('the public text leaves out ownership, roles, reviewer, keywords, location and source', () => {
-  const text = draftText('Refunds') + '\n[REVIEWER]\nWeb Team Manager\n\n[LINKED ROLES]\nDomain Manager\n\n[KEYWORDS]\nsecret\n\n[SOURCE FILE]\nx.docx\n[TEAM]\nLegwork Web Team\n';
+  const text = draftText('Refunds') + '\n[REVIEWER]\nWeb Team Manager\n\n[LINKED ROLES]\nCopywriter\n\n[KEYWORDS]\nsecret\n\n[SOURCE FILE]\nx.docx\n[TEAM]\nLegwork Web Team\n';
   const shown = W.publicText(text);
   assert.match(shown, /\[TITLE\]\nRefunds/);
   assert.match(shown, /STEP TITLE/);
