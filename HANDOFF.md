@@ -477,6 +477,12 @@ and **Clear**. Unpublish, Change owner and Delete ask once for the whole group; 
 Publish, does not download text files (a bulk publish would send one per page). The pages are done one after another; one that
 fails does not stop the rest, and the message says how many worked and why any did not.
 
+**Editor toolbar, block menu and formatting under the text.** The toolbar's "Paragraph" drop-down (it did nothing) is gone, and
+the chips along it are Text, Step, Note, Warning, **Table** and **Code**. The "+ Add a block" menu is laid out in two columns.
+Clicking into any text with formatting (the description, Text blocks, step details) shows Bold, Italic, Underline, bullets,
+numbers and Link in a small bar right under that text, so the toolbar at the top is not needed; it hides again when you click
+somewhere that has no formatting. Both sets of buttons work the same way.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.
@@ -666,8 +672,7 @@ disk behaves the same way.
 ## Not built yet, or placeholders
 
 - Batch import, handling of images and screenshots, and page types other than Process Documentation.
-- The toolbar **Paragraph** dropdown, and the toolbar **image** button
-  are visual only.
+- The toolbar **image** button is visual only.
 - **Search** does not exist yet. The `[KEYWORDS]` section is written to the file for it to use.
 - Sample content in Page Setup is still invented: the page types (Process Documentation, Policy,
   Reference Guide, How-To Guide). The team, its roles and its location (Websites) are real (see Teams and

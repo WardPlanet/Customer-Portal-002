@@ -1834,3 +1834,17 @@
 .lib-bulk { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1); }
 .lib-bulk[hidden] { display: none; }
 .lib-bulk-count { margin-right: 6px; }
+
+/* Add-a-block menu in columns */
+.block-menu { width: min(500px, calc(100vw - 16px)); }
+.block-menu .menu-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
+.block-menu .menu-panel[hidden] { display: none; }
+
+/* Formatting buttons under the text being edited */
+.inline-format { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-top: 6px; padding: 2px; width: fit-content; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; user-select: none; }
+.inline-format[hidden] { display: none; }
+.inline-format .icon-btn { width: 30px; height: 30px; display: inline-grid; place-items: center; }
+.inline-format .icon-btn svg { width: 15px; height: 15px; }
+.inline-format .icon-btn[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
+.inline-format .icon-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
+.inline-format .icon-btn[data-format="underline"] + .icon-btn { margin-left: 6px; }

@@ -1829,6 +1829,7 @@
       activeRich = null;
       savedRange = null;
       linkPopover.hidden = true;
+      inlineBar.hidden = true;
       updateFormatButtons();
     }
 
@@ -1991,7 +1992,7 @@
       updateFormatButtons();
     }
 
-    formatButtons.forEach(function (button) {
+    function bindFormatButton(button) {
       // Keep the text selection while the toolbar is clicked
       button.addEventListener('mousedown', function (event) { event.preventDefault(); });
       button.addEventListener('click', function () {
@@ -2015,7 +2016,29 @@
         if (caretOffset >= 0) { placeCaretAtTextOffset(activeRich, caretOffset); }
         updateFormatButtons();
       });
+    }
+    formatButtons.slice().forEach(bindFormatButton);
+
+    /* ---------- The same formatting buttons under the text being edited ----------
+       Clicking into a text field shows Bold, Italic, Underline, lists and Link right below it, so there is no need to
+       scroll back up to the toolbar. They are copies of the toolbar's buttons and work the same way. */
+    var inlineBar = document.createElement('div');
+    inlineBar.className = 'inline-format';
+    inlineBar.setAttribute('role', 'toolbar');
+    inlineBar.setAttribute('aria-label', 'Formatting for this text');
+    inlineBar.hidden = true;
+    formatButtons.slice().forEach(function (original) {
+      var copy = original.cloneNode(true);
+      inlineBar.appendChild(copy);
+      formatButtons.push(copy);
+      bindFormatButton(copy);
     });
+
+    function placeInlineBar() {
+      if (!activeRich || document.body.classList.contains('is-readonly')) { inlineBar.hidden = true; return; }
+      if (inlineBar.previousSibling !== activeRich) { activeRich.parentNode.insertBefore(inlineBar, activeRich.nextSibling); }
+      inlineBar.hidden = false;
+    }
 
     byId('link-apply').addEventListener('click', applyLink);
     byId('link-cancel').addEventListener('click', closeLinkPopover);
@@ -2035,6 +2058,7 @@
       var target = event.target;
       if (!target.closest || target.closest('.icon-btn[data-format], #link-popover')) { return; }
       activeRich = target.closest('[data-rich]');
+      placeInlineBar();
       updateFormatButtons();
     });
     document.addEventListener('selectionchange', function () {
@@ -3607,8 +3631,8 @@
     window.addEventListener('scroll', closeBlockMenu, true);
     window.addEventListener('resize', closeBlockMenu);
 
-    // The toolbar chips (Text, Step, Note, Warning) add that block at the very end of the page
-    var CHIP_BLOCK_TYPES = { Text: 'paragraph', Step: 'step', Note: 'note', Warning: 'warning' };
+    // The toolbar chips (Text, Step, Note, Warning, Table, Code) add that block at the very end of the page
+    var CHIP_BLOCK_TYPES = { Text: 'paragraph', Step: 'step', Note: 'note', Warning: 'warning', Table: 'table', Code: 'code' };
     document.querySelectorAll('.block-chip').forEach(function (chip) {
       var type = CHIP_BLOCK_TYPES[chip.textContent.trim()];
       if (type) {
