@@ -83,6 +83,31 @@
     return node;
   }
 
+  // Text made of { text, hit } pieces (from the search): the pieces that matched are marked. Built as nodes, never as HTML.
+  function markedNodes(parts, fallback) {
+    var holder = document.createDocumentFragment();
+    (parts && parts.length ? parts : [{ text: fallback || '', hit: false }]).forEach(function (part) {
+      holder.appendChild(part.hit ? el('mark', 'search-hit', part.text) : document.createTextNode(part.text));
+    });
+    return holder;
+  }
+
+  // The line under a search box when the results are not a plain match: partial matches, or a "did you mean"
+  function searchNote(result, onSuggestion) {
+    var note = el('p', 'search-note');
+    if (result.partial && result.pages.length) { note.textContent = 'No page has all of your words. These have some of them.'; return note; }
+    if (!result.pages.length && result.suggestion) {
+      note.appendChild(document.createTextNode('No page matches. Did you mean '));
+      var suggestion = el('a', 'search-suggestion', result.suggestion);
+      suggestion.href = '#';
+      suggestion.addEventListener('click', function (event) { event.preventDefault(); onSuggestion(result.suggestion); });
+      note.appendChild(suggestion);
+      note.appendChild(document.createTextNode('?'));
+      return note;
+    }
+    return null;
+  }
+
   // The address of a page's preview (what a reader sees)
   function previewUrl(id) { return '#/preview/' + id; }
 
@@ -264,7 +289,7 @@
     var filters = el('div', 'lib-filters');
     var search = el('input', 'lib-search');
     search.type = 'search';
-    search.placeholder = 'Search live pages';
+    search.placeholder = 'Search live pages (try "exact phrase", -leave out, title:word)';
     search.setAttribute('aria-label', 'Search live pages');
     search.value = libraryFilters.q;
     var status = el('select', 'lib-status');
@@ -288,11 +313,14 @@
       renderBackupLine(backupLine, result.pages);
       renderQueue(queue, result.pages);
       renderList(listBox, result.pages);
+      var note = libraryFilters.q ? searchNote(result, function (word) { search.value = word; libraryFilters.q = word; refresh(); }) : null;
+      if (note) { listBox.insertBefore(note, listBox.firstChild); }
     }
 
     var timer = null;
     search.addEventListener('input', function () {
       libraryFilters.q = search.value.trim();
+      libraryFilters.sortChosen = false;   // a new search is shown best match first
       clearTimeout(timer);
       timer = setTimeout(refresh, 200);
     });
@@ -438,6 +466,7 @@
 
   // Sorts a copy of the rows by the chosen heading. Ties keep the newest page first.
   function sortRows(rows) {
+    if (libraryFilters.q && !libraryFilters.sortChosen) { return rows.slice(); }   // a search: best match first, as the search returned them
     var value = {
       title: function (p) { return p.title.toLowerCase(); },
       status: function (p) { return STATE_LABELS[p.state][0].toLowerCase(); },
@@ -573,6 +602,7 @@
       sorter.type = 'button';
       sorter.setAttribute('aria-label', 'Sort by ' + pair[1].toLowerCase());
       sorter.addEventListener('click', function () {
+        libraryFilters.sortChosen = true;
         if (libraryFilters.sortKey === pair[0]) { libraryFilters.sortDown = !libraryFilters.sortDown; }
         else { libraryFilters.sortKey = pair[0]; libraryFilters.sortDown = pair[0] === 'updated'; }   // dates start newest first, words A to Z
         renderList(box, pages);
@@ -604,8 +634,14 @@
       }
       var nameCell = el('td');
       // The title opens the public preview of the page (its live version, or its latest if it is not live yet)
-      var titleLink = link(p.title, previewUrl(p.id), 'lib-page-link');
+      var titleLink = link('', previewUrl(p.id), 'lib-page-link');
+      titleLink.appendChild(markedNodes(libraryFilters.q && p.search ? p.search.titleParts : null, p.title));
       nameCell.appendChild(titleLink);
+      if (libraryFilters.q && p.search && p.search.snippetParts && p.search.snippetParts.length) {
+        var snippet = el('div', 'lib-snippet');
+        snippet.appendChild(markedNodes(p.search.snippetParts));
+        nameCell.appendChild(snippet);
+      }
       nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
       row.appendChild(nameCell);
       var statusCell = el('td');
@@ -1133,7 +1169,7 @@
     main.appendChild(head);
     var search = el('input', 'lib-search');
     search.type = 'search';
-    search.placeholder = 'Search live pages';
+    search.placeholder = 'Search live pages (try "exact phrase", -leave out, title:word)';
     search.setAttribute('aria-label', 'Search live pages');
     main.appendChild(search);
     var listBox = el('div', 'lib-list');
@@ -1152,16 +1188,30 @@
       if (mine !== routing || q !== search.value.trim()) { return; }
       listBox.textContent = '';
       var live = result.pages.filter(function (p) { return p.liveVersion; });
+      var note = searchNote({ pages: live, partial: result.partial, suggestion: result.suggestion }, function (word) { search.value = word; refresh(); });
       if (!live.length) {
-        listBox.appendChild(el('p', 'lib-empty', 'No live pages match.'));
+        listBox.appendChild(note || el('p', 'lib-empty', 'No live pages match.'));
         return;
       }
+      if (note) { listBox.appendChild(note); }
       live.forEach(function (p) {
         var card = el('div', 'public-card');
         var icon = teamIcon(p);
         if (icon) { card.appendChild(icon); }
-        card.appendChild(link(p.title, '#/public/' + p.id, 'lib-page-link'));
-        card.appendChild(visibilityPill(p.visibility));
+        var body = el('div', 'public-card-body');
+        var titleRow = el('div', 'public-card-title');
+        var titleLink = link('', '#/public/' + p.id, 'lib-page-link');
+        titleLink.appendChild(markedNodes(p.search ? p.search.titleParts : null, p.title));
+        titleRow.appendChild(titleLink);
+        titleRow.appendChild(visibilityPill(p.visibility));
+        body.appendChild(titleRow);
+        if (p.search && p.search.snippetParts && p.search.snippetParts.length) {
+          var snippet = el('p', 'search-snippet');
+          snippet.appendChild(markedNodes(p.search.snippetParts));
+          body.appendChild(snippet);
+        }
+        if (p.search && p.search.fields && p.search.fields.length) { body.appendChild(el('p', 'search-fields', 'Matched in ' + p.search.fields.join(', ').toLowerCase())); }
+        card.appendChild(body);
         listBox.appendChild(card);
       });
     }

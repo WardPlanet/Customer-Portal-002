@@ -16,6 +16,7 @@ import { createRequire } from 'node:module';
 import { readTeam, writeRoles } from './teams.js';
 
 const Workflow = createRequire(import.meta.url)('./workflow.cjs');
+const Search = createRequire(import.meta.url)('./search.cjs');
 
 const PAGE_ID = /^[a-z0-9][a-z0-9-]{0,80}$/;
 
@@ -178,9 +179,13 @@ export function registerLibraryRoutes(app, draftsDir) {
     });
     var summaries = pages.map(Workflow.summary);
     if (q) {
-      var found = {};
-      Workflow.searchPages(pages, q, 'staff').forEach(function (entry) { found[entry.id] = true; });
-      summaries = summaries.filter(function (item) { return found[item.id]; });
+      // Best match first, with where it matched and a snippet (see search.cjs)
+      var ranked = Search.rank(Workflow, pages, q, 'staff');
+      var byId = {};
+      summaries.forEach(function (item) { byId[item.id] = item; });
+      summaries = ranked.order.map(function (id) { return Object.assign(byId[id], { search: ranked.info[id] }); });
+      res.json({ pages: summaries, partial: ranked.partial, suggestion: ranked.suggestion });
+      return;
     }
     summaries.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
     res.json({ pages: summaries });
@@ -338,8 +343,19 @@ export function registerLibraryRoutes(app, draftsDir) {
       var team = await readTeam();
       var pages = await loadAllPages(draftsDir, team);
       var q = String(req.query.q || '').trim();
-      var entries = Workflow.searchPages(pages, q, 'public');
-      res.json({ pages: entries.map(function (entry) { return { id: entry.id, title: entry.title, description: entry.description }; }) });
+      var entries = pages.map(function (page) { return Workflow.searchEntry(page, 'public'); }).filter(Boolean);
+      if (!q) {
+        res.json({ pages: entries.map(function (entry) { return { id: entry.id, title: entry.title, description: entry.description }; }) });
+        return;
+      }
+      var answer = Search.query(entries, q);
+      var byId = {};
+      entries.forEach(function (entry) { byId[entry.id] = entry; });
+      res.json({
+        pages: answer.results.map(function (result) { return { id: result.id, title: byId[result.id].title, description: byId[result.id].description, titleParts: result.titleParts, snippetParts: result.snippetParts, fields: result.fields }; }),
+        partial: answer.partial,
+        suggestion: answer.suggestion
+      });
     } catch (error) { fail(res, error); }
   });
 

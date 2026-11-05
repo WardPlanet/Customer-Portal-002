@@ -1870,3 +1870,16 @@ a.lib-brand:hover, a.lib-brand.is-current { color: var(--accent); }
 
 /* "New page" shortcut in the top bar */
 .top-new { padding: 7px 16px; font-size: 13px; white-space: nowrap; }
+
+/* Search results: marked words, snippets, where they matched */
+mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; padding: 0 1px; }
+:root[data-theme="dark"] mark.search-hit { background: #5a4c10; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) mark.search-hit { background: #5a4c10; } }
+.public-card { align-items: flex-start; }
+.public-card-body { flex: 1; min-width: 0; }
+.public-card-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.search-snippet { margin: 4px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+.search-fields { margin: 4px 0 0; color: var(--text-faint); font-size: 12px; }
+.search-note { margin: 0 0 10px; color: var(--text-muted); font-size: 13px; }
+.search-suggestion { color: var(--accent); font-weight: 600; }
+.lib-snippet { margin-top: 3px; color: var(--text-muted); font-size: 12px; line-height: 1.4; max-width: 520px; }

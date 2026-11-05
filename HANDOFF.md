@@ -11,6 +11,7 @@ only work inside Claude's artifact runtime, and what is still open.
 | `index.html` | Page markup. No build step, no dependencies. The only external request is the Inter font from Google Fonts, with system fonts as fallback. |
 | `styles.css` | The stylesheet (originally inline in `page-editor.html`). |
 | `app.js` | The script (originally inline in `page-editor.html`). |
+| `search.cjs` | The search: ranking, word forms, typing mistakes, phrases (used by the server and the artifact). |
 | `HANDOFF.md` | This file. |
 
 To run it, open `index.html` in a browser. Everything works except the two things in
@@ -388,7 +389,7 @@ warning with the triangle, and the same dark code box, in light and dark mode (`
 
 **Team icon in search results.** Each search result shows a small icon for the team that made the page. The Web Team's pages
 get a website (browser window) icon, set by `"icon": "website"` in `teams/legwork-web-team.json` (only `website` exists so far;
-more pictures go in `TEAM_ICONS` in `library-ui.js`). Search itself is still the simple word match.
+more pictures go in `TEAM_ICONS` in `library-ui.js`). Search ranking is described under "How search ranks results".
 
 **Lists and section links in the reader view.** In the live view, lines that start with "- " (or a bullet or en-dash
 character) become bullet lists and "1. " lines numbered lists, in descriptions, paragraphs and step text. (The reader
@@ -531,9 +532,27 @@ live version. Drafts, versions in review and old versions never get an entry, so
 (the tests prove this). The two audiences: staff see every live page, the public sees live Client-Safe pages.
 Changing a live page to Internal-Only takes it off the public site only when that version is approved; the
 lead can **Unpublish** at once if it must come down immediately. The public API strips ownership, roles,
-reviewer, keywords, location and source file from the page text. The search itself is a simple word match
-over those entries; the real search engine (Azure AI Search) replaces it later and should be fed the same
-entries.
+reviewer, keywords, location and source file from the page text. The search itself is in `search.cjs`
+(shared by the server and the artifact, with tests in `tests/search.test.cjs`): see "How search ranks results" below.
+The real search engine (Azure AI Search) can replace it later and should be fed the same entries.
+
+**How search ranks results.** `Search.query(entries, text)` ranks the live pages and returns, for each, where it matched, the
+title and a snippet with the matching words marked.
+- **Hierarchy** (weight of a match): title 10, keywords 5, description 4, headings (headers and step titles) 4, owner and
+  location 2, body text 1. A title that is the whole query, starts with it, or has every word gets a bonus. Within a place, rarer
+  words count more and longer text counts a little less (a BM25-style score).
+- **Word forms:** a Porter stemmer, so renewing, renewal and renewals are one word; policy and policies too.
+- **Typing mistakes:** a word with no match is tried with one wrong letter (two for words of 8 or more letters), including
+  swapped letters, against the stems and the written forms: `pasword`, `dmoain` and `renwal` all find their pages.
+- **While typing:** the last word also matches words that start with it (`domai`).
+- **Operators:** `"exact phrase"` (word forms allowed inside), `-word` to leave out, and `title:`, `keywords:`, `description:`,
+  `heading:`, `owner:`, `body:` to look in one place.
+- **Partial matches:** if no page has every word, pages with some are shown, marked "No page has all of your words".
+- **Did you mean:** when nothing matches, the nearest word that is actually in the wiki is offered (two wrong letters allowed).
+- **Speed:** the index is built once and reused until a page changes; the first search after a change takes about twice as long
+  (1,500 pages: about 1 second, then about 0.5 s), most of which is reading the files. Results are capped at 200.
+Used by the library search box (best match first, with snippets, until a column heading is clicked), the Wiki search screen
+and the related-pages box.
 
 **Sorting the library.** Each heading of the library table (Page, Status, Owner, Visibility, Updated) sorts the list;
 clicking it again reverses the order. The default is Updated, newest first. The choice is kept while the page is open.
@@ -709,7 +728,7 @@ disk behaves the same way.
 
 - Batch import, handling of images and screenshots, and page types other than Process Documentation.
 - The toolbar **image** button is visual only.
-- **Search** does not exist yet. The `[KEYWORDS]` section is written to the file for it to use.
+- **Search** is built (see "How search ranks results"); an external engine (Azure AI Search) is still to come.
 - Sample content in Page Setup is still invented: the page types (Process Documentation, Policy,
   Reference Guide, How-To Guide). The team, its roles and its location (Websites) are real (see Teams and
   roles).

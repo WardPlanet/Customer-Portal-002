@@ -156,12 +156,14 @@
         var pages = readAll().pages.filter(function (page) {
           return liveOnly ? !!page.liveVersion : W.canSeeInLibrary(page, who, team);
         });
-        var found = null;
+        var rows = pages.map(W.summary);
         if (q) {
-          found = {};
-          W.searchPages(pages, q, 'staff').forEach(function (entry) { found[entry.id] = true; });
+          // Best match first, with where it matched and a snippet (see search.cjs)
+          var ranked = window.Search.rank(W, pages, q, 'staff');
+          var byId = {};
+          rows.forEach(function (row) { byId[row.id] = row; });
+          return { pages: ranked.order.map(function (id) { return Object.assign(byId[id], { search: ranked.info[id] }); }), partial: ranked.partial, suggestion: ranked.suggestion };
         }
-        var rows = pages.map(W.summary).filter(function (row) { return !found || found[row.id]; });
         rows.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
         return { pages: rows };
       },
@@ -283,8 +285,17 @@
         return { added: merged.added, updated: merged.updated, skipped: merged.skipped };
       },
       publicList: async function (q) {
-        var entries = W.searchPages(readAll().pages, q, 'public');
-        return { pages: entries.map(function (e) { return { id: e.id, title: e.title, description: e.description }; }) };
+        var pages = readAll().pages;
+        var entries = pages.map(function (page) { return W.searchEntry(page, 'public'); }).filter(Boolean);
+        if (!q) { return { pages: entries.map(function (e) { return { id: e.id, title: e.title, description: e.description }; }) }; }
+        var answer = window.Search.query(entries, q);
+        var byId = {};
+        entries.forEach(function (entry) { byId[entry.id] = entry; });
+        return {
+          pages: answer.results.map(function (r) { return { id: r.id, title: byId[r.id].title, description: byId[r.id].description, titleParts: r.titleParts, snippetParts: r.snippetParts, fields: r.fields }; }),
+          partial: answer.partial,
+          suggestion: answer.suggestion
+        };
       },
       publicGet: async function (id) {
         var page = readAll().pages.filter(function (p) { return p.id === id; })[0];

@@ -2,6 +2,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const W = require('../workflow.cjs');
+const Search = require('../search.cjs');
+
+// How many pages (by live version) match a search, for an audience
+function searchCount(pages, query, audience) { return Search.rank(W, pages, query, audience).order.length; }
 
 const team = {
   name: 'Legwork Web Team', slug: 'legwork-web-team', lead: 'Web Team Manager', locations: ['Websites'],
@@ -141,21 +145,21 @@ test('search sees only the live version: old versions, drafts and submitted edit
   const page = livePage();                                               // v1 text: "plain detail"
   W.startEdit(page, scott, t(4));
   W.saveDraft(page, 2, draftText('Refunds', 'DRAFTONLYWORD'), scott, t(5));
-  assert.equal(W.searchPages([page], 'DRAFTONLYWORD', 'staff').length, 0);   // a draft is not searchable
+  assert.equal(searchCount([page], 'DRAFTONLYWORD', 'staff'), 0);   // a draft is not searchable
   W.submit(page, 2, scott, team, t(6));
-  assert.equal(W.searchPages([page], 'DRAFTONLYWORD', 'staff').length, 0);   // nor is one in review
+  assert.equal(searchCount([page], 'DRAFTONLYWORD', 'staff'), 0);   // nor is one in review
   W.approve(page, 2, micah, team, t(7));
-  assert.equal(W.searchPages([page], 'DRAFTONLYWORD', 'staff').length, 1);   // once live, it is
-  assert.equal(W.searchPages([page], 'plain detail', 'staff').length, 0);    // and the old text is gone
+  assert.equal(searchCount([page], 'DRAFTONLYWORD', 'staff'), 1);   // once live, it is
+  assert.equal(searchCount([page], 'plain detail', 'staff'), 0);    // and the old text is gone
 });
 
 test('the public sees only live Client-Safe pages', () => {
   const internal = livePage('Internal-Only');
   const open = livePage('Client-Safe');
-  assert.equal(W.searchPages([internal, open], 'refunds', 'staff').length, 2);
-  const publicResults = W.searchPages([internal, open], 'refunds', 'public');
+  assert.equal(searchCount([internal, open], 'refunds', 'staff'), 2);
+  const publicResults = Search.rank(W, [internal, open], 'refunds', 'public').order;
   assert.equal(publicResults.length, 1);
-  assert.equal(publicResults[0].id, open.id);
+  assert.equal(publicResults[0], open.id);
   assert.equal(W.canSeePublic(internal), false);
   assert.equal(W.canSeePublic(open), true);
 });
@@ -256,7 +260,7 @@ test('publishing skips review: it goes live at once and replaces the old live ve
   assert.equal(v.directPublish, true);
   assert.equal(page.liveVersion, 2);
   assert.equal(page.versions[0].status, 'superseded');
-  assert.equal(W.searchPages([page], 'DIRECTWORD', 'staff').length, 1);
+  assert.equal(searchCount([page], 'DIRECTWORD', 'staff'), 1);
   assert.equal(W.history(page, scott, team)[0].directPublish, true);
 });
 

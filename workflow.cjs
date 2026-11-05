@@ -582,8 +582,17 @@
       visibility: f.visibility,
       owner: f.owner,
       keywords: f.keywords,
+      headings: headingTexts(f.sections),
+      updatedAt: live.updatedAt || page.updatedAt || '',
       body: bodyText(f.sections)
     };
+  }
+
+  // The page's headers and step titles, in order (they count for more than ordinary text when searching)
+  function headingTexts(sections) {
+    return Object.keys(sections).filter(function (name) {
+      return /^BLOCK \d+ (HEADER [1-5]|HEADER|STEP TITLE)$/.test(name);
+    }).map(function (name) { return sections[name].join(' ').trim(); }).filter(Boolean);
   }
 
   // All the readable text of a page (step titles, step text, headers, notes, code), for searching
@@ -591,16 +600,6 @@
     return Object.keys(sections).filter(function (name) {
       return /^BLOCK \d+ /.test(name) && !/STEP NUMBER$/.test(name);
     }).map(function (name) { return sections[name].join('\n'); }).join('\n');
-  }
-
-  // A simple word match over the entries (the real search engine comes later)
-  function searchPages(pages, query, audience) {
-    var words = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
-    return pages.map(function (page) { return searchEntry(page, audience); }).filter(function (entry) {
-      if (!entry) { return false; }
-      var haystack = [entry.title, entry.description, entry.keywords.join(' '), entry.body].join(' ').toLowerCase();
-      return words.every(function (word) { return haystack.indexOf(word) >= 0; });
-    });
   }
 
   function canSeePublic(page) {
@@ -891,7 +890,6 @@
     requireLeadFor: requireLead,
     replaceRoleInText: replaceRoleInText,
     searchEntry: searchEntry,
-    searchPages: searchPages,
     canSeePublic: canSeePublic
   };
 });
