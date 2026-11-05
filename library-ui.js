@@ -765,7 +765,9 @@
             var old = await attempt(backend().getVersion(id, v.n));
             if (!old) { return; }
             dialog.close();
-            window.PageEditor.load(old.text, false);
+            // Only the team lead can change the owner, so a restored version keeps the page's current owner
+            var restoredText = actorIsLead() || !data.page.owner ? old.text : W.setOwnerInText(old.text, data.page.owner);
+            window.PageEditor.load(restoredText, false);
             window.PageEditor.setStatus('Unsaved changes', false);
             await updateVersionLink(id);
             window.PageEditor.showNotice('Restored v' + v.release + ' into the editor. It is saved with your next save or autosave.');
@@ -1744,6 +1746,11 @@
     canPublish: function () { return !!team && W.canPublishDirectly(actor(), team); },
     // Skips review: saves, makes it live, and downloads the text. (Who may do this is the team's
     // "directPublish" setting; the server and store both enforce it.)
+    // Who may choose a page's owner: the team lead. Anyone else owns what they create, shown greyed out in Page Setup.
+    ownerLock: function () {
+      var who = actor();
+      return W.isLead(who, team) ? { locked: false } : { locked: true, role: who.roles[0] || '' };
+    },
     // The related-pages box: the best five live pages for what was typed, titles that match first. The same search
     // as everywhere else (live pages only).
     searchRelated: async function (query) {

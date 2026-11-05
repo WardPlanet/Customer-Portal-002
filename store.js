@@ -188,7 +188,7 @@
         return { version: { n: version.n, status: version.status, title: version.title }, text: version.text, actions: mine.actions };
       },
       save: async function (id, n, text) {
-        return change(id, function (page, who, at) { W.saveDraft(page, n, text, who, at); });
+        return change(id, function (page, who, at) { W.saveDraft(page, n, text, who, at, team); });
       },
       edit: async function (id) {
         return change(id, function (page, who, at) { return { version: W.startEdit(page, who, at).n }; });

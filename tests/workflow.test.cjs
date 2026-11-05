@@ -336,9 +336,9 @@ test('the library shows the lead every page and everyone else only their own', (
   assert.equal(W.canSeeInLibrary(page, scott, team), true);
   assert.equal(W.canSeeInLibrary(page, micah, team), true);
   assert.equal(W.canSeeInLibrary(page, molly, team), false);
-  // a page Scott wrote for another role is still his, because he wrote it
-  const forMolly = W.createPage(team, draftText('Colors').replace('Website Editor', 'Web Designer'), scott, t(1));
-  assert.equal(W.canSeeInLibrary(forMolly, scott, team), true);
+  // a page the lead wrote for another role belongs to that role, not to Scott
+  const forMolly = W.createPage(team, draftText('Colors').replace('Website Editor', 'Web Designer'), micah, t(1));
+  assert.equal(W.canSeeInLibrary(forMolly, scott, team), false);
   assert.equal(W.canSeeInLibrary(forMolly, molly, team), true);
 });
 
@@ -419,4 +419,18 @@ test('related pages: the chosen page ids are read in order from the RELATED PAGE
   const text = draftText('Refunds') + '\n[RELATED PAGES]\npgabc123 | Refund policy\npgxyz789 | Domain | renewal\n';
   assert.deepEqual(W.fields(text).related, ['pgabc123', 'pgxyz789']);
   assert.deepEqual(W.fields(draftText('Refunds')).related, []);
+});
+
+test('only the team lead chooses or changes a page\'s owner', () => {
+  const bigTeam = Object.assign({}, team, { roles: team.roles.concat([{ title: 'Web Designer', person: 'Molly' }]) });
+  const forDesigner = draftText('Colors').replace('Website Editor', 'Web Designer');
+  // Scott cannot make a page for another role; Micah can
+  assert.throws(() => W.createPage(bigTeam, forDesigner, scott, t(1)), /Only the team lead/);
+  assert.doesNotThrow(() => W.createPage(bigTeam, forDesigner, micah, t(1)));
+  // Scott's own page: he can save it, but not move it to another role
+  const page = W.createPage(bigTeam, draftText('Refunds'), scott, t(1));
+  assert.doesNotThrow(() => W.saveDraft(page, 1, draftText('Refunds', 'edited'), scott, t(2), bigTeam));
+  assert.throws(() => W.saveDraft(page, 1, forDesigner.replace('Colors', 'Refunds'), scott, t(3), bigTeam), (e) => e.code === 'owner_locked');
+  assert.doesNotThrow(() => W.saveDraft(page, 1, forDesigner.replace('Colors', 'Refunds'), micah, t(3), bigTeam));
+  assert.equal(page.versions[0].owner, 'Web Designer');
 });

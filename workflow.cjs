@@ -249,17 +249,26 @@
 
   function createPage(team, text, actor, now, note) {
     requireActor(actor);
+    // Only the team lead gives a page to another role: anyone else owns what they create
+    var chosenOwner = fields(text).owner;
+    if (chosenOwner && !isLead(actor, team) && actor.roles.indexOf(chosenOwner) < 0) {
+      throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can make another role the owner.', 403);
+    }
     var page = { id: newId(Date.parse(now) || Date.now()), team: team.slug, createdAt: now, updatedAt: now, liveVersion: null, versions: [] };
     newVersion(page, text, actor, now, note || '');
     return page;
   }
 
   // Save the editor's text into a version that is allowed to change (a draft, or one sent back)
-  function saveDraft(page, n, text, actor, now) {
+  function saveDraft(page, n, text, actor, now, team) {
     requireActor(actor);
     var version = versionOf(page, n);
     if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK) {
       throw new WorkflowError('not_editable', 'Version ' + version.n + ' is ' + describeStatus(version.status) + ' and cannot be edited. Start a new edit from the page.', 409);
+    }
+    // Only the team lead changes who owns a page
+    if (!isLead(actor, team) && fields(text).owner !== fields(version.text).owner) {
+      throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can change the owner.', 403);
     }
     version.text = text;
     copyFields(version);

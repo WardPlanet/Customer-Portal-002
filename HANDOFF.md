@@ -495,6 +495,12 @@ notified. Approving or sending back clears the bell. Not built yet: telling the 
 is the other link. A blue **New page** button at the top right of the bar (left of the notification bell and "Acting as") starts a new
 page from any screen.
 
+**Only the team lead chooses the owner.** In Page Setup the Owner field is filled in with the signed-in person's own role and
+greyed out ("Only the team lead can change the owner."); a page that already has an owner keeps it. The team lead's Owner field is
+the normal drop-down. The library's per-page Owner drop-down, Change owner and Team & roles are lead-only as before. The server
+enforces it: `createPage` refuses an owner role the person does not hold, and `saveDraft` refuses a change of owner, unless the
+person is the team lead. Restoring an older version into the editor keeps the page's current owner for anyone but the lead.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.

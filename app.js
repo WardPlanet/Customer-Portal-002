@@ -1287,8 +1287,19 @@
       select.value = selected;
     }
 
+    // Only the team lead chooses a page's owner. Anyone else is the owner of what they create: the field is filled in with
+    // their own role and greyed out (a page that already has an owner keeps it). The library says who may choose.
     function renderOwner() {
-      fillRoleSelect(byId('owner'), 'Select an owner role', state.owner);
+      var lock = window.PageHost && window.PageHost.ownerLock ? window.PageHost.ownerLock() : { locked: false };
+      if (lock.locked && !state.owner && lock.role) { state.owner = lock.role; }
+      var select = byId('owner');
+      fillRoleSelect(select, 'Select an owner role', state.owner);
+      select.disabled = !!lock.locked;
+      var hint = byId('owner-field').querySelector('.field-hint');
+      if (hint) {
+        if (!hint.hasAttribute('data-default')) { hint.setAttribute('data-default', hint.textContent); }
+        hint.textContent = lock.locked ? 'Only the team lead can change the owner.' : hint.getAttribute('data-default');
+      }
     }
 
     function renderRoles() {
@@ -3761,7 +3772,7 @@
         if (readOnly) { lockEditing(true); }
       },
       getText: serializeDraft,
-      refresh: updateSaveState,
+      refresh: function () { renderOwner(); updateSaveState(); },   // after "Acting as" changes: who may choose the owner, and whether Publish shows
       isDirty: function () { return byId('save-status').classList.contains('is-unsaved') && pageHasContent(); },
       setStatus: setStatus,
       setVersionLink: setVersionLink,

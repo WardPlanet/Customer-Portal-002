@@ -272,7 +272,7 @@ export function registerLibraryRoutes(app, draftsDir) {
 
   app.put('/api/library/pages/:id/versions/:n', staff(async function (req, res, ctx) {
     var page = await openMine(req, ctx);
-    Workflow.saveDraft(page, req.params.n, textBody(req), ctx.actor, ctx.now);
+    Workflow.saveDraft(page, req.params.n, textBody(req), ctx.actor, ctx.now, ctx.team);
     await savePage(draftsDir, ctx.team, page);
     res.json(detail(page, ctx));
   }));
