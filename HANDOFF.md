@@ -492,7 +492,8 @@ switched on later by sending those files from the company's mail account. The pe
 notified. Approving or sending back clears the bell. Not built yet: telling the person who submitted when the lead has decided.
 
 **Top bar links.** "Wiki" (top left) is the link to the public preview and search; there is no separate "Public preview" link. "Library"
-is the other link.
+is the other link. A blue **New page** button at the top right of the bar (left of the notification bell and "Acting as") starts a new
+page from any screen.
 
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
