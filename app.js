@@ -3554,8 +3554,17 @@
       blockMenu.style.top = top + 'px';
     }
 
+    // The buttons the arrow keys move between: the header levels while that submenu is open, otherwise the block types
+    function activeMenuButtons() {
+      var submenuOpen = !byId('menu-headers').hidden;
+      var selector = submenuOpen ? '#menu-headers button:not([hidden])' : '#menu-main button:not([hidden])';
+      return Array.prototype.slice.call(blockMenu.querySelectorAll(selector));
+    }
+
     function focusFirstMenuItem() {
-      var first = blockMenu.querySelector('.menu-panel:not([hidden]) button:not([hidden])');
+      var buttons = activeMenuButtons();
+      // In the header submenu the first level is focused, not the Back button
+      var first = !byId('menu-headers').hidden ? buttons[1] || buttons[0] : buttons[0];
       if (first) { first.focus(); }
     }
 
@@ -3571,9 +3580,11 @@
       });
     }
 
+    // The block types stay in view. Choosing Header opens its levels over the right-hand column, next to it.
     function showMenuPanel(name) {
-      byId('menu-main').hidden = name !== 'main';
       byId('menu-headers').hidden = name !== 'headers';
+      blockMenu.classList.toggle('has-submenu', name === 'headers');
+      blockMenu.querySelectorAll('[data-submenu]').forEach(function (item) { item.setAttribute('aria-expanded', String(name === 'headers')); });
       if (name === 'headers') { updateHeaderLevelButtons(); }
       positionBlockMenu();
       focusFirstMenuItem();
@@ -3612,7 +3623,7 @@
     });
 
     blockMenu.addEventListener('keydown', function (event) {
-      var items = Array.prototype.slice.call(blockMenu.querySelectorAll('.menu-panel:not([hidden]) button:not([hidden])'));
+      var items = activeMenuButtons();
       var index = items.indexOf(document.activeElement);
       if (event.key === 'ArrowDown') {
         event.preventDefault();

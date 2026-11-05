@@ -1883,3 +1883,9 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .search-note { margin: 0 0 10px; color: var(--text-muted); font-size: 13px; }
 .search-suggestion { color: var(--accent); font-weight: 600; }
 .lib-snippet { margin-top: 3px; color: var(--text-muted); font-size: 12px; line-height: 1.4; max-width: 520px; }
+
+/* The Header levels open over the right-hand column of the add-block menu */
+.block-menu.has-submenu { min-height: 300px; }
+.block-menu #menu-headers { position: absolute; top: 4px; right: 4px; bottom: 4px; width: calc(50% - 6px); display: flex; flex-direction: column; gap: 2px; overflow-y: auto; padding-left: 6px; background: var(--surface); border-left: 1px solid var(--border); }
+.block-menu #menu-headers[hidden] { display: none; }
+.block-menu #menu-headers button { flex: none; }
