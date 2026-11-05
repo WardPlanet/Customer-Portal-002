@@ -11,6 +11,9 @@
 </head>
 <body>
 
+<!-- Testing bar: who the prototype is acting as. It stands in for sign-in, so it is not part of the final version. -->
+<div class="demo-bar" role="region" aria-label="Testing controls"><span class="demo-tag">Testing</span><div class="acting" id="acting-slot"></div></div>
+
 <!-- Library: the list of pages, a page's history, and the public preview. Filled in by library-ui.js -->
 <div class="library" id="library-screen">
   <header class="lib-top">
@@ -21,7 +24,7 @@
         <a href="#/search-review" id="nav-review">Search review</a>
       </nav>
     </div>
-    <div class="top-right"><a class="primary-link top-new" href="#/new" id="nav-new" title="Start a new page">New page</a><span class="notify-slot" id="notify-slot-library"></span><div class="acting" id="acting-slot-library"></div></div>
+    <div class="top-right"><a class="primary-link top-new" href="#/new" id="nav-new" title="Start a new page">New page</a><span class="notify-slot" id="notify-slot-library"></span></div>
   </header>
   <main class="lib-main" id="lib-main"></main>
   <p class="lib-notice" id="lib-notice" role="status"></p>
@@ -42,7 +45,6 @@
     </div>
     <div class="topbar-right">
       <span class="notify-slot" id="notify-slot-editor"></span>
-      <div class="acting" id="acting-slot-editor"></div>
       <div class="save-status is-unsaved" id="save-status" role="status">
         <span class="save-dot" aria-hidden="true"></span>
         <span id="save-status-text">Draft not saved yet</span>
@@ -341,6 +343,7 @@
 
 <script src="workflow.cjs"></script>
 <script src="search.cjs"></script>
+<script src="search-log.cjs"></script>
 <script src="batch-core.cjs"></script>
 <script src="store.js"></script>
 <script src="app.js"></script>

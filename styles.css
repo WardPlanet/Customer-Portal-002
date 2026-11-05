@@ -1560,10 +1560,9 @@
   body.is-readonly .text-block:focus-within { border-color: transparent; }
   /* The public sees the page and nothing about who owns it */
   body.is-public .setup,
-  body.is-public #acting-slot-editor,
   body.is-public .required-note { display: none; }
   body.is-public .workspace { grid-template-columns: minmax(0, 1fr); }
-  .is-public .lib-top .acting { visibility: hidden; }
+  .is-public .demo-bar .acting { visibility: hidden; }
 
   .lib-backup { margin: 0 0 12px; color: var(--text-muted); font-size: 13px; }
   .lib-backup:empty { display: none; }
@@ -1940,3 +1939,9 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .review-decision-text { display: flex; flex-direction: column; gap: 2px; }
 .review-kind { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent-text); }
 .review-decision-detail { font-size: 13px; color: var(--text-muted); }
+
+/* A thin bar above everything for testing controls (Acting as). Not part of the final version. */
+.demo-bar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 6px 24px; background: #1F2430; color: #E6E8F0; font-size: 13px; }
+.demo-tag { margin-right: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9AA3B8; }
+.demo-bar .acting-label { color: #C8CCDA; }
+.demo-bar .acting-select { padding: 3px 8px; font-size: 13px; }

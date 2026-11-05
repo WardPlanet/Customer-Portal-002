@@ -17,6 +17,7 @@ import { readTeam, writeRoles } from './teams.js';
 
 const Workflow = createRequire(import.meta.url)('./workflow.cjs');
 const Search = createRequire(import.meta.url)('./search.cjs');
+const SearchLog = createRequire(import.meta.url)('./search-log.cjs');
 
 const PAGE_ID = /^[a-z0-9][a-z0-9-]{0,80}$/;
 
@@ -168,6 +169,49 @@ export function registerLibraryRoutes(app, draftsDir) {
     }
     return page;
   }
+
+  // The search log: any staff member adds to it, only the team lead reads or clears it.
+  //   drafts/search-log.jsonl     one event per line
+  //   drafts/search-review.json   what the lead has decided on the Search review screen
+  var logFile = path.join(draftsDir, 'search-log.jsonl');
+  var reviewFile = path.join(draftsDir, 'search-review.json');
+
+  app.post('/api/search-log', staff(async function (req, res, ctx) {
+    var event = SearchLog.cleanEvent(req.body, ctx.now);
+    if (event) {
+      await fs.mkdir(draftsDir, { recursive: true });
+      await fs.appendFile(logFile, JSON.stringify(event) + '\n', 'utf8');
+    }
+    res.json({});
+  }));
+
+  app.get('/api/search-log', staff(async function (req, res, ctx) {
+    Workflow.requireLeadFor(ctx.actor, ctx.team, 'see the search log');
+    var text = await fs.readFile(logFile, 'utf8').catch(function () { return ''; });
+    var events = text.split('\n').filter(Boolean).map(function (line) { try { return JSON.parse(line); } catch (error) { return null; } }).filter(Boolean);
+    var review = await fs.readFile(reviewFile, 'utf8').then(JSON.parse).catch(function () { return null; });
+    res.json({ events: events.slice(-SearchLog.MAX_EVENTS), review: review });
+  }));
+
+  app.put('/api/search-review', staff(async function (req, res, ctx) {
+    Workflow.requireLeadFor(ctx.actor, ctx.team, 'review searches');
+    var body = req.body || {};
+    var review = {
+      decisions: Array.isArray(body.decisions) ? body.decisions.slice(0, 2000) : [],
+      edits: body.edits && typeof body.edits === 'object' ? body.edits : {},
+      choices: body.choices && typeof body.choices === 'object' ? body.choices : {}
+    };
+    await fs.mkdir(draftsDir, { recursive: true });
+    await fs.writeFile(reviewFile, JSON.stringify(review, null, 2), 'utf8');
+    res.json({});
+  }));
+
+  app.delete('/api/search-log', staff(async function (req, res, ctx) {
+    Workflow.requireLeadFor(ctx.actor, ctx.team, 'clear the search log');
+    await fs.rm(logFile, { force: true });
+    await fs.rm(reviewFile, { force: true });
+    res.json({});
+  }));
 
   // The search box's dropdown: titles, keywords and headings of live pages that match what has been typed so far
   app.get('/api/library/suggest', staff(async function (req, res, ctx) {

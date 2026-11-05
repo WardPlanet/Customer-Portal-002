@@ -161,7 +161,7 @@
 
   /* ---------- Who is acting (stand-in for login) ---------- */
   function mountActing() {
-    ['acting-slot-library', 'acting-slot-editor'].forEach(function (slotId) {
+    ['acting-slot'].forEach(function (slotId) {
       var slot = document.getElementById(slotId);
       slot.textContent = '';
       var label = el('label', 'acting-label', 'Acting as ');
@@ -1160,6 +1160,45 @@
 
 
   /* ---------- The public preview ---------- */
+  /* ---------- The search log ----------
+     Every settled search in the Wiki search box is logged (the text, how many pages it found, which was first), and so is the
+     page opened from it. No name is logged, only a random id for this visit. A search counts once the person has stopped typing
+     for a moment, so half-typed words are not logged. Only the team lead can read the log (Search review). */
+  var VISIT_ID = Math.random().toString(36).slice(2, 12);
+  var SETTLE_MS = 1500;
+  var pendingSearch = null;
+  var settleTimer = null;
+  var lastLogged = { q: '', at: 0 };
+
+  function sendLog(event) {
+    event.sid = VISIT_ID;
+    event.t = new Date().toISOString();
+    try { Promise.resolve(backend().logSearch(event)).catch(function () { /* logging must never disturb a search */ }); } catch (error) { /* same */ }
+  }
+
+  // Logs the search that is waiting for the person to stop typing (now, or when they leave the screen or click a result)
+  function flushPendingSearch() {
+    clearTimeout(settleTimer);
+    var search = pendingSearch;
+    pendingSearch = null;
+    if (!search) { return; }
+    var repeat = search.q.toLowerCase() === lastLogged.q && Date.now() - lastLogged.at < 10000;
+    if (repeat) { return; }
+    lastLogged = { q: search.q.toLowerCase(), at: Date.now() };
+    sendLog({ k: 's', q: search.q, n: search.n, top: search.top });
+  }
+
+  function queueSearchLog(q, pages) {
+    clearTimeout(settleTimer);
+    pendingSearch = { q: q, n: pages.length, top: pages.length ? { id: pages[0].id, title: pages[0].title } : null };
+    settleTimer = setTimeout(flushPendingSearch, SETTLE_MS);
+  }
+
+  function logClick(q, page, position) {
+    flushPendingSearch();
+    sendLog({ k: 'c', q: q, id: page.id, title: page.title, pos: position });
+  }
+
   async function showPublic() {
     var mine = routing;
     showScreen('library', true);
@@ -1191,6 +1230,8 @@
       var q = search.value.trim();
       listBox.textContent = '';
       if (!q) {
+        clearTimeout(settleTimer);
+        pendingSearch = null;
         listBox.appendChild(el('p', 'lib-empty', 'Type in the box to search live pages.'));
         return;
       }
@@ -1198,13 +1239,14 @@
       if (mine !== routing || q !== search.value.trim()) { return; }
       listBox.textContent = '';
       var live = result.pages.filter(function (p) { return p.liveVersion; });
+      queueSearchLog(q, live);
       var note = searchNote({ pages: live, partial: result.partial, suggestion: result.suggestion }, function (word) { search.value = word; refresh(); });
       if (!live.length) {
         listBox.appendChild(note || el('p', 'lib-empty', 'No live pages match.'));
         return;
       }
       if (note) { listBox.appendChild(note); }
-      live.forEach(function (p) {
+      live.forEach(function (p, position) {
         var card = el('div', 'public-card');
         var icon = teamIcon(p);
         if (icon) { card.appendChild(icon); }
@@ -1212,6 +1254,7 @@
         var titleRow = el('div', 'public-card-title');
         var titleLink = link('', '#/public/' + p.id, 'lib-page-link');
         titleLink.appendChild(markedNodes(p.search ? p.search.titleParts : null, p.title));
+        titleLink.addEventListener('click', function () { logClick(q, p, position + 1); });
         titleRow.appendChild(titleLink);
         titleRow.appendChild(visibilityPill(p.visibility));
         body.appendChild(titleRow);
@@ -1255,7 +1298,11 @@
     }
     function chooseSuggestion(item) {
       closeSuggestions();
-      if (item.kind === 'page') { location.hash = '#/public/' + item.id; return; }
+      if (item.kind === 'page') {
+        logClick(search.value.trim() || item.text, { id: item.id, title: item.text }, 0);
+        location.hash = '#/public/' + item.id;
+        return;
+      }
       search.value = item.text;
       refresh();
     }
@@ -1937,6 +1984,7 @@
   /* ---------- Router ---------- */
   async function route() {
     if (!team) { return; }
+    flushPendingSearch();   // a search still waiting to be logged is logged as the person leaves the screen
     routing += 1;
     refreshNotifications();   // the lead's bell (counts what is waiting)
     main.classList.remove('has-preview-footer');   // only a page's preview has the fixed bottom bar
@@ -1949,14 +1997,17 @@
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
     else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true, parts[2]); }
     else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; } }); }
-    else if (screen === 'search-review') {
+    else if (screen === 'search-review' && actorIsLead()) {
       showScreen('library', false);
       document.getElementById('nav-library').classList.remove('is-current');
-      window.SearchReview.show(main, { el: el, button: button });
+      window.SearchReview.show(main, { el: el, button: button, backend: backend });
     }
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }
-    document.getElementById('nav-review').classList.toggle('is-current', screen === 'search-review');
+    // Search review is for the team lead only for now
+    var reviewLink = document.getElementById('nav-review');
+    reviewLink.hidden = !actorIsLead();
+    reviewLink.classList.toggle('is-current', screen === 'search-review' && actorIsLead());
   }
 
   window.addEventListener('hashchange', route);

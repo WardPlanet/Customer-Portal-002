@@ -50,6 +50,11 @@
       return data;
     },
     // liveOnly: every live page, for reading (the library itself shows the team lead everything, others their own)
+    // The search log (lead only to read). logSearch never throws: a failed log must not disturb a search.
+    logSearch: function (event) { return this.call('POST', '/api/search-log', event).catch(function () { return null; }); },
+    searchReview: function () { return this.call('GET', '/api/search-log'); },
+    saveSearchReview: function (review) { return this.call('PUT', '/api/search-review', review); },
+    clearSearchLog: function () { return this.call('DELETE', '/api/search-log'); },
     suggest: function (q) { return this.call('GET', '/api/library/suggest?q=' + encodeURIComponent(q || '')); },
     list: function (q, liveOnly) { return this.call('GET', '/api/library/pages?' + (q ? 'q=' + encodeURIComponent(q) + '&' : '') + (liveOnly ? 'live=1' : '')); },
     create: function (text, note) { return this.call('POST', '/api/library/pages', { text: text, note: note || '' }); },
@@ -113,6 +118,15 @@
 
     function now() { return new Date().toISOString(); }
 
+    var SEARCH_LOG_KEY = 'pageEditor.searchLog.v1';
+    var SEARCH_REVIEW_KEY = 'pageEditor.searchReview.v1';
+    function readJson(key, fallback) {
+      try { var value = JSON.parse(localStorage.getItem(key) || 'null'); return value === null ? fallback : value; } catch (error) { return fallback; }
+    }
+    function writeJson(key, value) {
+      try { localStorage.setItem(key, JSON.stringify(value)); } catch (error) { /* storage full or blocked: the log is best effort */ }
+    }
+
     function actor() {
       var who = W.actorFor(actingAs, team);
       if (!who.name) { throw fail('no_actor', 'Choose who you are acting as first.'); }
@@ -167,6 +181,30 @@
         }
         rows.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
         return { pages: rows };
+      },
+      // The search log lives in this browser. Anyone can add to it; only the team lead reads it.
+      logSearch: async function (raw) {
+        var event = window.SearchLog.cleanEvent(raw, now());
+        if (!event) { return null; }
+        var list = readJson(SEARCH_LOG_KEY, []);
+        list.push(event);
+        writeJson(SEARCH_LOG_KEY, list.slice(-window.SearchLog.MAX_EVENTS));
+        return null;
+      },
+      searchReview: async function () {
+        guard(function () { W.requireLeadFor(actor(), team, 'see the search log'); });
+        return { events: readJson(SEARCH_LOG_KEY, []), review: readJson(SEARCH_REVIEW_KEY, null) };
+      },
+      saveSearchReview: async function (review) {
+        guard(function () { W.requireLeadFor(actor(), team, 'review searches'); });
+        writeJson(SEARCH_REVIEW_KEY, review);
+        return {};
+      },
+      clearSearchLog: async function () {
+        guard(function () { W.requireLeadFor(actor(), team, 'clear the search log'); });
+        writeJson(SEARCH_LOG_KEY, []);
+        writeJson(SEARCH_REVIEW_KEY, null);
+        return {};
       },
       // Live pages that match what is being typed (the search box's dropdown)
       suggest: async function (q) {

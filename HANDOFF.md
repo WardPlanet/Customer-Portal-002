@@ -790,12 +790,22 @@ review (no-result searches, repeated searches, synonyms) once it is built (not b
 need to hold several roles, and the review may be assignable to a role other than the lead; roles are already separate
 from people, so this is a roster change, not a code change.
 
-## Search review (preview)
+## Search log and Search review
 
-`#/search-review` ("Search review" in the top bar, open to every member for now; `search-review.js`) is a preview of the
-weekly review screen using **made-up sample data**: searches that found nothing (approve / edit a synonym, ask for a new
-page, dismiss), searches people repeated (choose the right page, save as test), and the most common searches (pin a page,
-show in the dropdown), plus a Decisions list with Undo and a Reset sample data button. Decisions are kept in the browser
-only and do **not** change the real search. To make it real: log searches (text, result count, clicked result and position,
-no names), feed the three lists from the log, store approved synonyms/pins/tests on the server, and apply them in
-`search.cjs`. Limit the screen to a role (the Copywriter) when that is decided.
+**Logging.** Every settled search in the Wiki search box (`#/public`, after 1.5 s without typing, or when the person clicks a
+result or leaves the screen) is logged, and so is the page opened from it or from the dropdown. An event holds the search
+text, the time, a random id for the visit, how many pages were found and which was first, or for a click the page and its
+position. No names. The rules for events and the three lists are in `search-log.cjs` (tested, `tests/search-log.test.cjs`).
+Storage: the server appends to `drafts/search-log.jsonl`; the Claude artifact keeps the newest 5000 events in browser storage
+(`pageEditor.searchLog.v1`, so only that browser's searches). Decisions are in `drafts/search-review.json` (or
+`pageEditor.searchReview.v1`). Routes: `POST /api/search-log` (any staff), `GET /api/search-log`, `PUT /api/search-review`,
+`DELETE /api/search-log` (team lead only). Retention is not limited on the server yet (suggest 90 days; decide with IT).
+
+**Review screen.** `#/search-review` ("Search review" in the top bar) is **team lead only for now** (`search-review.js`): searches
+that found nothing (approve a synonym, mark "needs a new page", dismiss), searches people repeated (a different search within
+3 minutes with nothing opened; choose the right page, save as test), the most common searches (pin a page, show in the dropdown),
+a Decisions list with Undo, and Clear log. **Decisions are recorded but not applied to the real search yet**: the next step is to
+use approved synonyms, pins and saved tests in `search.cjs`, and a runner for the saved tests.
+
+The "Acting as" selector sits in a dark "Testing" bar above the top bar because it stands in for sign-in and is not part of the
+final version; remove `.demo-bar` and `mountActing` when Azure sign-in is added.
