@@ -2038,12 +2038,13 @@
     inlineBar.setAttribute('role', 'toolbar');
     inlineBar.setAttribute('aria-label', 'Formatting for this text');
     inlineBar.hidden = true;
-    formatButtons.slice().forEach(function (original) {
+    var formatCopies = formatButtons.map(function (original) {
       var copy = original.cloneNode(true);
       inlineBar.appendChild(copy);
-      formatButtons.push(copy);
       bindFormatButton(copy);
+      return copy;
     });
+    formatButtons = formatCopies;
 
     function placeInlineBar() {
       if (!activeRich || document.body.classList.contains('is-readonly')) { inlineBar.hidden = true; return; }
@@ -3612,6 +3613,7 @@
       if (event.target.closest('#menu-back')) { showMenuPanel('main'); return; }
       var item = event.target.closest('[data-type]');
       if (!item) { return; }
+      if (item.hasAttribute('data-soon')) { showNotice('Photos aren\u2019t available yet.'); return; }
       if (item.getAttribute('aria-disabled') === 'true') {
         showNotice('Headers step down one level at a time, so that level can\u2019t go here.');
         return;
@@ -3653,11 +3655,20 @@
     window.addEventListener('scroll', closeBlockMenu, true);
     window.addEventListener('resize', closeBlockMenu);
 
-    // The toolbar chips (Text, Step, Note, Warning, Table, Code) add that block at the very end of the page
+    // The toolbar chips match the add-block menu (Header, Text, Step, Table, Note, Warning, Code, Photo) and add that block at the very end of the page
     var CHIP_BLOCK_TYPES = { Text: 'paragraph', Step: 'step', Note: 'note', Warning: 'warning', Table: 'table', Code: 'code' };
     document.querySelectorAll('.block-chip').forEach(function (chip) {
-      var type = CHIP_BLOCK_TYPES[chip.textContent.trim()];
-      if (type) {
+      var label = chip.textContent.trim();
+      var type = CHIP_BLOCK_TYPES[label];
+      if (label === 'Header') {
+        // Same Header choice as the add-block menu: the levels open next to the block types
+        chip.addEventListener('click', function () {
+          openBlockMenu(chip, null, null);
+          if (!blockMenu.hidden) { showMenuPanel('headers'); }
+        });
+      } else if (label === 'Photo') {
+        chip.addEventListener('click', function () { showNotice('Photos aren\u2019t available yet.'); });
+      } else if (type) {
         chip.addEventListener('click', function () {
           insertBlockAndFocus(type, null, undefined, null);
         });
