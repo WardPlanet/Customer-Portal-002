@@ -82,3 +82,18 @@ test('little words are ignored unless they are all there is', () => {
   assert.equal(ids('the refund')[0], '4');
   assert.ok(ids('the').length >= 0);
 });
+
+test('suggestions: titles first, then keywords and headings, forgiving of typos', () => {
+  const entries = [
+    { id: 'a', title: 'Website Edit Policy', keywords: ['editing', 'approval'], headings: ['Who can edit'], description: '', body: '' },
+    { id: 'b', title: 'Domain Renewal Checklist', keywords: ['dns, renewal'], headings: ['Renewing a domain'], description: '', body: '' }
+  ];
+  const text = (q) => Search.suggest(entries, q).map((s) => s.kind + ':' + s.text);
+  assert.deepEqual(text('web'), ['page:Website Edit Policy']);
+  assert.equal(text('dom')[0], 'page:Domain Renewal Checklist');
+  assert.ok(text('renew').includes('keyword:renewal'));
+  assert.ok(text('domian ren').includes('page:Domain Renewal Checklist'));   // a swapped letter is forgiven
+  assert.deepEqual(text('x'), []);                                           // too short
+  assert.deepEqual(text('zzzz'), []);
+  assert.equal(Search.suggest(entries, 'edit')[0].parts.some((p) => p.hit), true);
+});

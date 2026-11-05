@@ -50,6 +50,7 @@
       return data;
     },
     // liveOnly: every live page, for reading (the library itself shows the team lead everything, others their own)
+    suggest: function (q) { return this.call('GET', '/api/library/suggest?q=' + encodeURIComponent(q || '')); },
     list: function (q, liveOnly) { return this.call('GET', '/api/library/pages?' + (q ? 'q=' + encodeURIComponent(q) + '&' : '') + (liveOnly ? 'live=1' : '')); },
     create: function (text, note) { return this.call('POST', '/api/library/pages', { text: text, note: note || '' }); },
     get: function (id) { return this.call('GET', '/api/library/pages/' + id); },
@@ -166,6 +167,11 @@
         }
         rows.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
         return { pages: rows };
+      },
+      // Live pages that match what is being typed (the search box's dropdown)
+      suggest: async function (q) {
+        var live = readAll().pages.filter(function (page) { return !!page.liveVersion; });
+        return { suggestions: window.Search.suggestPages(W, live, q, 'staff') };
       },
       create: async function (text, note) {
         var who = actor();

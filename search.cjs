@@ -487,7 +487,100 @@
     return { order: answer.results.map(function (result) { return result.id; }), info: info, partial: answer.partial, suggestion: answer.suggestion };
   }
 
+  /* ---------- Suggestions while typing ----------
+     Page titles first, then keywords and section headings. Every word typed must match the start of a word in the
+     suggestion (the last one is still being typed); a one-letter slip in a longer word is forgiven. */
+  var SUGGEST_LIMIT = 8;
+
+  // One slip allowed. A word still being typed is compared with the start of the word, so a letter more or less is fine.
+  function closeEnough(typed, word, unfinished) {
+    if (!unfinished) { return editDistance(typed, word, 1) <= 1; }
+    for (var extra = -1; extra <= 1; extra += 1) {
+      if (editDistance(typed, word.slice(0, typed.length + extra), 1) <= 1) { return true; }
+    }
+    return false;
+  }
+
+  // How well one piece of text fits what was typed: 0 for no fit, higher is better
+  function suggestionFit(text, typed) {
+    var words = tokenize(plain(text).toLowerCase());
+    if (!words.length || !typed.length) { return { score: 0, hits: {} }; }
+    var hits = {};
+    var score = 0;
+    for (var i = 0; i < typed.length; i += 1) {
+      var term = typed[i];
+      var best = 0;
+      for (var j = 0; j < words.length; j += 1) {
+        var word = words[j];
+        var isLast = i === typed.length - 1 && !term.finished;
+        var fit = 0;
+        if (word.raw === term.raw || word.stem === term.stem) { fit = 3; }
+        else if (isLast && word.raw.indexOf(term.raw) === 0) { fit = 2; }
+        else if (term.raw.length >= 4 && closeEnough(term.raw, word.raw, isLast)) { fit = 1; }
+        if (fit > best) { best = fit; hits[word.start] = true; if (fit === 3) { break; } }
+      }
+      if (!best) { return { score: 0, hits: {} }; }
+      score += best;
+    }
+    // A text that starts with what was typed reads best
+    if (words[0].raw.indexOf(typed[0].raw) === 0) { score += 2; }
+    return { score: score / typed.length, hits: hits, words: words };
+  }
+
+  function suggestionParts(text, fit) {
+    var parts = [];
+    var position = 0;
+    var source = plain(text);
+    (fit.words || []).forEach(function (word) {
+      if (!fit.hits[word.start]) { return; }
+      if (word.start > position) { parts.push({ text: source.slice(position, word.start), hit: false }); }
+      parts.push({ text: source.slice(word.start, word.end), hit: true });
+      position = word.end;
+    });
+    if (position < source.length) { parts.push({ text: source.slice(position), hit: false }); }
+    return parts;
+  }
+
+  // entries as built by searchEntry. Returns [{ kind: 'page' | 'keyword' | 'section', text, parts, id, title }], best first.
+  function suggest(entries, queryText, limit) {
+    var raw = String(queryText || '');
+    var typed = tokenize(plain(raw).toLowerCase()).map(function (t) { return { raw: t.raw, stem: t.stem, finished: false }; });
+    if (/\s$/.test(raw) && typed.length) { typed[typed.length - 1].finished = true; }
+    if (!typed.length || (typed.length === 1 && typed[0].raw.length < 2)) { return []; }
+    var found = [];
+    var seen = {};
+    function consider(kind, text, entry, base) {
+      var clean = plain(text).replace(/\s+/g, ' ').trim();
+      if (!clean) { return; }
+      var key = kind + ':' + clean.toLowerCase() + (kind === 'page' ? ':' + entry.id : '');
+      if (seen[key]) { return; }
+      var fit = suggestionFit(clean, typed);
+      if (!fit.score) { return; }
+      seen[key] = true;
+      found.push({ kind: kind, text: clean, parts: suggestionParts(clean, fit), id: entry.id, title: entry.title, score: base + fit.score });
+    }
+    entries.forEach(function (entry) {
+      consider('page', entry.title, entry, 20);
+      (entry.keywords || []).forEach(function (line) { String(line).split(',').forEach(function (word) { consider('keyword', word, entry, 10); }); });
+      (entry.headings || []).forEach(function (heading) { consider('section', heading, entry, 5); });
+    });
+    // A keyword or heading that is just a page's title adds nothing
+    var titles = {};
+    found.forEach(function (item) { if (item.kind === 'page') { titles[item.text.toLowerCase()] = true; } });
+    return found.filter(function (item) { return item.kind === 'page' || !titles[item.text.toLowerCase()]; })
+      .sort(function (a, b) { return b.score - a.score || a.text.length - b.text.length; })
+      .slice(0, limit || SUGGEST_LIMIT)
+      .map(function (item) { delete item.score; return item; });
+  }
+
+  function suggestPages(Workflow, pages, queryText, audience, limit) {
+    var entries = pages.map(function (page) { return Workflow.searchEntry(page, audience); }).filter(Boolean);
+    return suggest(entries, queryText, limit);
+  }
+
   return {
+    suggest: suggest,
+    suggestPages: suggestPages,
     rank: rank,
     query: query,
     stem: stem,

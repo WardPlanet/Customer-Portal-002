@@ -1174,7 +1174,14 @@
     search.type = 'search';
     search.placeholder = 'Search live pages (try "exact phrase", -leave out, title:word)';
     search.setAttribute('aria-label', 'Search live pages');
-    main.appendChild(search);
+    var searchWrap = el('div', 'suggest-wrap');
+    searchWrap.appendChild(search);
+    var suggestBox = el('ul', 'suggest-list');
+    suggestBox.id = 'search-suggestions';
+    suggestBox.setAttribute('role', 'listbox');
+    suggestBox.hidden = true;
+    searchWrap.appendChild(suggestBox);
+    main.appendChild(searchWrap);
     var listBox = el('div', 'lib-list');
     main.appendChild(listBox);
 
@@ -1218,8 +1225,91 @@
         listBox.appendChild(card);
       });
     }
+    /* ---------- Suggestions under the box while typing ----------
+       Page titles, then keywords and section headings. Arrow keys move through them, Enter picks one,
+       Escape closes the list. A page opens; a keyword or heading fills the box and searches for it. */
+    var suggestions = [];
+    var active = -1;
+    var suggestToken = 0;
+    search.setAttribute('role', 'combobox');
+    search.setAttribute('aria-autocomplete', 'list');
+    search.setAttribute('aria-expanded', 'false');
+    search.setAttribute('aria-controls', 'search-suggestions');
+
+    function closeSuggestions() {
+      suggestBox.hidden = true;
+      suggestBox.textContent = '';
+      suggestions = [];
+      active = -1;
+      search.setAttribute('aria-expanded', 'false');
+      search.removeAttribute('aria-activedescendant');
+    }
+    function highlightSuggestion(index) {
+      active = index;
+      Array.prototype.forEach.call(suggestBox.children, function (item, i) {
+        item.classList.toggle('is-active', i === index);
+        item.setAttribute('aria-selected', String(i === index));
+        if (i === index) { search.setAttribute('aria-activedescendant', item.id); }
+      });
+      if (index < 0) { search.removeAttribute('aria-activedescendant'); }
+    }
+    function chooseSuggestion(item) {
+      closeSuggestions();
+      if (item.kind === 'page') { location.hash = '#/public/' + item.id; return; }
+      search.value = item.text;
+      refresh();
+    }
+    var KIND_LABELS = { page: 'Page', keyword: 'Keyword', section: 'Section' };
+    function showSuggestions(list) {
+      closeSuggestions();
+      if (!list.length) { return; }
+      suggestions = list;
+      list.forEach(function (item, i) {
+        var row = el('li', 'suggest-item');
+        row.id = 'suggestion-' + i;
+        row.setAttribute('role', 'option');
+        row.setAttribute('aria-selected', 'false');
+        var text = el('span', 'suggest-text');
+        text.appendChild(markedNodes(item.parts, item.text));
+        row.appendChild(text);
+        var kind = el('span', 'suggest-kind', KIND_LABELS[item.kind] || '');
+        if (item.kind === 'section') { kind.textContent = 'Section in ' + item.title; }
+        row.appendChild(kind);
+        // mousedown, not click: the box must not lose focus (and close the list) before the choice is made
+        row.addEventListener('mousedown', function (event) { event.preventDefault(); chooseSuggestion(item); });
+        suggestBox.appendChild(row);
+      });
+      suggestBox.hidden = false;
+      search.setAttribute('aria-expanded', 'true');
+    }
+    var suggestTimer = null;
+    function askForSuggestions() {
+      var typed = search.value;
+      var ticket = ++suggestToken;
+      Promise.resolve(backend().suggest(typed)).then(function (answer) {
+        // Ignore answers to anything but the latest text, or after the box lost focus
+        if (ticket !== suggestToken || mine !== routing || document.activeElement !== search) { return; }
+        showSuggestions((answer && answer.suggestions) || []);
+      }).catch(closeSuggestions);
+    }
+
     var timer = null;
-    search.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(refresh, 200); });
+    search.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(refresh, 200);
+      clearTimeout(suggestTimer);
+      if (!search.value.trim()) { suggestToken += 1; closeSuggestions(); return; }
+      suggestTimer = setTimeout(askForSuggestions, 80);
+    });
+    search.addEventListener('keydown', function (event) {
+      if (suggestBox.hidden) { return; }
+      if (event.key === 'ArrowDown') { event.preventDefault(); highlightSuggestion((active + 1) % suggestions.length); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); highlightSuggestion((active - 1 + suggestions.length) % suggestions.length); }
+      else if (event.key === 'Enter' && active >= 0) { event.preventDefault(); chooseSuggestion(suggestions[active]); }
+      else if (event.key === 'Escape') { closeSuggestions(); }
+    });
+    search.addEventListener('blur', function () { suggestToken += 1; closeSuggestions(); });
+    search.addEventListener('focus', function () { if (search.value.trim()) { askForSuggestions(); } });
     refresh();
   }
 

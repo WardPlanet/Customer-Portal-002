@@ -1898,3 +1898,13 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .edit-table .col-grip:hover::after { background: var(--accent); }
 .edit-table.is-resizing { user-select: none; cursor: col-resize; }
 .preview-table[style*="table-layout"] th, .preview-table[style*="table-layout"] td { overflow-wrap: anywhere; }
+
+/* The dropdown under the search box */
+.suggest-wrap { position: relative; }
+.suggest-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14); }
+.suggest-list[hidden] { display: none; }
+.suggest-item { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.suggest-item:hover, .suggest-item.is-active { background: var(--accent-soft); }
+.suggest-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggest-text .search-hit { background: none; font-weight: 700; color: var(--accent-text); }
+.suggest-kind { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-muted); }

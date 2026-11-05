@@ -169,6 +169,12 @@ export function registerLibraryRoutes(app, draftsDir) {
     return page;
   }
 
+  // The search box's dropdown: titles, keywords and headings of live pages that match what has been typed so far
+  app.get('/api/library/suggest', staff(async function (req, res, ctx) {
+    var pages = (await loadAllPages(draftsDir, ctx.team)).filter(function (page) { return !!page.liveVersion; });
+    res.json({ suggestions: Search.suggestPages(Workflow, pages, String(req.query.q || ''), 'staff') });
+  }));
+
   app.get('/api/library/pages', staff(async function (req, res, ctx) {
     var pages = await loadAllPages(draftsDir, ctx.team);
     var q = String(req.query.q || '').trim();
