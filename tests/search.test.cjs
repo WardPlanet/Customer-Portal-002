@@ -97,3 +97,16 @@ test('suggestions: titles first, then keywords and headings, forgiving of typos'
   assert.deepEqual(text('zzzz'), []);
   assert.equal(Search.suggest(entries, 'edit')[0].parts.some((p) => p.hit), true);
 });
+
+test('a spoken question finds the page about the topic, not the page full of everyday words', () => {
+  const entries = [
+    { id: 'faq', title: 'Website FAQ', keywords: [], headings: ['How do I log in', 'Can I change my password'], description: 'Answers to what people ask about the website and how it works for us', body: 'How do I get help with my website? You can ask us. We will transfer your question to the right person.' },
+    { id: 'policy', title: 'Website transfer policy', keywords: ['domain transfer'], headings: ['Transferring a website'], description: 'Rules for moving a website', body: 'A transfer needs approval.' }
+  ];
+  const result = Search.query(entries, 'how do I transfer my website');
+  assert.equal(result.results[0].id, 'policy');
+  // Even when no page has every word, the page with the topic words in its title wins
+  const partial = Search.query(entries.concat([{ id: 'x', title: 'Lunch menu', keywords: [], headings: [], description: '', body: 'zebra' }]), 'transfer website zebra');
+  assert.equal(partial.partial, true);
+  assert.equal(partial.results[0].id, 'policy');
+});

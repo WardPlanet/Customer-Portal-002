@@ -30,7 +30,10 @@
   var FIELD_NAMES = { title: 'title', keyword: 'keywords', keywords: 'keywords', tag: 'keywords', description: 'description', heading: 'headings', headings: 'headings', owner: 'owner', body: 'body', text: 'body' };
 
   var STOP_WORDS = {};
-  'a an and are as at be by for from has in is it of on or that the this to was with'.split(' ').forEach(function (word) { STOP_WORDS[word] = true; });
+  // Articles, little connecting words, and the words of a spoken question ("how do I ... my ..."), which say nothing about the topic
+  ('a an and are as at be been by for from has have in is it its of on or that the this to was with ' +
+   'how do does did i me my mine we us our you your can could should would will what when where which who why am about into there their they them ' +
+   'please need want').split(' ').forEach(function (word) { STOP_WORDS[word] = true; });
 
   /* ---------- Word forms: the Porter stemmer ---------- */
   // Reduces a word to its stem so that "renewing", "renewal" and "renewals" meet. This is Martin Porter's 1980 algorithm.
@@ -440,7 +443,11 @@
     if (!scored.length && parsed.terms.length > 1 && !parsed.phrases.length) {
       scored = collect(false);
       answer.partial = scored.length > 0;
-      scored.sort(function (a, b) { return b.termsMatched - a.termsMatched || b.score - a.score; });
+      // Rank by score, scaled by the share of the words found, so a page that has the rare words (in its title above all)
+      // is not beaten by one that only has more of the everyday ones
+      var total = parsed.terms.length;
+      scored.forEach(function (item) { item.score = item.score * (0.4 + 0.6 * item.termsMatched / total); });
+      scored.sort(function (a, b) { return b.score - a.score || b.termsMatched - a.termsMatched; });
     } else {
       scored.sort(function (a, b) { return b.score - a.score || String(index.docs[b.docIndex].entry.updatedAt || '').localeCompare(String(index.docs[a.docIndex].entry.updatedAt || '')); });
     }

@@ -776,3 +776,9 @@ headings of live pages (`Search.suggest` in `search.cjs`, served by `GET /api/li
 Every typed word must match the start of a word (the last one is still being typed), and one slip in a longer word is
 forgiven. Arrow keys / Enter / Escape work; a page opens, a keyword or heading fills the box and searches. Popular or
 recent queries are not suggested yet; that needs search analytics (not built).
+
+### Search: spoken questions
+
+Question words and pronouns ("how do I ... my ...", "can", "what", "please" and so on) are ignored like "the" and "of"
+(they stay if nothing else is left). When no page has every word, pages are ranked by score scaled by the share of the
+words found, so a page with the topic words in its title beats one that only has more everyday words.
