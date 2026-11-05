@@ -1819,7 +1819,7 @@
 .toc-actions { position: sticky; bottom: 0; z-index: 2; margin: 8px -16px 0; padding: 4px 16px 8px; background: var(--surface); border-radius: 0 0 16px 16px; box-shadow: 0 -8px 8px -6px rgba(0, 0, 0, 0.12); }
 
 /* The corner button that shows a batch import's progress while you are on another screen */
-.batch-widget { position: fixed; left: 20px; bottom: 84px; z-index: 40; display: flex; flex-direction: column; gap: 6px; min-width: 190px; padding: 10px 14px; background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.batch-widget { position: fixed; right: 20px; bottom: 84px; z-index: 40; display: flex; flex-direction: column; gap: 6px; min-width: 190px; padding: 10px 14px; background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
 .batch-widget[hidden] { display: none; }
 .batch-widget:hover { border-color: var(--accent); }
 .batch-widget-track { display: block; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }

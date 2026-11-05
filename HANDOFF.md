@@ -466,7 +466,7 @@ with words that say where it goes, written as `[link text](https://address)`.
 bottom bar (`keepOnScreen` in `library-ui.js`, re-measured as you scroll), so a long outline scrolls inside it. The buttons
 under it (Expand all, Collapse) stay at the bottom of the box, over the end of the list, whatever is scrolled.
 
-**Batch import keeps going when you leave.** Creating drafts does not stop if you go to another screen. A small button in the corner
+**Batch import keeps going when you leave.** Creating drafts does not stop if you go to another screen. A small button in the lower right corner
 (`Creating drafts \u00b7 2 of 5`, with a bar) takes you back to the import's progress screen. When it is done the button says
 "Complete" in green and goes away after eight seconds; if you were on the import screen when it finished, you see the results
 there instead. The results link each draft's preview.
