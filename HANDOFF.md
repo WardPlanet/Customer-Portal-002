@@ -491,6 +491,9 @@ library. On the server, each submission also writes a message to `drafts/outbox/
 switched on later by sending those files from the company's mail account. The person submitting is told the lead has been
 notified. Approving or sending back clears the bell. Not built yet: telling the person who submitted when the lead has decided.
 
+**Top bar links.** "Wiki" (top left) is the link to the public preview and search; there is no separate "Public preview" link. "Library"
+is the other link.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.

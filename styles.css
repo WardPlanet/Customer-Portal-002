@@ -1863,3 +1863,7 @@
 .notify-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; color: var(--text); text-decoration: none; }
 .notify-item:hover { background: var(--accent-soft); }
 .notify-sub { color: var(--text-muted); font-size: 12px; }
+
+/* "Wiki" is the link to the public preview (search) */
+a.lib-brand { color: inherit; text-decoration: none; }
+a.lib-brand:hover, a.lib-brand.is-current { color: var(--accent); }
