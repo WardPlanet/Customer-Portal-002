@@ -497,7 +497,7 @@
       state: state,
       deleteRequest: page.deleteRequest ? { by: page.deleteRequest.by, at: page.deleteRequest.at } : null,
       liveVersion: page.liveVersion,
-      workingVersion: working ? { n: working.n, status: working.status } : null,
+      workingVersion: working ? { n: working.n, status: working.status, submittedBy: working.submittedBy || '', submittedAt: working.submittedAt || '' } : null,
       versionCount: page.versions.length,
       releaseCount: page.versions.filter(isPublished).length,
       liveRelease: live ? releaseNumber(page, live) : null,

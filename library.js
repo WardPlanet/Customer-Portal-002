@@ -109,6 +109,30 @@ function textBody(req) {
   return text;
 }
 
+// A submitted page needs the team lead's approval. The notification email is written to drafts/outbox/ for now (one JSON file
+// each: to, subject, text). Once the company's mail account is connected, sending these is the only step left. A problem
+// here never stops the submit.
+async function queueEmailToLead(draftsDir, ctx, page) {
+  try {
+    var lead = ctx.team.roles.filter(function (role) { return role.title === ctx.team.lead; })[0];
+    if (!lead || !lead.email) { return; }
+    var shown = Workflow.summary(page);
+    var folder = path.join(draftsDir, 'outbox');
+    await fs.mkdir(folder, { recursive: true });
+    var message = {
+      to: lead.email,
+      toName: lead.person,
+      subject: 'Approval needed: ' + shown.title,
+      text: ctx.actor.name + ' submitted \u201c' + shown.title + '\u201d for your approval as ' + ctx.team.lead + '. Open the library to approve it or send it back.',
+      createdAt: ctx.now,
+      pageId: page.id
+    };
+    await fs.writeFile(path.join(folder, ctx.now.replace(/[^0-9]/g, '') + '-' + page.id + '.json'), JSON.stringify(message, null, 2), 'utf8');
+  } catch (error) {
+    console.error('Could not queue the approval email:', error.message);
+  }
+}
+
 export function registerLibraryRoutes(app, draftsDir) {
   // Wraps a handler with the team, the acting person and the current time
   function staff(handler) {
@@ -273,6 +297,7 @@ export function registerLibraryRoutes(app, draftsDir) {
       else if (action === 'send-back') { Workflow.sendBack(page, n, req.body && req.body.comment, ctx.actor, ctx.team, ctx.now); }
       else { made = Workflow.restore(page, n, ctx.actor, ctx.now); }
       await savePage(draftsDir, ctx.team, page);
+      if (action === 'submit') { await queueEmailToLead(draftsDir, ctx, page); }
       res.json(Object.assign(detail(page, ctx), made ? { version: made.n } : {}));
     }));
   });

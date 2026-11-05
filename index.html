@@ -21,7 +21,7 @@
         <a href="#/public" id="nav-public">Public preview</a>
       </nav>
     </div>
-    <div class="acting" id="acting-slot-library"></div>
+    <div class="top-right"><span class="notify-slot" id="notify-slot-library"></span><div class="acting" id="acting-slot-library"></div></div>
   </header>
   <main class="lib-main" id="lib-main"></main>
   <p class="lib-notice" id="lib-notice" role="status"></p>
@@ -41,6 +41,7 @@
       <span class="page-name" id="page-name">New page</span>
     </div>
     <div class="topbar-right">
+      <span class="notify-slot" id="notify-slot-editor"></span>
       <div class="acting" id="acting-slot-editor"></div>
       <div class="save-status is-unsaved" id="save-status" role="status">
         <span class="save-dot" aria-hidden="true"></span>
@@ -217,7 +218,7 @@
     <div class="footer-group">
       <button class="secondary-btn" type="button" id="export-pdf" title="Save the page as a PDF: title, description and content only">Export PDF</button>
       <button class="secondary-btn" type="button" id="save-draft" aria-disabled="true">Save draft</button>
-      <button class="secondary-btn" type="button" id="submit-draft" aria-disabled="true">Submit for review</button>
+      <button class="secondary-btn" type="button" id="submit-draft" aria-disabled="true">Submit for approval</button>
       <button class="submit-btn" type="button" id="publish-draft" aria-disabled="true" title="Make this page live now and download a copy as a text file. Skips review.">Publish</button>
     </div>
   </footer>

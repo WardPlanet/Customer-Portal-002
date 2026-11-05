@@ -1848,3 +1848,18 @@
 .inline-format .icon-btn[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; }
 .inline-format .icon-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
 .inline-format .icon-btn[data-format="underline"] + .icon-btn { margin-left: 6px; }
+
+/* The team lead's notification bell */
+.top-right { display: flex; align-items: center; gap: 12px; }
+.notify-slot { position: relative; display: inline-flex; align-items: center; }
+.notify-slot:empty { display: none; }
+.bell { position: relative; display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border-strong); border-radius: 50%; cursor: pointer; }
+.bell:hover, .bell[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+.bell-badge { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; background: var(--danger); color: #fff; border-radius: 999px; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.notify-pop { position: absolute; right: 0; top: 44px; z-index: 70; width: min(340px, calc(100vw - 24px)); max-height: 60vh; overflow-y: auto; padding: 10px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); }
+.notify-pop[hidden] { display: none; }
+.notify-title { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.notify-empty { margin: 4px 0; color: var(--text-faint); font-size: 13px; }
+.notify-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; color: var(--text); text-decoration: none; }
+.notify-item:hover { background: var(--accent-soft); }
+.notify-sub { color: var(--text-muted); font-size: 12px; }

@@ -159,6 +159,63 @@
     });
   }
 
+  /* ---------- The team lead's notifications ----------
+     A bell in the top bar counts the pages waiting for the lead's approval and lists them, who submitted each, and links to
+     review it. (Email notifications come later, once the company's mail account is set up; the server already writes each
+     one to an "outbox" folder so the text is ready.) */
+  var notifyTimer = null;
+  var BELL_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
+
+  function closeNotifyPops() {
+    Array.prototype.forEach.call(document.querySelectorAll('.notify-pop'), function (pop) { pop.hidden = true; });
+    Array.prototype.forEach.call(document.querySelectorAll('.bell'), function (b) { b.setAttribute('aria-expanded', 'false'); });
+  }
+
+  function renderBell(slot, waiting) {
+    slot.textContent = '';
+    var bell = el('button', 'bell');
+    bell.type = 'button';
+    bell.setAttribute('aria-haspopup', 'true');
+    bell.setAttribute('aria-expanded', 'false');
+    bell.setAttribute('aria-label', waiting.length ? waiting.length + (waiting.length === 1 ? ' page is' : ' pages are') + ' waiting for your approval' : 'Notifications: nothing is waiting');
+    bell.innerHTML = BELL_ICON;   // fixed markup above
+    if (waiting.length) { bell.appendChild(el('span', 'bell-badge', String(waiting.length))); }
+    var pop = el('div', 'notify-pop');
+    pop.hidden = true;
+    pop.appendChild(el('h2', 'notify-title', 'Waiting for your approval'));
+    if (!waiting.length) { pop.appendChild(el('p', 'notify-empty', 'Nothing is waiting for you.')); }
+    waiting.forEach(function (p) {
+      var item = link('', '#/view/' + p.id + '/' + p.workingVersion.n, 'notify-item');
+      item.appendChild(el('strong', '', p.title));
+      item.appendChild(el('span', 'notify-sub', (p.workingVersion.submittedBy || 'Someone') + ' submitted it' + (p.workingVersion.submittedAt ? ' \u00b7 ' + formatDate(p.workingVersion.submittedAt) : '')));
+      item.addEventListener('click', closeNotifyPops);
+      pop.appendChild(item);
+    });
+    bell.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var open = pop.hidden;
+      closeNotifyPops();
+      pop.hidden = !open;
+      bell.setAttribute('aria-expanded', String(open));
+    });
+    slot.appendChild(bell);
+    slot.appendChild(pop);
+  }
+
+  async function refreshNotifications() {
+    var slots = ['notify-slot-library', 'notify-slot-editor'].map(function (id) { return document.getElementById(id); });
+    if (!team || !actorIsLead() || !backend()) { slots.forEach(function (slot) { slot.textContent = ''; }); return; }
+    var result = null;
+    try { result = await backend().list(''); } catch (error) { result = null; }
+    if (!result) { return; }
+    var waiting = result.pages.filter(function (p) { return p.workingVersion && p.workingVersion.status === 'submitted'; })
+      .sort(function (a, b) { return String(a.workingVersion.submittedAt).localeCompare(String(b.workingVersion.submittedAt)); });
+    slots.forEach(function (slot) { renderBell(slot, waiting); });
+  }
+
+  document.addEventListener('click', function (event) { if (!event.target.closest || !event.target.closest('.notify-slot')) { closeNotifyPops(); } });
+  document.addEventListener('keydown', function (event) { if (event.key === 'Escape') { closeNotifyPops(); } });
+
   /* ---------- Screens: which is showing ---------- */
   function showScreen(which, isPublic) {
     libraryScreen.hidden = which !== 'library';
@@ -332,7 +389,7 @@
     box.textContent = '';
     if (box.hidden) { return; }
     if (waiting.length) {
-      box.appendChild(el('h2', 'lib-queue-title', 'Needs your review (' + waiting.length + ')'));
+      box.appendChild(el('h2', 'lib-queue-title', 'Waiting for your approval (' + waiting.length + ')'));
       waiting.forEach(function (p) {
         var row = el('div', 'lib-queue-row');
         row.appendChild(el('span', 'lib-queue-name', p.title));
@@ -686,7 +743,7 @@
         notes.push((v.status === 'sent_back' ? 'Sent back by ' : v.status === 'unpublished' ? 'Unpublished by ' : v.directPublish ? 'Published by ' : 'Approved by ') + v.decidedBy + (v.directPublish ? ' (review skipped)' : '') + ' on ' + formatDate(v.decidedAt) + '.');
         if (v.decisionComment && !v.directPublish) { notes.push('\u201c' + v.decisionComment + '\u201d'); }
       } else if (v.submittedBy) {
-        notes.push('Submitted for review by ' + v.submittedBy + '.');
+        notes.push('Submitted for approval by ' + v.submittedBy + '.');
       }
       var notesRow = el('tr', 'versions-notes');
       notesRow.hidden = true;
@@ -765,7 +822,7 @@
     var can = function (action) { return v.actions.indexOf(action) >= 0; };
     nodes.push(link('View', '#/view/' + id + '/' + v.n, 'row-link'));
     if (can('edit')) { nodes.push(link('Edit', '#/edit/' + id + '/' + v.n, 'row-link')); }
-    if (can('submit')) { nodes.push(button('Submit', 'row-btn', function () { runAction(id, v.n, 'submit', 'Submitted for review.'); })); }
+    if (can('submit')) { nodes.push(button('Submit', 'row-btn', function () { runAction(id, v.n, 'submit', 'Submitted for approval. ' + personFor(team.lead) + ' has been notified.'); })); }
     if (can('publish')) { nodes.push(button('Publish', 'row-btn row-btn-go', function () { publishVersion(id, v.n); })); }
     if (can('withdraw')) { nodes.push(button('Withdraw', 'row-btn', function () { runAction(id, v.n, 'withdraw', 'Withdrawn. It is a draft again.'); })); }
     if (can('approve')) { nodes.push(button('Approve', 'row-btn row-btn-go', function () { runAction(id, v.n, 'approve', 'Approved. It is now live.'); })); }
@@ -1686,9 +1743,9 @@
       await this.save(text);
       await backend().act(current.id, current.n, 'submit');
       var id = current.id;
-      notice('Submitted for review. ' + team.lead + ' (' + personFor(team.lead) + ') can approve it or send it back.');
+      notice('Submitted for approval. ' + personFor(team.lead) + ' (' + team.lead + ') has been notified and can approve it or send it back.');
       location.hash = '#/';
-      return 'Submitted for review.';
+      return 'Submitted for approval. ' + personFor(team.lead) + ' has been notified.';
     },
     canPublish: function () { return !!team && W.canPublishDirectly(actor(), team); },
     // Skips review: saves, makes it live, and downloads the text. (Who may do this is the team's
@@ -1729,6 +1786,7 @@
   async function route() {
     if (!team) { return; }
     routing += 1;
+    refreshNotifications();   // the lead's bell (counts what is waiting)
     main.classList.remove('has-preview-footer');   // only a page's preview has the fixed bottom bar
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
@@ -1744,6 +1802,7 @@
   }
 
   window.addEventListener('hashchange', route);
+  notifyTimer = setInterval(refreshNotifications, 20000);   // a submission made elsewhere shows up without a reload (server version)
 
   /* ---------- Start ---------- */
   window.Store.start().then(function (roster) {

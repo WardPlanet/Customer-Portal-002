@@ -90,7 +90,7 @@ refreshes the outline. Call it after any structural change.
   required but is filled in automatically, see below. With no roster, for example the page opened from
   disk with no server, there is nobody to choose, so Owner and Reviewer do not block saving.) The first
   step on the page carries the red `*`.
-- Save draft, Submit for review and AI assist (toolbar) stay greyed out until all are filled in.
+- Save draft, Submit for approval and AI assist (toolbar) stay greyed out until all are filled in.
   Clicking a greyed button outlines what is missing.
 
 **Adding and removing**
@@ -286,7 +286,7 @@ is also one file in the artifact build.
 
 | Route | Screen |
 | --- | --- |
-| `#/` | Library: list, status filter, search of live pages, and (for the lead) a "Needs your review" box |
+| `#/` | Library: list, status filter, search of live pages, and (for the lead) a "Waiting for your approval" box |
 | `#/new`, `#/edit/<id>/<n>` | The editor (blank, or on a version that can still be edited) |
 | `#/view/<id>/<n>` | The editor locked, for reading a version. The lead sees Approve / Send back here |
 | `#/public`, `#/public/<id>` | **Public preview**: only live, Client-Safe pages, with nothing about owners or reviewers |
@@ -482,6 +482,14 @@ the chips along it are Text, Step, Note, Warning, **Table** and **Code**. The "+
 Clicking into any text with formatting (the description, Text blocks, step details) shows Bold, Italic, Underline, bullets,
 numbers and Link in a small bar right under that text, so the toolbar at the top is not needed; it hides again when you click
 somewhere that has no formatting. Both sets of buttons work the same way.
+
+**Only the team lead publishes; everyone else submits for approval.** `teams/legwork-web-team.json` now has `"directPublish": "lead"`, so
+the Publish buttons (editor, library row, versions list, bulk) exist only for the lead, and the server refuses anyone else.
+Other staff use **Submit for approval**. The lead is told in two ways: a bell in the top bar (a red count, and a list of the
+pages waiting with who submitted each and a link to review it), and the "Waiting for your approval" box at the top of the
+library. On the server, each submission also writes a message to `drafts/outbox/` (to, subject, text) so email can be
+switched on later by sending those files from the company's mail account. The person submitting is told the lead has been
+notified. Approving or sending back clears the bell. Not built yet: telling the person who submitted when the lead has decided.
 
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit

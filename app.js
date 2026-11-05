@@ -1623,7 +1623,7 @@
         var text = await prepareDraftText();
         if (text === null) { return; }
         var message = await window.PageHost[action](text);
-        setStatus(action === 'publish' ? 'Published' : action === 'submit' ? 'Submitted for review' : 'Saved just now', true);
+        setStatus(action === 'publish' ? 'Published' : action === 'submit' ? 'Submitted for approval' : 'Saved just now', true);
         showNotice(message);
       } catch (error) {
         showNotice(error && error.message ? error.message : 'That did not work. Try again.');
@@ -2790,7 +2790,7 @@
       missing[0].target.focus();
       return true;
     }
-    [['save-draft', 'save', 'save'], ['submit-draft', 'submit for review', 'submit'], ['publish-draft', 'publish', 'publish']].forEach(function (item) {
+    [['save-draft', 'save', 'save'], ['submit-draft', 'submit for approval', 'submit'], ['publish-draft', 'publish', 'publish']].forEach(function (item) {
       byId(item[0]).addEventListener('click', function () {
         if (byId(item[0]).getAttribute('aria-disabled') === 'true' && explainMissing(item[1])) { return; }
         saveAndMaybeSubmit(item[2]);

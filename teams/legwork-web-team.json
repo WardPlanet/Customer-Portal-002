@@ -2,7 +2,7 @@
   "name": "Legwork Web Team",
   "slug": "legwork-web-team",
   "lead": "Web Team Manager",
-  "directPublish": "anyone",
+  "directPublish": "lead",
   "icon": "website",
   "supportUrl": "",
   "locations": [
