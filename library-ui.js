@@ -274,14 +274,17 @@
     var headActions = el('div', 'lib-actions');
     headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
     if (actorIsLead()) { headActions.appendChild(button('Team & roles', 'secondary-link', openTeamDialog)); }
-    headActions.appendChild(button('Download backup', 'secondary-link', downloadBackup));
-    headActions.appendChild(button('Restore from backup', 'secondary-link', function () { restoreInput.click(); }));
+    // Backups cover the whole team's pages, so only the team lead sees them
+    if (actorIsLead()) {
+      headActions.appendChild(button('Download backup', 'secondary-link', downloadBackup));
+      headActions.appendChild(button('Restore from backup', 'secondary-link', function () { restoreInput.click(); }));
+    }
     headActions.appendChild(link('New page', '#/new', 'primary-link'));
     head.appendChild(headActions);
     main.appendChild(head);
 
     var backupLine = el('p', 'lib-backup');
-    main.appendChild(backupLine);
+    if (actorIsLead()) { main.appendChild(backupLine); }
     var queue = el('section', 'lib-queue');
     queue.hidden = true;
     main.appendChild(queue);
@@ -1242,9 +1245,17 @@
   }
 
   // A table: the first row is the header. Wide tables scroll sideways instead of squashing the page.
-  function previewTable(rows) {
+  function previewTable(rows, savedWidths) {
     var wrap = el('div', 'preview-table-wrap');
     var table = el('table', 'preview-table');
+    // Column widths set in the editor (equal share when none were set)
+    var widths = W.normalizeTableWidths(savedWidths, rows[0].length);
+    if (widths) {
+      table.style.tableLayout = 'fixed';
+      var group = el('colgroup');
+      widths.forEach(function (percent) { var col = el('col'); col.style.width = percent + '%'; group.appendChild(col); });
+      table.appendChild(group);
+    }
     var head = el('thead');
     var headRow = el('tr');
     rows[0].forEach(function (cell) { headRow.appendChild(previewText('th', '', cell)); });
@@ -1626,7 +1637,7 @@
         article.appendChild(previewCallout(isWarning, body(prefix + (isWarning ? 'WARNING' : 'NOTE'))));
       } else if (sections[prefix + 'TABLE']) {
         var tableRows = W.parseTableLines(sections[prefix + 'TABLE']);
-        if (tableRows.length) { article.appendChild(previewTable(tableRows)); }
+        if (tableRows.length) { article.appendChild(previewTable(tableRows, W.parseTableWidths(sections[prefix + 'TABLE WIDTHS'], tableRows[0].length))); }
       } else if (sections[prefix + 'PARAGRAPH']) {
         previewParagraphs(article, body(prefix + 'PARAGRAPH'));
       } else if ((body(prefix + 'STEP TITLE') || body(prefix + 'STEP TEXT') || Object.keys(sections).some(function (name) { return name.indexOf(prefix + 'STEP ') === 0 && /^STEP (CODE|NOTE|WARNING) /.test(name.slice(prefix.length)) && body(name); })) && (sections[prefix + 'STEP TITLE'] || sections[prefix + 'STEP TEXT'])) {

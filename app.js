@@ -134,7 +134,7 @@
 
     function buildBlockElement(type, values) {
       if (type === 'step') { return buildStepBlock(values.title, values.text, values.items); }
-      if (type === 'table') { return buildTableBlock(values.rows); }
+      if (type === 'table') { return buildTableBlock(values.rows, values.widths); }
       return buildTextBlock(type, values.text, values.level);
     }
 
@@ -164,7 +164,7 @@
       return row;
     }
 
-    function buildTableBlock(rows) {
+    function buildTableBlock(rows, savedWidths) {
       var data = window.Workflow.normalizeTable(rows && rows.length ? rows : TABLE_START);
       if (!data.length) { data = window.Workflow.normalizeTable(TABLE_START); }
 
@@ -182,6 +182,9 @@
       table.className = 'edit-table';
       var body = document.createElement('tbody');
       data.forEach(function (row, index) { body.appendChild(buildTableRow(row, index === 0)); });
+      // The column widths live on a <colgroup> as percentages; they are saved with the page
+      var columnGroup = document.createElement('colgroup');
+      table.appendChild(columnGroup);
       table.appendChild(body);
       scroller.appendChild(table);
       block.appendChild(scroller);
@@ -213,6 +216,8 @@
         Array.prototype.forEach.call(body.children, function (row, index) {
           row.insertBefore(buildTableCell('', index === 0), row.children[at] || null);
         });
+        widths = null;   // a new column starts the widths over
+        applyWidths();
         changed();
       }
       function removeRow() {
@@ -228,7 +233,69 @@
         var cell = cursorCell();
         var at = cell ? columnOf(cell) : width - 1;
         Array.prototype.forEach.call(body.children, function (row) { row.children[at].remove(); });
+        widths = null;
+        applyWidths();
         changed();
+      }
+
+      // Widths: null means every column the same. Dragging the right edge of a header cell moves that column's border.
+      var widths = window.Workflow.normalizeTableWidths(savedWidths, data[0].length);
+      function columnCount() { return body.children[0].children.length; }
+      function applyWidths() {
+        var count = columnCount();
+        if (!widths || widths.length !== count) { widths = null; }
+        while (columnGroup.children.length > count) { columnGroup.lastChild.remove(); }
+        while (columnGroup.children.length < count) { columnGroup.appendChild(document.createElement('col')); }
+        Array.prototype.forEach.call(columnGroup.children, function (col, i) {
+          col.style.width = widths ? widths[i] + '%' : (100 / count) + '%';
+        });
+        placeGrips();
+      }
+      function currentWidths() { return widths || Array.apply(null, Array(columnCount())).map(function () { return 100 / columnCount(); }); }
+      table.getWidths = function () { return widths ? widths.slice() : null; };
+
+      // One drag handle on the right edge of every header cell except the last
+      function placeGrips() {
+        Array.prototype.forEach.call(body.children[0].children, function (cell, i, all) {
+          var old = cell.querySelector('.col-grip');
+          if (old) { old.remove(); }
+          if (i === all.length - 1) { return; }
+          var grip = document.createElement('span');
+          grip.className = 'col-grip';
+          grip.contentEditable = 'false';
+          grip.setAttribute('role', 'separator');
+          grip.setAttribute('aria-orientation', 'vertical');
+          grip.setAttribute('aria-label', 'Drag to change column width');
+          grip.title = 'Drag to change column width. Double-click to reset.';
+          grip.addEventListener('mousedown', function (event) { startGripDrag(event, i); });
+          grip.addEventListener('dblclick', function () { widths = null; applyWidths(); changed(); });
+          cell.appendChild(grip);
+        });
+      }
+      function startGripDrag(event, index) {
+        event.preventDefault();
+        var tableWidth = table.getBoundingClientRect().width;
+        var start = currentWidths().slice();
+        var startX = event.clientX;
+        var pair = start[index] + start[index + 1];
+        var min = 6;
+        table.classList.add('is-resizing');
+        function move(e) {
+          var delta = (e.clientX - startX) / tableWidth * 100;
+          var left = Math.max(min, Math.min(pair - min, start[index] + delta));
+          widths = start.slice();
+          widths[index] = Math.round(left * 10) / 10;
+          widths[index + 1] = Math.round((pair - left) * 10) / 10;
+          applyWidths();
+        }
+        function up() {
+          document.removeEventListener('mousemove', move);
+          document.removeEventListener('mouseup', up);
+          table.classList.remove('is-resizing');
+          changed();
+        }
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
       }
 
       var tools = document.createElement('div');
@@ -246,7 +313,9 @@
         });
         tools.appendChild(tool);
       });
-      block.appendChild(tools);
+      // The table's tools sit above it, with the other styling options
+      block.insertBefore(tools, scroller);
+      applyWidths();
 
       table.addEventListener('keydown', function (event) {
         if (event.key !== 'Tab') { return; }
@@ -539,7 +608,8 @@
             return Array.prototype.map.call(tr.children, function (cell) { return readText(cell); });
           });
           // "text" is every cell run together: used to tell whether the table is empty, and for AI assist
-          return { type: 'table', rows: rows, text: rows.reduce(function (all, row) { return all.concat(row); }, []).join(' ').trim() };
+          var tableEl = block.querySelector('.edit-table');
+          return { type: 'table', rows: rows, widths: tableEl && tableEl.getWidths ? tableEl.getWidths() : null, text: rows.reduce(function (all, row) { return all.concat(row); }, []).join(' ').trim() };
         }
         var type = Object.keys(TEXT_BLOCKS).filter(function (key) {
           return block.classList.contains(TEXT_BLOCKS[key].blockClass);
@@ -581,7 +651,7 @@
       (items || []).forEach(function (item) { body.appendChild(buildStepItem(item.type, item.text)); });
       block.appendChild(number);
       block.appendChild(body);
-      body.appendChild(createStepTools(block));
+      body.insertBefore(createStepTools(block), heading);   // the step's options sit at its top
       block.appendChild(createStepGrip(block));
       return block;
     }
@@ -647,7 +717,7 @@
       });
     }
 
-    // The row of buttons inside a step. It is only visible while the step is selected (.is-selected).
+    // The row of buttons at the top of a step. It is only visible while the step is selected (.is-selected).
     function createStepTools(stepBlock) {
       var row = document.createElement('div');
       row.className = 'step-tools';
@@ -665,7 +735,10 @@
         button.appendChild(label);
         button.addEventListener('click', function () {
           var item = buildStepItem(type, '');
-          row.before(item);
+          // New notes, warnings and code go after the step's text and its earlier items
+          var existing = row.parentNode.querySelectorAll('.step-item');
+          var after = existing.length ? existing[existing.length - 1] : row.parentNode.querySelector('.step-text');
+          after.after(item);
           markDirty();
           refreshOutline();
           item.querySelector('[contenteditable]').focus();
@@ -680,7 +753,7 @@
     }
 
     /* ---------- The selected step ----------
-       The step the cursor is in shows its note / warning / code buttons below its content. The row
+       The step the cursor is in shows its note / warning / code buttons above its content. The row
        is added and removed, so it moves everything below it. If it disappeared the instant the mouse
        button went down on something else, that thing would slide away before the click finished and
        the click would be lost. So the selection only changes once the pointer is released. */
@@ -1428,6 +1501,8 @@
           section(prefix + 'HEADER ' + block.level, textLines(block.text));
         } else if (block.type === 'table') {
           section(prefix + 'TABLE', window.Workflow.tableToLines(block.rows));
+          var widthLines = window.Workflow.tableWidthsToLines(block.widths, block.rows[0] ? block.rows[0].length : 0);
+          if (widthLines.length) { section(prefix + 'TABLE WIDTHS', widthLines); }
         } else {
           section(prefix + block.type.toUpperCase(), textLines(block.text));
         }
@@ -1512,7 +1587,8 @@
           return sections[prefix + type.toUpperCase()];
         })[0];
         if (sections[prefix + 'TABLE']) {
-          blocks.push({ type: 'table', rows: window.Workflow.parseTableLines(sections[prefix + 'TABLE']) });
+          var tableRowsRead = window.Workflow.parseTableLines(sections[prefix + 'TABLE']);
+          blocks.push({ type: 'table', rows: tableRowsRead, widths: window.Workflow.parseTableWidths(sections[prefix + 'TABLE WIDTHS'], tableRowsRead[0] ? tableRowsRead[0].length : 0) });
         } else if (headerLevel) {
           blocks.push({ type: 'header', level: headerLevel, text: body(prefix + 'HEADER ' + headerLevel) });
         } else if (textType === 'code') {
@@ -2048,7 +2124,8 @@
 
     function placeInlineBar() {
       if (!activeRich || document.body.classList.contains('is-readonly')) { inlineBar.hidden = true; return; }
-      if (inlineBar.previousSibling !== activeRich) { activeRich.parentNode.insertBefore(inlineBar, activeRich.nextSibling); }
+      // The styling options sit above the text, not below it
+      if (inlineBar.nextSibling !== activeRich) { activeRich.parentNode.insertBefore(inlineBar, activeRich); }
       inlineBar.hidden = false;
     }
 
@@ -2845,6 +2922,8 @@
           sections[prefix + 'HEADER ' + block.level] = lines(block.text);
         } else if (block.type === 'table') {
           sections[prefix + 'TABLE'] = window.Workflow.tableToLines(block.rows);
+          var savedWidthLines = window.Workflow.tableWidthsToLines(block.widths, block.rows[0] ? block.rows[0].length : 0);
+          if (savedWidthLines.length) { sections[prefix + 'TABLE WIDTHS'] = savedWidthLines; }
         } else {
           sections[prefix + block.type.toUpperCase()] = lines(block.text);
         }
@@ -3351,15 +3430,16 @@
       };
     }
 
-    // A table: the header row is shaded and bold, every column the same width
-    function pdfTable(rows) {
+    // A table: the header row is shaded and bold. Columns use the widths set in the editor (equal when none were set).
+    function pdfTable(rows, savedWidths) {
+      var widths = window.Workflow.normalizeTableWidths(savedWidths, rows[0].length);
       var body = rows.map(function (row, index) {
         return row.map(function (cell) {
           return { text: cell, bold: index === 0, color: index === 0 ? PDF_COLORS.navy : PDF_COLORS.text, fillColor: index === 0 ? PDF_COLORS.band : null, margin: [4, 3, 4, 3] };
         });
       });
       return {
-        table: { headerRows: 1, widths: rows[0].map(function () { return '*'; }), body: body },
+        table: { headerRows: 1, widths: rows[0].map(function (cell, i) { return widths ? widths[i] + '%' : '*'; }), body: body },
         layout: { hLineWidth: function () { return 0.5; }, vLineWidth: function () { return 0.5; }, hLineColor: function () { return '#D9DBEA'; }, vLineColor: function () { return '#D9DBEA'; } },
         margin: [0, 0, 0, 10]
       };
@@ -3418,7 +3498,7 @@
         } else if (block.type === 'code') {
           content.push(pdfCode(block.text));
         } else if (block.type === 'table') {
-          content.push(pdfTable(block.rows));
+          content.push(pdfTable(block.rows, block.widths));
         } else if (block.type === 'warning') {
           content.push(pdfCallout('Warning', block.text, '#FDECEA', '#C62828', '#8A1C1C'));
         } else {

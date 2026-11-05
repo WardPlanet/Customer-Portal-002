@@ -438,3 +438,13 @@ test('only the team lead chooses or changes a page\'s owner', () => {
   assert.doesNotThrow(() => W.saveDraft(page, 1, forDesigner.replace('Colors', 'Refunds'), micah, t(3), bigTeam));
   assert.equal(page.versions[0].owner, 'Web Designer');
 });
+
+test('table column widths are saved as percentages that add up to 100', () => {
+  assert.deepEqual(W.parseTableWidths(W.tableWidthsToLines([20, 30, 50], 3), 3), [20, 30, 50]);
+  assert.deepEqual(W.normalizeTableWidths([1, 1, 2], 3), [25, 25, 50]);
+  // Anything unusable means "equal widths" (null)
+  assert.equal(W.normalizeTableWidths([20, 80], 3), null);
+  assert.equal(W.normalizeTableWidths([0, 100], 2), null);
+  assert.equal(W.parseTableWidths([], 3), null);
+  assert.deepEqual(W.tableWidthsToLines(null, 3), []);
+});

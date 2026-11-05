@@ -159,6 +159,36 @@
     return out;
   }
 
+  // Column widths are saved as percentages that add up to 100, one per column.
+  // Anything missing or unusable gives null, which means "every column the same width".
+  var MIN_COLUMN_PERCENT = 6;
+  function normalizeTableWidths(widths, columns) {
+    if (!Array.isArray(widths) || widths.length !== columns || !columns) { return null; }
+    var numbers = widths.map(Number);
+    var total = 0;
+    for (var i = 0; i < numbers.length; i += 1) {
+      if (!isFinite(numbers[i]) || numbers[i] <= 0) { return null; }
+      total += numbers[i];
+    }
+    var scaled = numbers.map(function (n) { return Math.max(MIN_COLUMN_PERCENT, Math.round(n / total * 1000) / 10); });
+    var sum = scaled.reduce(function (a, b) { return a + b; }, 0);
+    // Hand any rounding difference to the last column so the total is exactly 100
+    scaled[scaled.length - 1] = Math.round((scaled[scaled.length - 1] + 100 - sum) * 10) / 10;
+    return scaled[scaled.length - 1] >= MIN_COLUMN_PERCENT ? scaled : null;
+  }
+
+  // The "TABLE WIDTHS" section is one line: 30 | 20 | 50
+  function parseTableWidths(lines, columns) {
+    var text = (lines || []).join(' ').trim();
+    if (!text) { return null; }
+    return normalizeTableWidths(text.split('|').map(function (part) { return parseFloat(part); }), columns);
+  }
+
+  function tableWidthsToLines(widths, columns) {
+    var clean = normalizeTableWidths(widths, columns);
+    return clean ? [clean.join(' | ')] : [];
+  }
+
   /* ---------- People ---------- */
 
   // The roles a person holds today, from the team roster
@@ -882,6 +912,9 @@
     parseTableLines: parseTableLines,
     tableToLines: tableToLines,
     normalizeTable: normalizeTable,
+    normalizeTableWidths: normalizeTableWidths,
+    parseTableWidths: parseTableWidths,
+    tableWidthsToLines: tableWidthsToLines,
     reassignRole: reassignRole,
     setOwner: setOwner,
     setOwnerInText: setOwnerInText,

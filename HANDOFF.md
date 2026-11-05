@@ -758,3 +758,13 @@ screenshot is the source of truth for spacing.
 1. Split into `index.html`, `styles.css`, `app.js`: done.
 2. Blob download and the Node AI endpoint: done.
 3. Playwright suite covering the behaviors under Testing: not started.
+
+## Table column widths
+
+A table's column widths are dragged in the editor (grab the right edge of a header cell; double-click it to reset to
+equal). They are saved with the page as an optional `TABLE WIDTHS` section next to `TABLE`, one line of percentages
+(`15.8 | 50.9 | 33.3`) that add up to 100, and used by the live preview and the PDF. No section means equal columns.
+Adding or removing a column resets the widths. Import does not read widths from the source document.
+
+Styling options (the text formatting bar, table tools, and a step's Note/Warning/Code buttons) sit above their section.
+Download backup and Restore from backup are shown to the team lead only.
