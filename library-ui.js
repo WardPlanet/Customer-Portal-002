@@ -257,11 +257,6 @@
 
     var backupLine = el('p', 'lib-backup');
     main.appendChild(backupLine);
-    if (window.Store.backend.mode === 'local') {
-      var note = el('p', 'lib-note', 'Pages here are kept only in this browser, for trying the workflow. Download a backup now and then: clearing the browser\u2019s data would remove them.');
-      main.appendChild(note);
-    }
-
     var queue = el('section', 'lib-queue');
     queue.hidden = true;
     main.appendChild(queue);
@@ -283,7 +278,6 @@
     filters.appendChild(search);
     filters.appendChild(status);
     main.appendChild(filters);
-    main.appendChild(el('p', 'lib-hint', 'Search looks only at the live version of each page. Drafts, pages in review and older versions are never searched.'));
 
     var listBox = el('div', 'lib-list');
     main.appendChild(listBox);
