@@ -556,6 +556,13 @@ role holder. Not built yet; today the Team & roles pop-up accepts any typed name
   transferred documents (Transfer pages, and changing a page's owner, must refuse a role whose person has not accepted).
   Show such people as "invited" in the Team & roles list.
 
+**Planned requirement: company-wide library.** When more teams exist, a person choosing related pages (and, later, search) should draw
+from the whole company's live pages, not only their own or their team's. Today there is one team, so the related-pages
+search already covers every live page (`?live=1`). To build later: list the teams, read each team's live pages, let a page
+link to one in another team (page links, the preview and the related list currently look a page up in the signed-in
+person's team), and keep the rule that only live pages are offered. Drafts and pages waiting for approval stay private to their
+team.
+
 **Where pages live.** On the server: `drafts/<team>/pages/<id>/page.json` (the page and the facts about each
 version) plus `v1.txt`, `v2.txt` ... (each version's text in the draft format). In the artifact: this
 browser's storage (so pages exist only in that browser; clearing it loses them). API: `/api/library/...`
