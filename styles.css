@@ -1890,11 +1890,11 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .block-menu #menu-headers[hidden] { display: none; }
 .block-menu #menu-headers button { flex: none; }
 
-/* Drag handle on the right edge of a table's header cells: changes that column's width */
-.edit-table .table-head .table-cell { position: relative; }
+/* Drag handle on the right edge of every table cell: changes that column's width */
+.edit-table .table-cell { position: relative; }
 .edit-table .col-grip { position: absolute; top: 0; right: -4px; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; user-select: none; }
-.edit-table .col-grip::after { content: ""; position: absolute; top: 20%; bottom: 20%; left: 3px; width: 2px; border-radius: 1px; background: transparent; }
-.edit-table .table-head:hover .col-grip::after, .edit-table.is-resizing .col-grip::after { background: var(--border-strong); }
+.edit-table .col-grip::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; border-radius: 1px; background: transparent; }
+.edit-table:hover .col-grip::after, .edit-table.is-resizing .col-grip::after { background: var(--border-strong); }
 .edit-table .col-grip:hover::after { background: var(--accent); }
 .edit-table.is-resizing { user-select: none; cursor: col-resize; }
 .preview-table[style*="table-layout"] th, .preview-table[style*="table-layout"] td { overflow-wrap: anywhere; }

@@ -205,6 +205,7 @@
         var after = cell ? cell.parentNode : rowsNow[rowsNow.length - 1];
         var row = buildTableRow(Array.prototype.map.call(rowsNow[0].children, function () { return ''; }), false);
         body.insertBefore(row, after.nextSibling);
+        placeGrips();
         changed();
         return row;
       }
@@ -238,7 +239,7 @@
         changed();
       }
 
-      // Widths: null means every column the same. Dragging the right edge of a header cell moves that column's border.
+      // Widths: null means every column the same. Dragging the right edge of any cell moves that column's border.
       var widths = window.Workflow.normalizeTableWidths(savedWidths, data[0].length);
       function columnCount() { return body.children[0].children.length; }
       function applyWidths() {
@@ -254,12 +255,13 @@
       function currentWidths() { return widths || Array.apply(null, Array(columnCount())).map(function () { return 100 / columnCount(); }); }
       table.getWidths = function () { return widths ? widths.slice() : null; };
 
-      // One drag handle on the right edge of every header cell except the last
+      // A drag handle on the right edge of every cell except the last column, so the whole column can be grabbed
       function placeGrips() {
-        Array.prototype.forEach.call(body.children[0].children, function (cell, i, all) {
+        Array.prototype.forEach.call(body.querySelectorAll('.table-cell'), function (cell) {
           var old = cell.querySelector('.col-grip');
           if (old) { old.remove(); }
-          if (i === all.length - 1) { return; }
+          var i = columnOf(cell);
+          if (i === cell.parentNode.children.length - 1) { return; }
           var grip = document.createElement('span');
           grip.className = 'col-grip';
           grip.contentEditable = 'false';
