@@ -471,6 +471,12 @@ under it (Expand all, Collapse) stay at the bottom of the box, over the end of t
 "Complete" in green and goes away after eight seconds; if you were on the import screen when it finished, you see the results
 there instead. The results link each draft's preview.
 
+**Selecting several pages (team lead).** The lead's library has a checkbox on every row and a select-all box in the heading. Ticking
+pages shows a bar ("3 selected") with **Publish** (pages that have a draft), **Unpublish** (live pages), **Change owner...**, **Delete**
+and **Clear**. Unpublish, Change owner and Delete ask once for the whole group; Publish does not ask and, unlike a single page's
+Publish, does not download text files (a bulk publish would send one per page). The pages are done one after another; one that
+fails does not stop the rest, and the message says how many worked and why any did not.
+
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
 button the page used to have.

@@ -1826,3 +1826,11 @@
 .batch-widget-fill { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.25s ease; }
 .batch-widget.is-complete .batch-widget-label { color: #1a8f3c; }
 .batch-widget.is-complete .batch-widget-fill { background: #1a8f3c; }
+
+/* Bulk selection in the library (team lead) */
+.lib-select-cell { width: 34px; padding-right: 0; }
+.lib-select-cell input { width: 16px; height: 16px; cursor: pointer; }
+.lib-row.is-selected td { background: var(--accent-soft); }
+.lib-bulk { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 10px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1); }
+.lib-bulk[hidden] { display: none; }
+.lib-bulk-count { margin-right: 6px; }

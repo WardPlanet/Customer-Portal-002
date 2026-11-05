@@ -23,7 +23,7 @@
 
   var team = null;
   var current = { id: null, n: null, backTo: '#/' };   // what the editor is showing
-  var libraryFilters = { q: '', status: '', sortKey: 'updated', sortDown: true };   // sortDown: newest / Z first
+  var libraryFilters = { q: '', status: '', sortKey: 'updated', sortDown: true, selected: {} };   // selected: page ids ticked for a bulk action (team lead)   // sortDown: newest / Z first
 
   // Counts navigations. A screen that finishes loading after the person has already moved on must not
   // draw itself, so each screen remembers the count when it started and checks it after every wait.
@@ -404,6 +404,50 @@
     });
   }
 
+  /* ---------- Bulk actions (team lead): tick pages, then publish, unpublish, change owner or delete them together ---------- */
+  // Runs `work(page)` on each page one after another, then says what happened. A page that fails does not stop the others.
+  async function runBulk(list, work, doneVerb, failVerb) {
+    var failures = [];
+    var done = 0;
+    for (var i = 0; i < list.length; i += 1) {
+      try { await work(list[i]); done += 1; } catch (error) { failures.push('\u201c' + list[i].title + '\u201d: ' + (error && error.message ? error.message : 'that did not work.')); }
+    }
+    libraryFilters.selected = {};
+    var text = doneVerb + ' ' + done + (done === 1 ? ' page.' : ' pages.');
+    if (failures.length) { text += ' ' + failures.length + ' ' + failVerb + ': ' + failures.slice(0, 2).join('; ') + (failures.length > 2 ? '; and more.' : ''); }
+    notice(text);
+    route();
+  }
+
+  // Publish needs a draft (or a version in review). Pages without one are left out and counted.
+  async function bulkPublish(list) {
+    var ready = list.filter(function (p) { return p.workingVersion; });
+    if (!ready.length) { notice('None of the selected pages has a draft to publish.'); return; }
+    // No text files are downloaded here: a bulk publish would send one file per page
+    await runBulk(ready, function (p) { return backend().act(p.id, p.workingVersion.n, 'publish'); }, 'Published', 'could not be published');
+  }
+
+  async function bulkUnpublish(list) {
+    var live = list.filter(function (p) { return p.liveVersion; });
+    if (!live.length) { notice('None of the selected pages is live.'); return; }
+    if (!(await window.askConfirm(live.length + (live.length === 1 ? ' page' : ' pages') + ' will no longer be live or searchable until a version is approved again.', { title: 'Take these pages down?', ok: 'Unpublish' }))) { return; }
+    await runBulk(live, function (p) { return backend().unpublish(p.id); }, 'Unpublished', 'could not be unpublished');
+  }
+
+  async function bulkDelete(list) {
+    var liveCount = list.filter(function (p) { return p.liveVersion; }).length;
+    var question = 'This removes ' + list.length + (list.length === 1 ? ' page' : ' pages') + ' and every version of ' + (list.length === 1 ? 'it' : 'them') + '.' +
+      (liveCount ? ' ' + liveCount + (liveCount === 1 ? ' is' : ' are') + ' live and will disappear from the library, search and the public site.' : '') +
+      ' It cannot be undone, except from a backup you downloaded earlier.';
+    if (!(await window.askConfirm(question, { title: 'Delete ' + list.length + (list.length === 1 ? ' page?' : ' pages?'), ok: 'Delete them' }))) { return; }
+    await runBulk(list, function (p) { return backend().remove(p.id); }, 'Deleted', 'could not be deleted');
+  }
+
+  async function bulkSetOwner(list, role) {
+    if (!(await window.askConfirm('Give ' + list.length + (list.length === 1 ? ' page' : ' pages') + ' to ' + roleLabel(role) + '?', { title: 'Change the owner?', ok: 'Change owner' }))) { return; }
+    await runBulk(list, function (p) { return backend().setOwner(p.id, role); }, 'Changed the owner of', 'could not be changed');
+  }
+
   function renderList(box, pages) {
     box.textContent = '';
     var shown = pages.filter(function (p) {
@@ -413,8 +457,61 @@
       box.appendChild(el('p', 'lib-empty', pages.length ? 'No pages match that filter.' : 'No pages yet. Choose New page to write the first one.'));
       return;
     }
+    var canBulk = actorIsLead();   // the team lead can tick pages for a bulk action
+    var selected = libraryFilters.selected;
+    Object.keys(selected).forEach(function (id) { if (!pages.some(function (p) { return p.id === id; })) { delete selected[id]; } });
+    var selectAll = null;
+    var bulkBar = null;
+    function chosenPages() { return pages.filter(function (p) { return selected[p.id]; }); }
+    function updateBulk() {
+      var picked = chosenPages();
+      if (bulkBar) {
+        bulkBar.hidden = !picked.length;
+        bulkBar.querySelector('.lib-bulk-count').textContent = picked.length + ' selected';
+      }
+      if (selectAll) {
+        var visibleIds = shown.map(function (p) { return p.id; });
+        var ticked = visibleIds.filter(function (id) { return selected[id]; }).length;
+        selectAll.checked = ticked > 0 && ticked === visibleIds.length;
+        selectAll.indeterminate = ticked > 0 && ticked < visibleIds.length;
+      }
+    }
+    if (canBulk) {
+      bulkBar = el('div', 'lib-bulk');
+      bulkBar.setAttribute('role', 'toolbar');
+      bulkBar.setAttribute('aria-label', 'Actions for the selected pages');
+      bulkBar.appendChild(el('strong', 'lib-bulk-count', ''));
+      bulkBar.appendChild(button('Publish', 'row-btn row-btn-publish', function () { bulkPublish(chosenPages()); }));
+      bulkBar.appendChild(button('Unpublish', 'row-btn', function () { bulkUnpublish(chosenPages()); }));
+      var ownerPick = el('select', 'acting-select');
+      ownerPick.setAttribute('aria-label', 'Change the owner of the selected pages');
+      var ownerPrompt = el('option', '', 'Change owner\u2026');
+      ownerPrompt.value = '';
+      ownerPick.appendChild(ownerPrompt);
+      team.roles.forEach(function (role) { var option = el('option', '', role.title + ' \u2014 ' + (role.person || 'unassigned')); option.value = role.title; ownerPick.appendChild(option); });
+      ownerPick.addEventListener('change', async function () { var role = ownerPick.value; ownerPick.value = ''; if (role) { await bulkSetOwner(chosenPages(), role); } });
+      bulkBar.appendChild(ownerPick);
+      bulkBar.appendChild(button('Delete', 'row-btn row-btn-danger', function () { bulkDelete(chosenPages()); }));
+      bulkBar.appendChild(button('Clear', 'row-btn', function () {
+        libraryFilters.selected = {};
+        renderList(box, pages);
+      }));
+      box.appendChild(bulkBar);
+    }
     var table = el('table', 'lib-table');
     var headRow = el('tr');
+    if (canBulk) {
+      var selectHead = el('th', 'lib-select-cell');
+      selectAll = el('input');
+      selectAll.type = 'checkbox';
+      selectAll.setAttribute('aria-label', 'Select all pages shown');
+      selectAll.addEventListener('change', function () {
+        shown.forEach(function (p) { if (selectAll.checked) { selected[p.id] = true; } else { delete selected[p.id]; } });
+        renderList(box, pages);
+      });
+      selectHead.appendChild(selectAll);
+      headRow.appendChild(selectHead);
+    }
     var canDelete = true;   // every row has a delete-type button; which one depends on who is asking and whether the page is live
     // Each heading sorts the list; choosing the same one again reverses it
     [['title', 'Page'], ['status', 'Status'], ['owner', 'Owner'], ['visibility', 'Visibility'], ['updated', 'Updated']].forEach(function (pair) {
@@ -439,6 +536,21 @@
     var body = el('tbody');
     sortRows(shown).forEach(function (p) {
       var row = el('tr', 'lib-row');
+      if (canBulk) {
+        var tickCell = el('td', 'lib-select-cell');
+        var tick = el('input');
+        tick.type = 'checkbox';
+        tick.checked = !!selected[p.id];
+        tick.setAttribute('aria-label', 'Select ' + p.title);
+        row.classList.toggle('is-selected', tick.checked);
+        tick.addEventListener('change', function () {
+          if (tick.checked) { selected[p.id] = true; } else { delete selected[p.id]; }
+          row.classList.toggle('is-selected', tick.checked);
+          updateBulk();
+        });
+        tickCell.appendChild(tick);
+        row.appendChild(tickCell);
+      }
       var nameCell = el('td');
       // The title opens the public preview of the page (its live version, or its latest if it is not live yet)
       var titleLink = link(p.title, previewUrl(p.id), 'lib-page-link');
@@ -530,6 +642,7 @@
     });
     table.appendChild(body);
     box.appendChild(table);
+    updateBulk();
   }
 
   // "Version" only means a published version: Version 1, Version 2... A draft is just a draft.
