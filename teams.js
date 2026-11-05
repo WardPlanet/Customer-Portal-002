@@ -25,6 +25,9 @@ export async function readTeam() {
   // default while review is not in use) or only the "lead". Changing it to "lead" removes the option for
   // everyone else.
   team.directPublish = team.directPublish === 'lead' ? 'lead' : 'anyone';
+  // "ai": "off" turns every AI feature off (import, assist, keywords, link text). The built-in converter and the
+  // rule-based keywords take over. Anything else means on (and the built-in converter is still the backup when the AI fails).
+  team.ai = team.ai === 'off' ? 'off' : 'on';
   // "icon" is the small picture shown beside this team's pages in search results (only "website" exists so far)
   team.icon = team.icon === 'website' ? team.icon : '';
   // "supportUrl" is where the public is sent for help on Client-Safe pages (empty until it is decided)

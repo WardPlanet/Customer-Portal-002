@@ -995,14 +995,14 @@
       // AI assist unlocks under the same rule: every required field is filled in
       var aiAssist = byId('ai-assist');
       // Greyed out only when there is no AI at all. After a failed try inside Claude it stays clickable, and a click retries.
-      var aiGone = aiUnavailable && !(window.claude && typeof window.claude.use === 'function') && aiMode !== 'server';
+      var aiGone = aiTurnedOff() || (aiUnavailable && !(window.claude && typeof window.claude.use === 'function') && aiMode !== 'server');
       aiAssist.setAttribute('aria-disabled', String(!complete || aiGone));
       // Publish (skips review) is offered only to whoever the team allows. The server checks again.
       byId('publish-draft').hidden = !(window.PageHost && window.PageHost.canPublish && window.PageHost.canPublish());
       var importBtn = byId('import-doc');
-      importBtn.setAttribute('aria-disabled', String(aiGone || isImporting));
-      if (aiGone) { importBtn.title = 'Importing needs the AI, which isn\u2019t available in this view'; }
-      if (aiGone) { aiAssist.title = 'AI assist isn\u2019t available in this view'; }
+      // Importing never depends on the AI: without it the built-in converter does the work
+      importBtn.setAttribute('aria-disabled', String(isImporting));
+      if (aiGone) { aiAssist.title = aiTurnedOff() ? 'The AI is turned off for this wiki' : 'AI assist isn\u2019t available in this view'; }
       else { aiAssist.title = complete ? 'Scan this page and suggest improvements' : 'Fill in the required fields (*) first'; }
     }
 
@@ -1942,7 +1942,13 @@
       try {
         retryAi();
         var sample = await getSample();
-        if (!sample) { hint.textContent = automatic ? 'Type what the link should say.' : 'The AI isn\u2019t available. Type what the link should say.'; return; }
+        if (!sample) {
+          // No AI: the text is made from the address ("Refund policy (example.com)")
+          var made = window.Convert.linkTextFromUrl(url);
+          if (made && (!automatic || !linkTextInput.value.trim())) { linkTextInput.value = made; }
+          hint.textContent = 'Made from the address, because the AI isn\u2019t available. Change it if you like.';
+          return;
+        }
         var context = activeRich ? readText(activeRich).slice(0, 400) : '';
         var result = await sample.json([
           'Write the link text for a web address in a process-documentation page.',
@@ -1952,12 +1958,14 @@
           'Web address: ' + url,
           'The text around it: ' + context
         ].join(NL), { modelTier: 'quick' });
-        var text = oneLine(result && result.text, 80);
-        if (!text) { hint.textContent = 'The AI had no suggestion. Type what the link should say.'; return; }
+        var text = oneLine(result && result.text, 80) || window.Convert.linkTextFromUrl(url);
+        if (!text) { hint.textContent = 'No suggestion. Type what the link should say.'; return; }
         if (!automatic || !linkTextInput.value.trim()) { linkTextInput.value = text; }
         hint.textContent = 'Suggested by the AI. Change it if you like.';
       } catch (error) {
-        hint.textContent = 'No suggestion this time. Type what the link should say.';
+        var fallback = window.Convert.linkTextFromUrl(url);
+        if (fallback && (!automatic || !linkTextInput.value.trim())) { linkTextInput.value = fallback; }
+        hint.textContent = 'The AI did not answer, so the text was made from the address. Change it if you like.';
       } finally {
         suggestingLink = false;
       }
@@ -2286,7 +2294,12 @@
       return window.claude.use('downloads').catch(function () { return null; });
     }
 
+    // The team file can turn the AI off altogether ("ai": "off"). The built-in converter, the rule-based keywords and the
+    // link text made from the address then do the work.
+    function aiTurnedOff() { return !!(roster && roster.ai === 'off'); }
+
     function getSample() {
+      if (aiTurnedOff()) { return Promise.resolve(null); }
       if (!aiStatusCheck) {
         // The single-file Claude artifact has no server of its own: it uses Claude's built-in AI (the chat it is
         // hosted in) and does not look for an AI server. When the real API is plugged in, run the server version.
@@ -2573,6 +2586,7 @@
 
     async function runAiAssist() {
       if (aiController) { aiController.abort(); return; }   // a click while scanning cancels
+      if (aiTurnedOff()) { showNotice('The AI is turned off for this wiki.'); return; }
       retryAi();
       if (aiUnavailable) {
         showNotice('AI assist isn\u2019t available in this view.');
@@ -2652,20 +2666,37 @@
 
     // Saving never waits on AI forever or fails because of it: without AI the draft saves with the
     // keywords it already had.
+    // Keywords made from the page's own words, with no AI (see convert.cjs). The backup, and what is used when the AI is off.
+    function ruleBasedKeywords() {
+      var blocks = readBlocks();
+      var headings = [];
+      var body = [];
+      blocks.forEach(function (block) {
+        if (block.type === 'header') { headings.push(block.text); }
+        else if (block.type === 'step') { headings.push(block.title); body.push(block.text); block.items.forEach(function (item) { if (item.type !== 'code') { body.push(item.text); } }); }
+        else if (block.type === 'code') { return; }
+        else { body.push(block.text); }
+      });
+      return window.Convert.keywords({ title: readText(titleEl), description: readText(descriptionEl), headings: headings, body: body.join(' ') }, KEYWORD_COUNT);
+    }
+
     async function refreshKeywords() {
-      if (isMakingKeywords || aiUnavailable) { return; }
+      if (isMakingKeywords) { return; }
       isMakingKeywords = true;
       try {
         var sample = await getSample();
-        if (!sample) { return; }
-        showNotice('Preparing your draft\u2026');
-        var keywords = cleanKeywords(await sample.json(buildKeywordPrompt(), { modelTier: 'quick' }));
-        if (keywords.length) {
-          state.keywords = keywords;
+        var keywords = [];
+        if (sample && !aiUnavailable) {
+          showNotice('Preparing your draft\u2026');
+          try {
+            keywords = cleanKeywords(await withTimeout(sample.json(buildKeywordPrompt(), { modelTier: 'quick' }), 8000));
+          } catch (error) {
+            // Keywords are a background extra. If the AI fails, or is slow, the page's own words are used instead.
+            console.warn('The AI did not write the search keywords:', error);
+          }
         }
-      } catch (error) {
-        // Keywords are a background extra. If they fail the page is saved without them; it must not switch off AI assist.
-        console.warn('Search keywords were not made:', error);
+        if (!keywords.length) { keywords = ruleBasedKeywords(); }
+        if (keywords.length) { state.keywords = keywords; }
       } finally {
         isMakingKeywords = false;
       }
@@ -2853,9 +2884,11 @@
 
     function showImportReview(result) {
       byId('import-dialog-title').textContent = 'Imported ' + result.source;
-      byId('import-dialog-hint').textContent = result.review_notes.length
-        ? 'The AI restructured this document using the house guidelines. Check these points before saving:'
-        : 'The AI flagged nothing, but read the page through before saving. Nothing has been saved yet.';
+      byId('import-dialog-hint').textContent = result.builtIn
+        ? 'This page was made by the built-in converter, not the AI. Check these points before saving:'
+        : result.review_notes.length
+          ? 'The AI restructured this document using the house guidelines. Check these points before saving:'
+          : 'The AI flagged nothing, but read the page through before saving. Nothing has been saved yet.';
       var list = byId('import-notes');
       list.innerHTML = '';
       result.review_notes.forEach(function (note) {
@@ -3051,6 +3084,63 @@
       return result;
     }
 
+    // A promise that gives up after a while, so a slow or stuck AI never holds anything up
+    function withTimeout(promise, milliseconds) {
+      return new Promise(function (resolve, reject) {
+        var timer = setTimeout(function () { var late = new Error('The AI took too long.'); late.code = 'timeout'; reject(late); }, milliseconds);
+        promise.then(function (value) { clearTimeout(timer); resolve(value); }, function (error) { clearTimeout(timer); reject(error); });
+      });
+    }
+
+    // The backup for the AI: a document turned into a page by fixed rules (see convert.cjs). Headings, paragraphs, bullet
+    // lists, numbered lists (as steps) and tables are kept; the title and description come from the document.
+    async function convertWithoutAi(file) {
+      var Batch = window.Batch;
+      var segments;
+      var imageNote = '';
+      if (/\.docx$/i.test(file.name)) {
+        var word = await wordToHtml(file);
+        segments = Batch.htmlToSegments(word.html);
+        if (word.imageCount) { imageNote = word.imageCount + ' image(s) in the original were not imported. Add them back by hand where needed.'; }
+      } else if (/\.pdf$/i.test(file.name)) {
+        var pdfText = await extractPdfText(file);
+        if (!pdfText.trim()) { throw importProblem('That PDF has no selectable text (it may be a scan), so it cannot be read.'); }
+        segments = Batch.pdfTextToSegments(pdfText);
+      } else if (/\.html?$/i.test(file.name)) {
+        segments = Batch.htmlToSegments(await file.text());
+      } else if (/\.(txt|md)$/i.test(file.name)) {
+        segments = Batch.textToSegments(await file.text());
+      } else {
+        throw importProblem('Choose a .docx, .pdf, .txt or .md file, or paste the text. (Older .doc files: open them in Word and save as .docx.)');
+      }
+      if (!segments.length) { throw importProblem('There is no text in that file.'); }
+      var result = window.Convert.fromSegments(segments, file.name, window.Workflow.normalizeTable);
+      result.builtIn = true;
+      result.source = file.name;
+      if (imageNote) { result.review_notes.push(imageNote); }
+      return result;
+    }
+
+    // Converts a document: with the AI when it is on and working, otherwise (or if it fails or is too slow) with the built-in
+    // converter. The result says which was used, in its review notes.
+    async function convertAny(file) {
+      var sample = await getSample();
+      var why = sample ? '' : (aiTurnedOff() ? 'The AI is turned off for this wiki' : 'The AI is not available');
+      if (sample) {
+        try {
+          return await withTimeout(aiMode === 'server' ? importViaServer(file) : importViaClaude(file, sample), 120000);
+        } catch (error) {
+          if (error && error.code === 'cancelled') { throw error; }
+          // A problem with the file itself (too big, not a real .docx) would be the same without the AI
+          if (error && error.userMessage && !/AI/.test(error.userMessage) && !(error instanceof TypeError)) { throw error; }
+          why = 'The AI did not work (' + (error instanceof TypeError ? 'the server could not be reached' : importErrorMessage(error).replace(/\.$/, '')) + ')';
+        }
+      }
+      var result = await convertWithoutAi(file);
+      result.review_notes.unshift(why + ', so the built-in converter was used.');
+      return result;
+    }
+
     function importErrorMessage(error) {
       if (error && error.userMessage) { return error.userMessage; }
       var code = error && error.code;
@@ -3063,18 +3153,13 @@
     // Resolves to true when the page was filled in, false when nothing changed
     async function importDocumentFile(file) {
       if (isImporting) { return false; }
-      var sample = await getSample();
-      if (!sample) {
-        showNotice('Importing needs the AI, which isn\u2019t available in this view.');
-        return false;
-      }
       if (pageHasContent() && !(await window.askConfirm('Importing replaces everything on this page.', { title: 'Replace this page?', ok: 'Replace it' }))) { return false; }
 
       isImporting = true;
       importButton.setAttribute('aria-disabled', 'true');
       importButton.textContent = 'Importing\u2026';
       try {
-        var result = aiMode === 'server' ? await importViaServer(file) : await importViaClaude(file, sample);
+        var result = await convertAny(file);
         applyDraft(importResultToSections(result));
         setStatus('Imported, not saved yet', false);
         showImportReview(result);
@@ -3092,7 +3177,7 @@
     importButton.addEventListener('click', async function () {
       if (!isImporting) { retryAi(); }
       if (importButton.getAttribute('aria-disabled') === 'true') {
-        showNotice(aiUnavailable ? 'Importing needs the AI, which isn\u2019t available in this view.' : 'An import is already running.');
+        showNotice('An import is already running.');
         return;
       }
       importSourceDialog.showModal();
@@ -3715,9 +3800,7 @@
 
     /* ----- Used by batch import (batch.js): converting without touching the editor screen ----- */
     async function convertFile(file) {
-      var sample = await getSample();
-      if (!sample) { throw importProblem('Importing needs the AI, which isn\u2019t available in this view.'); }
-      return aiMode === 'server' ? importViaServer(file) : importViaClaude(file, sample);
+      return convertAny(file);
     }
 
     // The complete draft text for an imported result, with the defaults a new page gets. The owner (a

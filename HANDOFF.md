@@ -11,6 +11,7 @@ only work inside Claude's artifact runtime, and what is still open.
 | `index.html` | Page markup. No build step, no dependencies. The only external request is the Inter font from Google Fonts, with system fonts as fallback. |
 | `styles.css` | The stylesheet (originally inline in `page-editor.html`). |
 | `app.js` | The script (originally inline in `page-editor.html`). |
+| `convert.cjs` | The backups for the AI: document to page by fixed rules, rule-based keywords, link text from an address. |
 | `search.cjs` | The search: ranking, word forms, typing mistakes, phrases (used by the server and the artifact). |
 | `HANDOFF.md` | This file. |
 
@@ -574,6 +575,21 @@ role holder. Not built yet; today the Team & roles pop-up accepts any typed name
 - **invitations:** adding an Azure account to a team sends it an invitation. Until that account accepts, it cannot receive
   transferred documents (Transfer pages, and changing a page's owner, must refuse a role whose person has not accepted).
   Show such people as "invited" in the Team & roles list.
+
+**The AI is optional: what happens without it.** The wiki is meant to keep working with the AI off, not allowed, slow or down. Every
+AI feature has a backup, and `"ai": "off"` in `teams/legwork-web-team.json` turns the AI off altogether (the buttons say so).
+
+| Feature | With the AI | Without it (off, not available, error or no answer) |
+| --- | --- | --- |
+| Import document / batch import | The AI restructures the document with the house guidelines | `convert.cjs` builds the page by fixed rules: the first big heading is the title, the first short paragraph the description, other headings become headers, bullet lists stay bullets, **numbered lists become steps**, tables become tables. The review notes say it was the built-in converter, and the lead checks the draft as usual |
+| Splitting one file into several documents | The AI finds where each starts | Split at the top-level headings (already the backup) |
+| Search keywords on save | The AI writes 10 | The page's own words: phrases from the title and headings first, then the most-used words (limit 8 seconds for the AI, then the rule-based ones are used, so a slow AI never holds up Save) |
+| Link text for a web address | The AI suggests | Made from the address ("Refund policy (example.com)") |
+| Section assist, AI assist (suggestions) | The AI suggests changes | No backup: the button is greyed out, and nothing else depends on it |
+| Search, related pages, everything else | Not AI | Not AI |
+
+A conversion that falls back is not a failure: it is marked in the draft's review notes. The AI calls for import have a 2-minute limit.
+Scanned PDFs (no real text) still cannot be read without text recognition (OCR).
 
 **Planned requirement: company-wide library.** When more teams exist, a person choosing related pages (and, later, search) should draw
 from the whole company's live pages, not only their own or their team's. Today there is one team, so the related-pages

@@ -3,6 +3,7 @@
   "slug": "legwork-web-team",
   "lead": "Web Team Manager",
   "directPublish": "lead",
+  "ai": "on",
   "icon": "website",
   "supportUrl": "",
   "locations": [
