@@ -1949,8 +1949,14 @@
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
     else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true, parts[2]); }
     else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; } }); }
+    else if (screen === 'search-review') {
+      showScreen('library', false);
+      document.getElementById('nav-library').classList.remove('is-current');
+      window.SearchReview.show(main, { el: el, button: button });
+    }
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }
+    document.getElementById('nav-review').classList.toggle('is-current', screen === 'search-review');
   }
 
   window.addEventListener('hashchange', route);

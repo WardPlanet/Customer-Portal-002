@@ -48,6 +48,7 @@ variables take priority). `.env.example` documents each one.
 | `workflow.cjs` | The rules for versions, review, search and the public view (used by the server and the browser). Tested by `npm test`. |
 | `library.js` | Stores pages and versions as files and serves the library and public routes. |
 | `store.js`, `library-ui.js` | The browser side of the library: where pages come from, and the library screens. |
+| `search-review.js` | Search review screen (preview with made-up data; the real search log is not built yet). |
 | `batch.js`, `batch-core.cjs` | Batch import: split one file holding several documents into several draft pages (the splitting rules are in `batch-core.cjs`, tested). |
 | `drafts/` | Pages, in one folder per team (`drafts/legwork-web-team/pages/<id>/`): `page.json` plus one `.txt` per version. Created on first save. Not in git. |
 

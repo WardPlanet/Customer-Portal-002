@@ -789,3 +789,13 @@ The Domain Manager role is now **Copywriter** (still held by Mataya). The Copywr
 review (no-result searches, repeated searches, synonyms) once it is built (not built yet). Later, a person may
 need to hold several roles, and the review may be assignable to a role other than the lead; roles are already separate
 from people, so this is a roster change, not a code change.
+
+## Search review (preview)
+
+`#/search-review` ("Search review" in the top bar, open to every member for now; `search-review.js`) is a preview of the
+weekly review screen using **made-up sample data**: searches that found nothing (approve / edit a synonym, ask for a new
+page, dismiss), searches people repeated (choose the right page, save as test), and the most common searches (pin a page,
+show in the dropdown), plus a Decisions list with Undo and a Reset sample data button. Decisions are kept in the browser
+only and do **not** change the real search. To make it real: log searches (text, result count, clicked result and position,
+no names), feed the three lists from the log, store approved synonyms/pins/tests on the server, and apply them in
+`search.cjs`. Limit the screen to a role (the Copywriter) when that is decided.
