@@ -1122,7 +1122,8 @@
   }
 
   // The related pages for a live page: the ones the author chose come first, in the order they chose, then other live
-  // pages that share the owner role or a linked role. Up to 8; only Client-Safe ones when viewed as the public.
+  // pages that share the owner role or a linked role. Five in all, unless the author chose more than five (then all of theirs);
+  // only Client-Safe ones when viewed as the public.
   async function relatedPages(id, pageFields, publicOnly) {
     var roles = [pageFields.owner].concat(pageFields.linkedRoles).filter(Boolean);
     var all = await attempt(backend().list('', true));
@@ -1131,10 +1132,12 @@
     var chosen = (pageFields.related || []).map(function (relatedId) {
       return all.pages.filter(function (p) { return p.id === relatedId; })[0];
     }).filter(function (p) { return p && allowed(p); });
+    // Five are shown. If the author chose more than five, all of theirs are shown (and nothing is added to them).
+    var limit = Math.max(5, chosen.length);
     var matches = chosen.concat(all.pages.filter(function (p) {
       if (!allowed(p) || chosen.indexOf(p) >= 0) { return false; }
       return roles.indexOf(p.owner) >= 0 || (p.linkedRoles || []).some(function (role) { return roles.indexOf(role) >= 0; });
-    })).slice(0, 8);
+    })).slice(0, limit);
     if (!matches.length) { return null; }
     var box = el('section', 'side-card');
     box.appendChild(el('h2', 'side-title', 'Related pages'));

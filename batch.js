@@ -200,7 +200,74 @@
 
   /* ---------- The screen ---------- */
 
+  /* ---------- A creation that keeps going when you leave the screen ----------
+     While drafts are being made, leaving the Batch import screen does not stop them. A small button in the corner shows
+     the progress and takes you back to the screen; when the work is done it says "Complete" and goes away after a few
+     seconds. `active` is the import the screen belongs to; the screen is drawn again from its state when you return. */
+  var active = null;
+  var widget = null;
+  var widgetTimer = null;
+  var WIDGET_SECONDS = 8;
+
+  function hideWidget() {
+    if (widget) { widget.hidden = true; }
+    clearTimeout(widgetTimer);
+    widgetTimer = null;
+  }
+
+  function updateWidget() {
+    var state = active && active.snapshot ? active.snapshot() : null;
+    var onBatchScreen = /^#\/batch/.test(location.hash);
+    if (!state || onBatchScreen || (state.stage !== 'creating' && state.stage !== 'done') || (state.stage === 'done' && state.seen)) { hideWidget(); return; }
+
+    if (!widget) {
+      widget = document.createElement('button');
+      widget.type = 'button';
+      widget.className = 'batch-widget';
+      widget.setAttribute('role', 'status');
+      widget.addEventListener('click', function () { location.hash = '#/batch'; });
+      document.body.appendChild(widget);
+    }
+    widget.hidden = false;
+    widget.textContent = '';
+    var label = document.createElement('span');
+    label.className = 'batch-widget-label';
+    var track = document.createElement('span');
+    track.className = 'batch-widget-track';
+    var fill = document.createElement('span');
+    fill.className = 'batch-widget-fill';
+    track.appendChild(fill);
+    if (state.stage === 'creating') {
+      widget.classList.remove('is-complete');
+      label.textContent = 'Creating drafts \u00b7 ' + (state.finished) + ' of ' + state.total;
+      fill.style.width = Math.round(100 * (state.total ? state.finished / state.total : 0)) + '%';
+      widget.title = 'Back to the import';
+      clearTimeout(widgetTimer);
+      widgetTimer = null;
+    } else {
+      widget.classList.add('is-complete');
+      label.textContent = '\u2713 Complete' + (state.failed ? ' \u00b7 ' + state.failed + ' did not finish' : '');
+      fill.style.width = '100%';
+      widget.title = 'See the results';
+      if (!widgetTimer) {
+        // Goes away on its own. The drafts are in the library either way.
+        widgetTimer = setTimeout(function () {
+          widgetTimer = null;
+          if (active) { active.seen = true; }
+          hideWidget();
+        }, WIDGET_SECONDS * 1000);
+      }
+    }
+    widget.appendChild(label);
+    widget.appendChild(track);
+  }
+
+  window.addEventListener('hashchange', updateWidget);
+
   function show(main, ui) {
+    // Coming back while drafts are still being made (or have just finished): show that, not a new upload page
+    if (active && active.canAttach()) { active.attach(main, ui); return; }
+
     var el = ui.el;
     var session = null;   // { fileName, segments, imageCount, plan, notes[] }
     var existingTitles = {};
@@ -208,6 +275,31 @@
     main.textContent = '';
     var root = el('div', 'batch');
     main.appendChild(root);
+
+    function attached() { return root.isConnected; }   // false once another screen has replaced this one
+
+    var self = {
+      stage: 'choose',   // choose, review, creating or done
+      seen: false,       // the results have been shown on the screen
+      canAttach: function () { return this.stage === 'creating' || (this.stage === 'done' && !this.seen); },
+      snapshot: function () {
+        var c = session && session.creation;
+        if (!c) { return { stage: this.stage, seen: this.seen }; }
+        var finished = c.chosen.filter(function (d) { return session.results[d.first + '-' + d.last]; }).length;
+        var failed = c.chosen.filter(function (d) { var r = session.results[d.first + '-' + d.last]; return r && r.error; }).length;
+        return { stage: this.stage, seen: this.seen, total: c.chosen.length, finished: finished, failed: failed };
+      },
+      attach: function (newMain, newUi) {
+        main = newMain;
+        ui = newUi;
+        main.textContent = '';
+        root = el('div', 'batch');
+        main.appendChild(root);
+        if (self.stage === 'creating') { drawCreating(); } else { summary(session.creation.chosen); }
+        updateWidget();
+      }
+    };
+    active = self;
 
     function clear() { root.textContent = ''; }
 
@@ -266,6 +358,7 @@
 
     /* ----- 1. Choose the file ----- */
     function stepChoose(message) {
+      self.stage = 'choose';
       clear();
       head('Batch import', 'One file with several documents, or several files, become draft pages.');
       if (message) { root.appendChild(el('p', 'batch-problem', message)); }
@@ -443,6 +536,7 @@
 
     /* ----- 3. Review the proposed split ----- */
     function review() {
+      self.stage = 'review';
       clear();
       var plan = session.plan;
       head('Batch import', session.fileName + ' · ' + session.segments.length + ' pieces · ' + plan.documents.length + (plan.documents.length === 1 ? ' document found' : ' documents found'));
@@ -568,53 +662,68 @@
     }
 
     /* ----- 4. Create the drafts ----- */
-    async function create_(onlyFailed) {
-      var chosen = session.plan.documents.filter(function (d) { return d.include !== false; });
-      var jobs = chosen.map(function (doc, i) {
-        var previous = session.results && session.results[doc.first + '-' + doc.last];
-        return { doc: doc, number: i + 1, of: chosen.length, previous: previous };
-      });
-      if (onlyFailed) { jobs = jobs.filter(function (job) { return !(job.previous && job.previous.id); }); }
-      session.results = session.results || {};
-      session.cancelled = false;
-
+    // Drawn from the state in `session.creation`, so it can be drawn again when you come back to the screen
+    function drawCreating() {
+      if (!attached()) { return; }
+      var c = session.creation;
       clear();
       head('Creating drafts', session.fileName);
+      var finished = c.chosen.filter(function (d) { return session.results[d.first + '-' + d.last]; }).length;
       var createBar = progressBar('');
-      var already = chosen.filter(function (d) { return session.results[d.first + '-' + d.last] && session.results[d.first + '-' + d.last].id; }).length;
-      createBar.set(chosen.length ? already / chosen.length : 0, 'Starting…');
+      createBar.set(c.chosen.length ? finished / c.chosen.length : 0, c.current ? 'Creating ' + (finished + 1) + ' of ' + c.chosen.length + ': ' + c.currentTitle : (session.cancelled ? 'Stopping\u2026' : 'Starting\u2026'));
       root.appendChild(createBar.node);
-      var rows = {};
+      root.appendChild(el('p', 'lib-hint', 'You can leave this page. The drafts keep being made, and a button in the corner shows how far it has got.'));
       var listBox = el('div', 'batch-list');
-      chosen.forEach(function (doc) {
+      c.chosen.forEach(function (doc) {
+        var key = doc.first + '-' + doc.last;
+        var r = session.results[key];
         var row = el('div', 'batch-progress');
-        var done = session.results[doc.first + '-' + doc.last];
-        row.appendChild(stateMark(done && done.id ? 'done' : 'waiting'));
+        row.appendChild(stateMark(r && r.id ? 'done' : r && r.error ? 'failed' : key === c.current ? 'working' : 'waiting'));
         row.appendChild(el('span', 'batch-progress-title', doc.title));
+        if (r && r.error) { row.appendChild(el('span', 'lib-row-sub', r.error)); }
         listBox.appendChild(row);
-        rows[doc.first + '-' + doc.last] = row;
       });
       root.appendChild(listBox);
-      var cancel = ui.button('Stop after this one', 'secondary-link', function () { session.cancelled = true; cancel.disabled = true; });
+      var cancel = ui.button('Stop after this one', 'secondary-link', function () { session.cancelled = true; drawCreating(); });
+      cancel.disabled = !!session.cancelled;
       root.appendChild(cancel);
+    }
+
+    async function create_(onlyFailed) {
+      var chosen = session.plan.documents.filter(function (d) { return d.include !== false; });
+      session.results = session.results || {};
+      var jobs = chosen.map(function (doc, i) {
+        var previous = session.results[doc.first + '-' + doc.last];
+        return { doc: doc, number: i + 1, of: chosen.length, previous: previous };
+      });
+      if (onlyFailed) {
+        jobs = jobs.filter(function (job) { return !(job.previous && job.previous.id); });
+        jobs.forEach(function (job) { delete session.results[job.doc.first + '-' + job.doc.last]; });   // tried again from scratch
+      }
+      session.cancelled = false;
+      session.creation = { chosen: chosen, current: null, currentTitle: '' };
+      self.stage = 'creating';
+      self.seen = false;
+      function refresh() { drawCreating(); updateWidget(); }
+      refresh();
 
       for (var i = 0; i < jobs.length && !session.cancelled; i += 1) {
         var job = jobs[i];
         var key = job.doc.first + '-' + job.doc.last;
-        var row = rows[key];
-        createBar.set((already + i) / chosen.length, 'Creating ' + (already + i + 1) + ' of ' + chosen.length + ': ' + job.doc.title);
-        setMark(row, 'working');
+        session.creation.current = key;
+        session.creation.currentTitle = job.doc.title;
+        refresh();
         try {
           session.results[key] = await createOne(job);
-          setMark(row, 'done');
         } catch (error) {
           session.results[key] = { error: window.PageEditor.errorMessage(error) };
-          setMark(row, 'failed');
-          row.appendChild(el('span', 'lib-row-sub', session.results[key].error));
         }
+        session.creation.current = null;
+        refresh();
       }
-      createBar.set(1, session.cancelled ? 'Stopped' : 'All done');
-      summary(chosen);
+      self.stage = 'done';
+      summary(chosen);   // drawn only if you are still on this screen
+      updateWidget();    // otherwise the corner button says "Complete"
     }
 
     // Converts one document and saves it as a draft. One retry if the AI says it is busy.
@@ -646,6 +755,8 @@
 
     /* ----- Done ----- */
     function summary(chosen) {
+      if (!attached()) { return; }
+      self.seen = true;
       clear();
       var made = chosen.filter(function (d) { return session.results[d.first + '-' + d.last] && session.results[d.first + '-' + d.last].id; });
       var failed = chosen.filter(function (d) { var r = session.results[d.first + '-' + d.last]; return !r || r.error; });
@@ -658,7 +769,7 @@
         var r = session.results[doc.first + '-' + doc.last];
         var row = el('div', 'batch-progress');
         row.appendChild(stateMark('done'));
-        row.appendChild(ui.link(r.title, '#/page/' + r.id, 'lib-page-link'));
+        row.appendChild(ui.link(r.title, '#/preview/' + r.id, 'lib-page-link'));
         row.appendChild(el('span', 'lib-row-sub', r.notes.length ? r.notes.length + ' point' + (r.notes.length === 1 ? '' : 's') + ' to check' : 'nothing flagged'));
         list.appendChild(row);
       });

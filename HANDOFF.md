@@ -427,7 +427,8 @@ elsewhere it starts a new draft. A banner appears above the editor only for a se
 import. The **Page Type** choice is hidden for now (every page is still saved as Process Documentation). **Related pages**: the
 author searches live pages (the same search; the best five show under the box, titles that match first), adds them, and
 moves them up or down. They are saved in `[RELATED PAGES]` as `id | title`, and the live page shows them first, in that
-order, then fills up to eight with pages that share its owner or a linked role.
+order, then fills up to five in all with pages that share its owner or a linked role. If the author chose more than five, all of
+theirs show and nothing is added.
 
 **Bullets in step details.** A step's detail text is a rich field like a Text block: the toolbar's bullet and number buttons work in
 it (and bold, italic, links). Typing "- ", "* ", a bullet character or "1. " at the start of a line also starts a list, in
@@ -464,6 +465,11 @@ with words that say where it goes, written as `[link text](https://address)`.
 **Collapse always in reach.** The "On this page" box is never taller than the room between its top edge and the fixed
 bottom bar (`keepOnScreen` in `library-ui.js`, re-measured as you scroll), so a long outline scrolls inside it. The buttons
 under it (Expand all, Collapse) stay at the bottom of the box, over the end of the list, whatever is scrolled.
+
+**Batch import keeps going when you leave.** Creating drafts does not stop if you go to another screen. A small button in the corner
+(`Creating drafts \u00b7 2 of 5`, with a bar) takes you back to the import's progress screen. When it is done the button says
+"Complete" in green and goes away after eight seconds; if you were on the import screen when it finished, you see the results
+there instead. The results link each draft's preview.
 
 **Edit button in the library.** Every row has an **Edit** button for everyone who can see it (the lead sees every page,
 others their own). It opens the version being worked on, or starts a new draft from the live version, like the Edit
