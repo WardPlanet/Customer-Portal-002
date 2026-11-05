@@ -483,7 +483,7 @@
       if (!documents.length) { stepChoose('None of those files could be read. ' + notes.join(' ')); return; }
       session = { fileName: files.length + ' files', segments: segments, imageCount: images, plan: { documents: documents, skipped: [], problems: [] }, notes: ['Each file is treated as one separate document.'].concat(notes), multiFile: true, edited: {} };
       session.aiOk = await window.PageEditor.aiAvailable();
-      if (!session.aiOk) { session.notes.push('The AI is not available, so the built-in converter will make the drafts. It keeps headings, lists, numbered steps and tables; check each draft.'); }
+      if (!session.aiOk) { session.notes.push('The AI is not available, so the drafts cannot be created here.'); }
       var pages = await ui.backend().list('').catch(function () { return { pages: [] }; });
       existingTitles = {};
       pages.pages.forEach(function (p) { existingTitles[p.title.toLowerCase()] = true; });
@@ -521,7 +521,7 @@
           note = 'The AI could not scan the file (' + window.PageEditor.errorMessage(error) + ') so it was split at its headings instead.';
         }
       } else {
-        note = 'The AI is not available, so the file was split at its headings and the built-in converter will make the drafts.';
+        note = 'The AI is not available, so the file was split at its headings. Creating the pages needs the AI.';
       }
       if (!plan) { plan = Core.splitByHeadings(session.segments, session.fileName); }
       session.plan = plan;
@@ -584,8 +584,9 @@
       var count = plan.documents.filter(function (d) { return d.include !== false; }).length;
       var create = ui.button('Create ' + count + (count === 1 ? ' draft' : ' drafts'), 'primary-btn', function () { create_(); });
       var missingOwner = needsOwner() ? plan.documents.filter(function (d) { return d.include !== false && !d.owner; }).length : 0;
-      if (!count || missingOwner) { create.disabled = true; }   // the AI is not needed: the built-in converter is the backup
+      if (!count || !session.aiOk || missingOwner) { create.disabled = true; }
       if (missingOwner) { create.title = 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + ' first'; }
+      if (!session.aiOk) { create.title = 'Creating pages needs the AI, which is not available here'; }
       bar.appendChild(create);
       if (!session.multiFile) { bar.appendChild(ui.button('Scan again', 'secondary-link', scan)); }
       bar.appendChild(ui.button('Choose another file', 'secondary-link', function () { session = null; stepChoose(); }));
@@ -792,5 +793,5 @@
     stepChoose();
   }
 
-  window.Batch = { show: show, htmlToSegments: htmlToSegments, textToSegments: textToSegments, pdfTextToSegments: pdfTextToSegments };
+  window.Batch = { show: show, htmlToSegments: htmlToSegments, textToSegments: textToSegments };
 })();
