@@ -563,6 +563,17 @@ link to one in another team (page links, the preview and the related list curren
 person's team), and keep the rule that only live pages are offered. Drafts and pages waiting for approval stay private to their
 team.
 
+**Planned requirement: a lock screen for internal documentation.** Anything internal (Internal-Only pages, the library, the editor, search, the
+team screens) can only be seen by someone signed in to the Planet DDS Azure account (Microsoft Entra ID). Anyone else sees a lock screen with
+the sign-in options instead of the content. Client-Safe pages stay readable by the public, with no sign-in. To build with the Azure
+sign-in (see "Planned requirement: sign-in and who can be on a team" above):
+- the server checks the sign-in on every request for internal content and answers "not signed in" (401) instead of the page; the public
+  routes (`/api/public/...`) stay open and still return Client-Safe live pages only;
+- the browser shows the lock screen whenever it gets that answer (and before loading anything internal), with a **Sign in with Microsoft**
+  button (and any other sign-in options the company allows), then returns the person to the page they asked for;
+- a link to an internal page (a copied section link, a related-page link) opens the lock screen first, then the page;
+- the "Acting as" menu is removed, since the signed-in account decides who is acting.
+
 **Where pages live.** On the server: `drafts/<team>/pages/<id>/page.json` (the page and the facts about each
 version) plus `v1.txt`, `v2.txt` ... (each version's text in the draft format). In the artifact: this
 browser's storage (so pages exist only in that browser; clearing it loses them). API: `/api/library/...`
