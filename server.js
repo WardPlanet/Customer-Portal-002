@@ -64,7 +64,7 @@ async function moveLooseDrafts() {
 
 /* ---------- Static files ----------
    Only these three are served, so server.js, package.json and any .env file are never exposed. */
-['index.html', 'styles.css', 'app.js', 'store.js', 'library-ui.js', 'batch.js', 'search-review.js', 'brand.js', 'workflow.cjs', 'search.cjs', 'search-log.cjs', 'batch-core.cjs'].forEach(function (file) {
+['index.html', 'styles.css', 'app.js', 'store.js', 'library-ui.js', 'batch.js', 'search-review.js', 'brand.js', 'workflow.cjs', 'search.cjs', 'search-log.cjs', 'batch-core.cjs', 'landing-bg.webp'].forEach(function (file) {
   app.get(file === 'index.html' ? ['/', '/index.html'] : '/' + file, function (req, res) {
     if (file.endsWith('.cjs')) { res.type('application/javascript'); }   // a script for the browser as well as the server
     res.sendFile(path.join(here, file));

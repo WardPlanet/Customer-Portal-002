@@ -826,6 +826,6 @@ white Planet DDS logo above "How Can We Help", one large search box with the aut
 colours (navy #000F60, blue #0069DC, lavender #F0F0FA) are in `brand.js` (`window.Brand`), shared with the PDF export; the logo is
 made white with a CSS filter on the landing page only.
 
-**Background picture.** The hero uses a gradient starfield as a placeholder. To use a photo, set `--landing-image` on
-`.landing-hero` in `styles.css` (for example `--landing-image: url("landing.jpg");`; the single-file artifact build needs a `data:`
-URI because it carries no other files). Keep the picture dark where the white logo and heading sit.
+**Background picture.** The hero uses the supplied night-sky photo, `landing-bg.webp` (2000 x 1047, about 100 KB), set by
+`--landing-image` on `.landing-hero` in `styles.css`. The server serves the file; `npm run build:artifact` embeds it in the
+single-file artifact as a `data:` URI (the build reads `landing-bg.webp`). To change the picture, replace that file.

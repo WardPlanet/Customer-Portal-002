@@ -1962,11 +1962,11 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 
 /* The landing search page (only this page; the top bar and everything else are unchanged).
    Dark starfield hero with the white Planet DDS logo above "How Can We Help" and one search box.
-   To use a photo as the background, set --landing-image on .landing-hero, for example:
-     --landing-image: url("landing.jpg");   (the Claude artifact build needs it as a data: URI) */
+   The background picture is landing-bg.webp (set by --landing-image on .landing-hero). The single-file artifact build embeds it;
+   to change the picture, replace that file. */
 .lib-main.is-landing { max-width: none; padding: 0; }
 .landing-hero {
-  --landing-image: none;
+  --landing-image: url("landing-bg.webp");
   position: relative; z-index: 3;
   display: flex; flex-direction: column; align-items: center; gap: 22px;
   padding: 64px 24px 96px; text-align: center; color: #FFFFFF;
@@ -1982,6 +1982,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
     radial-gradient(ellipse at 85% 110%, rgba(110, 60, 190, 0.55), transparent 55%),
     radial-gradient(ellipse at 10% -10%, rgba(0, 105, 220, 0.45), transparent 55%);
   background-size: cover;
+  background-position: center;
 }
 .landing-logo { width: 170px; }
 .landing-logo svg { display: block; width: 100%; height: auto; filter: brightness(0) invert(1); }

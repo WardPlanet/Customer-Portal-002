@@ -22,7 +22,9 @@ function safeForScript(text) {
 }
 
 const html = await read('index.html');
-const css = await read('styles.css');
+// The single-file build carries no other files, so the landing page's background picture is embedded in the stylesheet
+const landingPicture = (await fs.readFile(path.join(here, 'landing-bg.webp'))).toString('base64');
+const css = (await read('styles.css')).replace('url("landing-bg.webp")', () => 'url("data:image/webp;base64,' + landingPicture + '")');
 const app = await read('app.js');
 const workflow = await read('workflow.cjs');
 const search = await read('search.cjs');
