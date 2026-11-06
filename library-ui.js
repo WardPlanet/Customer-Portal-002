@@ -1336,18 +1336,30 @@
       var grid = el('div', 'landing-top');
       result.pages.forEach(function (page) {
         var tile = link('', '#/public/' + page.id, 'landing-tile');
-        // The department's icon (the website icon for the web team) beside the visibility and open count
-        var top = el('span', 'landing-tile-top');
+        // The department's icon (the website icon for the web team), then the title and as much of the description as fits
         var teamMark = teamIcon(page);
-        if (teamMark) { top.appendChild(teamMark); }
-        top.appendChild(el('span', 'landing-tile-meta', page.visibility + (anyOpened && page.views ? ' \u00B7 ' + page.views + (page.views === 1 ? ' open' : ' opens') : ' \u00B7 Updated ' + formatDate(page.updatedAt))));
-        tile.appendChild(top);
+        if (teamMark) { var top = el('span', 'landing-tile-top'); top.appendChild(teamMark); tile.appendChild(top); }
         tile.appendChild(el('span', 'landing-tile-title', page.title));
         if (page.description) { tile.appendChild(el('span', 'landing-tile-text', page.description)); }
         grid.appendChild(tile);
       });
       listBox.appendChild(grid);
+      fitTileText(grid);
     }
+
+    // The description runs on until the bottom of its box and ends in "..." where the box ends: the number of lines that fit is
+    // measured, because CSS alone cannot clamp text to "however much room is left"
+    function fitTileText(grid) {
+      Array.prototype.forEach.call(grid.querySelectorAll('.landing-tile-text'), function (text) {
+        text.style.webkitLineClamp = '';
+        text.style.lineClamp = '';
+        var lineHeight = parseFloat(getComputedStyle(text).lineHeight) || 20;
+        var lines = Math.max(1, Math.floor(text.clientHeight / lineHeight));
+        text.style.webkitLineClamp = String(lines);
+        text.style.lineClamp = String(lines);
+      });
+    }
+    window.addEventListener('resize', function () { var grid = listBox.querySelector('.landing-top'); if (grid) { fitTileText(grid); } });
 
     // Nothing is listed until someone searches. Results cover live Internal-Only and Client-Safe pages,
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.

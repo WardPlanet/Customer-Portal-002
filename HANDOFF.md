@@ -831,7 +831,7 @@ made white with a CSS filter on the landing page only.
 single-file artifact as a `data:` URI (the build reads `landing-bg.webp`). To change the picture, replace that file.
 
 The night sky is a band across the top (logo, heading, search); the page below it is grey. With the box empty, the grey area shows
-the **three most opened live pages** in three tiles (always titled "Popular Pages"; while nothing has been opened they are the newest pages and show their update date instead of an open count);
+the **three most opened live pages** in three tiles (always titled "Popular Pages"; while nothing has been opened they are the newest pages);
 typing replaces them with the search results, and clearing the box brings them back. Opens are counted from page views logged as
 `{ k: 'v' }` events in the search log (a live page opened from search, the library or the tiles; the same page within a minute counts
 once), over the last 30 days, by `SearchLog.topPages` and `GET /api/library/popular` (any staff member; the log itself stays

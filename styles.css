@@ -1995,16 +1995,15 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-top-title { margin: 0 0 16px; font-size: 20px; font-weight: 700; color: var(--text); }
 .landing-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
 .landing-tile {
-  display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; min-height: 210px; padding: 22px 24px;
+  display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; height: 230px; padding: 22px 24px; box-sizing: border-box;
   background: #D6E7F8; border: 1px solid #B6D1EE; border-radius: 12px; color: #000F60; text-decoration: none;
 }
 .landing-tile:hover { background: #CCE1F6; box-shadow: 0 8px 24px rgba(0, 15, 96, 0.14); transform: translateY(-2px); }
 .landing-tile:focus-visible { outline: 3px solid #0069DC; outline-offset: 2px; }
-.landing-tile-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.landing-tile-top .team-icon { flex: none; color: #0069DC; }
-.landing-tile-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #2F5FA8; }
+.landing-tile-top { display: flex; align-items: center; flex: none; }
+.landing-tile-top .team-icon { color: #0069DC; }
 .landing-tile-title, .landing-tile-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
-.landing-tile-title { -webkit-line-clamp: 2; line-clamp: 2; font-size: 22px; line-height: 1.2; font-weight: 800; color: #000F60; }
-.landing-tile-text { -webkit-line-clamp: 3; line-clamp: 3; font-size: 14px; line-height: 1.45; color: #2A3F6B; }
+.landing-tile-title { flex: none; -webkit-line-clamp: 2; line-clamp: 2; font-size: 22px; line-height: 1.2; font-weight: 800; color: #000F60; }
+.landing-tile-text { flex: 1 1 0; min-height: 0; font-size: 14px; line-height: 1.45; color: #2A3F6B; }
 .landing-help { margin: auto 0 0; padding: 32px 24px 36px; text-align: center; font-size: 15px; color: var(--text-muted); }
 .landing-help a { font-weight: 600; }
