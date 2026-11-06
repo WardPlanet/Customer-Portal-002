@@ -125,7 +125,7 @@
   }
 
   function roleLabel(title) {
-    return title ? title + ' — ' + (personFor(title) || 'unassigned') : 'No owner';
+    return title ? (personFor(title) || 'Unassigned') + ' — ' + title : 'No owner';   // the name first, then the role
   }
 
   function actor() { return W.actorFor(window.Store.getActor(), team); }
@@ -597,7 +597,7 @@
       var ownerPrompt = el('option', '', 'Change owner\u2026');
       ownerPrompt.value = '';
       ownerPick.appendChild(ownerPrompt);
-      team.roles.forEach(function (role) { var option = el('option', '', role.title + ' \u2014 ' + (role.person || 'unassigned')); option.value = role.title; ownerPick.appendChild(option); });
+      team.roles.forEach(function (role) { var option = el('option', '', (role.person || 'Unassigned') + ' \u2014 ' + role.title); option.value = role.title; ownerPick.appendChild(option); });
       ownerPick.addEventListener('change', async function () { var role = ownerPick.value; ownerPick.value = ''; if (role) { await bulkSetOwner(chosenPages(), role); } });
       bulkBar.appendChild(ownerPick);
       bulkBar.appendChild(button('Delete', 'row-btn row-btn-danger', function () { bulkDelete(chosenPages()); }));
@@ -687,7 +687,7 @@
         if (!p.owner) { var emptyOption = el('option', '', 'No owner'); emptyOption.value = ''; ownerSelect.appendChild(emptyOption); }
         else if (!roleOnTeam) { var goneOption = el('option', '', 'Unassigned (' + p.owner + ' left the team)'); goneOption.value = p.owner; ownerSelect.appendChild(goneOption); }
         team.roles.forEach(function (role) {
-          var option = el('option', '', role.title + ' — ' + (role.person || 'unassigned'));
+          var option = el('option', '', (role.person || 'Unassigned') + ' — ' + role.title);
           option.value = role.title;
           ownerSelect.appendChild(option);
         });

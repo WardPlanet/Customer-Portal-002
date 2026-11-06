@@ -1315,8 +1315,9 @@
       return match ? match.person || '' : '';
     }
 
+    // The name first, then the role
     function roleLabel(title) {
-      return title + ' — ' + (personFor(title) || 'unassigned');
+      return (personFor(title) || 'Unassigned') + ' — ' + title;
     }
 
     // Older drafts stored people's names. Turn a name into the role that person holds today.
@@ -1402,13 +1403,13 @@
         var text = document.createElement('span');
         text.className = 'role-text';
         var name = document.createElement('span');
-        name.className = 'role-title';
+        name.className = 'role-person';
         name.textContent = title;
         var holder = document.createElement('span');
-        holder.className = 'role-person';
+        holder.className = 'role-title';
         holder.textContent = person || 'Unassigned';
+        text.appendChild(holder);   // the name first, then the role
         text.appendChild(name);
-        text.appendChild(holder);
 
         var remove = document.createElement('button');
         remove.type = 'button';

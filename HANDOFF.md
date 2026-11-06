@@ -924,3 +924,6 @@ Support icon is a person with a headset (`TEAM_ICONS` in `library-ui.js`, `"icon
 shows only when there is more than one team (the artifact). Making the server multi-team needs the team to come from the request
 (storage is already per team: `drafts/<team slug>/pages`), company-wide loading of live pages for search, and per-team lead checks.
 The AI import instructions in the artifact are written for the Web Team's roster.
+
+Wherever a person and a role are shown together, the name comes first: "Name — Role" (owner and reviewer lists, bulk owner change, Page Setup,
+confirmations; the linked-role chips show the name above the role). An unfilled role reads "Unassigned — Role".
