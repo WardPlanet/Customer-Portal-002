@@ -1293,7 +1293,7 @@
     logo.innerHTML = window.Brand.logoSvg;   // the supplied logo: fixed markup, no page text
     hero.appendChild(logo);
     var title = el('h1', 'landing-title', 'How Can We ');
-    title.appendChild(el('span', '', 'Help'));
+    title.appendChild(el('span', '', 'Help?'));
     hero.appendChild(title);
     var search = el('input', 'lib-search landing-search');
     search.type = 'search';
@@ -1332,11 +1332,16 @@
       if (mine !== routing || search.value.trim() || !result.pages.length) { return; }
       listBox.textContent = '';
       var anyOpened = result.pages.some(function (page) { return page.views > 0; });
-      listBox.appendChild(el('h2', 'landing-top-title', anyOpened ? 'Most opened pages' : 'Newest pages'));
+      listBox.appendChild(el('h2', 'landing-top-title', 'Popular Pages'));
       var grid = el('div', 'landing-top');
       result.pages.forEach(function (page) {
         var tile = link('', '#/public/' + page.id, 'landing-tile');
-        tile.appendChild(el('span', 'landing-tile-meta', page.visibility + (anyOpened && page.views ? ' \u00B7 ' + page.views + (page.views === 1 ? ' open' : ' opens') : ' \u00B7 Updated ' + formatDate(page.updatedAt))));
+        // The department's icon (the website icon for the web team) beside the visibility and open count
+        var top = el('span', 'landing-tile-top');
+        var teamMark = teamIcon(page);
+        if (teamMark) { top.appendChild(teamMark); }
+        top.appendChild(el('span', 'landing-tile-meta', page.visibility + (anyOpened && page.views ? ' \u00B7 ' + page.views + (page.views === 1 ? ' open' : ' opens') : ' \u00B7 Updated ' + formatDate(page.updatedAt))));
+        tile.appendChild(top);
         tile.appendChild(el('span', 'landing-tile-title', page.title));
         if (page.description) { tile.appendChild(el('span', 'landing-tile-text', page.description)); }
         grid.appendChild(tile);
