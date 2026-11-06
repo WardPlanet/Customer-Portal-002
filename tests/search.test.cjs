@@ -110,3 +110,26 @@ test('a spoken question finds the page about the topic, not the page full of eve
   assert.equal(partial.partial, true);
   assert.equal(partial.results[0].id, 'policy');
 });
+
+test('the kept index gives the same answers as a fresh one after pages are added, changed and removed', () => {
+  let seed = 11;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  const vocab = ['renewal', 'domain', 'website', 'transfer', 'policy', 'login', 'password', 'holiday', 'schedule', 'brand', 'budget', 'payroll', 'support', 'ticket'];
+  const words = (n) => Array.from({ length: n }, () => vocab[Math.floor(rnd() * vocab.length)]).join(' ');
+  const make = (id, version) => ({ id, version, updatedAt: 'v' + version, title: words(3), description: words(8), keywords: [vocab[Math.floor(rnd() * vocab.length)]], headings: [words(2)], owner: 'Web Designer', location: 'Websites', body: words(40) });
+  const answers = (entries) => ['renewal', 'domain transfer', 'policy login', 'websit', 'payrol', '"brand budget"', 'holiday -schedule'].map((q) => Search.query(entries, q).results.map((r) => r.id + ':' + r.score).join(','));
+  let entries = Array.from({ length: 30 }, (_, i) => make('p' + i, 1));
+  Search.reset();
+  Search.query(entries, 'renewal');
+  for (let step = 0; step < 25; step += 1) {
+    const kind = step % 3;
+    if (kind === 0) { entries = entries.concat([make('n' + step, 1)]); }                                        // a page is added
+    else if (kind === 1) { const i = Math.floor(rnd() * entries.length); entries = entries.map((e, k) => (k === i ? make(e.id, e.version + 1) : e)); }   // one changes
+    else { const i = Math.floor(rnd() * entries.length); entries = entries.filter((e, k) => k !== i); }       // one is removed
+    const kept = answers(entries);
+    Search.reset();
+    const fresh = answers(entries);
+    assert.deepEqual(kept, fresh, 'step ' + step);
+    Search.query(entries, 'renewal');   // the index is rebuilt from nothing after reset; carry on from there
+  }
+});

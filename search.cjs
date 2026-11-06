@@ -212,43 +212,101 @@
     };
   }
 
-  function buildIndex(entries) {
-    var docs = [];
-    var words = {};        // stem -> { df, docs: { docIndex: { field: count } }, raw }
-    var fieldLength = {};  // field -> total tokens
-    FIELD_ORDER.forEach(function (field) { fieldLength[field] = 0; });
+  /* The index is kept between searches and updated one page at a time. A page's words are worked out once (the slow part:
+     reading and reducing every word to its stem) and kept until that page changes; when the set of pages changes, only the
+     pages that were added, changed or taken away are put into or removed from the index. A page's place in the index is a
+     "slot", reused when a page is removed. */
+  var INDEX = { slots: [], free: [], byId: {}, words: {}, fieldLength: {}, count: 0, vocabulary: null };
+  var tokenCache = {};   // page id -> { sig, texts, tokens, lengths }
 
-    entries.forEach(function (entry, docIndex) {
-      var texts = entryFields(entry);
-      var doc = { entry: entry, texts: texts, tokens: {}, lengths: {} };
-      FIELD_ORDER.forEach(function (field) {
-        var tokens = tokenize(texts[field]);
-        doc.tokens[field] = tokens;
-        doc.lengths[field] = tokens.length;
-        fieldLength[field] += tokens.length;
-        tokens.forEach(function (token) {
-          var word = words[token.stem];
-          if (!word) { word = words[token.stem] = { df: 0, docs: {}, raw: token.raw, raws: {} }; }
-          word.raws[token.raw] = true;   // every form of the word that is written, for typing-mistake matching
-          if (!word.docs[docIndex]) { word.docs[docIndex] = {}; word.df += 1; }
-          word.docs[docIndex][field] = (word.docs[docIndex][field] || 0) + 1;
-        });
-      });
-      docs.push(doc);
-    });
+  function resetIndex() {
+    INDEX = { slots: [], free: [], byId: {}, words: {}, fieldLength: {}, count: 0, vocabulary: null };
+    FIELD_ORDER.forEach(function (field) { INDEX.fieldLength[field] = 0; });
+    tokenCache = {};
+  }
+  resetIndex();
 
-    var averages = {};
-    FIELD_ORDER.forEach(function (field) { averages[field] = entries.length ? Math.max(1, fieldLength[field] / entries.length) : 1; });
-    return { docs: docs, words: words, vocabulary: Object.keys(words), averages: averages };
+  // What tells that a page's searchable text has changed
+  function signatureOf(entry) {
+    var body = String(entry.body || '');
+    return [entry.version, entry.updatedAt || '', entry.title, entry.description, (entry.keywords || []).join(','), (entry.headings || []).join(','),
+      entry.owner, entry.location, body.length, body.slice(0, 40), body.slice(-40)].join('\u0001');
   }
 
-  var cached = { signature: null, index: null };
+  function tokenized(entry) {
+    var sig = signatureOf(entry);
+    var hit = tokenCache[entry.id];
+    if (hit && hit.sig === sig) { return hit; }
+    var texts = entryFields(entry);
+    var tokens = {};
+    var lengths = {};
+    FIELD_ORDER.forEach(function (field) {
+      var list = tokenize(texts[field]);
+      tokens[field] = list;
+      lengths[field] = list.length;
+    });
+    tokenCache[entry.id] = { sig: sig, texts: texts, tokens: tokens, lengths: lengths };
+    return tokenCache[entry.id];
+  }
 
-  // The same index is reused while the entries are unchanged
+  function addDoc(entry, tok) {
+    var slot = INDEX.free.length ? INDEX.free.pop() : INDEX.slots.length;
+    var doc = { entry: entry, texts: tok.texts, tokens: tok.tokens, lengths: tok.lengths };
+    INDEX.slots[slot] = doc;
+    FIELD_ORDER.forEach(function (field) {
+      INDEX.fieldLength[field] += tok.lengths[field];
+      tok.tokens[field].forEach(function (token) {
+        var word = INDEX.words[token.stem];
+        if (!word) { word = INDEX.words[token.stem] = { df: 0, docs: {}, raw: token.raw, raws: {} }; }
+        word.raws[token.raw] = true;   // every form of the word that is written, for typing-mistake matching
+        if (!word.docs[slot]) { word.docs[slot] = {}; word.df += 1; }
+        word.docs[slot][field] = (word.docs[slot][field] || 0) + 1;
+      });
+    });
+    INDEX.byId[entry.id] = { slot: slot, doc: doc, tok: tok };
+    INDEX.count += 1;
+    INDEX.vocabulary = null;
+  }
+
+  function removeDoc(current) {
+    FIELD_ORDER.forEach(function (field) {
+      INDEX.fieldLength[field] -= current.tok.lengths[field];
+      current.tok.tokens[field].forEach(function (token) {
+        var word = INDEX.words[token.stem];
+        if (word && word.docs[current.slot]) {
+          delete word.docs[current.slot];
+          word.df -= 1;
+          if (word.df <= 0) { delete INDEX.words[token.stem]; }
+        }
+      });
+    });
+    INDEX.slots[current.slot] = null;
+    INDEX.free.push(current.slot);
+    delete INDEX.byId[current.doc.entry.id];
+    INDEX.count -= 1;
+    INDEX.vocabulary = null;
+  }
+
+  // Brings the kept index in line with these entries (pages added, changed or removed) and returns it
   function indexFor(entries) {
-    var signature = entries.length + '|' + entries.map(function (entry) { return entry.id + ':' + entry.version + ':' + (entry.updatedAt || ''); }).join(',');
-    if (cached.signature !== signature) { cached = { signature: signature, index: buildIndex(entries) }; }
-    return cached.index;
+    var seen = {};
+    entries.forEach(function (entry) {
+      seen[entry.id] = true;
+      var tok = tokenized(entry);
+      var current = INDEX.byId[entry.id];
+      if (current && current.tok === tok) { current.doc.entry = entry; return; }   // unchanged
+      if (current) { removeDoc(current); }
+      addDoc(entry, tok);
+    });
+    Object.keys(INDEX.byId).forEach(function (id) { if (!seen[id]) { removeDoc(INDEX.byId[id]); } });
+    // The kept words of pages that are not in this set are dropped when the cache grows well past the set
+    if (Object.keys(tokenCache).length > entries.length * 2 + 50) {
+      Object.keys(tokenCache).forEach(function (id) { if (!seen[id]) { delete tokenCache[id]; } });
+    }
+    if (!INDEX.vocabulary) { INDEX.vocabulary = Object.keys(INDEX.words); }
+    var averages = {};
+    FIELD_ORDER.forEach(function (field) { averages[field] = INDEX.count ? Math.max(1, INDEX.fieldLength[field] / INDEX.count) : 1; });
+    return { docs: INDEX.slots, words: INDEX.words, vocabulary: INDEX.vocabulary, averages: averages, count: INDEX.count };
   }
 
   /* ---------- Matching and scoring ---------- */
@@ -289,7 +347,7 @@
 
   function idf(index, stemmed) {
     var df = index.words[stemmed].df;
-    var n = index.docs.length;
+    var n = index.count;
     return Math.log(1 + (n - df + 0.5) / (df + 0.5));
   }
 
@@ -432,6 +490,7 @@
     function collect(requireAll) {
       var list = [];
       for (var d = 0; d < index.docs.length; d += 1) {
+        if (!index.docs[d]) { continue; }   // a slot whose page has been taken away
         var scored = scoreDoc(d, requireAll);
         if (scored) { list.push(scored); }
       }
@@ -587,6 +646,7 @@
 
   return {
     suggest: suggest,
+    reset: resetIndex,
     suggestPages: suggestPages,
     rank: rank,
     query: query,

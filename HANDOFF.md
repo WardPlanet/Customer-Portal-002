@@ -873,3 +873,15 @@ without logging the search a second time. It is used once: a later visit to the 
 
 Each search result on the landing page is one link: the whole box opens the page (the title's link is stretched over the box), with a hover
 border and a focus outline for the keyboard.
+
+### Search index: updated one page at a time
+
+`search.cjs` keeps its index between searches (module-level, so on the server it lives for the whole process). A page's words are worked
+out once (reading and reducing every word to its stem is the slow part) and kept until the page changes (`tokenCache`, keyed by page
+id and a signature of its searchable text); when the set of live pages changes, only pages that were added, changed or removed are put
+into or taken out of the index (`indexFor`, `addDoc`, `removeDoc`; a page's place is a reusable "slot"). Measured: after one page
+changes the next search is no slower than usual (about 18 ms at 200 pages, 31 ms at 1,000 and at 5,000; before: 58 ms, 305 ms and
+2.1 s). The very first search still builds everything (about 0.1 s at 200 pages, 1.5 s at 5,000). A test (`search.test.cjs`) checks the
+kept index against a fresh one after random additions, changes and removals. `Search.reset()` clears it (used by that test). Not
+covered: on the server each request still reads the page files from disk (a page cache would be the next step), and the dropdown's
+`suggest()` scans titles, keywords and headings directly.
