@@ -1311,6 +1311,18 @@
     var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
 
+    // At the bottom: who to ask when the search does not find it. The team lead is the contact.
+    var leadRole = team.roles.filter(function (role) { return role.title === team.lead; })[0];
+    if (leadRole && leadRole.person) {
+      var help = el('p', 'landing-help', 'Can\u2019t find what you need? Ask ' + leadRole.person + ' (team lead)');
+      if (leadRole.email) {
+        help.appendChild(document.createTextNode(' at '));
+        help.appendChild(link(leadRole.email, 'mailto:' + leadRole.email));
+      }
+      help.appendChild(document.createTextNode('.'));
+      main.appendChild(help);
+    }
+
     // Nothing is listed until someone searches. Results cover live Internal-Only and Client-Safe pages,
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
     async function refresh() {
