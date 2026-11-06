@@ -1308,6 +1308,10 @@
     suggestBox.hidden = true;
     searchWrap.appendChild(suggestBox);
     hero.appendChild(searchWrap);
+    // The top searches (filled in by showTopPages): small chips under the box, hidden while something is typed
+    var chips = el('div', 'landing-chips');
+    chips.hidden = true;
+    hero.appendChild(chips);
     main.appendChild(hero);
     var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
@@ -1329,7 +1333,18 @@
     async function showTopPages() {
       var result;
       try { result = await backend().popular(); } catch (error) { return; }
-      if (mine !== routing || search.value.trim() || !result.pages.length) { return; }
+      if (mine !== routing || search.value.trim()) { return; }
+      // The top searches: choosing one fills the box and searches, like a suggestion
+      chips.textContent = '';
+      (result.searches || []).forEach(function (query) {
+        var chip = el('button', 'landing-chip', query);
+        chip.type = 'button';
+        chip.addEventListener('click', function () { search.value = query; refresh(); search.focus(); });
+        chips.appendChild(chip);
+      });
+      if (result.searches && result.searches.length) { chips.insertBefore(el('span', 'landing-chips-label', 'Popular searches'), chips.firstChild); }
+      chips.hidden = !chips.childNodes.length;
+      if (!result.pages.length) { return; }
       listBox.textContent = '';
       var anyOpened = result.pages.some(function (page) { return page.views > 0; });
       listBox.appendChild(el('h2', 'landing-top-title', 'Popular Pages'));
@@ -1360,6 +1375,7 @@
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
     async function refresh() {
       var q = search.value.trim();
+      chips.hidden = !!q || !chips.childNodes.length;
       listBox.textContent = '';
       if (!q) {
         clearTimeout(settleTimer);

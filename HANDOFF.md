@@ -837,3 +837,18 @@ typing replaces them with the search results, and clearing the box brings them b
 once), over the last 30 days, by `SearchLog.topPages` and `GET /api/library/popular` (any staff member; the log itself stays
 team-lead only). The bottom of the page says "Can't find what you need? Ask <team lead> (team lead) at <email>." using the team lead's role. The library screen's
 `min-height` subtracts the 38px Testing bar; remove that when the bar is removed.
+
+## Automatic popular lists (landing page)
+
+Two lists on `#/public` are built from the search log with no approval step: the **Popular Pages** tiles (the three most opened live
+pages) and the **Popular searches** chips under the search box (the top three; clicking one fills the box and searches).
+Rules (`search-log.cjs`, tested): the last 30 days; a search counts only if it found at least one page, was made on at least
+two separate visits, is at most 60 characters, and does not look personal (an email address or 7 or more digits); the chips show
+the text only, never counts or who searched. The team lead can hide a search with **Hide from top searches** on the Search review
+screen (Undo brings it back); hidden searches are left out at once.
+
+**Refresh.** On the server, `GET /api/library/popular` keeps the counting over the log in memory for one hour (`DIGEST_MS` in
+`library.js`), so the lists change at most hourly; which pages are live and which searches are hidden are checked on every request.
+In the Claude artifact there is no background process: the lists are recalculated whenever the screen opens, from that browser's own
+log. The log has no retention limit yet (suggest 90 days; agree with IT). Synonyms, pins and saved tests from the Search review screen
+are still recorded only; they are not applied to search yet.

@@ -210,13 +210,21 @@
       // The three most opened live pages for the landing page (newest ones when nothing has been opened yet)
       popular: async function () {
         var live = readAll().pages.filter(function (page) { return !!page.liveVersion; });
-        var top = window.SearchLog.topPages(readJson(SEARCH_LOG_KEY, []), live.map(function (page) { return { id: page.id, updatedAt: page.updatedAt }; }), { limit: 3 });
-        return { pages: top.map(function (item) {
-          var page = live.filter(function (candidate) { return candidate.id === item.id; })[0];
-          var summary = W.summary(page);
-          var entry = W.searchEntry(page, 'staff') || {};
-          return { id: summary.id, title: summary.title, description: entry.description || '', visibility: summary.visibility, team: summary.team, updatedAt: summary.updatedAt, views: item.views };
-        }) };
+        var events = readJson(SEARCH_LOG_KEY, []);
+        var SL = window.SearchLog;
+        var top = SL.topPages(events, live.map(function (page) { return { id: page.id, updatedAt: page.updatedAt }; }), { limit: 3 });
+        // Searches the team lead has hidden on the Search review screen
+        var review = readJson(SEARCH_REVIEW_KEY, null);
+        var hidden = ((review && review.decisions) || []).filter(function (d) { return d.kind === 'Hidden from top searches'; }).map(function (d) { return d.itemId; });
+        return {
+          pages: top.map(function (item) {
+            var page = live.filter(function (candidate) { return candidate.id === item.id; })[0];
+            var summary = W.summary(page);
+            var entry = W.searchEntry(page, 'staff') || {};
+            return { id: summary.id, title: summary.title, description: entry.description || '', visibility: summary.visibility, team: summary.team, updatedAt: summary.updatedAt, views: item.views };
+          }),
+          searches: SL.topSearches(SL.eligibleSearches(events), hidden, 3)
+        };
       },
       // Live pages that match what is being typed (the search box's dropdown)
       suggest: async function (q) {

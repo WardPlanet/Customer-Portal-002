@@ -213,18 +213,39 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json({});
   }));
 
-  // The landing page's three most opened live pages (newest ones while nothing has been opened)
+  // The landing page's automatic lists: the three most opened live pages and the three top searches. The counting over the log is
+  // done at most once an hour (the digest is kept in memory); which pages are live and which searches the lead has hidden are
+  // checked on every request, so those changes show at once.
+  var DIGEST_MS = 60 * 60 * 1000;
+  var digestCache = null;
+
+  async function readEvents() {
+    var text = await fs.readFile(logFile, 'utf8').catch(function () { return ''; });
+    return text.split('\n').filter(Boolean).map(function (line) { try { return JSON.parse(line); } catch (error) { return null; } }).filter(Boolean);
+  }
+
+  async function currentDigest() {
+    if (!digestCache || Date.now() - digestCache.takenAt > DIGEST_MS) {
+      digestCache = Object.assign({ takenAt: Date.now() }, SearchLog.digest(await readEvents()));
+    }
+    return digestCache;
+  }
+
   app.get('/api/library/popular', staff(async function (req, res, ctx) {
     var pages = (await loadAllPages(draftsDir, ctx.team)).filter(function (page) { return !!page.liveVersion; });
-    var text = await fs.readFile(logFile, 'utf8').catch(function () { return ''; });
-    var events = text.split('\n').filter(Boolean).map(function (line) { try { return JSON.parse(line); } catch (error) { return null; } }).filter(Boolean);
-    var top = SearchLog.topPages(events, pages.map(function (page) { return { id: page.id, updatedAt: page.updatedAt }; }), { limit: 3 });
+    var digest = await currentDigest();
+    var top = SearchLog.rankPages(digest.views, pages.map(function (page) { return { id: page.id, updatedAt: page.updatedAt }; }), 3);
     var byId = {};
     pages.forEach(function (page) { byId[page.id] = { summary: Workflow.summary(page), description: (Workflow.searchEntry(page, 'staff') || {}).description || '' }; });
-    res.json({ pages: top.map(function (item) {
-      var summary = byId[item.id].summary;
-      return { id: summary.id, title: summary.title, description: byId[item.id].description, visibility: summary.visibility, team: summary.team, updatedAt: summary.updatedAt, views: item.views };
-    }) });
+    var review = await fs.readFile(reviewFile, 'utf8').then(JSON.parse).catch(function () { return null; });
+    var hidden = ((review && review.decisions) || []).filter(function (d) { return d.kind === 'Hidden from top searches'; }).map(function (d) { return d.itemId; });
+    res.json({
+      pages: top.map(function (item) {
+        var summary = byId[item.id].summary;
+        return { id: summary.id, title: summary.title, description: byId[item.id].description, visibility: summary.visibility, team: summary.team, updatedAt: summary.updatedAt, views: item.views };
+      }),
+      searches: SearchLog.topSearches(digest.searches, hidden, 3)
+    });
   }));
 
   // The search box's dropdown: titles, keywords and headings of live pages that match what has been typed so far

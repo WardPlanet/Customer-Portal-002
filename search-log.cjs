@@ -142,9 +142,12 @@
     return summary;
   }
 
-  // The most opened live pages, for the landing page. livePages: [{ id, updatedAt }]. Returns [{ id, views }], most opened first
-  // (ties and pages never opened: newest first), at most `limit`. Only pages that are live count.
-  function topPages(events, livePages, options) {
+  /* ---------- The landing page's automatic lists ----------
+     digest() does the counting (it is what the server keeps for an hour); the rest is cheap and is done on every request, so a page
+     that has just been published or taken down, or a search the lead has just hidden, shows up at once. */
+
+  // Page views over the window: { page id: number of opens }
+  function viewCounts(events, options) {
     options = options || {};
     var now = options.now ? new Date(options.now).getTime() : Date.now();
     var since = now - (options.days || 30) * DAY;
@@ -152,11 +155,60 @@
     (events || []).forEach(function (event) {
       if (event.k === 'v' && new Date(event.t).getTime() >= since) { views[event.id] = (views[event.id] || 0) + 1; }
     });
-    return (livePages || []).map(function (page) { return { id: page.id, views: views[page.id] || 0, updatedAt: String(page.updatedAt || '') }; })
+    return views;
+  }
+
+  // Text that should never be offered to other people: an email address or a long run of digits (a phone or account number)
+  function looksPersonal(query) {
+    return /@/.test(query) || /\d{7,}/.test(String(query).replace(/[\s().+-]/g, ''));
+  }
+
+  // Searches fit to show others: found a page, made on at least two separate visits, not personal. Most visits first.
+  function eligibleSearches(events, options) {
+    options = options || {};
+    var now = options.now ? new Date(options.now).getTime() : Date.now();
+    var since = now - (options.days || 30) * DAY;
+    var byKey = {};
+    (events || []).forEach(function (event) {
+      if (event.k !== 's' || !(event.n > 0) || new Date(event.t).getTime() < since || looksPersonal(event.q) || event.q.length > 60) { return; }
+      var row = byKey[keyOf(event.q)] = byKey[keyOf(event.q)] || { id: keyOf(event.q), query: event.q, visits: {}, count: 0, last: '' };
+      row.visits[event.sid] = true;
+      row.count += 1;
+      row.query = event.q;
+      if (event.t > row.last) { row.last = event.t; }
+    });
+    return Object.keys(byKey).map(function (key) {
+      var row = byKey[key];
+      return { id: row.id, query: row.query, visits: Object.keys(row.visits).length, count: row.count, last: row.last };
+    }).filter(function (row) { return row.visits >= 2; })
+      .sort(function (a, b) { return b.visits - a.visits || b.count - a.count || b.last.localeCompare(a.last); })
+      .slice(0, 30);
+  }
+
+  function digest(events, options) {
+    return { at: new Date().toISOString(), views: viewCounts(events, options), searches: eligibleSearches(events, options) };
+  }
+
+  // livePages: [{ id, updatedAt }]. [{ id, views }], most opened first (ties and pages never opened: newest first)
+  function rankPages(views, livePages, limit) {
+    return (livePages || []).map(function (page) { return { id: page.id, views: (views || {})[page.id] || 0, updatedAt: String(page.updatedAt || '') }; })
       .sort(function (a, b) { return b.views - a.views || b.updatedAt.localeCompare(a.updatedAt); })
-      .slice(0, options.limit || 3)
+      .slice(0, limit || 3)
       .map(function (page) { return { id: page.id, views: page.views }; });
   }
 
-  return { summarize: summarize, topPages: topPages, cleanEvent: cleanEvent, keyOf: keyOf, MAX_EVENTS: MAX_EVENTS };
+  // The search texts to offer (no counts, nothing about who searched), leaving out any the team lead has hidden
+  function topSearches(eligible, hiddenKeys, limit) {
+    var hidden = {};
+    (hiddenKeys || []).forEach(function (key) { hidden[keyOf(key)] = true; });
+    return (eligible || []).filter(function (row) { return !hidden[row.id]; }).slice(0, limit || 3).map(function (row) { return row.query; });
+  }
+
+  // The most opened live pages, straight from the events
+  function topPages(events, livePages, options) {
+    options = options || {};
+    return rankPages(viewCounts(events, options), livePages, options.limit);
+  }
+
+  return { summarize: summarize, topPages: topPages, digest: digest, rankPages: rankPages, topSearches: topSearches, eligibleSearches: eligibleSearches, looksPersonal: looksPersonal, cleanEvent: cleanEvent, keyOf: keyOf, MAX_EVENTS: MAX_EVENTS };
 });

@@ -70,3 +70,23 @@ test('a page view is a valid event, and the most opened live pages come first', 
   // No views at all: the newest pages
   assert.deepEqual(Log.topPages([], live, { now: NOW }).map((p) => p.id), ['c', 'b', 'a']);
 });
+
+test('top searches: found something, two separate visits, nothing personal, hidden ones left out, text only', () => {
+  const s = (sid, minutes, q, n) => ({ k: 's', sid, t: at(minutes), q, n, top: null });
+  const events = [
+    s('a', 10, 'Login', 2), s('b', 9, 'login ', 2), s('c', 8, 'login', 2),            // 3 visits
+    s('a', 7, 'holiday schedule', 1), s('b', 6, 'holiday schedule', 1),                 // 2 visits
+    s('a', 5, 'pto', 0), s('b', 4, 'pto', 0),                                          // found nothing: never shown
+    s('a', 3, 'once only', 1),                                                         // one visit
+    s('a', 2, 'jane@planetdds.com', 1), s('b', 1, 'jane@planetdds.com', 1),            // personal
+    s('a', 2, 'call 555 123 4567', 1), s('b', 1, 'call 555 123 4567', 1),
+    s('a', 20, 'logo', 1), s('a', 19, 'logo', 1)                                       // one person searching twice is still one visit
+  ];
+  const eligible = Log.eligibleSearches(events, { now: NOW });
+  assert.deepEqual(Log.topSearches(eligible, [], 3), ['login', 'holiday schedule']);
+  assert.deepEqual(Log.topSearches(eligible, ['LOGIN'], 3), ['holiday schedule']);
+  assert.equal(Log.looksPersonal('how do I renew'), false);
+  const digest = Log.digest(events, { now: NOW });
+  assert.equal(digest.searches.length, 2);
+  assert.deepEqual(Object.keys(digest.views), []);
+});
