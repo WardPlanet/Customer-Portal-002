@@ -2042,8 +2042,11 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 /* While the results are being replaced as someone types, the browser must not move the page to follow a result that disappeared */
 .lib-main.is-landing, .lib-main.is-landing * { overflow-anchor: none; }
 
-/* On a live page: the back pill with, when opened from the library, a small text link beside it */
+/* On a live page: the back pill */
 .back-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
 .back-row .back-link { margin-bottom: 0; }
-.back-sub { font-size: 13px; color: var(--text-muted); text-decoration: none; }
-.back-sub:hover { color: var(--text); text-decoration: underline; }
+
+/* Headings on a live page are the dark blue of the logo and the PDF (a lighter blue on a dark theme, where navy would not read) */
+.preview-title, .preview-h, .preview-step-title { color: #000F60; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .preview-title, :root:not([data-theme="light"]) .preview-h, :root:not([data-theme="light"]) .preview-step-title { color: #A9C2FF; } }
+:root[data-theme="dark"] .preview-title, :root[data-theme="dark"] .preview-h, :root[data-theme="dark"] .preview-step-title { color: #A9C2FF; }
