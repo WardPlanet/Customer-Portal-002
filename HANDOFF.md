@@ -817,3 +817,11 @@ A page has no owner to contact when its OWNER ROLE is empty, names a role that h
 text for others); the live page lists the **team lead** as "Contact (team lead)"; and **Team & roles** has a red "Pages without an
 owner" list where the lead ticks pages and assigns them to a role that has a person in one step. The Testing bar (Acting as) is
 always shown, including in the public preview.
+
+## Landing search page
+
+`#/public` (the "Wiki" link) is now the landing search page rather than a "public preview": the Planet DDS logo on its
+lavender band, "How can we help?", one large search box with the autocomplete dropdown, and results below (nothing is listed
+until someone searches). The logo and colours (navy #000F60, blue #0069DC, band #F0F0FA) live in `brand.js` (`window.Brand`),
+shared with the PDF export. The route name is unchanged, and the "Client-Safe only for the public" note is kept as a small line
+under the results.

@@ -1283,26 +1283,33 @@
     var mine = routing;
     showScreen('library', true);
     main.textContent = '';
-    var head = el('div', 'lib-head');
-    var titles = el('div');
-    titles.appendChild(el('h1', 'lib-title', 'Public preview'));
-    titles.appendChild(el('p', 'lib-sub', 'Search live pages, Internal-Only and Client-Safe. The public only ever sees the Client-Safe ones, with nothing about who owns or reviews a page.'));
-    head.appendChild(titles);
-    main.appendChild(head);
-    var search = el('input', 'lib-search');
+    // The landing page: the Planet DDS logo on its lavender band, a short heading and one big search box
+    var hero = el('section', 'landing-hero');
+    var logo = el('div', 'landing-logo');
+    logo.setAttribute('role', 'img');
+    logo.setAttribute('aria-label', 'Planet DDS');
+    logo.innerHTML = window.Brand.logoSvg;   // the supplied logo: fixed markup, no page text
+    hero.appendChild(logo);
+    hero.appendChild(el('h1', 'landing-title', 'How can we help?'));
+    hero.appendChild(el('p', 'landing-sub', 'Search every live page in the wiki.'));
+    var search = el('input', 'lib-search landing-search');
     search.type = 'search';
-    search.placeholder = 'Search live pages (try "exact phrase", -leave out, title:word)';
-    search.setAttribute('aria-label', 'Search live pages');
-    var searchWrap = el('div', 'suggest-wrap');
+    search.placeholder = 'Search the wiki';
+    search.setAttribute('aria-label', 'Search the wiki');
+    search.autofocus = true;
+    var searchWrap = el('div', 'suggest-wrap landing-search-wrap');
     searchWrap.appendChild(search);
     var suggestBox = el('ul', 'suggest-list');
     suggestBox.id = 'search-suggestions';
     suggestBox.setAttribute('role', 'listbox');
     suggestBox.hidden = true;
     searchWrap.appendChild(suggestBox);
-    main.appendChild(searchWrap);
-    var listBox = el('div', 'lib-list');
+    hero.appendChild(searchWrap);
+    hero.appendChild(el('p', 'landing-tip', 'Tips: "exact phrase", -leave out, title:word'));
+    main.appendChild(hero);
+    var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
+    main.appendChild(el('p', 'landing-note', 'Staff see Internal-Only and Client-Safe pages here. The public site shows Client-Safe pages only, with nothing about who owns or reviews a page.'));
 
     // Nothing is listed until someone searches. Results cover live Internal-Only and Client-Safe pages,
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
@@ -1312,7 +1319,7 @@
       if (!q) {
         clearTimeout(settleTimer);
         pendingSearch = null;
-        listBox.appendChild(el('p', 'lib-empty', 'Type in the box to search live pages.'));
+        listBox.appendChild(el('p', 'lib-empty', 'Start typing to see matching pages.'));
         return;
       }
       var result = await backend().list(q, true);
