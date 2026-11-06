@@ -1368,7 +1368,7 @@
     }
     /* ---------- Suggestions under the box while typing ----------
        Page titles, then keywords and section headings. Arrow keys move through them, Enter picks one,
-       Escape closes the list. A page opens; a keyword or heading fills the box and searches for it. */
+       Escape closes the list. Choosing one fills the box with it and searches for it. */
     var suggestions = [];
     var active = -1;
     var suggestToken = 0;
@@ -1394,13 +1394,9 @@
       });
       if (index < 0) { search.removeAttribute('aria-activedescendant'); }
     }
+    // Choosing a suggestion fills the search box with it and searches for it (a page title is not opened directly)
     function chooseSuggestion(item) {
       closeSuggestions();
-      if (item.kind === 'page') {
-        logClick(search.value.trim() || item.text, { id: item.id, title: item.text }, 0);
-        location.hash = '#/public/' + item.id;
-        return;
-      }
       search.value = item.text;
       refresh();
     }

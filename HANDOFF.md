@@ -774,7 +774,7 @@ Download backup and Restore from backup are shown to the team lead only.
 The Wiki search box (`#/public`) shows a dropdown while typing: matching page titles first, then keywords and section
 headings of live pages (`Search.suggest` in `search.cjs`, served by `GET /api/library/suggest?q=` and `Store.backend.suggest`).
 Every typed word must match the start of a word (the last one is still being typed), and one slip in a longer word is
-forgiven. Arrow keys / Enter / Escape work; a page opens, a keyword or heading fills the box and searches. Popular or
+forgiven. Arrow keys / Enter / Escape work; choosing any suggestion fills the box and searches for it (a page is not opened directly). Popular or
 recent queries are not suggested yet; that needs search analytics (not built).
 
 ### Search: spoken questions
