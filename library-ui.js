@@ -1351,9 +1351,11 @@
     function barStartScroll() {
       return Math.ceil(hero.getBoundingClientRect().bottom + window.scrollY - barHeight);
     }
-    // After a search is run from the bar, bring the page back to that point (not to the full band at the top)
+    // After a search is run from the bar, scroll smoothly back to that point (not to the full band at the top)
     function scrollToResults() {
-      if (barShown) { window.scrollTo(0, barStartScroll()); }
+      if (!barShown) { return; }
+      var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: barStartScroll(), behavior: calm ? 'auto' : 'smooth' });
     }
     function updateBar() {
       var shown = hero.getBoundingClientRect().bottom <= barHeight;
@@ -1519,8 +1521,14 @@
     // Search now (no waiting for a pause in typing); from the bar, bring the page back to where the bar takes over
     async function runSearch() {
       clearTimeout(timer);
-      await refresh();
+      var fromBar = barShown;
+      // From the bar the page keeps its height while the results change, so the smooth scroll starts from where the person is
+      await refresh(fromBar ? { keepHeight: true } : undefined);
+      if (!fromBar) { return; }
       scrollToResults();
+      setTimeout(function () {
+        if (mine === routing && search.value.trim()) { listBox.style.minHeight = 'calc(100vh - ' + barHeight + 'px)'; }
+      }, 800);   // once the scroll has arrived, the results area goes back to one screen tall
     }
     // Like Google: the part you typed is plain and the rest of the suggestion is bold
     var SEARCH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
@@ -1580,7 +1588,9 @@
     search.addEventListener('input', function () {
       typedBeforeArrows = null;
       clearTimeout(timer);
-      timer = setTimeout(function () { refresh({ keepHeight: true }); }, 200);   // while typing, the page stays where it is
+      // In the bar, the search that is showing stays until Enter or a suggestion starts a new one (only clearing the box clears it).
+      // In the full band the results follow the typing.
+      if (!barShown || !search.value.trim()) { timer = setTimeout(function () { refresh({ keepHeight: true }); }, 200); }
       clearTimeout(suggestTimer);
       if (!search.value.trim()) { suggestToken += 1; closeSuggestions(); return; }
       suggestTimer = setTimeout(askForSuggestions, 80);

@@ -859,7 +859,9 @@ exactly as tall as the bar, so it covers that last strip with no gap, and it the
 moved with its focus and suggestions (it moves back when scrolling up past that point). Pressing **Enter** in the bar, or choosing a
 suggestion there, runs the search at once and scrolls the page back to that point, so the shrunk bar and the results are showing
 rather than the full band (`runSearch` and `barStartScroll` in `library-ui.js`). Enter in the full band just searches. While a
-search is showing, the results area is at least a screen tall so that point can always be reached. While typing in the bar the page does not move (the results area keeps its height while its content is replaced, and scroll anchoring is off on
-this page); only Enter or a chosen suggestion scrolls back to that point. Clearing the box (the X, or deleting the text) removes the results
+search is showing, the results area is at least a screen tall so that point can always be reached. In the bar it is assumed that a search has already happened: typing there does not search and does not move the page, so the results
+that are showing stay until **Enter** or a **chosen suggestion** runs the new search, and the page then **scrolls smoothly** back to the
+point where the bar takes over (instant if the system asks for reduced motion). In the full band the results still follow the typing.
+(The results area keeps its height while its content is replaced, and scroll anchoring is off on this page.) Clearing the box (the X, or deleting the text) removes the results
 and shows the Popular Pages tiles again until another term is typed. The bar slides in when scrolling down and disappears at once when
 scrolling back up. Escape closes the suggestions without clearing the box. The logo is hidden in the bar on narrow screens.
