@@ -1962,31 +1962,25 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .toc-card .toc-actions .toc-chevron svg { width: 18px; height: 18px; }
 
 /* The landing search page (only this page; the top bar and everything else are unchanged).
-   The night sky fills the whole screen under the top bar: the logo, "How Can We Help" and the search box sit near the top,
-   results appear as white cards over the sky, and a "can't find it?" line stays at the bottom.
-   The background picture is landing-bg.webp (set by --landing-image below). The single-file artifact build embeds it;
-   to change the picture, replace that file. */
-.lib-main.is-landing {
-  --landing-image: url("landing-bg.webp");
-  max-width: none; padding: 0;
-  display: flex; flex-direction: column;
-  color: #FFFFFF;
+   A night-sky band across the top holds the logo, "How Can We Help" and the search box. Below it the page is grey and shows
+   the three most opened pages in three boxes (or the search results once someone searches), with a "can't find it?" line
+   at the bottom. The picture is landing-bg.webp (set by --landing-image); the single-file artifact build embeds it. To change
+   the picture, replace that file. */
+.lib-main.is-landing { --landing-image: url("landing-bg.webp"); max-width: none; padding: 0; display: flex; flex-direction: column; }
+.landing-hero {
+  position: relative; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  padding: 56px 24px 64px; text-align: center; color: #FFFFFF;
   background-color: #07104A;
   background-image:
     var(--landing-image),
     radial-gradient(circle at 8% 22%, rgba(255, 255, 255, 0.8) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 21% 68%, rgba(255, 255, 255, 0.5) 0 1px, transparent 1.6px),
     radial-gradient(circle at 57% 80%, rgba(255, 255, 255, 0.7) 0 1px, transparent 1.6px),
     radial-gradient(circle at 90% 62%, rgba(255, 255, 255, 0.5) 0 1px, transparent 1.6px),
     radial-gradient(ellipse at 85% 110%, rgba(110, 60, 190, 0.55), transparent 55%),
     radial-gradient(ellipse at 10% -10%, rgba(0, 105, 220, 0.45), transparent 55%);
   background-size: cover;
   background-position: center;
-}
-.landing-hero {
-  position: relative; z-index: 3;
-  display: flex; flex-direction: column; align-items: center; gap: 22px;
-  padding: clamp(40px, 13vh, 150px) 24px 40px; text-align: center;
 }
 .landing-logo { width: 170px; }
 .landing-logo svg { display: block; width: 100%; height: auto; filter: brightness(0) invert(1); }
@@ -1997,8 +1991,20 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-search:focus { outline: none; box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4), 0 0 0 3px rgba(77, 163, 255, 0.55); }
 .landing-search::placeholder { color: #8A8EA8; }
 .landing-search-wrap .suggest-list { color: var(--text); }
-.landing-results { width: 100%; max-width: 1080px; margin: 0 auto; padding: 8px 28px 28px; box-sizing: border-box; }
-.is-landing .search-note { color: #CFD8F7; }
-.landing-help { margin: auto 0 0; padding: 32px 24px 36px; text-align: center; font-size: 15px; color: #CFD8F7; }
-.landing-help a { color: #FFFFFF; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
-.landing-help a:hover { color: #4DA3FF; }
+.landing-results { width: 100%; max-width: 1080px; margin: 0 auto; padding: 32px 28px 28px; box-sizing: border-box; }
+.landing-top-title { margin: 0 0 16px; font-size: 20px; font-weight: 700; color: var(--text); }
+.landing-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+.landing-tile {
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; min-height: 200px; padding: 24px;
+  border-radius: 12px; color: #FFFFFF; text-decoration: none;
+  background-color: #07104A;
+  background-image: linear-gradient(135deg, rgba(7, 16, 74, 0.62), rgba(58, 33, 144, 0.5)), var(--landing-image);
+  background-size: cover; background-position: center;
+}
+.landing-tile:hover { box-shadow: 0 8px 24px rgba(0, 15, 96, 0.28); transform: translateY(-2px); }
+.landing-tile:focus-visible { outline: 3px solid #4DA3FF; outline-offset: 2px; }
+.landing-tile-meta { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #BFD2FF; }
+.landing-tile-title { font-size: 22px; line-height: 1.2; font-weight: 800; }
+.landing-tile-text { font-size: 14px; line-height: 1.45; color: #DCE5FF; }
+.landing-help { margin: auto 0 0; padding: 32px 24px 36px; text-align: center; font-size: 15px; color: var(--text-muted); }
+.landing-help a { font-weight: 600; }

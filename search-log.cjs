@@ -5,6 +5,7 @@
 // can be matched) and the time.
 //   a search: { k: 's', t: time, sid: visit, q: text, n: number of results, top: { id, title } | null }
 //   a click:  { k: 'c', t: time, sid: visit, q: text, id: page id, title: page title, pos: place in the results (0 = from the dropdown) }
+//   a view:   { k: 'v', t: time, sid: visit, id: page id, title: page title }   a live page was opened (for "most opened pages")
 //
 // summarize() turns the events into the three lists on the Search review screen:
 //   nothing   searches that found no page
@@ -28,7 +29,11 @@
 
   // The event as it is stored: only the known fields, with limits, or null when it is not a usable event
   function cleanEvent(raw, nowIso) {
-    if (!raw || (raw.k !== 's' && raw.k !== 'c')) { return null; }
+    if (!raw || (raw.k !== 's' && raw.k !== 'c' && raw.k !== 'v')) { return null; }
+    if (raw.k === 'v') {
+      if (!raw.id) { return null; }
+      return { k: 'v', t: String(raw.t || nowIso || new Date().toISOString()), sid: String(raw.sid || '').slice(0, 40), id: String(raw.id).slice(0, 60), title: String(raw.title || '').slice(0, 200) };
+    }
     var query = String(raw.q || '').replace(/\s+/g, ' ').trim().slice(0, MAX_QUERY);
     if (!query) { return null; }
     var event = { k: raw.k, t: String(raw.t || nowIso || new Date().toISOString()), sid: String(raw.sid || '').slice(0, 40), q: query };
@@ -137,5 +142,21 @@
     return summary;
   }
 
-  return { summarize: summarize, cleanEvent: cleanEvent, keyOf: keyOf, MAX_EVENTS: MAX_EVENTS };
+  // The most opened live pages, for the landing page. livePages: [{ id, updatedAt }]. Returns [{ id, views }], most opened first
+  // (ties and pages never opened: newest first), at most `limit`. Only pages that are live count.
+  function topPages(events, livePages, options) {
+    options = options || {};
+    var now = options.now ? new Date(options.now).getTime() : Date.now();
+    var since = now - (options.days || 30) * DAY;
+    var views = {};
+    (events || []).forEach(function (event) {
+      if (event.k === 'v' && new Date(event.t).getTime() >= since) { views[event.id] = (views[event.id] || 0) + 1; }
+    });
+    return (livePages || []).map(function (page) { return { id: page.id, views: views[page.id] || 0, updatedAt: String(page.updatedAt || '') }; })
+      .sort(function (a, b) { return b.views - a.views || b.updatedAt.localeCompare(a.updatedAt); })
+      .slice(0, options.limit || 3)
+      .map(function (page) { return { id: page.id, views: page.views }; });
+  }
+
+  return { summarize: summarize, topPages: topPages, cleanEvent: cleanEvent, keyOf: keyOf, MAX_EVENTS: MAX_EVENTS };
 });

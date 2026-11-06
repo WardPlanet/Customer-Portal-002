@@ -59,3 +59,14 @@ test('common searches need at least two, newest data only, and name the page peo
   assert.equal(summary.totals.searches, 3);
   assert.deepEqual(summary.common.map((row) => [row.query, row.count, row.page]), [['login', 2, 'Login help']]);
 });
+
+test('a page view is a valid event, and the most opened live pages come first', () => {
+  assert.equal(Log.cleanEvent({ k: 'v' }), null);
+  assert.deepEqual(Log.cleanEvent({ k: 'v', id: 'p1', title: 'Login help', sid: 'a', q: 'ignored' }, NOW), { k: 'v', t: NOW, sid: 'a', id: 'p1', title: 'Login help' });
+  const view = (id, minutes) => ({ k: 'v', sid: 'a', t: at(minutes), id, title: id });
+  const live = [{ id: 'a', updatedAt: '2026-11-01' }, { id: 'b', updatedAt: '2026-11-02' }, { id: 'c', updatedAt: '2026-11-03' }, { id: 'd', updatedAt: '2026-10-01' }];
+  const events = [view('a', 5), view('a', 6), view('a', 7), view('b', 8), view('b', 9), view('c', 10), view('gone', 11), { ...view('d', 60 * 24 * 40), t: at(60 * 24 * 40) }];
+  assert.deepEqual(Log.topPages(events, live, { now: NOW }), [{ id: 'a', views: 3 }, { id: 'b', views: 2 }, { id: 'c', views: 1 }]);
+  // No views at all: the newest pages
+  assert.deepEqual(Log.topPages([], live, { now: NOW }).map((p) => p.id), ['c', 'b', 'a']);
+});

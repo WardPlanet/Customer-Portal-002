@@ -213,6 +213,20 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json({});
   }));
 
+  // The landing page's three most opened live pages (newest ones while nothing has been opened)
+  app.get('/api/library/popular', staff(async function (req, res, ctx) {
+    var pages = (await loadAllPages(draftsDir, ctx.team)).filter(function (page) { return !!page.liveVersion; });
+    var text = await fs.readFile(logFile, 'utf8').catch(function () { return ''; });
+    var events = text.split('\n').filter(Boolean).map(function (line) { try { return JSON.parse(line); } catch (error) { return null; } }).filter(Boolean);
+    var top = SearchLog.topPages(events, pages.map(function (page) { return { id: page.id, updatedAt: page.updatedAt }; }), { limit: 3 });
+    var byId = {};
+    pages.forEach(function (page) { byId[page.id] = { summary: Workflow.summary(page), description: (Workflow.searchEntry(page, 'staff') || {}).description || '' }; });
+    res.json({ pages: top.map(function (item) {
+      var summary = byId[item.id].summary;
+      return { id: summary.id, title: summary.title, description: byId[item.id].description, visibility: summary.visibility, team: summary.team, updatedAt: summary.updatedAt, views: item.views };
+    }) });
+  }));
+
   // The search box's dropdown: titles, keywords and headings of live pages that match what has been typed so far
   app.get('/api/library/suggest', staff(async function (req, res, ctx) {
     var pages = (await loadAllPages(draftsDir, ctx.team)).filter(function (page) { return !!page.liveVersion; });

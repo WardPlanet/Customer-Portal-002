@@ -56,6 +56,7 @@
     saveSearchReview: function (review) { return this.call('PUT', '/api/search-review', review); },
     clearSearchLog: function () { return this.call('DELETE', '/api/search-log'); },
     suggest: function (q) { return this.call('GET', '/api/library/suggest?q=' + encodeURIComponent(q || '')); },
+    popular: function () { return this.call('GET', '/api/library/popular'); },
     list: function (q, liveOnly) { return this.call('GET', '/api/library/pages?' + (q ? 'q=' + encodeURIComponent(q) + '&' : '') + (liveOnly ? 'live=1' : '')); },
     create: function (text, note) { return this.call('POST', '/api/library/pages', { text: text, note: note || '' }); },
     get: function (id) { return this.call('GET', '/api/library/pages/' + id); },
@@ -205,6 +206,17 @@
         writeJson(SEARCH_LOG_KEY, []);
         writeJson(SEARCH_REVIEW_KEY, null);
         return {};
+      },
+      // The three most opened live pages for the landing page (newest ones when nothing has been opened yet)
+      popular: async function () {
+        var live = readAll().pages.filter(function (page) { return !!page.liveVersion; });
+        var top = window.SearchLog.topPages(readJson(SEARCH_LOG_KEY, []), live.map(function (page) { return { id: page.id, updatedAt: page.updatedAt }; }), { limit: 3 });
+        return { pages: top.map(function (item) {
+          var page = live.filter(function (candidate) { return candidate.id === item.id; })[0];
+          var summary = W.summary(page);
+          var entry = W.searchEntry(page, 'staff') || {};
+          return { id: summary.id, title: summary.title, description: entry.description || '', visibility: summary.visibility, team: summary.team, updatedAt: summary.updatedAt, views: item.views };
+        }) };
       },
       // Live pages that match what is being typed (the search box's dropdown)
       suggest: async function (q) {

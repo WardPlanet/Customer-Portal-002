@@ -1249,6 +1249,7 @@
   var pendingSearch = null;
   var settleTimer = null;
   var lastLogged = { q: '', at: 0 };
+  var lastViewed = { id: '', at: 0 };
 
   function sendLog(event) {
     event.sid = VISIT_ID;
@@ -1323,6 +1324,26 @@
       main.appendChild(help);
     }
 
+    // With nothing typed, the three most opened pages fill the grey area in three boxes (the newest pages while nothing
+    // has been opened yet). The tiles open the page; typing replaces them with the search results.
+    async function showTopPages() {
+      var result;
+      try { result = await backend().popular(); } catch (error) { return; }
+      if (mine !== routing || search.value.trim() || !result.pages.length) { return; }
+      listBox.textContent = '';
+      var anyOpened = result.pages.some(function (page) { return page.views > 0; });
+      listBox.appendChild(el('h2', 'landing-top-title', anyOpened ? 'Most opened pages' : 'Newest pages'));
+      var grid = el('div', 'landing-top');
+      result.pages.forEach(function (page) {
+        var tile = link('', '#/public/' + page.id, 'landing-tile');
+        tile.appendChild(el('span', 'landing-tile-meta', page.visibility + (anyOpened && page.views ? ' \u00B7 ' + page.views + (page.views === 1 ? ' open' : ' opens') : ' \u00B7 Updated ' + formatDate(page.updatedAt))));
+        tile.appendChild(el('span', 'landing-tile-title', page.title));
+        if (page.description) { tile.appendChild(el('span', 'landing-tile-text', page.description)); }
+        grid.appendChild(tile);
+      });
+      listBox.appendChild(grid);
+    }
+
     // Nothing is listed until someone searches. Results cover live Internal-Only and Client-Safe pages,
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
     async function refresh() {
@@ -1331,6 +1352,7 @@
       if (!q) {
         clearTimeout(settleTimer);
         pendingSearch = null;
+        showTopPages();
         return;
       }
       var result = await backend().list(q, true);
@@ -1927,6 +1949,11 @@
       data = await backend().getVersion(id, shownVersion);
     } catch (error) { console.error('Opening the preview failed:', error); if (mine === routing) { notice('That page could not be opened.'); location.hash = fromLibrary ? '#/' : '#/public'; } return; }
     if (mine !== routing) { return; }
+    // Opening a live page counts as a view (for "most opened pages"); jumping between its sections does not count again
+    if (detail.page.liveVersion && !(lastViewed.id === id && Date.now() - lastViewed.at < 60000)) {
+      lastViewed = { id: id, at: Date.now() };
+      sendLog({ k: 'v', id: id, title: detail.page.title });
+    }
     showScreen('library', true);
     main.textContent = '';
     // The same "← Library" link as at the top of Batch import

@@ -830,6 +830,10 @@ made white with a CSS filter on the landing page only.
 `--landing-image` on `.landing-hero` in `styles.css`. The server serves the file; `npm run build:artifact` embeds it in the
 single-file artifact as a `data:` URI (the build reads `landing-bg.webp`). To change the picture, replace that file.
 
-The landing page's night sky fills the whole screen under the top bar (results appear as white cards over it), and the bottom of
-the page says "Can't find what you need? Ask <team lead> (team lead) at <email>." using the team lead's role. The library screen's
+The night sky is a band across the top (logo, heading, search); the page below it is grey. With the box empty, the grey area shows
+the **three most opened live pages** in three tiles (titled "Most opened pages", or "Newest pages" while nothing has been opened);
+typing replaces them with the search results, and clearing the box brings them back. Opens are counted from page views logged as
+`{ k: 'v' }` events in the search log (a live page opened from search, the library or the tiles; the same page within a minute counts
+once), over the last 30 days, by `SearchLog.topPages` and `GET /api/library/popular` (any staff member; the log itself stays
+team-lead only). The bottom of the page says "Can't find what you need? Ask <team lead> (team lead) at <email>." using the team lead's role. The library screen's
 `min-height` subtracts the 38px Testing bar; remove that when the bar is removed.
