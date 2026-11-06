@@ -862,6 +862,5 @@ rather than the full band (`runSearch` and `barStartScroll` in `library-ui.js`).
 search is showing, the results area is at least a screen tall so that point can always be reached. In the bar it is assumed that a search has already happened: typing there does not search and does not move the page, so the results
 that are showing stay until **Enter** or a **chosen suggestion** runs the new search, and the page then **scrolls smoothly** back to the
 point where the bar takes over (instant if the system asks for reduced motion). In the full band the results still follow the typing.
-(The results area keeps its height while its content is replaced, and scroll anchoring is off on this page.) Clearing the box (the X, or deleting the text) removes the results
-and shows the Popular Pages tiles again until another term is typed. The bar slides in when scrolling down and disappears at once when
+Deleting the text or clicking the X in the bar does **not** clear the results either; Enter on an empty box does nothing. (The results area keeps its height while its content is replaced, and scroll anchoring is off on this page.) In the full band, clearing the box removes the results and shows the Popular Pages tiles again until another term is typed. The bar slides in when scrolling down and disappears at once when
 scrolling back up. Escape closes the suggestions without clearing the box. The logo is hidden in the bar on narrow screens.

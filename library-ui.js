@@ -1522,6 +1522,7 @@
     async function runSearch() {
       clearTimeout(timer);
       var fromBar = barShown;
+      if (fromBar && !search.value.trim()) { return; }   // an empty box in the bar is not a new search: the results stay
       // From the bar the page keeps its height while the results change, so the smooth scroll starts from where the person is
       await refresh(fromBar ? { keepHeight: true } : undefined);
       if (!fromBar) { return; }
@@ -1588,9 +1589,9 @@
     search.addEventListener('input', function () {
       typedBeforeArrows = null;
       clearTimeout(timer);
-      // In the bar, the search that is showing stays until Enter or a suggestion starts a new one (only clearing the box clears it).
+      // In the bar, the search that is showing stays, whatever is typed or deleted, until Enter or a suggestion starts a new one.
       // In the full band the results follow the typing.
-      if (!barShown || !search.value.trim()) { timer = setTimeout(function () { refresh({ keepHeight: true }); }, 200); }
+      if (!barShown) { timer = setTimeout(function () { refresh({ keepHeight: true }); }, 200); }
       clearTimeout(suggestTimer);
       if (!search.value.trim()) { suggestToken += 1; closeSuggestions(); return; }
       suggestTimer = setTimeout(askForSuggestions, 80);
