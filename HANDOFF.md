@@ -835,7 +835,7 @@ the **three most opened live pages** in three tiles (always titled "Popular Page
 typing replaces them with the search results, and clearing the box brings them back. Opens are counted from page views logged as
 `{ k: 'v' }` events in the search log (a live page opened from search, the library or the tiles; the same page within a minute counts
 once), over the last 30 days, by `SearchLog.topPages` and `GET /api/library/popular` (any staff member; the log itself stays
-team-lead only). The bottom of the page says "Can't find what you're looking for?" above a blue "Contact your support team" button linking to
+team-lead only). The bottom of the page has one small grey line, "Can't find what you're looking for? Contact your support team", linking to
 https://www.planetdds.com/contact-us/ (opens in a new tab).
 
 ## Automatic popular lists (landing page)
