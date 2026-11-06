@@ -1287,14 +1287,19 @@
     // The landing page: the white Planet DDS logo above "How Can We Help" and one big search box, on a dark starfield
     main.classList.add('is-landing');
     var hero = el('section', 'landing-hero');
+    // The logo and heading sit in a wrapper that folds away once someone searches (the band shrinks to just the search box)
+    var intro = el('div', 'landing-intro');
+    var introInner = el('div', 'landing-intro-inner');
+    intro.appendChild(introInner);
     var logo = el('div', 'landing-logo');
     logo.setAttribute('role', 'img');
     logo.setAttribute('aria-label', 'Planet DDS');
     logo.innerHTML = window.Brand.logoSvg;   // the supplied logo: fixed markup, no page text
-    hero.appendChild(logo);
+    introInner.appendChild(logo);
     var title = el('h1', 'landing-title', 'How Can We ');
     title.appendChild(el('span', '', 'Help?'));
-    hero.appendChild(title);
+    introInner.appendChild(title);
+    hero.appendChild(intro);
     var search = el('input', 'lib-search landing-search');
     search.type = 'search';
     search.placeholder = 'Search the wiki';
@@ -1373,6 +1378,8 @@
     async function refresh() {
       var q = search.value.trim();
       chips.hidden = !!q || !chips.childNodes.length;
+      // While searching, the band shrinks to the search box and stays at the top of the screen as the results scroll
+      hero.classList.toggle('is-compact', !!q);
       listBox.textContent = '';
       if (!q) {
         clearTimeout(settleTimer);
@@ -1494,7 +1501,7 @@
       if (event.key === 'ArrowDown') { event.preventDefault(); highlightSuggestion((active + 1) % suggestions.length); }
       else if (event.key === 'ArrowUp') { event.preventDefault(); highlightSuggestion((active - 1 + suggestions.length) % suggestions.length); }
       else if (event.key === 'Enter' && active >= 0) { event.preventDefault(); chooseSuggestion(suggestions[active]); }
-      else if (event.key === 'Escape') { closeSuggestions(); }
+      else if (event.key === 'Escape') { event.preventDefault(); closeSuggestions(); }   // closes the list only; the browser would also clear the box
     });
     search.addEventListener('blur', function () { suggestToken += 1; closeSuggestions(); });
     search.addEventListener('focus', function () { if (search.value.trim()) { askForSuggestions(); } });

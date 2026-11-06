@@ -1969,8 +1969,9 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .lib-main.is-landing { --landing-image: url("landing-bg.webp"); max-width: none; padding: 0; display: flex; flex-direction: column; }
 .landing-hero {
   position: relative; z-index: 3;
-  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
   padding: 56px 24px 64px; text-align: center; color: #FFFFFF;
+  transition: padding 0.25s ease;
   background-color: #07104A;
   background-image:
     var(--landing-image),
@@ -1982,6 +1983,13 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
   background-size: cover;
   background-position: center;
 }
+.landing-intro { display: grid; grid-template-rows: 1fr; width: 100%; transition: grid-template-rows 0.25s ease, opacity 0.2s ease; }
+.landing-intro-inner { min-height: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-bottom: 22px; }
+/* While searching: just the search box, stuck to the top of the screen */
+.landing-hero.is-compact { position: sticky; top: 0; padding-top: 14px; padding-bottom: 14px; box-shadow: 0 6px 18px rgba(0, 15, 96, 0.3); }
+.landing-hero.is-compact .landing-intro { grid-template-rows: 0fr; opacity: 0; }
+.landing-hero.is-compact .landing-search-wrap { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .landing-hero, .landing-intro { transition: none; } }
 .landing-logo { width: 170px; }
 .landing-logo svg { display: block; width: 100%; height: auto; filter: brightness(0) invert(1); }
 .landing-title { margin: 0; font-size: 56px; line-height: 1.08; font-weight: 800; color: #FFFFFF; text-wrap: balance; }

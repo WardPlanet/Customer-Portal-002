@@ -852,3 +852,8 @@ screen (Undo brings it back); hidden searches are left out at once.
 In the Claude artifact there is no background process: the lists are recalculated whenever the screen opens, from that browser's own
 log. The log has no retention limit yet (suggest 90 days; agree with IT). Synonyms, pins and saved tests from the Search review screen
 are still recorded only; they are not applied to search yet.
+
+**Sticky shrinking search band.** On the landing page the page scrolls normally. As soon as something is typed, the night-sky band folds
+the logo, heading and chips away (`is-compact`, animated unless reduced motion is requested) and shrinks to just the search box, which
+sticks to the top of the screen while the results scroll under it. Clearing the box restores the full band. Escape closes the
+suggestions without clearing the box.
