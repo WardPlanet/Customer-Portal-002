@@ -2026,7 +2026,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
   display: flex; align-items: center; gap: 24px; padding: 0 24px; height: var(--bar-h, 64px);   /* a fixed height: the band's last strip is exactly this tall */
   background-color: #07104A; background-image: var(--landing-image); background-size: cover; background-position: center;
   box-shadow: 0 6px 18px rgba(0, 15, 96, 0.3);
-  transform: translateY(-110%); visibility: hidden; transition: transform 0.25s ease, visibility 0s linear 0.25s;
+  transform: translateY(-110%); visibility: hidden; transition: none;   /* scrolling back up: it just goes, with no slide */
 }
 .landing-bar.is-shown { transform: translateY(0); visibility: visible; transition: transform 0.25s ease; }
 .landing-bar-logo { flex: none; display: block; width: 120px; }
@@ -2036,3 +2036,6 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-bar .landing-search { height: 44px; font-size: 16px; padding: 0 22px; box-shadow: none; }
 @media (max-width: 640px) { .landing-bar-logo { display: none; } .landing-bar { padding: 0 16px; } }
 @media (prefers-reduced-motion: reduce) { .landing-bar, .landing-bar.is-shown { transition: none; } }
+
+/* While the results are being replaced as someone types, the browser must not move the page to follow a result that disappeared */
+.lib-main.is-landing, .lib-main.is-landing * { overflow-anchor: none; }

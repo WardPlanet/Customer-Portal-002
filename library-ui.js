@@ -1423,12 +1423,17 @@
 
     // Nothing is listed until someone searches. Results cover live Internal-Only and Client-Safe pages,
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
-    async function refresh() {
+    // options.keepHeight: this refresh comes from typing, so the page must not move. The results area keeps its height while its
+    // content is replaced, because a shorter page would pull the scroll position back up to the top of the results.
+    async function refresh(options) {
       var q = search.value.trim();
+      var held = listBox.offsetHeight;
       listBox.textContent = '';
       // With a search showing, the results area is at least one screen tall, so the page can always be scrolled to the point where
       // the bar takes over
-      listBox.style.minHeight = q ? 'calc(100vh - ' + barHeight + 'px)' : '';
+      var screenTall = 'calc(100vh - ' + barHeight + 'px)';
+      if (options && options.keepHeight && window.scrollY > 0) { listBox.style.minHeight = 'max(' + held + 'px, ' + screenTall + ')'; }
+      else { listBox.style.minHeight = q ? screenTall : ''; }
       if (!q) {
         clearTimeout(settleTimer);
         pendingSearch = null;
@@ -1575,7 +1580,7 @@
     search.addEventListener('input', function () {
       typedBeforeArrows = null;
       clearTimeout(timer);
-      timer = setTimeout(refresh, 200);
+      timer = setTimeout(function () { refresh({ keepHeight: true }); }, 200);   // while typing, the page stays where it is
       clearTimeout(suggestTimer);
       if (!search.value.trim()) { suggestToken += 1; closeSuggestions(); return; }
       suggestTimer = setTimeout(askForSuggestions, 80);
