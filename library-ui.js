@@ -1250,6 +1250,8 @@
   var settleTimer = null;
   var lastLogged = { q: '', at: 0 };
   var lastViewed = { id: '', at: 0 };
+  // The search that was showing when a result was opened, so going back to the landing page shows it again (see showPublic)
+  var savedSearch = null;
 
   function sendLog(event) {
     event.sid = VISIT_ID;
@@ -1447,7 +1449,7 @@
       if (mine !== routing || q !== search.value.trim()) { return; }
       listBox.textContent = '';
       var live = result.pages.filter(function (p) { return p.liveVersion; });
-      queueSearchLog(q, live);
+      if (!(options && options.restoring)) { queueSearchLog(q, live); }   // showing an earlier search again is not a new search
       var note = searchNote({ pages: live, partial: result.partial, suggestion: result.suggestion }, function (word) { search.value = word; refresh(); });
       if (!live.length) {
         listBox.appendChild(note || el('p', 'lib-empty', 'No live pages match.'));
@@ -1462,7 +1464,10 @@
         var titleRow = el('div', 'public-card-title');
         var titleLink = link('', '#/public/' + p.id, 'lib-page-link');
         titleLink.appendChild(markedNodes(p.search ? p.search.titleParts : null, p.title));
-        titleLink.addEventListener('click', function () { logClick(q, p, position + 1); });
+        titleLink.addEventListener('click', function () {
+          savedSearch = { q: q, y: window.scrollY };   // coming back to the landing page brings this search and its place back
+          logClick(q, p, position + 1);
+        });
         titleRow.appendChild(titleLink);
         titleRow.appendChild(visibilityPill(p.visibility));
         body.appendChild(titleRow);
@@ -1629,7 +1634,19 @@
     search.addEventListener('blur', function () { if (moving) { return; } cancelSuggestions(); });
     // Clicking into the box with text in it shows the suggestions again. Moving the box into the bar is not the person clicking.
     search.addEventListener('focus', function () { if (!moving && search.value.trim()) { askForSuggestions(); } });
-    refresh();
+    // Back from a live page: the search that was showing is shown again, at the same place on the page
+    if (savedSearch) {
+      var saved = savedSearch;
+      savedSearch = null;
+      search.value = saved.q;
+      refresh({ restoring: true }).then(function () {
+        if (mine !== routing) { return; }
+        window.scrollTo(0, saved.y);
+        updateBar();
+      });
+    } else {
+      refresh();
+    }
   }
 
   // Inline formatting in preview text: **bold**, `code` and [label](https://link). Built as nodes, never as HTML.

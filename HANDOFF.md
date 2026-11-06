@@ -866,3 +866,7 @@ Deleting the text or clicking the X in the bar does **not** clear the results ei
 scrolling back up. Escape closes the suggestions without clearing the box. The logo is hidden in the bar on narrow screens.
 A live page always has a blue "← Back to search" pill that goes to the landing page (the Library link is in the top bar). Headings, the page title and
 step titles on a live page are the logo and PDF navy (#000F60), a lighter blue on a dark theme. "← Library" on Batch import is the same pill style (`.back-link`).
+
+**Back to the search.** When a result is opened from the landing page, the search (its text) and the scroll position are remembered
+(`savedSearch` in `library-ui.js`); "← Back to search" or the browser's Back button then shows the same results at the same place,
+without logging the search a second time. It is used once: a later visit to the landing page (from the Wiki link, say) starts fresh.
