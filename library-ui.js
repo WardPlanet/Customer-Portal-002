@@ -2112,8 +2112,11 @@
     }
     showScreen('library', true);
     main.textContent = '';
-    // The same "← Library" link as at the top of Batch import
-    main.appendChild(link(fromLibrary ? '← Library' : '← Back to search', fromLibrary ? '#/' : '#/public', 'back-link'));
+    // Always a way back to the search landing page; opened from the library, a small "Library" link is there as well
+    var backRow = el('div', 'back-row');
+    backRow.appendChild(link('← Back to search', '#/public', 'back-link'));
+    if (fromLibrary) { backRow.appendChild(link('Library', '#/', 'back-sub')); }
+    main.appendChild(backRow);
     var bar = el('div', 'preview-bar');
     bar.appendChild(visibilityPill(detail.page.visibility));
     if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet')); }

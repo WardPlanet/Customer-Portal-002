@@ -1440,8 +1440,8 @@
   .lib-note, .lib-hint { margin: 0 0 12px; color: var(--text-faint); font-size: 13px; }
   .lib-empty { padding: 28px 0; color: var(--text-muted); }
   .lib-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-  /* "← Back to search" and "← Library": a clear blue pill, so the way back is easy to find */
-  .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; padding: 9px 18px; color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 999px; text-decoration: none; font-size: 15px; font-weight: 600; }
+  /* "← Back to search" and "← Library": a blue pill, so the way back is easy to find */
+  .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; padding: 6px 14px; color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 999px; text-decoration: none; font-size: 13px; font-weight: 600; }
   .back-link:hover { border-color: var(--accent); background: var(--surface); }
   .back-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
@@ -2041,3 +2041,9 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 
 /* While the results are being replaced as someone types, the browser must not move the page to follow a result that disappeared */
 .lib-main.is-landing, .lib-main.is-landing * { overflow-anchor: none; }
+
+/* On a live page: the back pill with, when opened from the library, a small text link beside it */
+.back-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.back-row .back-link { margin-bottom: 0; }
+.back-sub { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+.back-sub:hover { color: var(--text); text-decoration: underline; }
