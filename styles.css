@@ -1898,15 +1898,23 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .edit-table.is-resizing { user-select: none; cursor: col-resize; }
 .preview-table[style*="table-layout"] th, .preview-table[style*="table-layout"] td { overflow-wrap: anywhere; }
 
-/* The dropdown under the search box */
-.suggest-wrap { position: relative; }
-.suggest-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14); }
+/* The dropdown under the search box, in the style of Google's: it joins the box, a magnifier in front of every suggestion, the part
+   already typed plain and the rest bold, a grey row for the one the pointer or the arrow keys are on */
+.suggest-wrap { position: relative; --sb-radius: 29px; }
+.suggest-list {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 30; margin: 0; padding: 0 0 12px; list-style: none;
+  background: #FFFFFF; color: #202124; border-radius: 0 0 var(--sb-radius) var(--sb-radius);
+  box-shadow: 0 6px 10px rgba(32, 33, 36, 0.28);
+}
+.suggest-list::before { content: ""; display: block; height: 1px; margin: 0 22px 8px; background: #E8EAED; }
 .suggest-list[hidden] { display: none; }
-.suggest-item { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
-.suggest-item:hover, .suggest-item.is-active { background: var(--accent-soft); }
-.suggest-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.suggest-text .search-hit { background: none; font-weight: 700; color: var(--accent-text); }
-.suggest-kind { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-muted); }
+.suggest-item { display: flex; align-items: center; gap: 14px; padding: 0 22px; min-height: 40px; cursor: pointer; }
+.suggest-item.is-active { background: #F1F3F4; }
+.suggest-icon { flex: none; display: inline-flex; color: #9AA0A6; }
+.suggest-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; line-height: 1.4; color: #202124; }
+.suggest-text strong { font-weight: 700; }
+/* While it is open the box loses its rounded bottom, so the two read as one */
+.suggest-wrap.is-open .landing-search { border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: 0 -1px 6px rgba(32, 33, 36, 0.18), 0 0 0 transparent; }
 
 /* Search review (preview with sample data) */
 .review-banner { margin: 0 0 16px; padding: 10px 14px; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 10px; color: var(--text); font-size: 14px; }
@@ -1988,10 +1996,9 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-title span { color: #4DA3FF; }
 .landing-search-slot { width: 100%; display: flex; justify-content: center; }
 .landing-search-wrap { width: 100%; max-width: 680px; text-align: left; }
-.landing-search { width: 100%; height: 58px; padding: 0 28px; font: inherit; font-size: 18px; color: #0B1240; background: #FFFFFF; border: 0; border-radius: 29px; box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4); }
+.landing-search { width: 100%; height: 58px; padding: 0 28px; font: inherit; font-size: 18px; color: #0B1240; background: #FFFFFF; border: 0; border-radius: var(--sb-radius); box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4); }
 .landing-search:focus { outline: none; box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4), 0 0 0 3px rgba(77, 163, 255, 0.55); }
 .landing-search::placeholder { color: #8A8EA8; }
-.landing-search-wrap .suggest-list { color: var(--text); }
 .landing-results { width: 100%; max-width: 1080px; margin: 0 auto; padding: 32px 28px 28px; box-sizing: border-box; }
 .landing-top-title { margin: 0 0 16px; font-size: 20px; font-weight: 700; color: var(--text); }
 .landing-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
@@ -2025,7 +2032,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-bar-logo { flex: none; display: block; width: 120px; }
 .landing-bar-logo svg { display: block; width: 100%; height: auto; filter: brightness(0) invert(1); }
 .landing-bar-slot { flex: 1; min-width: 0; display: flex; justify-content: flex-end; }
-.landing-bar .landing-search-wrap { max-width: 460px; }
-.landing-bar .landing-search { height: 44px; font-size: 16px; padding: 0 22px; border-radius: 22px; box-shadow: none; }
+.landing-bar .landing-search-wrap { max-width: 460px; --sb-radius: 22px; }
+.landing-bar .landing-search { height: 44px; font-size: 16px; padding: 0 22px; box-shadow: none; }
 @media (max-width: 640px) { .landing-bar-logo { display: none; } .landing-bar { padding: 0 16px; } }
 @media (prefers-reduced-motion: reduce) { .landing-bar, .landing-bar.is-shown { transition: none; } }

@@ -771,17 +771,15 @@ Download backup and Restore from backup are shown to the team lead only.
 
 ## Search autocomplete
 
-The Wiki search box (`#/public`) shows a dropdown while typing: matching page titles first, then keywords and section
-headings of live pages (`Search.suggest` in `search.cjs`, served by `GET /api/library/suggest?q=` and `Store.backend.suggest`).
-Every typed word must match the start of a word (the last one is still being typed), and one slip in a longer word is
-forgiven. Arrow keys / Enter / Escape work; choosing any suggestion fills the box and searches for it (a page is not opened directly). Popular or
-recent queries are not suggested yet; that needs search analytics (not built).
-
-### Search: spoken questions
-
-Question words and pronouns ("how do I ... my ...", "can", "what", "please" and so on) are ignored like "the" and "of"
-(they stay if nothing else is left). When no page has every word, pages are ranked by score scaled by the share of the
-words found, so a page with the topic words in its title beats one that only has more everyday words.
+The Wiki search box (`#/public`) suggests as you type, styled and behaving like Google's: the list joins the box, every suggestion has
+a magnifier, the part already typed is plain and the rest bold, and there are no kind labels. Suggestions are live page titles first,
+then keywords and section headings (`Search.suggest` in `search.cjs`, served by `GET /api/library/suggest?q=` and
+`Store.backend.suggest`); every typed word must match the start of a word (the last one is still being typed) and one slip in a longer
+word is forgiven. **Keys:** Up/Down put each suggestion in the box (Escape, or arrowing past the ends, brings back what was typed;
+Down reopens a closed list), Enter searches for what is in the box, Escape closes the list. A mouse click on a suggestion fills the
+box and searches. Nothing reopens after a search (pending answers are thrown away by `cancelSuggestions`), and moving the box
+into the sticky bar does not open the list. Choosing a suggestion never opens a page directly; popular or recent searches are not
+suggested.
 
 ## Copywriter role and the search review
 

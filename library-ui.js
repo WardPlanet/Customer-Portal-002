@@ -1474,12 +1474,14 @@
     var suggestions = [];
     var active = -1;
     var suggestToken = 0;
+    var typedBeforeArrows = null;   // what was typed, kept while the arrow keys show suggestions in the box (like Google)
     search.setAttribute('role', 'combobox');
     search.setAttribute('aria-autocomplete', 'list');
     search.setAttribute('aria-expanded', 'false');
     search.setAttribute('aria-controls', 'search-suggestions');
 
     function closeSuggestions() {
+      searchWrap.classList.remove('is-open');
       suggestBox.hidden = true;
       suggestBox.textContent = '';
       suggestions = [];
@@ -1498,9 +1500,16 @@
     }
     // Choosing a suggestion fills the search box with it and searches for it (a page title is not opened directly)
     function chooseSuggestion(item) {
-      closeSuggestions();
+      cancelSuggestions();
       search.value = item.text;
       runSearch();
+    }
+    // Stops the list: closes it and throws away any answer still on its way, so it cannot pop open again after a search
+    function cancelSuggestions() {
+      clearTimeout(suggestTimer);
+      suggestToken += 1;
+      typedBeforeArrows = null;
+      closeSuggestions();
     }
     // Search now (no waiting for a pause in typing); from the bar, bring the page back to where the bar takes over
     async function runSearch() {
@@ -1508,27 +1517,47 @@
       await refresh();
       scrollToResults();
     }
-    var KIND_LABELS = { page: 'Page', keyword: 'Keyword', section: 'Section' };
+    // Like Google: the part you typed is plain and the rest of the suggestion is bold
+    var SEARCH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+    function completionNodes(item, typed) {
+      var holder = document.createDocumentFragment();
+      var words = String(typed).toLowerCase().split(/\s+/).filter(Boolean);
+      var last = /\s$/.test(typed) ? '' : (words[words.length - 1] || '');   // the word still being typed
+      (item.parts && item.parts.length ? item.parts : [{ text: item.text, hit: false }]).forEach(function (part) {
+        if (!part.hit) { holder.appendChild(el('strong', '', part.text)); return; }
+        // A typed beginning of a longer word: what is already typed stays plain, the rest of the word is bold
+        if (last && part.text.length > last.length && part.text.toLowerCase().indexOf(last) === 0) {
+          holder.appendChild(document.createTextNode(part.text.slice(0, last.length)));
+          holder.appendChild(el('strong', '', part.text.slice(last.length)));
+        } else {
+          holder.appendChild(document.createTextNode(part.text));
+        }
+      });
+      return holder;
+    }
     function showSuggestions(list) {
       closeSuggestions();
       if (!list.length) { return; }
       suggestions = list;
+      var typed = search.value;
       list.forEach(function (item, i) {
         var row = el('li', 'suggest-item');
         row.id = 'suggestion-' + i;
         row.setAttribute('role', 'option');
         row.setAttribute('aria-selected', 'false');
+        var icon = el('span', 'suggest-icon');
+        icon.innerHTML = SEARCH_ICON;   // fixed markup above
+        row.appendChild(icon);
         var text = el('span', 'suggest-text');
-        text.appendChild(markedNodes(item.parts, item.text));
+        text.appendChild(completionNodes(item, typed));
         row.appendChild(text);
-        var kind = el('span', 'suggest-kind', KIND_LABELS[item.kind] || '');
-        if (item.kind === 'section') { kind.textContent = 'Section in ' + item.title; }
-        row.appendChild(kind);
         // mousedown, not click: the box must not lose focus (and close the list) before the choice is made
         row.addEventListener('mousedown', function (event) { event.preventDefault(); chooseSuggestion(item); });
+        row.addEventListener('mousemove', function () { if (active !== i) { highlightSuggestion(i); } });
         suggestBox.appendChild(row);
       });
       suggestBox.hidden = false;
+      searchWrap.classList.add('is-open');
       search.setAttribute('aria-expanded', 'true');
     }
     var suggestTimer = null;
@@ -1544,27 +1573,45 @@
 
     var timer = null;
     search.addEventListener('input', function () {
+      typedBeforeArrows = null;
       clearTimeout(timer);
       timer = setTimeout(refresh, 200);
       clearTimeout(suggestTimer);
       if (!search.value.trim()) { suggestToken += 1; closeSuggestions(); return; }
       suggestTimer = setTimeout(askForSuggestions, 80);
     });
+    // Like Google: the arrow keys put each suggestion in the box (Escape or arrowing past the ends brings back what was typed),
+    // Enter searches for what is in the box, Escape closes the list
+    function stepSuggestion(delta) {
+      if (typedBeforeArrows === null) { typedBeforeArrows = search.value; }
+      var next = active + delta;
+      if (next >= suggestions.length) { next = -1; }
+      if (next < -1) { next = suggestions.length - 1; }
+      highlightSuggestion(next);
+      search.value = next >= 0 ? suggestions[next].text : typedBeforeArrows;
+    }
     search.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter' && (suggestBox.hidden || active < 0)) {
+      if (event.key === 'Enter') {
         event.preventDefault();
-        closeSuggestions();
+        cancelSuggestions();
         runSearch();
         return;
       }
-      if (suggestBox.hidden) { return; }
-      if (event.key === 'ArrowDown') { event.preventDefault(); highlightSuggestion((active + 1) % suggestions.length); }
-      else if (event.key === 'ArrowUp') { event.preventDefault(); highlightSuggestion((active - 1 + suggestions.length) % suggestions.length); }
-      else if (event.key === 'Enter' && active >= 0) { event.preventDefault(); chooseSuggestion(suggestions[active]); }
-      else if (event.key === 'Escape') { event.preventDefault(); closeSuggestions(); }   // closes the list only; the browser would also clear the box
+      if (suggestBox.hidden) {
+        if (event.key === 'ArrowDown' && search.value.trim()) { event.preventDefault(); askForSuggestions(); }   // reopens the list
+        return;
+      }
+      if (event.key === 'ArrowDown') { event.preventDefault(); stepSuggestion(1); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); stepSuggestion(-1); }
+      else if (event.key === 'Escape') {
+        event.preventDefault();   // closes the list only; the browser would also clear the box
+        if (typedBeforeArrows !== null) { search.value = typedBeforeArrows; }
+        cancelSuggestions();
+      }
     });
-    search.addEventListener('blur', function () { if (moving) { return; } suggestToken += 1; closeSuggestions(); });
-    search.addEventListener('focus', function () { if (search.value.trim()) { askForSuggestions(); } });
+    search.addEventListener('blur', function () { if (moving) { return; } cancelSuggestions(); });
+    // Clicking into the box with text in it shows the suggestions again. Moving the box into the bar is not the person clicking.
+    search.addEventListener('focus', function () { if (!moving && search.value.trim()) { askForSuggestions(); } });
     refresh();
   }
 
