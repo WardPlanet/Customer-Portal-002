@@ -870,3 +870,6 @@ step titles on a live page are the logo and PDF navy (#000F60), a lighter blue o
 **Back to the search.** When a result is opened from the landing page, the search (its text) and the scroll position are remembered
 (`savedSearch` in `library-ui.js`); "← Back to search" or the browser's Back button then shows the same results at the same place,
 without logging the search a second time. It is used once: a later visit to the landing page (from the Wiki link, say) starts fresh.
+
+Each search result on the landing page is one link: the whole box opens the page (the title's link is stretched over the box), with a hover
+border and a focus outline for the keyboard.
