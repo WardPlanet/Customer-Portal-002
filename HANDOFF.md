@@ -939,3 +939,7 @@ Search review and the bell work for the department the page is working as (the W
 Opening another department's page in the editor reloads the page as that department first (`inPageDepartment`, Admin mode kept) so
 Page Setup shows the right roles. Choosing a department leaves Admin mode and acts as that department's lead. Because Admin can do
 anything, it is a testing tool and must be removed with the Testing bar when sign-in is added.
+
+**New page as Admin.** On a new page in Admin mode, Page Setup shows a **Team** choice (instead of the fixed team name). Choosing another team reloads
+the page as that department, with Admin mode kept, so Owner lists that team's roles (after asking, if something has been typed); the page is
+saved under that team. Existing pages show their team as plain text.

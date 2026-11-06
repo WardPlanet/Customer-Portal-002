@@ -1012,6 +1012,7 @@
     if (!data) { location.hash = '#/'; return; }
     if (data.actions.indexOf('edit') < 0) { location.hash = '#/view/' + id + '/' + n; return; }   // not editable: read it instead
     showScreen('editor', false);
+    setTeamPicker(false);
     window.PageEditor.load(data.text, false);
     window.PageEditor.setLabel(data.version.title || 'Untitled page');
     current = { id: id, n: Number(n), backTo: '#/' };
@@ -1033,10 +1034,40 @@
     setBanner(lines.length ? editorBanner(lines, tone) : null);
   }
 
+  // Admin starting a page chooses its team. The editor works as one department (its roles are the choices for Owner), so choosing
+  // another one reloads the page as that department (Admin mode kept), after asking if something has been typed.
+  function setTeamPicker(show) {
+    var picker = document.getElementById('team-picker');
+    var fixed = document.getElementById('team-name');
+    picker.textContent = '';
+    picker.hidden = !show;
+    fixed.hidden = !!show;
+    document.getElementById('team-hint').textContent = show ? 'Admin: choose the team this page belongs to.' : 'Everything saved belongs to this team.';
+    if (!show) { return; }
+    var select = el('select', 'acting-select team-select');
+    select.setAttribute('aria-label', 'Team for this page');
+    window.Store.teams().forEach(function (department) {
+      var option = el('option', '', department.name);
+      option.value = department.slug;
+      select.appendChild(option);
+    });
+    select.value = team.slug;
+    select.addEventListener('change', async function () {
+      var wanted = select.value;
+      if (window.PageEditor.isDirty() && !(await window.askConfirm('What you have typed on this page will be cleared, because the page starts again as the ' + wanted + ' team.', { title: 'Change the team?', ok: 'Change team' }))) {
+        select.value = team.slug;
+        return;
+      }
+      if (window.Store.setDepartment(wanted, true)) { location.reload(); }
+    });
+    picker.appendChild(select);
+  }
+
   function openNewPage() {
     showScreen('editor', false);
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
+    setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length > 1);
     current = { id: null, n: null, backTo: '#/' };
     setBanner(null);
   }
@@ -1049,6 +1080,7 @@
     if (mine !== routing) { return; }
     if (!data) { location.hash = '#/'; return; }
     showScreen('editor', false);
+    setTeamPicker(false);
     window.PageEditor.load(data.text, true);
     window.PageEditor.setStatus(VERSION_LABELS[data.version.status][0], true);
     current = { id: id, n: Number(n), backTo: '#/' };
