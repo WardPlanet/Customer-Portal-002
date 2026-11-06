@@ -13,8 +13,8 @@
 
   // Prototype: everyone starts as the team lead so all tools are available. Remove DEFAULT_ACTOR when real login exists.
   // (The key name has a version so a choice saved earlier does not override the default.)
-  var ACTOR_KEY = 'pageEditor.actingAs.v2';
-  var DEFAULT_ACTOR = 'Micah';
+  var ACTOR_KEY = 'pageEditor.actingAs.v3';
+  var DEFAULT_ACTOR = 'Admin';   // sees every department's pages and can do what a team lead can
   var PAGES_KEY = 'pageEditor.library.v1';
   var ROSTER_KEY = 'pageEditor.roster.v1';   // the artifact keeps changes to the team here (one list per department: ROSTER_KEY + '.' + slug)
   var DEPARTMENT_KEY = 'pageEditor.department.v1';   // which department the artifact is showing
@@ -202,8 +202,10 @@
       list: async function (q, liveOnly) {
         var who = actor();
         // Live pages are company-wide; the library is this department's own pages
-        var pages = (liveOnly ? readAll().pages : teamPages()).filter(function (page) {
-          return liveOnly ? !!page.liveVersion : W.canSeeInLibrary(page, who, team);
+        // (Admin sees every department's pages and drafts in the library.)
+        var isAdmin = !!who.admin;
+        var pages = (liveOnly || isAdmin ? readAll().pages : teamPages()).filter(function (page) {
+          return liveOnly ? !!page.liveVersion : (isAdmin || W.canSeeInLibrary(page, who, team));
         });
         var rows = pages.map(W.summary);
         if (q) {
@@ -483,7 +485,8 @@
       if (!chosen) { return false; }
       try { localStorage.setItem(DEPARTMENT_KEY, slug); } catch (error) { /* storage unavailable */ }
       var lead = chosen.roles.filter(function (role) { return role.title === chosen.lead; })[0];
-      if (lead && lead.person) { this.setActor(lead.person); }
+      // Admin stays Admin; anyone else becomes the new department's lead
+      if (actingAs.toLowerCase() !== 'admin' && lead && lead.person) { this.setActor(lead.person); }
       return true;
     },
     // Resolves to the roster (the team and who holds each role), or null when there is no library here

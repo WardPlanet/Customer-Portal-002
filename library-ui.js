@@ -119,14 +119,17 @@
   // The address of a page's preview (what a reader sees)
   function previewUrl(id) { return '#/preview/' + id; }
 
-  function personFor(title) {
-    var role = team.roles.filter(function (r) { return r.title === title; })[0];
+  // t: the team whose roster to look in (the department showing, unless a page of another department is meant)
+  function personFor(title, t) {
+    var role = ((t || team).roles).filter(function (r) { return r.title === title; })[0];
     return role ? role.person : '';
   }
 
-  function roleLabel(title) {
-    return title ? (personFor(title) || 'Unassigned') + ' — ' + title : 'No owner';   // the name first, then the role
+  function roleLabel(title, t) {
+    return title ? (personFor(title, t) || 'Unassigned') + ' — ' + title : 'No owner';   // the name first, then the role
   }
+
+  function actingAsAdmin() { return window.Store.getActor().toLowerCase() === 'admin'; }
 
   function actor() { return W.actorFor(window.Store.getActor(), team); }
   function actorIsLead() { return W.isLead(actor(), team); }
@@ -193,6 +196,9 @@
       var label = el('label', 'acting-label', 'Acting as ');
       var select = el('select', 'acting-select');
       select.setAttribute('aria-label', 'Acting as');
+      var adminOption = el('option', '', 'Admin (all departments)');
+      adminOption.value = window.Workflow.ADMIN_NAME;
+      select.appendChild(adminOption);
       team.roles.forEach(function (role) {
         var option = el('option', '', role.person + ' — ' + role.title);
         option.value = role.person;
@@ -295,7 +301,7 @@
     var head = el('div', 'lib-head');
     var titles = el('div');
     titles.appendChild(el('h1', 'lib-title', 'Library'));
-    titles.appendChild(el('p', 'lib-sub', team.name + ' · ' + (team.locations || []).join(', ') + (actorIsLead() ? '' : ' · showing your pages and drafts')));
+    titles.appendChild(el('p', 'lib-sub', actingAsAdmin() ? 'Admin · every department\u2019s pages and drafts' : team.name + ' · ' + (team.locations || []).join(', ') + (actorIsLead() ? '' : ' · showing your pages and drafts')));
     head.appendChild(titles);
     var headActions = el('div', 'lib-actions');
     headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
@@ -671,22 +677,23 @@
         snippet.appendChild(markedNodes(p.search.snippetParts));
         nameCell.appendChild(snippet);
       }
-      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
+      nameCell.appendChild(el('div', 'lib-row-sub', (actingAsAdmin() ? ((teamFor(p.team) || team).name + ' · ') : '') + (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
       row.appendChild(nameCell);
       var statusCell = el('td');
       statusCell.appendChild(badge(STATE_LABELS[p.state]));
       row.appendChild(statusCell);
       var ownerCell = el('td');
       // No owner to contact: no role, a role that has left the team, or a role nobody holds. Shown in red.
-      var noOwner = W.ownerIsUnassigned(team, p.owner);
+      var pageTeam = teamFor(p.team) || team;   // Admin sees every department's pages: each page's owner is chosen from its own team
+      var noOwner = W.ownerIsUnassigned(pageTeam, p.owner);
       if (actorIsLead()) {
         // The team lead can give any page to another role right here. Linked roles stay as they are.
         var ownerSelect = el('select', 'acting-select owner-select' + (noOwner ? ' is-unassigned' : ''));
         ownerSelect.setAttribute('aria-label', 'Owner of ' + p.title);
-        var roleOnTeam = team.roles.some(function (role) { return role.title === p.owner; });
+        var roleOnTeam = pageTeam.roles.some(function (role) { return role.title === p.owner; });
         if (!p.owner) { var emptyOption = el('option', '', 'No owner'); emptyOption.value = ''; ownerSelect.appendChild(emptyOption); }
         else if (!roleOnTeam) { var goneOption = el('option', '', 'Unassigned (' + p.owner + ' left the team)'); goneOption.value = p.owner; ownerSelect.appendChild(goneOption); }
-        team.roles.forEach(function (role) {
+        pageTeam.roles.forEach(function (role) {
           var option = el('option', '', (role.person || 'Unassigned') + ' — ' + role.title);
           option.value = role.title;
           ownerSelect.appendChild(option);
@@ -694,14 +701,14 @@
         ownerSelect.value = p.owner || '';
         ownerSelect.addEventListener('change', async function () {
           if (!ownerSelect.value) { ownerSelect.value = p.owner || ''; return; }
-          if (await attempt(backend().setOwner(p.id, ownerSelect.value))) { notice('\u201c' + p.title + '\u201d is now owned by ' + roleLabel(ownerSelect.value) + '.'); route(); }
+          if (await attempt(backend().setOwner(p.id, ownerSelect.value))) { notice('\u201c' + p.title + '\u201d is now owned by ' + roleLabel(ownerSelect.value, pageTeam) + '.'); route(); }
           else { ownerSelect.value = p.owner || ''; }
         });
         ownerCell.appendChild(ownerSelect);
       } else if (noOwner) {
         ownerCell.appendChild(el('span', 'owner-unassigned', 'Unassigned'));
       } else {
-        ownerCell.textContent = roleLabel(p.owner);
+        ownerCell.textContent = roleLabel(p.owner, pageTeam);
       }
       row.appendChild(ownerCell);
       var visCell = el('td');
@@ -975,8 +982,19 @@
     return box;
   }
 
+  // Admin can open a page of any department. The editor works as one department (its roster, its roles), so a page of another one
+  // reloads the page as that department first. Resolves to false when that happened.
+  async function inPageDepartment(id) {
+    var departments = window.Store.teams ? window.Store.teams() : [];
+    if (departments.length < 2) { return true; }
+    var detail = await attempt(backend().get(id));
+    if (detail && detail.page.team && detail.page.team !== team.slug && window.Store.setDepartment(detail.page.team)) { location.reload(); return false; }
+    return true;
+  }
+
   async function openEditor(id, n) {
     var mine = routing;
+    if (!(await inPageDepartment(id))) { return; }
     var data = await attempt(backend().getVersion(id, n));
     if (mine !== routing) { return; }
     if (!data) { location.hash = '#/'; return; }
@@ -1014,6 +1032,7 @@
   /* ---------- The editor, locked for reading ---------- */
   async function openViewer(id, n) {
     var mine = routing;
+    if (!(await inPageDepartment(id))) { return; }
     var data = await attempt(backend().getVersion(id, n));
     if (mine !== routing) { return; }
     if (!data) { location.hash = '#/'; return; }
@@ -2319,7 +2338,7 @@
     main.appendChild(footer);
 
     var who = actor();
-    var ownDepartment = !detail.page.team || detail.page.team === team.slug;   // another department's page can only be read from here
+    var ownDepartment = !detail.page.team || detail.page.team === team.slug || window.Store.getActor().toLowerCase() === 'admin';   // another department's page can only be read from here (Admin can open it: the editor then switches department)
     if (ownDepartment && (W.isLead(who, team) || who.roles.indexOf(detail.page.owner) >= 0)) {
       footerActions.appendChild(button(detail.page.workingVersion ? 'Continue editing' : 'Edit', 'primary-btn', async function () {
         var result = await attempt(backend().edit(id));
@@ -2464,7 +2483,7 @@
       return;
     }
     team = roster;
-    if (!window.Store.getActor() || !team.roles.some(function (r) { return r.person === window.Store.getActor(); })) {
+    if (!window.Store.getActor() || (window.Store.getActor().toLowerCase() !== 'admin' && !team.roles.some(function (r) { return r.person === window.Store.getActor(); }))) {
       // The first time: act as the first person who is not the lead, so a new page can be started at once
       var starter = team.roles.filter(function (r) { return r.title !== team.lead; })[0] || team.roles[0];
       window.Store.setActor(starter ? starter.person : '');

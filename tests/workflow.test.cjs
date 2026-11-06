@@ -456,3 +456,16 @@ test('a page has no owner to contact when its role is missing, off the team, or 
   assert.equal(W.ownerIsUnassigned(team, 'Domain Manager'), true);   // the role has left the team
   assert.equal(W.ownerIsUnassigned(team, ''), true);
 });
+
+test('Admin acts as the team lead of whichever team a page belongs to', () => {
+  const web = { lead: 'Web Team Manager', roles: [{ title: 'Web Team Manager', person: 'Micah' }, { title: 'Web Designer', person: 'Molly' }] };
+  const support = { lead: 'Support Manager', roles: [{ title: 'Support Manager', person: 'Dana' }, { title: 'Tier 1 Agent', person: 'Chris' }] };
+  const asWeb = W.actorFor('Admin', web);
+  const asSupport = W.actorFor('admin', support);   // not case sensitive
+  assert.equal(asWeb.name, 'Admin');
+  assert.equal(W.isLead(asWeb, web), true);
+  assert.equal(W.isLead(asSupport, support), true);
+  assert.equal(W.isLead(asWeb, support), false);   // the lead of one team, picked per page
+  assert.equal(W.isLead(W.actorFor('Molly', web), web), false);
+  assert.equal(W.ADMIN_NAME, 'Admin');
+});

@@ -927,3 +927,14 @@ The AI import instructions in the artifact are written for the Web Team's roster
 
 Wherever a person and a role are shown together, the name comes first: "Name — Role" (owner and reviewer lists, bulk owner change, Page Setup,
 confirmations; the linked-role chips show the name above the role). An unfilled role reads "Unassigned — Role".
+
+## Admin
+
+**Acting as** has an **Admin (all departments)** choice, and it is what the artifact starts as (the saved-choice key was bumped to
+`pageEditor.actingAs.v3`, so a person's earlier choice does not override it once). Admin is on no roster: `Workflow.actorFor('Admin', team)`
+gives it the lead role of whichever team a page belongs to, so it can do everything a team lead can in every department. In the
+library it sees **every department's pages and drafts** (a department line under each title; each row's owner list is that page's own
+team's roles); Team & roles, Search review and the bell work for the department showing. Opening a page of another department in the
+editor reloads the page as that department first (`inPageDepartment`), so Page Setup shows the right roles. Choosing a person in
+Acting as returns to the usual view of that person's department; switching department keeps Admin. Because it can do anything, Admin
+is a testing tool and must be removed with the Testing bar when sign-in is added.

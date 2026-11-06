@@ -192,8 +192,15 @@
   /* ---------- People ---------- */
 
   // The roles a person holds today, from the team roster
+  // "Admin" is not on any roster. For testing it acts as the team lead of whichever team a page belongs to, so it can do everything
+  // a lead can, in every department.
+  var ADMIN_NAME = 'Admin';
+
   function actorFor(name, team) {
     var clean = String(name || '').trim();
+    if (clean.toLowerCase() === ADMIN_NAME.toLowerCase()) {
+      return { name: ADMIN_NAME, roles: team && team.lead ? [team.lead] : [], admin: true };
+    }
     var roles = ((team && team.roles) || []).filter(function (role) {
       return clean && String(role.person || '').toLowerCase() === clean.toLowerCase();
     }).map(function (role) { return role.title; });
@@ -889,6 +896,7 @@
     fields: fields,
     missingForSubmit: missingForSubmit,
     actorFor: actorFor,
+    ADMIN_NAME: ADMIN_NAME,
     isLead: isLead,
     versionOf: versionOf,
     liveVersion: liveVersion,
