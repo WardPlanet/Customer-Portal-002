@@ -1434,7 +1434,8 @@
       // With a search showing, the results area is at least one screen tall, so the page can always be scrolled to the point where
       // the bar takes over
       var screenTall = 'calc(100vh - ' + barHeight + 'px)';
-      if (options && options.keepHeight && window.scrollY > 0) { listBox.style.minHeight = 'max(' + held + 'px, ' + screenTall + ')'; }
+      // (Clearing the box lets go of the held height at once, so no empty space is left under the Popular Pages boxes.)
+      if (q && options && options.keepHeight && window.scrollY > 0) { listBox.style.minHeight = 'max(' + held + 'px, ' + screenTall + ')'; }
       else { listBox.style.minHeight = q ? screenTall : ''; }
       if (!q) {
         clearTimeout(settleTimer);
