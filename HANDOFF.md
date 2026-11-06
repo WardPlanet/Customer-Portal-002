@@ -820,7 +820,12 @@ always shown, including in the public preview.
 
 ## Landing search page
 
-`#/public` (the "Wiki" link) is now the landing search page rather than a "public preview": the Planet DDS logo on its
-lavender band, "How can we help?", one large search box with the autocomplete dropdown, and results below (nothing is listed
-until someone searches). The logo and colours (navy #000F60, blue #0069DC, band #F0F0FA) live in `brand.js` (`window.Brand`),
-shared with the PDF export. The route name is unchanged. There is no box around the search and no helper text under it; results use the full page width.
+`#/public` (the "Wiki" link) is the landing search page: a dark starfield hero (the "Orbit" option chosen from the mockups) with the
+white Planet DDS logo above "How Can We Help", one large search box with the autocomplete dropdown, and results below at full width
+(nothing is listed until someone searches). Only this page changed: the top bar and every other screen are as before. The logo and
+colours (navy #000F60, blue #0069DC, lavender #F0F0FA) are in `brand.js` (`window.Brand`), shared with the PDF export; the logo is
+made white with a CSS filter on the landing page only.
+
+**Background picture.** The hero uses a gradient starfield as a placeholder. To use a photo, set `--landing-image` on
+`.landing-hero` in `styles.css` (for example `--landing-image: url("landing.jpg");`; the single-file artifact build needs a `data:`
+URI because it carries no other files). Keep the picture dark where the white logo and heading sit.

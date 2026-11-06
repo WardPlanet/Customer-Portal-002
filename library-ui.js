@@ -1283,15 +1283,17 @@
     var mine = routing;
     showScreen('library', true);
     main.textContent = '';
-    // The landing page: the Planet DDS logo on its lavender band, a short heading and one big search box
+    // The landing page: the white Planet DDS logo above "How Can We Help" and one big search box, on a dark starfield
+    main.classList.add('is-landing');
     var hero = el('section', 'landing-hero');
     var logo = el('div', 'landing-logo');
     logo.setAttribute('role', 'img');
     logo.setAttribute('aria-label', 'Planet DDS');
     logo.innerHTML = window.Brand.logoSvg;   // the supplied logo: fixed markup, no page text
     hero.appendChild(logo);
-    hero.appendChild(el('h1', 'landing-title', 'How can we help?'));
-    hero.appendChild(el('p', 'landing-sub', 'Search every live page in the wiki.'));
+    var title = el('h1', 'landing-title', 'How Can We ');
+    title.appendChild(el('span', '', 'Help'));
+    hero.appendChild(title);
     var search = el('input', 'lib-search landing-search');
     search.type = 'search';
     search.placeholder = 'Search the wiki';
@@ -1305,7 +1307,6 @@
     suggestBox.hidden = true;
     searchWrap.appendChild(suggestBox);
     hero.appendChild(searchWrap);
-    hero.appendChild(el('p', 'landing-tip', 'Tips: "exact phrase", -leave out, title:word'));
     main.appendChild(hero);
     var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
@@ -2091,6 +2092,7 @@
     routing += 1;
     refreshNotifications();   // the lead's bell (counts what is waiting)
     main.classList.remove('has-preview-footer');   // only a page's preview has the fixed bottom bar
+    main.classList.remove('is-landing');           // only the landing search page runs edge to edge
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
     setBanner(null);
