@@ -885,3 +885,11 @@ changes the next search is no slower than usual (about 18 ms at 200 pages, 31 ms
 kept index against a fresh one after random additions, changes and removals. `Search.reset()` clears it (used by that test). Not
 covered: on the server each request still reads the page files from disk (a page cache would be the next step), and the dropdown's
 `suggest()` scans titles, keywords and headings directly.
+
+### Later: a page cache on the server
+
+Measured on the server with 200 live pages (about 400 words each): search takes about 75-90 ms per request, and requests that do not
+search at all (Popular Pages, the library list) take about 55-60 ms. Nearly all of that is `loadAllPages` reading every page file
+from disk on each request; the search itself adds 15-30 ms. This is fine at this size, so no cache was built. When the wiki nears
+roughly 1,000 pages, or requests feel slow, keep the loaded pages in memory and re-read a file only when it changes (for example by
+its modified time, or by clearing the entry in `savePage`); that should bring such requests to under 10 ms.
