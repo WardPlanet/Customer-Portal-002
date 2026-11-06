@@ -13,11 +13,12 @@
 
   // Prototype: everyone starts as the team lead so all tools are available. Remove DEFAULT_ACTOR when real login exists.
   // (The key name has a version so a choice saved earlier does not override the default.)
-  var ACTOR_KEY = 'pageEditor.actingAs.v3';
-  var DEFAULT_ACTOR = 'Admin';   // sees every department's pages and can do what a team lead can
+  var ACTOR_KEY = 'pageEditor.actingAs.v4';
+  var DEFAULT_ACTOR = 'Micah';
   var PAGES_KEY = 'pageEditor.library.v1';
   var ROSTER_KEY = 'pageEditor.roster.v1';   // the artifact keeps changes to the team here (one list per department: ROSTER_KEY + '.' + slug)
   var DEPARTMENT_KEY = 'pageEditor.department.v1';   // which department the artifact is showing
+  var ADMIN_KEY = 'pageEditor.adminMode.v1';         // "1" while the Department dropdown is on Admin (every department, acting as Admin)
   var SEED_KEY = 'pageEditor.seededSupport.v1';
 
   // The artifact carries every department (window.TEAMS). The one chosen in the Testing bar is the team this copy works as; the
@@ -27,6 +28,7 @@
     var slug = '';
     try { slug = localStorage.getItem(DEPARTMENT_KEY) || ''; } catch (error) { /* storage unavailable */ }
     window.TEAM_ROSTER = window.TEAMS.filter(function (candidate) { return candidate.slug === slug; })[0] || window.TEAMS[0];
+    try { window.ADMIN_MODE = localStorage.getItem(ADMIN_KEY) === '1'; } catch (error) { window.ADMIN_MODE = false; }
   })();
 
   function fail(code, message) {
@@ -478,21 +480,34 @@
     },
     // The departments this copy can show (more than one only in the Claude artifact), and which one is showing
     teams: function () { return window.TEAMS && window.TEAMS.length ? window.TEAMS : (window.TEAM_ROSTER ? [window.TEAM_ROSTER] : []); },
-    getDepartment: function () { return window.TEAM_ROSTER ? window.TEAM_ROSTER.slug : ''; },
-    // Switching department is a reload of the page (the page then works as that team); the person acting becomes that team's lead
-    setDepartment: function (slug) {
+    // What the Department dropdown shows: a department's slug, or "admin"
+    getDepartment: function () { return window.ADMIN_MODE ? 'admin' : (window.TEAM_ROSTER ? window.TEAM_ROSTER.slug : ''); },
+    isAdminMode: function () { return !!window.ADMIN_MODE; },
+    // Switching department is a reload of the page (the page then works as that team); the person acting becomes that team's lead.
+    // "admin" is not a team: it shows every department's pages, and the only person to act as is Admin (test). keepMode: change the
+    // team the page works as without leaving the mode (Admin opening another department's page).
+    setDepartment: function (slug, keepMode) {
+      if (slug === 'admin') {
+        try { localStorage.setItem(ADMIN_KEY, '1'); } catch (error) { /* storage unavailable */ }
+        this.setActor('Admin');
+        return true;
+      }
       var chosen = this.teams().filter(function (candidate) { return candidate.slug === slug; })[0];
       if (!chosen) { return false; }
       try { localStorage.setItem(DEPARTMENT_KEY, slug); } catch (error) { /* storage unavailable */ }
+      if (keepMode && window.ADMIN_MODE) { return true; }
+      try { localStorage.removeItem(ADMIN_KEY); } catch (error) { /* storage unavailable */ }
       var lead = chosen.roles.filter(function (role) { return role.title === chosen.lead; })[0];
-      // Admin stays Admin; anyone else becomes the new department's lead
-      if (actingAs.toLowerCase() !== 'admin' && lead && lead.person) { this.setActor(lead.person); }
+      if (lead && lead.person) { this.setActor(lead.person); }
       return true;
     },
     // Resolves to the roster (the team and who holds each role), or null when there is no library here
     start: async function () {
       var team = window.TEAM_ROSTER || null;
       if (team && window.Workflow) {
+        // Admin (test) is only for the Admin department, and nobody else is Admin
+        if (window.ADMIN_MODE) { this.setActor('Admin'); }
+        else if (actingAs.toLowerCase() === 'admin') { this.setActor(DEFAULT_ACTOR); }
         this.backend = local(team, window.TEAMS);
         seedSupportDemo(window.TEAMS);
         return team;

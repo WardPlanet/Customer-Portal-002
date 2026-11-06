@@ -186,6 +186,9 @@
           option.value = department.slug;
           deptSelect.appendChild(option);
         });
+        var adminDepartment = el('option', '', 'Admin');   // every department's pages, acting as Admin (test)
+        adminDepartment.value = 'admin';
+        deptSelect.appendChild(adminDepartment);
         deptSelect.value = window.Store.getDepartment();
         deptSelect.addEventListener('change', function () {
           if (window.Store.setDepartment(deptSelect.value)) { location.reload(); }
@@ -196,14 +199,18 @@
       var label = el('label', 'acting-label', 'Acting as ');
       var select = el('select', 'acting-select');
       select.setAttribute('aria-label', 'Acting as');
-      var adminOption = el('option', '', 'Admin (all departments)');
-      adminOption.value = window.Workflow.ADMIN_NAME;
-      select.appendChild(adminOption);
-      team.roles.forEach(function (role) {
-        var option = el('option', '', role.person + ' — ' + role.title);
-        option.value = role.person;
-        select.appendChild(option);
-      });
+      if (window.Store.isAdminMode && window.Store.isAdminMode()) {
+        // Admin is the only person to act as there
+        var adminOption = el('option', '', 'Admin (test)');
+        adminOption.value = window.Workflow.ADMIN_NAME;
+        select.appendChild(adminOption);
+      } else {
+        team.roles.forEach(function (role) {
+          var option = el('option', '', role.person + ' — ' + role.title);
+          option.value = role.person;
+          select.appendChild(option);
+        });
+      }
       select.value = window.Store.getActor();
       select.addEventListener('change', function () {
         window.Store.setActor(select.value);
@@ -507,8 +514,9 @@
       status: function (p) { return STATE_LABELS[p.state][0].toLowerCase(); },
       owner: function (p) { return (p.owner || '\uffff').toLowerCase(); },   // pages with no owner go last
       visibility: function (p) { return p.visibility; },
-      updated: function (p) { return String(p.updatedAt); }
-    }[libraryFilters.sortKey];
+      updated: function (p) { return String(p.updatedAt); },
+      department: function (p) { return ((teamFor(p.team) || team).name || '').toLowerCase(); }   // Admin only
+    }[libraryFilters.sortKey] || function (p) { return p.title.toLowerCase(); };   // a heading that is not shown (the Department one, once not Admin) falls back to the page title
     var direction = libraryFilters.sortDown ? -1 : 1;
     return rows.slice().sort(function (a, b) {
       var x = value(a);
@@ -629,7 +637,10 @@
     }
     var canDelete = true;   // every row has a delete-type button; which one depends on who is asking and whether the page is live
     // Each heading sorts the list; choosing the same one again reverses it
-    [['title', 'Page'], ['status', 'Status'], ['owner', 'Owner'], ['visibility', 'Visibility'], ['updated', 'Updated']].forEach(function (pair) {
+    // Admin sees every department's pages, so it also gets a Department column to sort by
+    var columns = [['title', 'Page'], ['status', 'Status'], ['owner', 'Owner'], ['visibility', 'Visibility'], ['updated', 'Updated']];
+    if (actingAsAdmin()) { columns.splice(1, 0, ['department', 'Department']); }
+    columns.forEach(function (pair) {
       var th = el('th');
       var active = libraryFilters.sortKey === pair[0];
       th.setAttribute('aria-sort', active ? (libraryFilters.sortDown ? 'descending' : 'ascending') : 'none');
@@ -677,8 +688,9 @@
         snippet.appendChild(markedNodes(p.search.snippetParts));
         nameCell.appendChild(snippet);
       }
-      nameCell.appendChild(el('div', 'lib-row-sub', (actingAsAdmin() ? ((teamFor(p.team) || team).name + ' · ') : '') + (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
+      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
       row.appendChild(nameCell);
+      if (actingAsAdmin()) { row.appendChild(el('td', 'lib-dept', (teamFor(p.team) || team).name)); }
       var statusCell = el('td');
       statusCell.appendChild(badge(STATE_LABELS[p.state]));
       row.appendChild(statusCell);
@@ -820,7 +832,7 @@
       var notesRow = el('tr', 'versions-notes');
       notesRow.hidden = true;
       var notesCell = el('td');
-      notesCell.colSpan = 5;
+      notesCell.colSpan = actingAsAdmin() ? 6 : 5;
       notes.forEach(function (line) { notesCell.appendChild(el('p', 'lib-row-sub', line)); });
       notesCell.appendChild(link('Read this version', '#/view/' + id + '/' + v.n, 'row-link'));
       notesRow.appendChild(notesCell);
@@ -988,7 +1000,7 @@
     var departments = window.Store.teams ? window.Store.teams() : [];
     if (departments.length < 2) { return true; }
     var detail = await attempt(backend().get(id));
-    if (detail && detail.page.team && detail.page.team !== team.slug && window.Store.setDepartment(detail.page.team)) { location.reload(); return false; }
+    if (detail && detail.page.team && detail.page.team !== team.slug && window.Store.setDepartment(detail.page.team, true)) { location.reload(); return false; }
     return true;
   }
 

@@ -930,11 +930,12 @@ confirmations; the linked-role chips show the name above the role). An unfilled 
 
 ## Admin
 
-**Acting as** has an **Admin (all departments)** choice, and it is what the artifact starts as (the saved-choice key was bumped to
-`pageEditor.actingAs.v3`, so a person's earlier choice does not override it once). Admin is on no roster: `Workflow.actorFor('Admin', team)`
-gives it the lead role of whichever team a page belongs to, so it can do everything a team lead can in every department. In the
-library it sees **every department's pages and drafts** (a department line under each title; each row's owner list is that page's own
-team's roles); Team & roles, Search review and the bell work for the department showing. Opening a page of another department in the
-editor reloads the page as that department first (`inPageDepartment`), so Page Setup shows the right roles. Choosing a person in
-Acting as returns to the usual view of that person's department; switching department keeps Admin. Because it can do anything, Admin
-is a testing tool and must be removed with the Testing bar when sign-in is added.
+**Department** has an **Admin** choice after the departments. Choosing it reloads the page in Admin mode (`pageEditor.adminMode.v1`,
+`Store.isAdminMode`): the only person to act as is **Admin (test)**, which is on no roster; `Workflow.actorFor('Admin', team)` gives it the
+lead role of whichever team a page belongs to, so it can do everything a team lead can in every department. The artifact still starts
+as **Micah** in the Web department (saved-choice key `pageEditor.actingAs.v4`). In Admin mode the library lists **every department's
+pages and drafts**, with a **Department** column that can be sorted (the owner list on each row is that page's own team's roles); Team & roles,
+Search review and the bell work for the department the page is working as (the Web Team unless a page of another department was opened).
+Opening another department's page in the editor reloads the page as that department first (`inPageDepartment`, Admin mode kept) so
+Page Setup shows the right roles. Choosing a department leaves Admin mode and acts as that department's lead. Because Admin can do
+anything, it is a testing tool and must be removed with the Testing bar when sign-in is added.
