@@ -823,5 +823,4 @@ always shown, including in the public preview.
 `#/public` (the "Wiki" link) is now the landing search page rather than a "public preview": the Planet DDS logo on its
 lavender band, "How can we help?", one large search box with the autocomplete dropdown, and results below (nothing is listed
 until someone searches). The logo and colours (navy #000F60, blue #0069DC, band #F0F0FA) live in `brand.js` (`window.Brand`),
-shared with the PDF export. The route name is unchanged, and the "Client-Safe only for the public" note is kept as a small line
-under the results.
+shared with the PDF export. The route name is unchanged. There is no box around the search and no helper text under it; results use the full page width.

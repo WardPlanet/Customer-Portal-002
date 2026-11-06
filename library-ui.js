@@ -1309,7 +1309,6 @@
     main.appendChild(hero);
     var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
-    main.appendChild(el('p', 'landing-note', 'Staff see Internal-Only and Client-Safe pages here. The public site shows Client-Safe pages only, with nothing about who owns or reviews a page.'));
 
     // Nothing is listed until someone searches. Results cover live Internal-Only and Client-Safe pages,
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
@@ -1319,7 +1318,6 @@
       if (!q) {
         clearTimeout(settleTimer);
         pendingSearch = null;
-        listBox.appendChild(el('p', 'lib-empty', 'Start typing to see matching pages.'));
         return;
       }
       var result = await backend().list(q, true);

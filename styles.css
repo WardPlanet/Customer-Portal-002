@@ -1972,5 +1972,10 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-search::placeholder { color: #8A8EA8; }
 .landing-tip { margin: 14px 0 0; font-size: 13px; color: #5B5F7A; }
 .landing-results { max-width: 760px; margin: 0 auto; }
-.landing-note { max-width: 760px; margin: 28px auto 0; font-size: 13px; color: var(--text-muted); text-align: center; }
 .landing-search-wrap .suggest-list { color: var(--text); }
+
+/* Landing page, second pass: no box around the search, and results as wide as the page */
+.landing-hero { padding: 36px 0 28px; background: none; border-radius: 0; }
+.landing-search { border: 1px solid var(--border-strong); box-shadow: none; }
+.landing-search:focus { border-color: #0069DC; box-shadow: 0 0 0 3px rgba(0, 105, 220, 0.15); }
+.landing-results { max-width: none; }
