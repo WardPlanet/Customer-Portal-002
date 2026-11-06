@@ -1742,20 +1742,18 @@
     var top = el('div', 'toc-head');
     top.appendChild(el('h2', 'side-title', 'On this page'));
     box.appendChild(top);
-    // Three states, set by the buttons underneath: 'folded' (a few headings, the rest faded or hidden), 'top' (every
-    // top-level heading, each with its own arrow to open it) and 'all' (everything open)
+    // The bar underneath (it stays in view while the list is long):
+    //   an arrow that shows every top-level heading (and an up arrow to fold the list back), and
+    //   "Expand all" / "Collapse all", which open or close every heading that has others under it.
     var actions = el('div', 'toc-actions');
-    function actionButton(label) {
-      var b = el('button', 'toc-fold', label);
-      b.type = 'button';
-      return b;
-    }
-    var expandButton = actionButton('Expand');
-    var expandAllButton = actionButton('Expand all');
-    var collapseButton = actionButton('Collapse');
-    actions.appendChild(expandButton);
-    actions.appendChild(expandAllButton);
-    actions.appendChild(collapseButton);
+    var CHEVRON_DOWN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+    var CHEVRON_UP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
+    var listButton = el('button', 'toc-fold toc-chevron');
+    listButton.type = 'button';
+    var allButton = el('button', 'toc-fold', 'Expand all');
+    allButton.type = 'button';
+    actions.appendChild(listButton);
+    actions.appendChild(allButton);
 
     var groups = [];   // { toggle, children } for every group that has something under it
     var extras = [];   // top-level items past the first eight, hidden while folded
@@ -1809,22 +1807,40 @@
 
     box.appendChild(actions);
 
-    function setState(state) {
-      var showAllTop = state !== 'folded';
-      groups.forEach(function (group) { setGroup(group, state === 'all'); });
+    var listOpen = false;   // every top-level heading shown, not just the first few
+
+    function allGroupsOpen() { return groups.length > 0 && groups.every(function (group) { return group.toggle.getAttribute('aria-expanded') === 'true'; }); }
+
+    function refresh() {
       extras.forEach(function (item, place) {
-        if (place < FADED_WHEN_FOLDED) { item.classList.toggle('toc-fade-' + (place + 1), !showAllTop); }   // the faded look goes once opened
-        else { item.hidden = !showAllTop; }
+        if (place < FADED_WHEN_FOLDED) { item.classList.toggle('toc-fade-' + (place + 1), !listOpen); }   // the faded look goes once opened
+        else { item.hidden = !listOpen; }
       });
-      expandButton.hidden = state !== 'folded' || !extras.length;   // "Expand" only shows the rest of the top level
-      expandAllButton.hidden = state === 'all' || !groups.length;
-      collapseButton.hidden = state === 'folded';
-      actions.hidden = expandButton.hidden && expandAllButton.hidden && collapseButton.hidden;   // a short, flat outline has nothing to open
+      listButton.hidden = !extras.length;   // a short outline has no more headings to show
+      listButton.innerHTML = listOpen ? CHEVRON_UP : CHEVRON_DOWN;
+      listButton.setAttribute('aria-expanded', String(listOpen));
+      var listLabel = listOpen ? 'Fold the list back up' : 'Show all ' + roots.length + ' top-level headings';
+      listButton.setAttribute('aria-label', listLabel);
+      listButton.title = listLabel;
+      allButton.hidden = !groups.length;
+      allButton.textContent = allGroupsOpen() ? 'Collapse all' : 'Expand all';
+      actions.hidden = listButton.hidden && allButton.hidden;
     }
-    expandButton.addEventListener('click', function () { setState('top'); });
-    expandAllButton.addEventListener('click', function () { setState('all'); });
-    collapseButton.addEventListener('click', function () { setState('folded'); });
-    setState('folded');
+
+    listButton.addEventListener('click', function () {
+      listOpen = !listOpen;
+      if (!listOpen) { groups.forEach(function (group) { setGroup(group, false); }); }   // folding the list folds everything in it
+      refresh();
+    });
+    allButton.addEventListener('click', function () {
+      var open = !allGroupsOpen();
+      if (open) { listOpen = true; }   // opening everything shows every heading too
+      groups.forEach(function (group) { setGroup(group, open); });
+      refresh();
+    });
+    // Opening one heading by its own arrow changes what the all-button should say
+    groups.forEach(function (group) { group.toggle.addEventListener('click', refresh); });
+    refresh();
     return box;
   }
 

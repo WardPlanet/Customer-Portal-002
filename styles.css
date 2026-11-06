@@ -1955,3 +1955,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .team-orphan-list li { padding: 3px 0; }
 .team-orphan-was { color: var(--text-muted); }
 .team-orphan-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* The arrow that opens or folds the list of top-level headings */
+.toc-card .toc-actions .toc-chevron { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; padding: 6px 12px 2px; }
+.toc-card .toc-actions .toc-chevron svg { width: 18px; height: 18px; }
