@@ -2012,7 +2012,8 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 /* The description fills the rest of the box; when it is longer it fades out at the bottom instead of ending in dots */
 .landing-tile-text { flex: 1 1 0; min-height: 0; overflow: hidden; overflow-wrap: anywhere; font-size: 14px; line-height: 1.45; color: #2A3F6B; }
 .landing-tile-text.is-cut { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); }
-.landing-help { margin: auto 0 0; padding: 22px 24px; text-align: center; font-size: 16px; background: #000F60; color: #FFFFFF; }
-.landing-help a { color: #FFFFFF; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
-.landing-help a:hover { color: #4DA3FF; }
-.landing-help a:focus-visible { outline: 3px solid #4DA3FF; outline-offset: 3px; }
+.landing-help { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: auto 0 0; padding: 40px 24px 48px; text-align: center; }
+.landing-help-text { margin: 0; font-size: 18px; font-weight: 600; color: var(--text); }
+.landing-help-button { display: inline-block; padding: 12px 28px; background: #0069DC; color: #FFFFFF; border-radius: 999px; font-size: 15px; font-weight: 600; text-decoration: none; }
+.landing-help-button:hover { background: #0057B8; }
+.landing-help-button:focus-visible { outline: 3px solid #4DA3FF; outline-offset: 3px; }

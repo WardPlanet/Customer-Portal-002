@@ -1316,9 +1316,10 @@
     var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
 
-    // At the bottom, a dark blue bar that sends people to the company's support team when the search does not find it
-    var help = el('p', 'landing-help');
-    var helpLink = link('Contact your support team', 'https://www.planetdds.com/contact-us/');
+    // At the bottom, a line and a button that send people to the company's support team when the search does not find it
+    var help = el('div', 'landing-help');
+    help.appendChild(el('p', 'landing-help-text', 'Can\u2019t find what you\u2019re looking for?'));
+    var helpLink = link('Contact your support team', 'https://www.planetdds.com/contact-us/', 'landing-help-button');
     helpLink.target = '_blank';
     helpLink.rel = 'noopener noreferrer';
     help.appendChild(helpLink);
