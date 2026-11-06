@@ -864,3 +864,4 @@ that are showing stay until **Enter** or a **chosen suggestion** runs the new se
 point where the bar takes over (instant if the system asks for reduced motion). In the full band the results still follow the typing.
 Deleting the text or clicking the X in the bar does **not** clear the results either; Enter on an empty box does nothing. (The results area keeps its height while its content is replaced, and scroll anchoring is off on this page.) In the full band, clearing the box removes the results and shows the Popular Pages tiles again until another term is typed. The bar slides in when scrolling down and disappears at once when
 scrolling back up. Escape closes the suggestions without clearing the box. The logo is hidden in the bar on narrow screens.
+The "← Back to search" (live pages) and "← Library" (Batch import, library previews) links are blue pills (`.back-link`) so the way back is easy to see.

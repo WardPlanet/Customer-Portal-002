@@ -1440,8 +1440,10 @@
   .lib-note, .lib-hint { margin: 0 0 12px; color: var(--text-faint); font-size: 13px; }
   .lib-empty { padding: 28px 0; color: var(--text-muted); }
   .lib-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-  .back-link { display: inline-block; margin-bottom: 14px; color: var(--text-muted); text-decoration: none; font-weight: 500; }
-  .back-link:hover { color: var(--text); }
+  /* "← Back to search" and "← Library": a clear blue pill, so the way back is easy to find */
+  .back-link { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 16px; padding: 9px 18px; color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 999px; text-decoration: none; font-size: 15px; font-weight: 600; }
+  .back-link:hover { border-color: var(--accent); background: var(--surface); }
+  .back-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
   .primary-link, .primary-btn, .secondary-link, .danger-btn {
     display: inline-flex;
