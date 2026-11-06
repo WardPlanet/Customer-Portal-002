@@ -1316,17 +1316,13 @@
     var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
 
-    // At the bottom: who to ask when the search does not find it. The team lead is the contact.
-    var leadRole = team.roles.filter(function (role) { return role.title === team.lead; })[0];
-    if (leadRole && leadRole.person) {
-      var help = el('p', 'landing-help', 'Can\u2019t find what you need? Ask ' + leadRole.person + ' (team lead)');
-      if (leadRole.email) {
-        help.appendChild(document.createTextNode(' at '));
-        help.appendChild(link(leadRole.email, 'mailto:' + leadRole.email));
-      }
-      help.appendChild(document.createTextNode('.'));
-      main.appendChild(help);
-    }
+    // At the bottom, a dark blue bar that sends people to the company's support team when the search does not find it
+    var help = el('p', 'landing-help');
+    var helpLink = link('Contact your support team', 'https://www.planetdds.com/contact-us/');
+    helpLink.target = '_blank';
+    helpLink.rel = 'noopener noreferrer';
+    help.appendChild(helpLink);
+    main.appendChild(help);
 
     // With nothing typed, the three most opened pages fill the grey area in three boxes (the newest pages while nothing
     // has been opened yet). The tiles open the page; typing replaces them with the search results.
