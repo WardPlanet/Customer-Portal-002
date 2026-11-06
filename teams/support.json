@@ -1,0 +1,38 @@
+{
+  "name": "Support",
+  "slug": "support",
+  "lead": "Support Manager",
+  "directPublish": "lead",
+  "icon": "support",
+  "supportUrl": "",
+  "locations": [
+    "Support Center"
+  ],
+  "roles": [
+    {
+      "title": "Support Manager",
+      "person": "Dana Whitfield",
+      "email": "dana.whitfield@example.com"
+    },
+    {
+      "title": "Tier 1 Agent",
+      "person": "Chris Ortega",
+      "email": "chris.ortega@example.com"
+    },
+    {
+      "title": "Tier 2 Specialist",
+      "person": "Priya Nair",
+      "email": "priya.nair@example.com"
+    },
+    {
+      "title": "Knowledge Base Editor",
+      "person": "Lena Brooks",
+      "email": "lena.brooks@example.com"
+    },
+    {
+      "title": "Training Coordinator",
+      "person": "Marcus Hale",
+      "email": "marcus.hale@example.com"
+    }
+  ]
+}

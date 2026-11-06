@@ -16,7 +16,18 @@
   var ACTOR_KEY = 'pageEditor.actingAs.v2';
   var DEFAULT_ACTOR = 'Micah';
   var PAGES_KEY = 'pageEditor.library.v1';
-  var ROSTER_KEY = 'pageEditor.roster.v1';   // the artifact keeps changes to the team here
+  var ROSTER_KEY = 'pageEditor.roster.v1';   // the artifact keeps changes to the team here (one list per department: ROSTER_KEY + '.' + slug)
+  var DEPARTMENT_KEY = 'pageEditor.department.v1';   // which department the artifact is showing
+  var SEED_KEY = 'pageEditor.seededSupport.v1';
+
+  // The artifact carries every department (window.TEAMS). The one chosen in the Testing bar is the team this copy works as; the
+  // others' live pages still appear in search. Chosen here, before app.js reads window.TEAM_ROSTER.
+  (function chooseDepartment() {
+    if (!window.TEAMS || !window.TEAMS.length) { return; }
+    var slug = '';
+    try { slug = localStorage.getItem(DEPARTMENT_KEY) || ''; } catch (error) { /* storage unavailable */ }
+    window.TEAM_ROSTER = window.TEAMS.filter(function (candidate) { return candidate.slug === slug; })[0] || window.TEAMS[0];
+  })();
 
   function fail(code, message) {
     var error = new Error(message);
@@ -102,21 +113,35 @@
     }
   }
 
-  function local(team) {
+  function local(team, allTeams) {
     var W = window.Workflow;
+    var teamsBySlug = {};
+    (allTeams || [team]).forEach(function (candidate) { teamsBySlug[candidate.slug] = candidate; });
+    teamsBySlug[team.slug] = team;
 
-    // Changes the lead made to the team earlier in this browser replace the roster built into the page
-    try {
-      var savedRoles = JSON.parse(localStorage.getItem(ROSTER_KEY) || 'null');
-      if (Array.isArray(savedRoles) && savedRoles.length) {
-        // Roles saved before emails existed take the email of the built-in role with the same title
-        savedRoles.forEach(function (saved) {
-          var builtIn = team.roles.filter(function (r) { return r.title === saved.title; })[0];
-          if (!saved.email && builtIn) { saved.email = builtIn.email || ''; }
-        });
-        team.roles = savedRoles;
-      }
-    } catch (error) { /* storage unavailable or damaged: keep the built-in roster */ }
+    // Changes a lead made to a team earlier in this browser replace the roster built into the page (kept per department; the Web
+    // Team's older single list is still read)
+    Object.keys(teamsBySlug).forEach(function (slug) {
+      var t = teamsBySlug[slug];
+      try {
+        var raw = localStorage.getItem(ROSTER_KEY + '.' + slug) || (slug === (allTeams && allTeams[0] ? allTeams[0].slug : team.slug) ? localStorage.getItem(ROSTER_KEY) : null);
+        var savedRoles = JSON.parse(raw || 'null');
+        if (Array.isArray(savedRoles) && savedRoles.length) {
+          // Roles saved before emails existed take the email of the built-in role with the same title
+          savedRoles.forEach(function (saved) {
+            var builtIn = t.roles.filter(function (r) { return r.title === saved.title; })[0];
+            if (!saved.email && builtIn) { saved.email = builtIn.email || ''; }
+          });
+          t.roles = savedRoles;
+        }
+      } catch (error) { /* storage unavailable or damaged: keep the built-in roster */ }
+    });
+
+    // The team a page belongs to, and who the person acting is in that team (nobody, if they are not on it)
+    function teamOf(page) { return teamsBySlug[page.team] || team; }
+    function actorIn(t) { return W.actorFor(actingAs, t); }
+    // This department's own pages: the library, rosters and backups are per department
+    function teamPages(data) { return (data || readAll()).pages.filter(function (page) { return !page.team || page.team === team.slug; }); }
 
     function now() { return new Date().toISOString(); }
 
@@ -150,19 +175,25 @@
       return page;
     }
 
-    function detail(page, who) {
-      return { page: W.summary(page), history: W.history(page, who, team), actions: W.pageActions(page, who, team) };
+    // The page's team decides who the person is for it: acting as a Web Team person, the lead of Support's pages is nobody
+    function detail(page) {
+      var t = teamOf(page);
+      var who = actorIn(t);
+      return { page: W.summary(page), history: W.history(page, who, t), actions: W.pageActions(page, who, t) };
     }
 
     // Loads, changes and stores one page
     function change(id, fn) {
-      var who = actor();
       var data = readAll();
       var page = find(data, id);
-      if (!W.canSeeInLibrary(page, who, team)) { throw fail('not_yours', 'That page belongs to someone else.'); }
-      var extra = guard(function () { return fn(page, who, now()); });
+      var t = teamOf(page);
+      var who = actorIn(t);
+      if (!who.name) { throw fail('no_actor', 'Choose who you are acting as first.'); }
+      if (!who.roles.length) { throw fail('not_on_team', who.name + ' is not on the ' + t.name + ' team, so this ' + t.name + ' page cannot be changed.'); }
+      if (!W.canSeeInLibrary(page, who, t)) { throw fail('not_yours', 'That page belongs to someone else.'); }
+      var extra = guard(function () { return fn(page, who, now(), t); });
       writeAll(data);
-      return Object.assign(detail(page, who), extra || {});
+      return Object.assign(detail(page), extra || {});
     }
 
     return {
@@ -170,7 +201,8 @@
       isMemoryOnly: function () { return !!memory; },
       list: async function (q, liveOnly) {
         var who = actor();
-        var pages = readAll().pages.filter(function (page) {
+        // Live pages are company-wide; the library is this department's own pages
+        var pages = (liveOnly ? readAll().pages : teamPages()).filter(function (page) {
           return liveOnly ? !!page.liveVersion : W.canSeeInLibrary(page, who, team);
         });
         var rows = pages.map(W.summary);
@@ -240,63 +272,68 @@
         var page = guard(function () { return W.createPage(team, text, who, now(), note); });
         data.pages.push(page);
         writeAll(data);
-        return Object.assign(detail(page, who), { version: page.versions[0].n });
+        return Object.assign(detail(page), { version: page.versions[0].n });
       },
       get: async function (id) {
-        var who = actor();
+        actor();
         var page = find(readAll(), id);
-        if (!page.liveVersion && !W.canSeeInLibrary(page, who, team)) { throw fail('not_yours', 'That page belongs to someone else.'); }
-        return detail(page, who);
+        if (!page.liveVersion && !W.canSeeInLibrary(page, actorIn(teamOf(page)), teamOf(page))) { throw fail('not_yours', 'That page belongs to someone else.'); }
+        return detail(page);
       },
       getVersion: async function (id, n) {
-        var who = actor();
+        actor();
         var page = find(readAll(), id);
+        var t = teamOf(page);
+        var who = actorIn(t);
         var version = guard(function () { return W.versionOf(page, n); });
-        if (!W.canReadVersion(page, version, who, team)) { throw fail('not_yours', 'That version belongs to someone else.'); }
-        var mine = W.history(page, who, team).filter(function (h) { return h.n === version.n; })[0];
+        if (!W.canReadVersion(page, version, who, t)) { throw fail('not_yours', 'That version belongs to someone else.'); }
+        var mine = W.history(page, who, t).filter(function (h) { return h.n === version.n; })[0];
         return { version: { n: version.n, status: version.status, title: version.title }, text: version.text, actions: mine.actions };
       },
       save: async function (id, n, text) {
-        return change(id, function (page, who, at) { W.saveDraft(page, n, text, who, at, team); });
+        return change(id, function (page, who, at, t) { W.saveDraft(page, n, text, who, at, t); });
       },
       edit: async function (id) {
-        return change(id, function (page, who, at) { return { version: W.startEdit(page, who, at).n }; });
+        return change(id, function (page, who, at, t) { return { version: W.startEdit(page, who, at).n }; });
       },
       act: async function (id, n, action, body) {
-        return change(id, function (page, who, at) {
-          if (action === 'submit') { W.submit(page, n, who, team, at); }
-          else if (action === 'publish') { W.publish(page, n, who, team, at); }
-          else if (action === 'withdraw') { W.withdraw(page, n, who, team, at); }
-          else if (action === 'approve') { W.approve(page, n, who, team, at); }
-          else if (action === 'send-back') { W.sendBack(page, n, body && body.comment, who, team, at); }
+        return change(id, function (page, who, at, t) {
+          if (action === 'submit') { W.submit(page, n, who, t, at); }
+          else if (action === 'publish') { W.publish(page, n, who, t, at); }
+          else if (action === 'withdraw') { W.withdraw(page, n, who, t, at); }
+          else if (action === 'approve') { W.approve(page, n, who, t, at); }
+          else if (action === 'send-back') { W.sendBack(page, n, body && body.comment, who, t, at); }
           else if (action === 'restore') { return { version: W.restore(page, n, who, at).n }; }
         });
       },
       requestDelete: async function (id) {
-        var who = actor();
         var data = readAll();
         var page = find(data, id);
-        guard(function () { W.requestDelete(page, who, team, now()); });
+        var t = teamOf(page);
+        var who = actorIn(t);
+        guard(function () { W.requestDelete(page, who, t, now()); });
         writeAll(data);
-        return detail(page, who);
+        return detail(page);
       },
       cancelDeleteRequest: async function (id) {
-        var who = actor();
         var data = readAll();
         var page = find(data, id);
-        guard(function () { W.cancelDeleteRequest(page, who, team); });
+        var t = teamOf(page);
+        var who = actorIn(t);
+        guard(function () { W.cancelDeleteRequest(page, who, t); });
         writeAll(data);
-        return detail(page, who);
+        return detail(page);
       },
       unpublish: async function (id) {
-        return change(id, function (page, who, at) { W.unpublish(page, who, team, at); });
+        return change(id, function (page, who, at, t) { W.unpublish(page, who, t, at); });
       },
       // Removes the page and every version (team lead only)
       remove: async function (id) {
-        var who = actor();
         var data = readAll();
         var page = find(data, id);
-        guard(function () { W.assertCanDelete(who, team, page); });
+        var t = teamOf(page);
+        var who = actorIn(t);
+        guard(function () { W.assertCanDelete(who, t, page); });
         data.pages = data.pages.filter(function (p) { return p.id !== id; });
         writeAll(data);
         return { deleted: id };
@@ -304,30 +341,31 @@
       getRoster: async function () {
         var who = actor();
         guard(function () { W.requireLeadFor(who, team, 'manage the team'); });
-        return { roles: team.roles, usage: W.roleUsage(readAll().pages) };
+        return { roles: team.roles, usage: W.roleUsage(teamPages()) };
       },
       saveRoster: async function (roles) {
         var who = actor();
-        var usage = W.roleUsage(readAll().pages);
+        var usage = W.roleUsage(teamPages());
         var clean = guard(function () { return W.checkRoster(team, roles, usage, who); });
         team.roles = clean;
-        try { localStorage.setItem(ROSTER_KEY, JSON.stringify(clean)); } catch (error) { /* kept for this visit only */ }
+        try { localStorage.setItem(ROSTER_KEY + '.' + team.slug, JSON.stringify(clean)); } catch (error) { /* kept for this visit only */ }
         return { roles: clean, usage: usage };
       },
       setOwner: async function (id, owner) {
-        var who = actor();
         var data = readAll();
         var page = find(data, id);
-        guard(function () { W.setOwner(page, owner, who, team, now()); });
+        var t = teamOf(page);
+        var who = actorIn(t);
+        guard(function () { W.setOwner(page, owner, who, t, now()); });
         writeAll(data);
-        return detail(page, who);
+        return detail(page);
       },
       reassign: async function (from, to, ids) {
         var who = actor();
         guard(function () { W.requireLeadFor(who, team, 'reassign pages'); W.checkReassignRoles(team, from, to); });
         var data = readAll();
         var moved = 0;
-        data.pages.forEach(function (page) {
+        teamPages(data).forEach(function (page) {
           if (ids && ids.indexOf(page.id) < 0) { return; }
           if (guard(function () { return W.reassignRole(page, from, to, who, team, now()); })) { moved += 1; }
         });
@@ -337,7 +375,7 @@
       // Everything, as one object the screen saves to a file
       exportBackup: async function () {
         actor();
-        return W.makeBackup(team, readAll().pages, now());
+        return W.makeBackup(team, teamPages(), now());
       },
       // Adds new pages and replaces ones the backup has newer copies of. Only the team lead may restore,
       // because a restored file can change a page's review status.
@@ -373,6 +411,55 @@
     };
   }
 
+  /* ---------- Demo documents for the Support department (artifact only) ----------
+     Made once, the first time the artifact starts with a Support department, so searches across departments can be tried. They are
+     ordinary pages (live, owned by Support roles) with updated dates spread over the past year so the date filter has something to
+     work on. Deleting them is fine: they are not made again. */
+  var SUPPORT_DEMO = [
+    { days: 2, title: 'Handling website transfer requests', visibility: 'Internal-Only', owner: 'Tier 2 Specialist', description: 'What Support does when a customer asks to move their website to another owner or host.', keywords: ['website transfer', 'handoff', 'ownership'], blocks: [['H', 'When a customer asks for a transfer'], ['P', 'Confirm who is asking and that they are the account owner before anything else.'], ['H', 'Handing off to the Web Team'], ['P', 'Open a ticket for the Web Team with the domain, the current owner and the new owner. The Web Team transfer policy decides what happens next.'], ['N', 'Never promise a transfer date. The Web Team confirms it.']] },
+    { days: 5, title: 'Escalation policy', visibility: 'Internal-Only', owner: 'Support Manager', description: 'When and how a ticket moves from Tier 1 to Tier 2 and to management.', keywords: ['escalate', 'tier 2', 'manager'], blocks: [['H', 'When to escalate'], ['P', 'Escalate when a ticket has been open for more than one business day, or the customer asks for a manager.'], ['H', 'How to escalate'], ['P', 'Add the escalation tag, write a short summary of what has been tried, and assign the ticket to Tier 2.'], ['W', 'Do not escalate by email. Tickets escalated outside the system are not tracked.']] },
+    { days: 9, title: 'Password reset walkthrough', visibility: 'Client-Safe', owner: 'Knowledge Base Editor', description: 'Step by step: how customers reset their own password and what to do when the email does not arrive.', keywords: ['password', 'login', 'reset', 'sign in'], blocks: [['H', 'Reset your password'], ['S', 'Open the sign-in page', 'Choose Forgot password under the sign-in box.'], ['S', 'Enter your email address', 'Use the address you signed up with. A reset link is sent within a few minutes.'], ['H', 'The email did not arrive'], ['P', 'Check your spam folder first. If it is not there, contact support and we will send a new link.']] },
+    { days: 21, title: 'Support hours and holidays', visibility: 'Client-Safe', owner: 'Support Manager', description: 'When Support is available, and the days the support lines are closed.', keywords: ['hours', 'holiday', 'schedule', 'closed'], blocks: [['H', 'Hours'], ['P', 'Support is available Monday to Friday, 8 am to 8 pm Eastern. Urgent outages are answered around the clock.'], ['H', 'Holiday closures'], ['P', 'Support lines are closed on New Year\'s Day, Memorial Day, Independence Day, Labor Day, Thanksgiving and Christmas Day.']] },
+    { days: 34, title: 'Refund and credit guidelines', visibility: 'Internal-Only', owner: 'Support Manager', description: 'Who can approve a refund or account credit, and the limits for each role.', keywords: ['refund', 'credit', 'billing', 'approval'], blocks: [['H', 'Limits by role'], ['P', 'Tier 1 agents may approve credits up to $50. Tier 2 specialists up to $250. Anything larger goes to the Support Manager.'], ['N', 'Log every refund in the billing ticket before telling the customer.']] },
+    { days: 60, title: 'Ticket priority definitions', visibility: 'Internal-Only', owner: 'Tier 2 Specialist', description: 'How to choose a priority for a new ticket, with examples of each level.', keywords: ['priority', 'urgent', 'ticket', 'severity'], blocks: [['H', 'Urgent'], ['P', 'A customer cannot work at all, or data is wrong. Respond within 15 minutes.'], ['H', 'High'], ['P', 'A key feature is broken but there is a workaround. Respond within 2 hours.'], ['H', 'Normal'], ['P', 'Questions and small problems. Respond within one business day.']] },
+    { days: 95, title: 'Customer call script', visibility: 'Internal-Only', owner: 'Training Coordinator', description: 'A friendly opening, the questions to ask, and how to close a call.', keywords: ['phone', 'script', 'greeting', 'training'], blocks: [['H', 'Opening'], ['P', 'Greet the caller, give your first name and ask how you can help.'], ['H', 'Closing'], ['P', 'Repeat what you did, ask whether anything else is needed, and thank them for calling.']] },
+    { days: 210, title: 'How to contact support', visibility: 'Client-Safe', owner: 'Tier 1 Agent', description: 'The ways to reach the Support team and what to have ready.', keywords: ['contact', 'phone', 'chat', 'email'], blocks: [['H', 'Ways to reach us'], ['P', 'Use the chat window in the app, send an email to the support address, or call the support line during business hours.'], ['H', 'Have this ready'], ['P', 'Your practice name, the best phone number to reach you, and a short description of the problem.']] },
+    { days: 330, title: 'Onboarding checklist for new agents', visibility: 'Internal-Only', owner: 'Training Coordinator', description: 'The first two weeks for a new Support agent, day by day.', keywords: ['onboarding', 'new hire', 'training', 'checklist'], blocks: [['H', 'Week one'], ['P', 'Account setup, shadow three calls a day, read the escalation policy and the refund guidelines.'], ['H', 'Week two'], ['P', 'Take calls with a buddy listening, then take your own queue with a daily review.']] }
+  ];
+
+  function demoText(doc, team) {
+    var text = '[TITLE]\n' + doc.title + '\n\n[DESCRIPTION]\n' + doc.description + '\n\n[OWNER ROLE]\n' + doc.owner + '\n\n[WHERE THIS LIVES]\n' + ((team.locations && team.locations[0]) || '') + '\n\n[VISIBILITY]\n' + doc.visibility + '\n\n[KEYWORDS]\n' + doc.keywords.join('\n') + '\n\n';
+    doc.blocks.forEach(function (block, i) {
+      var n = i + 1;
+      if (block[0] === 'H') { text += '[BLOCK ' + n + ' HEADER 1]\n' + block[1] + '\n\n'; }
+      else if (block[0] === 'P') { text += '[BLOCK ' + n + ' PARAGRAPH]\n' + block[1] + '\n\n'; }
+      else if (block[0] === 'N') { text += '[BLOCK ' + n + ' NOTE]\n' + block[1] + '\n\n'; }
+      else if (block[0] === 'W') { text += '[BLOCK ' + n + ' WARNING]\n' + block[1] + '\n\n'; }
+      else if (block[0] === 'S') { text += '[BLOCK ' + n + ' STEP NUMBER]\n1\n\n[BLOCK ' + n + ' STEP TITLE]\n' + block[1] + '\n\n[BLOCK ' + n + ' STEP TEXT]\n' + block[2] + '\n\n'; }
+    });
+    return text;
+  }
+
+  function seedSupportDemo(teams) {
+    var W = window.Workflow;
+    var support = (teams || []).filter(function (candidate) { return candidate.slug === 'support'; })[0];
+    try { if (!support || !W || localStorage.getItem(SEED_KEY)) { return; } } catch (error) { return; }
+    var data = readAll();
+    var lead = W.actorFor((support.roles.filter(function (role) { return role.title === support.lead; })[0] || {}).person, support);
+    var made = 0;
+    SUPPORT_DEMO.forEach(function (doc) {
+      var at = new Date(Date.now() - doc.days * 24 * 60 * 60 * 1000).toISOString();
+      try {
+        var page = W.createPage(support, demoText(doc, support), lead, at, '');
+        W.publish(page, page.versions[0].n, lead, support, at);
+        data.pages.push(page);
+        made += 1;
+      } catch (error) { console.error('Demo page "' + doc.title + '" was not made:', error); }
+    });
+    if (made) { writeAll(data); }
+    try { localStorage.setItem(SEED_KEY, '1'); } catch (error) { /* made again next time, which only adds the pages that are missing */ }
+  }
+
   /* ---------- Picking the backend ---------- */
   window.Store = {
     backend: null,
@@ -387,11 +474,24 @@
       actingAs = name || '';
       try { localStorage.setItem(ACTOR_KEY, actingAs); } catch (error) { /* storage unavailable */ }
     },
+    // The departments this copy can show (more than one only in the Claude artifact), and which one is showing
+    teams: function () { return window.TEAMS && window.TEAMS.length ? window.TEAMS : (window.TEAM_ROSTER ? [window.TEAM_ROSTER] : []); },
+    getDepartment: function () { return window.TEAM_ROSTER ? window.TEAM_ROSTER.slug : ''; },
+    // Switching department is a reload of the page (the page then works as that team); the person acting becomes that team's lead
+    setDepartment: function (slug) {
+      var chosen = this.teams().filter(function (candidate) { return candidate.slug === slug; })[0];
+      if (!chosen) { return false; }
+      try { localStorage.setItem(DEPARTMENT_KEY, slug); } catch (error) { /* storage unavailable */ }
+      var lead = chosen.roles.filter(function (role) { return role.title === chosen.lead; })[0];
+      if (lead && lead.person) { this.setActor(lead.person); }
+      return true;
+    },
     // Resolves to the roster (the team and who holds each role), or null when there is no library here
     start: async function () {
       var team = window.TEAM_ROSTER || null;
       if (team && window.Workflow) {
-        this.backend = local(team);
+        this.backend = local(team, window.TEAMS);
+        seedSupportDemo(window.TEAMS);
         return team;
       }
       try {

@@ -69,11 +69,19 @@
   // A small picture beside a search result showing which team made the page. The Web Team's pages get a
   // website (browser window) icon. The picture is named in the team file ("icon": "website").
   var TEAM_ICONS = {
+    support: { label: 'Support', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="11.5" r="2.8"/><path d="M6.5 21c.4-3 2.6-4.6 5.5-4.6s5.1 1.6 5.5 4.6"/><path d="M5 11.5a7 7 0 0 1 14 0"/><path d="M5 11v2.5M19 11v2.5"/><path d="M19 13.5v1c0 1-.8 1.8-1.8 1.8H15"/></svg>' },
     website: { label: 'Web Team', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="M2.5 9h19M6 6.8h.01M8.8 6.8h.01"/></svg>' }
   };
 
+  // A department by its slug (the Claude artifact carries several; the pages of every department appear in search)
+  function teamFor(slug) {
+    var all = window.Store.teams ? window.Store.teams() : [];
+    return all.filter(function (candidate) { return candidate.slug === slug; })[0] || (team && team.slug === slug ? team : null);
+  }
+
   function teamIcon(page) {
-    var icon = team && page.team === team.slug ? TEAM_ICONS[team.icon] : null;
+    var owner = teamFor(page.team);
+    var icon = owner ? TEAM_ICONS[owner.icon] : null;
     if (!icon) { return null; }
     var node = el('span', 'team-icon');
     node.setAttribute('role', 'img');
@@ -164,6 +172,24 @@
     ['acting-slot'].forEach(function (slotId) {
       var slot = document.getElementById(slotId);
       slot.textContent = '';
+      // Department (only when there is more than one, as in the Claude artifact): switching reloads the page as that department
+      var departments = window.Store.teams ? window.Store.teams() : [];
+      if (departments.length > 1) {
+        var deptLabel = el('label', 'acting-label', 'Department ');
+        var deptSelect = el('select', 'acting-select department-select');
+        deptSelect.setAttribute('aria-label', 'Department');
+        departments.forEach(function (department) {
+          var option = el('option', '', department.name);
+          option.value = department.slug;
+          deptSelect.appendChild(option);
+        });
+        deptSelect.value = window.Store.getDepartment();
+        deptSelect.addEventListener('change', function () {
+          if (window.Store.setDepartment(deptSelect.value)) { location.reload(); }
+        });
+        deptLabel.appendChild(deptSelect);
+        slot.appendChild(deptLabel);
+      }
       var label = el('label', 'acting-label', 'Acting as ');
       var select = el('select', 'acting-select');
       select.setAttribute('aria-label', 'Acting as');
@@ -1391,7 +1417,7 @@
       var teams = {};
       var places = {};
       live.forEach(function (p) { if (p.team) { teams[p.team] = true; } if (p.location) { places[p.location] = true; } });
-      setFilterOptions('team', [['', 'Any team']].concat(Object.keys(teams).sort().map(function (slug) { return [slug, slug === team.slug ? team.name : slug]; })));
+      setFilterOptions('team', [['', 'Any team']].concat(Object.keys(teams).sort().map(function (slug) { var named = teamFor(slug); return [slug, named ? named.name : slug]; })));
       setFilterOptions('location', [['', 'Anywhere']].concat(Object.keys(places).sort().map(function (name) { return [name, name]; })));
       updateFilterUi();
     }).catch(function () { /* the filters still work with what is chosen */ });
@@ -1850,19 +1876,20 @@
   }
 
   // Who to contact about a page: its owner first, then the team lead, then anyone linked to it
-  function renderContacts(fieldsOfPage) {
+  function renderContacts(fieldsOfPage, pageTeam) {
+    var pageOwnerTeam = pageTeam;   // the contacts are the page's own department's, not the one showing
     var wanted = [];
     // When the owner role has no one in it (or has left the team), the team lead is the contact instead
-    var ownerGone = W.ownerIsUnassigned(team, fieldsOfPage.owner);
-    [ownerGone ? '' : fieldsOfPage.owner, team.lead].concat(fieldsOfPage.linkedRoles).forEach(function (title) {
+    var ownerGone = W.ownerIsUnassigned(pageOwnerTeam, fieldsOfPage.owner);
+    [ownerGone ? '' : fieldsOfPage.owner, pageOwnerTeam.lead].concat(fieldsOfPage.linkedRoles).forEach(function (title) {
       if (title && wanted.indexOf(title) < 0) { wanted.push(title); }
     });
     if (!wanted.length) { return null; }
     var box = el('section', 'side-card');
     box.appendChild(el('h2', 'side-title', 'Contacts'));
     wanted.forEach(function (title, index) {
-      var role = team.roles.filter(function (r) { return r.title === title; })[0];
-      var label = index === 0 && title === fieldsOfPage.owner && !ownerGone ? 'Page owner' : title === team.lead ? (ownerGone ? 'Contact (team lead)' : 'Team lead') : 'Linked';
+      var role = pageOwnerTeam.roles.filter(function (r) { return r.title === title; })[0];
+      var label = index === 0 && title === fieldsOfPage.owner && !ownerGone ? 'Page owner' : title === pageOwnerTeam.lead ? (ownerGone ? 'Contact (team lead)' : 'Team lead') : 'Linked';
       var card = el('div', 'preview-contact');
       card.appendChild(el('span', 'preview-contact-label', label));
       card.appendChild(el('strong', '', role && role.person ? role.person : 'Unassigned'));
@@ -2259,7 +2286,7 @@
         else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
         side.appendChild(support);
       } else {
-        var contacts = renderContacts(W.fields(data.text));
+        var contacts = renderContacts(W.fields(data.text), teamFor(detail.page.team) || team);
         if (contacts) { side.appendChild(contacts); }
       }
       // Related pages come next, also scrolling away with the page
@@ -2292,7 +2319,8 @@
     main.appendChild(footer);
 
     var who = actor();
-    if (W.isLead(who, team) || who.roles.indexOf(detail.page.owner) >= 0) {
+    var ownDepartment = !detail.page.team || detail.page.team === team.slug;   // another department's page can only be read from here
+    if (ownDepartment && (W.isLead(who, team) || who.roles.indexOf(detail.page.owner) >= 0)) {
       footerActions.appendChild(button(detail.page.workingVersion ? 'Continue editing' : 'Edit', 'primary-btn', async function () {
         var result = await attempt(backend().edit(id));
         if (result) { location.hash = '#/edit/' + id + '/' + result.version; }

@@ -903,3 +903,24 @@ choosing a filter or an order lists the live pages that match (newest first unle
 when going to a page and back. "Most opened" uses `GET /api/library/views` (opens per page over 30 days, from the hourly digest).
 The search log records what the words found, before any filter is applied. Team and place lists come from the live pages. Not built
 (see the earlier list): block-type filters, never-opened, "not updated in a year", date ranges, filters in the address, grouping.
+
+## Departments (Claude artifact)
+
+The Testing bar has a **Department** dropdown next to **Acting as**. The artifact carries every team file in `teams/` (`window.TEAMS`);
+switching reloads the page as that department and makes its lead the person acting. A department's library, Team & roles and
+backups are its own; **live pages of every department are searched together** (landing page, suggestions, filters: the Team
+filter lists them) and can be read from any department, with the contacts of the page's own team and no Edit button unless you are
+in that department. Rosters edited in Team & roles are kept per department in browser storage. Editing a page of another department
+is refused (acting as a Web Team person, the Support lead is nobody).
+
+**Support** (`teams/support.json`): lead Support Manager, directPublish "lead" (the lead has exactly the Web Team lead's powers),
+locations "Support Center", five roles with dummy people (Dana Whitfield, Chris Ortega, Priya Nair, Lena Brooks, Marcus Hale;
+`@example.com` addresses). The first time the artifact starts, nine dummy live pages are made for it (`SUPPORT_DEMO` in `store.js`,
+updated 2 to 330 days ago so the date filter has something to work on; one is "Handling website transfer requests", to test
+searching across departments; flagged in storage by `pageEditor.seededSupport.v1` so deleted pages are not made again). The
+Support icon is a person with a headset (`TEAM_ICONS` in `library-ui.js`, `"icon": "support"` in the team file).
+
+**Not done for the server** (`server.js`, `library.js`): it still serves only the Web Team (`readTeam()`), so the Department dropdown
+shows only when there is more than one team (the artifact). Making the server multi-team needs the team to come from the request
+(storage is already per team: `drafts/<team slug>/pages`), company-wide loading of live pages for search, and per-team lead checks.
+The AI import instructions in the artifact are written for the Web Team's roster.

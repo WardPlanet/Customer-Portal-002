@@ -2071,3 +2071,6 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-filter-select { padding: 8px 10px; font: inherit; font-size: 14px; color: #0B1240; background: #FFFFFF; border: 0; border-radius: 8px; }
 .landing-count { margin: 0 0 4px; font-size: 13px; color: var(--text-muted); }
 .landing-clear-filters { padding: 0; font: inherit; color: var(--accent-text); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+
+/* Department and Acting as, side by side in the Testing bar */
+.demo-bar .acting { display: flex; align-items: center; gap: 20px; }

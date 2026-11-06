@@ -12,10 +12,23 @@ import { here } from './config.js';
 // Only one team exists for now. Drafts are stored under this team and new pages belong to it.
 const TEAM_FILE = path.join(here, 'teams', 'legwork-web-team.json');
 
-export async function readTeam() {
-  var team = JSON.parse(await fs.readFile(TEAM_FILE, 'utf8'));
+// Every team file in teams/ (the single-file Claude artifact carries all of them so departments can be switched; the server
+// still uses just the first one, the Web Team, until it is made to work with several teams)
+export async function readTeams() {
+  var names = (await fs.readdir(path.join(here, 'teams'))).filter(function (name) { return name.endsWith('.json'); }).sort();
+  var teams = [];
+  for (var name of names) { teams.push(await readTeamFile(path.join(here, 'teams', name))); }
+  // The Web Team first: it is the default department
+  teams.sort(function (a, b) { return (a.slug === 'legwork-web-team' ? 0 : 1) - (b.slug === 'legwork-web-team' ? 0 : 1) || a.name.localeCompare(b.name); });
+  return teams;
+}
+
+export async function readTeam() { return readTeamFile(TEAM_FILE); }
+
+async function readTeamFile(file) {
+  var team = JSON.parse(await fs.readFile(file, 'utf8'));
   var valid = team && typeof team.name === 'string' && /^[a-z0-9-]+$/.test(team.slug || '') && Array.isArray(team.roles);
-  if (!valid) { throw new Error('teams/legwork-web-team.json needs a name, a slug (lowercase letters, numbers, hyphens) and a roles list.'); }
+  if (!valid) { throw new Error(path.basename(file) + ' needs a name, a slug (lowercase letters, numbers, hyphens) and a roles list.'); }
   team.roles = team.roles.filter(function (role) { return role && typeof role.title === 'string' && role.title.trim(); });
   // Each role has a contact email, shown on a page's live view as the way to reach its owner
   team.roles.forEach(function (role) { role.email = typeof role.email === 'string' ? role.email.trim() : ''; });
@@ -25,13 +38,13 @@ export async function readTeam() {
   // default while review is not in use) or only the "lead". Changing it to "lead" removes the option for
   // everyone else.
   team.directPublish = team.directPublish === 'lead' ? 'lead' : 'anyone';
-  // "icon" is the small picture shown beside this team's pages in search results (only "website" exists so far)
-  team.icon = team.icon === 'website' ? team.icon : '';
+  // "icon" is the small picture shown beside this team's pages in search results ("website" for the Web Team, "support" for Support)
+  team.icon = team.icon === 'website' || team.icon === 'support' ? team.icon : '';
   // "supportUrl" is where the public is sent for help on Client-Safe pages (empty until it is decided)
   team.supportUrl = typeof team.supportUrl === 'string' && /^https?:\/\/\S+$/.test(team.supportUrl.trim()) ? team.supportUrl.trim() : '';
   // "lead" names the role of the team lead. That role is every page's reviewer and cannot be changed per page.
   if (team.lead && team.roles.every(function (role) { return role.title !== team.lead; })) {
-    throw new Error('The "lead" in teams/legwork-web-team.json must be one of the roles.');
+    throw new Error('The "lead" in ' + path.basename(file) + ' must be one of the roles.');
   }
   return team;
 }

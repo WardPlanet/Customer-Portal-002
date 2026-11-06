@@ -10,7 +10,7 @@ import path from 'node:path';
 import { here } from '../config.js';
 import { buildInstructions } from '../importer.js';
 import { stylePreamble } from '../guidelines.js';
-import { readTeam } from '../teams.js';
+import { readTeam, readTeams } from '../teams.js';
 
 async function read(...parts) {
   return fs.readFile(path.join(here, ...parts), 'utf8');
@@ -38,6 +38,7 @@ const libraryUi = await read('library-ui.js');
 const guidelines = await read('guidelines', 'import-guidelines.md');
 const styleGuide = await read('guidelines', 'style-guide.md');
 const team = await readTeam();
+const allTeams = await readTeams();   // every department, so the artifact can switch between them
 
 // The PDF library is embedded as inert text and only run when someone clicks Export PDF
 const pdfCore = await fs.readFile(path.join(here, 'node_modules', 'pdfmake', 'build', 'pdfmake.min.js'), 'utf8');
@@ -61,6 +62,7 @@ const instructions =
   'window.IMPORT_INSTRUCTIONS = ' + safeForScript(JSON.stringify(buildInstructions(guidelines, styleGuide, team))) + ';\n' +
   'window.STYLE_PREAMBLE = ' + safeForScript(JSON.stringify(stylePreamble(styleGuide, team))) + ';\n' +
   // The team and who holds each role, for the Page Setup panel (the server serves this at /api/team)
+  'window.TEAMS = ' + safeForScript(JSON.stringify(allTeams)) + ';\n' +
   'window.TEAM_ROSTER = ' + safeForScript(JSON.stringify(team)) + ';';
 
 const linkTag = '<link rel="stylesheet" href="styles.css">';
