@@ -448,3 +448,11 @@ test('table column widths are saved as percentages that add up to 100', () => {
   assert.equal(W.parseTableWidths([], 3), null);
   assert.deepEqual(W.tableWidthsToLines(null, 3), []);
 });
+
+test('a page has no owner to contact when its role is missing, off the team, or held by nobody', () => {
+  const team = { roles: [{ title: 'Web Team Manager', person: 'Micah' }, { title: 'Copywriter', person: '' }, { title: 'Web Designer', person: 'Molly' }] };
+  assert.equal(W.ownerIsUnassigned(team, 'Web Designer'), false);
+  assert.equal(W.ownerIsUnassigned(team, 'Copywriter'), true);       // nobody holds the role
+  assert.equal(W.ownerIsUnassigned(team, 'Domain Manager'), true);   // the role has left the team
+  assert.equal(W.ownerIsUnassigned(team, ''), true);
+});

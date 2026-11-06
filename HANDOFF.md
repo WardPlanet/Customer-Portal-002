@@ -809,3 +809,11 @@ use approved synonyms, pins and saved tests in `search.cjs`, and a runner for th
 
 The "Acting as" selector sits in a dark "Testing" bar above the top bar because it stands in for sign-in and is not part of the
 final version; remove `.demo-bar` and `mountActing` when Azure sign-in is added.
+
+## Pages with no owner
+
+A page has no owner to contact when its OWNER ROLE is empty, names a role that has left the team, or names a role nobody holds
+(`Workflow.ownerIsUnassigned`). Then: the owner selector is red (library row for the lead, Page Setup in the editor, "Unassigned"
+text for others); the live page lists the **team lead** as "Contact (team lead)"; and **Team & roles** has a red "Pages without an
+owner" list where the lead ticks pages and assigns them to a role that has a person in one step. The Testing bar (Acting as) is
+always shown, including in the public preview.

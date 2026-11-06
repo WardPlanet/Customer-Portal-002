@@ -1562,7 +1562,6 @@
   body.is-public .setup,
   body.is-public .required-note { display: none; }
   body.is-public .workspace { grid-template-columns: minmax(0, 1fr); }
-  .is-public .demo-bar .acting { visibility: hidden; }
 
   .lib-backup { margin: 0 0 12px; color: var(--text-muted); font-size: 13px; }
   .lib-backup:empty { display: none; }
@@ -1945,3 +1944,14 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .demo-tag { margin-right: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9AA3B8; }
 .demo-bar .acting-label { color: #C8CCDA; }
 .demo-bar .acting-select { padding: 3px 8px; font-size: 13px; }
+
+/* A page with no owner to contact: red selector (library row and Page Setup), and the team lead's batch-assign list */
+.owner-select.is-unassigned, #owner.is-unassigned { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+.owner-unassigned { color: var(--danger); font-weight: 600; }
+.team-orphans { margin-top: 20px; padding: 14px 16px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; }
+.team-subtitle { margin: 0 0 4px; font-size: 15px; }
+.team-orphan-all { display: block; margin: 8px 0 4px; font-weight: 600; }
+.team-orphan-list { margin: 0 0 10px; padding: 0; list-style: none; max-height: 180px; overflow-y: auto; }
+.team-orphan-list li { padding: 3px 0; }
+.team-orphan-was { color: var(--text-muted); }
+.team-orphan-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

@@ -747,6 +747,13 @@
     return changed;
   }
 
+  // A page has no owner to contact when it names no role, names a role that is no longer on the team, or names a role nobody holds
+  function ownerIsUnassigned(team, title) {
+    if (!title) { return true; }
+    var role = ((team && team.roles) || []).filter(function (r) { return r.title === title; })[0];
+    return !role || !String(role.person || '').trim();
+  }
+
   function checkReassignRoles(team, from, to) {
     var titles = team.roles.map(function (role) { return role.title; });
     if (titles.indexOf(from) < 0 || titles.indexOf(to) < 0) { throw new WorkflowError('bad_role', 'Choose two roles on the team.', 400); }
@@ -911,6 +918,7 @@
     roleUsage: roleUsage,
     parseTableLines: parseTableLines,
     tableToLines: tableToLines,
+    ownerIsUnassigned: ownerIsUnassigned,
     normalizeTable: normalizeTable,
     normalizeTableWidths: normalizeTableWidths,
     parseTableWidths: parseTableWidths,

@@ -1364,12 +1364,20 @@
 
     // Only the team lead chooses a page's owner. Anyone else is the owner of what they create: the field is filled in with
     // their own role and greyed out (a page that already has an owner keeps it). The library says who may choose.
+    // The owner selector is red while the page has no owner to contact: nothing chosen, a role that has left the team,
+    // or a role nobody holds
+    function markOwnerUnassigned() {
+      var none = !state.owner || !personFor(state.owner);
+      byId('owner').classList.toggle('is-unassigned', none);
+    }
+
     function renderOwner() {
       var lock = window.PageHost && window.PageHost.ownerLock ? window.PageHost.ownerLock() : { locked: false };
       if (lock.locked && !state.owner && lock.role) { state.owner = lock.role; }
       var select = byId('owner');
       fillRoleSelect(select, 'Select an owner role', state.owner);
       select.disabled = !!lock.locked;
+      markOwnerUnassigned();
       var hint = byId('owner-field').querySelector('.field-hint');
       if (hint) {
         if (!hint.hasAttribute('data-default')) { hint.setAttribute('data-default', hint.textContent); }
@@ -3760,6 +3768,7 @@
     // Sidebar controls
     byId('owner').addEventListener('change', function (event) {
       state.owner = event.target.value;
+      markOwnerUnassigned();
       clearBlockError(byId('owner-field'));
       markDirty();
       updateSaveState();
