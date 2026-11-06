@@ -1314,6 +1314,87 @@
     var searchSlot = el('div', 'landing-search-slot');
     searchSlot.appendChild(searchWrap);
     hero.appendChild(searchSlot);
+
+    /* ---------- Filters ----------
+       A "Filters" button under the box opens a row of choices (team, where it lives, visibility, how recently updated, and the
+       order of the results). What is chosen shows as removable chips. With nothing typed, choosing a filter lists the pages that
+       match it. */
+    var filters = { team: '', location: '', visibility: '', updated: '', sort: 'best' };
+    var FILTER_LABELS = { team: 'Team', location: 'Where it lives', visibility: 'Visibility', updated: 'Updated', sort: 'Order' };
+    var filterBox = el('div', 'landing-filters');
+    var filterToggle = el('button', 'landing-filters-toggle');
+    filterToggle.type = 'button';
+    filterToggle.setAttribute('aria-expanded', 'false');
+    var filterChips = el('span', 'landing-filter-chips');
+    var filterTop = el('div', 'landing-filters-top');
+    filterTop.appendChild(filterToggle);
+    filterTop.appendChild(filterChips);
+    filterBox.appendChild(filterTop);
+    var filterPanel = el('div', 'landing-filter-panel');
+    filterPanel.hidden = true;
+    filterBox.appendChild(filterPanel);
+    var filterSelects = {};
+    function addFilterSelect(key, options) {
+      var wrap = el('label', 'landing-filter');
+      wrap.appendChild(el('span', 'landing-filter-label', FILTER_LABELS[key]));
+      var select = el('select', 'landing-filter-select');
+      select.addEventListener('change', function () { filters[key] = select.value; filtersChanged(); });
+      wrap.appendChild(select);
+      filterPanel.appendChild(wrap);
+      filterSelects[key] = select;
+      setFilterOptions(key, options);
+    }
+    function setFilterOptions(key, options) {
+      var select = filterSelects[key];
+      select.textContent = '';
+      options.forEach(function (pair) { var option = el('option', '', pair[1]); option.value = pair[0]; select.appendChild(option); });
+      select.value = filters[key];
+    }
+    function filterText(key) {
+      var select = filterSelects[key];
+      var option = select && Array.prototype.filter.call(select.options, function (o) { return o.value === filters[key]; })[0];
+      return option ? option.textContent : filters[key];
+    }
+    addFilterSelect('team', [['', 'Any team']]);
+    addFilterSelect('location', [['', 'Anywhere']]);
+    addFilterSelect('visibility', [['', 'Any'], ['Internal-Only', 'Internal-Only'], ['Client-Safe', 'Client-Safe']]);
+    addFilterSelect('updated', [['', 'Any time'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90 days'], ['365', 'Last year']]);
+    addFilterSelect('sort', [['best', 'Best match'], ['newest', 'Newest'], ['opened', 'Most opened'], ['az', 'A to Z']]);
+    function hasFilters() { return !!(filters.team || filters.location || filters.visibility || filters.updated); }
+    function activeKeys() {
+      return ['team', 'location', 'visibility', 'updated', 'sort'].filter(function (key) { return filters[key] && !(key === 'sort' && filters.sort === 'best'); });
+    }
+    function updateFilterUi() {
+      var keys = activeKeys();
+      Object.keys(filterSelects).forEach(function (key) { filterSelects[key].value = filters[key]; });
+      filterToggle.textContent = 'Filters' + (keys.length ? ' (' + keys.length + ')' : '');
+      filterChips.textContent = '';
+      keys.forEach(function (key) {
+        var chip = el('button', 'landing-filter-chip', FILTER_LABELS[key] + ': ' + filterText(key) + ' \u00D7');
+        chip.type = 'button';
+        chip.setAttribute('aria-label', 'Remove the filter ' + FILTER_LABELS[key] + ': ' + filterText(key));
+        chip.addEventListener('click', function () { filters[key] = key === 'sort' ? 'best' : ''; filtersChanged(); });
+        filterChips.appendChild(chip);
+      });
+    }
+    function filtersChanged() { updateFilterUi(); refresh(); }
+    function clearFilters() { filters = { team: '', location: '', visibility: '', updated: '', sort: 'best' }; filtersChanged(); }
+    filterToggle.addEventListener('click', function () {
+      filterPanel.hidden = !filterPanel.hidden;
+      filterToggle.setAttribute('aria-expanded', String(!filterPanel.hidden));
+    });
+    updateFilterUi();
+    hero.appendChild(filterBox);
+    // The teams and places that exist, from the live pages
+    Promise.resolve(backend().list('', true)).then(function (result) {
+      var live = result.pages.filter(function (p) { return p.liveVersion; });
+      var teams = {};
+      var places = {};
+      live.forEach(function (p) { if (p.team) { teams[p.team] = true; } if (p.location) { places[p.location] = true; } });
+      setFilterOptions('team', [['', 'Any team']].concat(Object.keys(teams).sort().map(function (slug) { return [slug, slug === team.slug ? team.name : slug]; })));
+      setFilterOptions('location', [['', 'Anywhere']].concat(Object.keys(places).sort().map(function (name) { return [name, name]; })));
+      updateFilterUi();
+    }).catch(function () { /* the filters still work with what is chosen */ });
     main.appendChild(hero);
     var barAnchor = el('div', 'landing-bar-anchor');
     var bar = el('div', 'landing-bar');
@@ -1431,28 +1512,46 @@
     // content is replaced, because a shorter page would pull the scroll position back up to the top of the results.
     async function refresh(options) {
       var q = search.value.trim();
+      var filtering = hasFilters() || filters.sort !== 'best';   // choosing an order lists the pages in that order too
       var held = listBox.offsetHeight;
       listBox.textContent = '';
       // With a search showing, the results area is at least one screen tall, so the page can always be scrolled to the point where
       // the bar takes over
       var screenTall = 'calc(100vh - ' + barHeight + 'px)';
       // (Clearing the box lets go of the held height at once, so no empty space is left under the Popular Pages boxes.)
-      if (q && options && options.keepHeight && window.scrollY > 0) { listBox.style.minHeight = 'max(' + held + 'px, ' + screenTall + ')'; }
-      else { listBox.style.minHeight = q ? screenTall : ''; }
-      if (!q) {
+      if ((q || filtering) && options && options.keepHeight && window.scrollY > 0) { listBox.style.minHeight = 'max(' + held + 'px, ' + screenTall + ')'; }
+      else { listBox.style.minHeight = q || filtering ? screenTall : ''; }
+      if (!q && !filtering) {
         clearTimeout(settleTimer);
         pendingSearch = null;
         showTopPages();
         return;
       }
+      // Nothing typed but a filter chosen: the pages that match the filter
       var result = await backend().list(q, true);
       if (mine !== routing || q !== search.value.trim()) { return; }
+      var found = result.pages.filter(function (p) { return p.liveVersion; });
+      if (q && !(options && options.restoring)) { queueSearchLog(q, found); }   // what the words found, before any filter; and an earlier search shown again is not a new search
+      var live = window.Search.filterPages(found, filters);
+      var order = filters.sort === 'best' && !q ? 'newest' : filters.sort;
+      var views = null;
+      if (order === 'opened') { try { views = (await backend().viewCounts()).views; } catch (error) { views = {}; } }
+      if (mine !== routing || q !== search.value.trim()) { return; }
+      live = window.Search.sortPages(live, order, views);
       listBox.textContent = '';
-      var live = result.pages.filter(function (p) { return p.liveVersion; });
-      if (!(options && options.restoring)) { queueSearchLog(q, live); }   // showing an earlier search again is not a new search
-      var note = searchNote({ pages: live, partial: result.partial, suggestion: result.suggestion }, function (word) { search.value = word; refresh(); });
+      if (filtering) {
+        var count = el('p', 'landing-count', live.length + (live.length === 1 ? ' page' : ' pages'));
+        listBox.appendChild(count);
+      }
+      var note = q ? searchNote({ pages: live, partial: result.partial, suggestion: result.suggestion }, function (word) { search.value = word; refresh(); }) : null;
       if (!live.length) {
-        listBox.appendChild(note || el('p', 'lib-empty', 'No live pages match.'));
+        if (hasFilters() && found.length) {
+          var none = el('p', 'lib-empty', 'No pages match these filters. ');
+          none.appendChild(button('Clear filters', 'landing-clear-filters', clearFilters));
+          listBox.appendChild(none);
+        } else {
+          listBox.appendChild(note || el('p', 'lib-empty', 'No live pages match.'));
+        }
         return;
       }
       if (note) { listBox.appendChild(note); }
@@ -1465,8 +1564,8 @@
         var titleLink = link('', '#/public/' + p.id, 'lib-page-link');
         titleLink.appendChild(markedNodes(p.search ? p.search.titleParts : null, p.title));
         titleLink.addEventListener('click', function () {
-          savedSearch = { q: q, y: window.scrollY };   // coming back to the landing page brings this search and its place back
-          logClick(q, p, position + 1);
+          savedSearch = { q: q, y: window.scrollY, filters: Object.assign({}, filters) };   // coming back to the landing page brings this search and its place back
+          if (q) { logClick(q, p, position + 1); }
         });
         titleRow.appendChild(titleLink);
         titleRow.appendChild(visibilityPill(p.visibility));
@@ -1639,6 +1738,7 @@
       var saved = savedSearch;
       savedSearch = null;
       search.value = saved.q;
+      if (saved.filters) { filters = Object.assign({ team: '', location: '', visibility: '', updated: '', sort: 'best' }, saved.filters); updateFilterUi(); }
       refresh({ restoring: true }).then(function () {
         if (mine !== routing) { return; }
         window.scrollTo(0, saved.y);

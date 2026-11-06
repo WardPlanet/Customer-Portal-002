@@ -57,6 +57,7 @@
     clearSearchLog: function () { return this.call('DELETE', '/api/search-log'); },
     suggest: function (q) { return this.call('GET', '/api/library/suggest?q=' + encodeURIComponent(q || '')); },
     popular: function () { return this.call('GET', '/api/library/popular'); },
+    viewCounts: function () { return this.call('GET', '/api/library/views'); },
     list: function (q, liveOnly) { return this.call('GET', '/api/library/pages?' + (q ? 'q=' + encodeURIComponent(q) + '&' : '') + (liveOnly ? 'live=1' : '')); },
     create: function (text, note) { return this.call('POST', '/api/library/pages', { text: text, note: note || '' }); },
     get: function (id) { return this.call('GET', '/api/library/pages/' + id); },
@@ -207,6 +208,8 @@
         writeJson(SEARCH_REVIEW_KEY, null);
         return {};
       },
+      // How many times each page was opened in the last 30 days, for sorting results by "most opened"
+      viewCounts: async function () { return { views: window.SearchLog.viewCounts(readJson(SEARCH_LOG_KEY, [])) }; },
       // The three most opened live pages for the landing page (newest ones when nothing has been opened yet)
       popular: async function () {
         var live = readAll().pages.filter(function (page) { return !!page.liveVersion; });

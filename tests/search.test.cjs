@@ -133,3 +133,28 @@ test('the kept index gives the same answers as a fresh one after pages are added
     Search.query(entries, 'renewal');   // the index is rebuilt from nothing after reset; carry on from there
   }
 });
+
+test('filters and sorting for the landing page results', () => {
+  const day = 24 * 60 * 60 * 1000; const now = Date.parse('2026-11-10T12:00:00Z');
+  const ago = (d) => new Date(now - d * day).toISOString();
+  const pages = [
+    { id: 'a', title: 'Brand guide', team: 'web', location: 'Websites', visibility: 'Internal-Only', updatedAt: ago(3) },
+    { id: 'b', title: 'Login help', team: 'web', location: 'Websites', visibility: 'Client-Safe', updatedAt: ago(40) },
+    { id: 'c', title: 'Ad budget', team: 'ads', location: 'Advertising', visibility: 'Internal-Only', updatedAt: ago(400) }
+  ];
+  const ids = (list) => list.map((p) => p.id).join('');
+  assert.equal(ids(Search.filterPages(pages, {}, now)), 'abc');
+  assert.equal(ids(Search.filterPages(pages, { team: 'web' }, now)), 'ab');
+  assert.equal(ids(Search.filterPages(pages, { location: 'Advertising' }, now)), 'c');
+  assert.equal(ids(Search.filterPages(pages, { visibility: 'Client-Safe' }, now)), 'b');
+  assert.equal(ids(Search.filterPages(pages, { updated: '7' }, now)), 'a');
+  assert.equal(ids(Search.filterPages(pages, { updated: '90' }, now)), 'ab');
+  assert.equal(ids(Search.filterPages(pages, { updated: '365' }, now)), 'ab');
+  assert.equal(ids(Search.filterPages(pages, { team: 'web', visibility: 'Internal-Only', updated: '30' }, now)), 'a');
+  assert.equal(ids(Search.sortPages(pages, 'best')), 'abc');
+  assert.equal(ids(Search.sortPages(pages, 'newest')), 'abc');
+  assert.equal(ids(Search.sortPages([pages[2], pages[0], pages[1]], 'newest')), 'abc');
+  assert.equal(ids(Search.sortPages(pages, 'az')), 'cab');
+  assert.equal(ids(Search.sortPages(pages, 'opened', { c: 9, b: 2 })), 'cba');
+  assert.equal(ids(pages), 'abc');   // the list given is not changed
+});

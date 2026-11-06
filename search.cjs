@@ -644,7 +644,35 @@
     return suggest(entries, queryText, limit);
   }
 
+  /* ---------- Filters and sorting for the landing page's results ----------
+     pages are the page summaries the library returns: { id, title, team, location, visibility, updatedAt }.
+     filters: { team, location, visibility, updated } where an empty value means "any" and updated is a number of days. */
+  var DAY_MS = 24 * 60 * 60 * 1000;
+
+  function filterPages(pages, filters, now) {
+    var f = filters || {};
+    var since = f.updated ? (now || Date.now()) - Number(f.updated) * DAY_MS : null;
+    return (pages || []).filter(function (page) {
+      return (!f.team || page.team === f.team) &&
+        (!f.location || page.location === f.location) &&
+        (!f.visibility || page.visibility === f.visibility) &&
+        (since === null || new Date(page.updatedAt).getTime() >= since);
+    });
+  }
+
+  // sort: 'best' (the order given), 'newest', 'opened' (most opened first; views is { page id: opens }) or 'az'
+  function sortPages(pages, sort, views) {
+    var list = (pages || []).slice();
+    if (sort === 'newest') { list.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); }); }
+    else if (sort === 'opened') {
+      list.sort(function (a, b) { return ((views || {})[b.id] || 0) - ((views || {})[a.id] || 0) || String(b.updatedAt).localeCompare(String(a.updatedAt)); });
+    } else if (sort === 'az') { list.sort(function (a, b) { return String(a.title).toLowerCase().localeCompare(String(b.title).toLowerCase()); }); }
+    return list;
+  }
+
   return {
+    filterPages: filterPages,
+    sortPages: sortPages,
     suggest: suggest,
     reset: resetIndex,
     suggestPages: suggestPages,

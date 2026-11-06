@@ -893,3 +893,13 @@ search at all (Popular Pages, the library list) take about 55-60 ms. Nearly all 
 from disk on each request; the search itself adds 15-30 ms. This is fine at this size, so no cache was built. When the wiki nears
 roughly 1,000 pages, or requests feel slow, keep the loaded pages in memory and re-read a file only when it changes (for example by
 its modified time, or by clearing the entry in `savePage`); that should bring such requests to under 10 ms.
+
+### Filters on the landing page
+
+A "Filters" button under the search box opens: **Team**, **Where it lives**, **Visibility**, **Updated** (last 7, 30, 90 days or a year)
+and **Order** (best match, newest, most opened, A to Z). Chosen filters show as removable chips; `Search.filterPages` and
+`Search.sortPages` (`search.cjs`, tested) do the work on the page summaries the search returns, in the browser. With nothing typed,
+choosing a filter or an order lists the live pages that match (newest first unless an order is chosen); the filters are remembered
+when going to a page and back. "Most opened" uses `GET /api/library/views` (opens per page over 30 days, from the hourly digest).
+The search log records what the words found, before any filter is applied. Team and place lists come from the live pages. Not built
+(see the earlier list): block-type filters, never-opened, "not updated in a year", date ranges, filters in the address, grouping.

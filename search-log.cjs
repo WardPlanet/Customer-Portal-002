@@ -210,5 +210,5 @@
     return rankPages(viewCounts(events, options), livePages, options.limit);
   }
 
-  return { summarize: summarize, topPages: topPages, digest: digest, rankPages: rankPages, topSearches: topSearches, eligibleSearches: eligibleSearches, looksPersonal: looksPersonal, cleanEvent: cleanEvent, keyOf: keyOf, MAX_EVENTS: MAX_EVENTS };
+  return { summarize: summarize, viewCounts: viewCounts, topPages: topPages, digest: digest, rankPages: rankPages, topSearches: topSearches, eligibleSearches: eligibleSearches, looksPersonal: looksPersonal, cleanEvent: cleanEvent, keyOf: keyOf, MAX_EVENTS: MAX_EVENTS };
 });

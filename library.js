@@ -231,6 +231,10 @@ export function registerLibraryRoutes(app, draftsDir) {
     return digestCache;
   }
 
+  app.get('/api/library/views', staff(async function (req, res) {
+    res.json({ views: (await currentDigest()).views });
+  }));
+
   app.get('/api/library/popular', staff(async function (req, res, ctx) {
     var pages = (await loadAllPages(draftsDir, ctx.team)).filter(function (page) { return !!page.liveVersion; });
     var digest = await currentDigest();
