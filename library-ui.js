@@ -1347,16 +1347,11 @@
       fitTileText(grid);
     }
 
-    // The description runs on until the bottom of its box and ends in "..." where the box ends: the number of lines that fit is
-    // measured, because CSS alone cannot clamp text to "however much room is left"
+    // The description runs on until the bottom of its box and fades out there when there is more of it. Whether it is cut is
+    // measured, so short descriptions are not faded.
     function fitTileText(grid) {
       Array.prototype.forEach.call(grid.querySelectorAll('.landing-tile-text'), function (text) {
-        text.style.webkitLineClamp = '';
-        text.style.lineClamp = '';
-        var lineHeight = parseFloat(getComputedStyle(text).lineHeight) || 20;
-        var lines = Math.max(1, Math.floor(text.clientHeight / lineHeight));
-        text.style.webkitLineClamp = String(lines);
-        text.style.lineClamp = String(lines);
+        text.classList.toggle('is-cut', text.scrollHeight > text.clientHeight + 1);
       });
     }
     window.addEventListener('resize', function () { var grid = listBox.querySelector('.landing-top'); if (grid) { fitTileText(grid); } });
