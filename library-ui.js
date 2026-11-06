@@ -1340,8 +1340,23 @@
       moving = false;
     }
     var barShown = false;
+    var barHeight = 64;
+    // The bar takes over exactly when what is left of the band is as tall as the bar, so it covers that strip with no gap. The
+    // measured height is also given to the stylesheet (--bar-h) to place the bar over the strip.
+    function measureBar() {
+      barHeight = bar.offsetHeight || barHeight;
+      main.style.setProperty('--bar-h', barHeight + 'px');
+    }
+    // The scroll position at which the bar takes over: the shrunk header with the results right below it
+    function barStartScroll() {
+      return Math.ceil(hero.getBoundingClientRect().bottom + window.scrollY - barHeight);
+    }
+    // After a search is run from the bar, bring the page back to that point (not to the full band at the top)
+    function scrollToResults() {
+      if (barShown) { window.scrollTo(0, barStartScroll()); }
+    }
     function updateBar() {
-      var shown = hero.getBoundingClientRect().bottom <= 0;
+      var shown = hero.getBoundingClientRect().bottom <= barHeight;
       if (shown === barShown) { return; }
       barShown = shown;
       if (shown) {
@@ -1359,6 +1374,8 @@
       updateBar();
     }
     window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', measureBar);
+    measureBar();
     var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
 
@@ -1409,6 +1426,9 @@
     async function refresh() {
       var q = search.value.trim();
       listBox.textContent = '';
+      // With a search showing, the results area is at least one screen tall, so the page can always be scrolled to the point where
+      // the bar takes over
+      listBox.style.minHeight = q ? 'calc(100vh - ' + barHeight + 'px)' : '';
       if (!q) {
         clearTimeout(settleTimer);
         pendingSearch = null;
@@ -1480,7 +1500,13 @@
     function chooseSuggestion(item) {
       closeSuggestions();
       search.value = item.text;
-      refresh();
+      runSearch();
+    }
+    // Search now (no waiting for a pause in typing); from the bar, bring the page back to where the bar takes over
+    async function runSearch() {
+      clearTimeout(timer);
+      await refresh();
+      scrollToResults();
     }
     var KIND_LABELS = { page: 'Page', keyword: 'Keyword', section: 'Section' };
     function showSuggestions(list) {
@@ -1525,6 +1551,12 @@
       suggestTimer = setTimeout(askForSuggestions, 80);
     });
     search.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && (suggestBox.hidden || active < 0)) {
+        event.preventDefault();
+        closeSuggestions();
+        runSearch();
+        return;
+      }
       if (suggestBox.hidden) { return; }
       if (event.key === 'ArrowDown') { event.preventDefault(); highlightSuggestion((active + 1) % suggestions.length); }
       else if (event.key === 'ArrowUp') { event.preventDefault(); highlightSuggestion((active - 1 + suggestions.length) % suggestions.length); }

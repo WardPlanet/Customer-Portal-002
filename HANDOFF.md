@@ -855,7 +855,11 @@ In the Claude artifact there is no background process: the lists are recalculate
 log. The log has no retention limit yet (suggest 90 days; agree with IT). Synonyms, pins and saved tests from the Search review screen
 are still recorded only; they are not applied to search yet.
 
-**Sticky search bar.** The page scrolls normally and the band is not changed by typing. Only once the night-sky band has scrolled
-out of sight does a slim bar slide in at the top of the screen with the Planet DDS logo on the left and the search box on the right
-(the same box, moved with its focus and suggestions; it moves back when scrolling up past the band). Escape closes the suggestions
+**Sticky search bar.** The page scrolls normally and the band is not changed by typing. The slim bar (Planet DDS logo on the left, the
+search box on the right, a fixed 64px tall, `--bar-h`) takes over at the moment the part of the night-sky band still on screen is
+exactly as tall as the bar, so it covers that last strip with no gap, and it then sticks to the top. The search box is the same one,
+moved with its focus and suggestions (it moves back when scrolling up past that point). Pressing **Enter** in the bar, or choosing a
+suggestion there, runs the search at once and scrolls the page back to that point, so the shrunk bar and the results are showing
+rather than the full band (`runSearch` and `barStartScroll` in `library-ui.js`). Enter in the full band just searches. While a
+search is showing, the results area is at least a screen tall so that point can always be reached. Escape closes the suggestions
 without clearing the box. The logo is hidden in the bar on narrow screens.

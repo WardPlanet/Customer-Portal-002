@@ -2011,11 +2011,12 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-help a { color: var(--accent-text); font-weight: 500; text-underline-offset: 3px; }
 
 /* The slim bar that holds the logo and the search box once the band has scrolled out of sight. The anchor takes no space in the
-   page and sticks to the top of the screen; the bar slides down into view (the wrapper is hidden until then). */
-.landing-bar-anchor { position: sticky; top: 0; z-index: 4; height: 0; }
+   page. The bar sits over the last strip of the band (as tall as the bar) and, from the moment that strip is all that is left,
+   sticks to the top of the screen. It is hidden until then. */
+.landing-bar-anchor { position: sticky; top: var(--bar-h, 64px); z-index: 4; height: 0; }
 .landing-bar {
-  position: absolute; top: 0; left: 0; right: 0;
-  display: flex; align-items: center; gap: 24px; padding: 10px 24px;
+  position: absolute; top: calc(var(--bar-h, 64px) * -1); left: 0; right: 0; box-sizing: border-box;
+  display: flex; align-items: center; gap: 24px; padding: 0 24px; height: var(--bar-h, 64px);   /* a fixed height: the band's last strip is exactly this tall */
   background-color: #07104A; background-image: var(--landing-image); background-size: cover; background-position: center;
   box-shadow: 0 6px 18px rgba(0, 15, 96, 0.3);
   transform: translateY(-110%); visibility: hidden; transition: transform 0.25s ease, visibility 0s linear 0.25s;
@@ -2026,5 +2027,5 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-bar-slot { flex: 1; min-width: 0; display: flex; justify-content: flex-end; }
 .landing-bar .landing-search-wrap { max-width: 460px; }
 .landing-bar .landing-search { height: 44px; font-size: 16px; padding: 0 22px; border-radius: 22px; box-shadow: none; }
-@media (max-width: 640px) { .landing-bar-logo { display: none; } .landing-bar { padding: 10px 16px; } }
+@media (max-width: 640px) { .landing-bar-logo { display: none; } .landing-bar { padding: 0 16px; } }
 @media (prefers-reduced-motion: reduce) { .landing-bar, .landing-bar.is-shown { transition: none; } }
