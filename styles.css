@@ -1969,9 +1969,8 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .lib-main.is-landing { --landing-image: url("landing-bg.webp"); max-width: none; padding: 0; display: flex; flex-direction: column; }
 .landing-hero {
   position: relative; z-index: 3;
-  display: flex; flex-direction: column; align-items: center; gap: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
   padding: 56px 24px 64px; text-align: center; color: #FFFFFF;
-  transition: padding 0.25s ease;
   background-color: #07104A;
   background-image:
     var(--landing-image),
@@ -1983,28 +1982,16 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
   background-size: cover;
   background-position: center;
 }
-.landing-intro { display: grid; grid-template-rows: 1fr; width: 100%; transition: grid-template-rows 0.25s ease, opacity 0.2s ease; }
-.landing-intro-inner { min-height: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 22px; padding-bottom: 22px; }
-/* While searching: just the search box, stuck to the top of the screen */
-.landing-hero.is-compact { position: sticky; top: 0; padding-top: 14px; padding-bottom: 14px; box-shadow: 0 6px 18px rgba(0, 15, 96, 0.3); }
-.landing-hero.is-compact .landing-intro { grid-template-rows: 0fr; opacity: 0; }
-.landing-hero.is-compact .landing-search-wrap { margin-top: 0; }
-@media (prefers-reduced-motion: reduce) { .landing-hero, .landing-intro { transition: none; } }
 .landing-logo { width: 170px; }
 .landing-logo svg { display: block; width: 100%; height: auto; filter: brightness(0) invert(1); }
 .landing-title { margin: 0; font-size: 56px; line-height: 1.08; font-weight: 800; color: #FFFFFF; text-wrap: balance; }
 .landing-title span { color: #4DA3FF; }
-.landing-search-wrap { width: 100%; max-width: 680px; margin-top: 8px; text-align: left; }
+.landing-search-slot { width: 100%; display: flex; justify-content: center; }
+.landing-search-wrap { width: 100%; max-width: 680px; text-align: left; }
 .landing-search { width: 100%; height: 58px; padding: 0 28px; font: inherit; font-size: 18px; color: #0B1240; background: #FFFFFF; border: 0; border-radius: 29px; box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4); }
 .landing-search:focus { outline: none; box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4), 0 0 0 3px rgba(77, 163, 255, 0.55); }
 .landing-search::placeholder { color: #8A8EA8; }
 .landing-search-wrap .suggest-list { color: var(--text); }
-.landing-chips { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin-top: 4px; }
-.landing-chips[hidden] { display: none; }
-.landing-chips-label { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: #BFD2FF; }
-.landing-chip { padding: 8px 16px; font: inherit; font-size: 14px; font-weight: 600; color: #FFFFFF; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 999px; cursor: pointer; }
-.landing-chip:hover { background: rgba(255, 255, 255, 0.24); }
-.landing-chip:focus-visible { outline: 3px solid #4DA3FF; outline-offset: 2px; }
 .landing-results { width: 100%; max-width: 1080px; margin: 0 auto; padding: 32px 28px 28px; box-sizing: border-box; }
 .landing-top-title { margin: 0 0 16px; font-size: 20px; font-weight: 700; color: var(--text); }
 .landing-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
@@ -2022,3 +2009,22 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-tile-text.is-cut { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); }
 .landing-help { margin: auto 0 0; padding: 28px 24px 32px; text-align: center; font-size: 14px; color: var(--text-muted); }
 .landing-help a { color: var(--accent-text); font-weight: 500; text-underline-offset: 3px; }
+
+/* The slim bar that holds the logo and the search box once the band has scrolled out of sight. The anchor takes no space in the
+   page and sticks to the top of the screen; the bar slides down into view (the wrapper is hidden until then). */
+.landing-bar-anchor { position: sticky; top: 0; z-index: 4; height: 0; }
+.landing-bar {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 24px; padding: 10px 24px;
+  background-color: #07104A; background-image: var(--landing-image); background-size: cover; background-position: center;
+  box-shadow: 0 6px 18px rgba(0, 15, 96, 0.3);
+  transform: translateY(-110%); visibility: hidden; transition: transform 0.25s ease, visibility 0s linear 0.25s;
+}
+.landing-bar.is-shown { transform: translateY(0); visibility: visible; transition: transform 0.25s ease; }
+.landing-bar-logo { flex: none; display: block; width: 120px; }
+.landing-bar-logo svg { display: block; width: 100%; height: auto; filter: brightness(0) invert(1); }
+.landing-bar-slot { flex: 1; min-width: 0; display: flex; justify-content: flex-end; }
+.landing-bar .landing-search-wrap { max-width: 460px; }
+.landing-bar .landing-search { height: 44px; font-size: 16px; padding: 0 22px; border-radius: 22px; box-shadow: none; }
+@media (max-width: 640px) { .landing-bar-logo { display: none; } .landing-bar { padding: 10px 16px; } }
+@media (prefers-reduced-motion: reduce) { .landing-bar, .landing-bar.is-shown { transition: none; } }

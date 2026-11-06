@@ -840,8 +840,10 @@ https://www.planetdds.com/contact-us/ (opens in a new tab).
 
 ## Automatic popular lists (landing page)
 
-Two lists on `#/public` are built from the search log with no approval step: the **Popular Pages** tiles (the three most opened live
-pages) and the **Popular searches** chips under the search box (the top three; clicking one fills the box and searches).
+The **Popular Pages** tiles on `#/public` (the three most opened live pages) are built from the search log with no approval step.
+The "Popular searches" chips under the search box were removed from the screen; `GET /api/library/popular` still returns a
+`searches` list (the top three, rules below) and the code is tested, but nothing shows it and the Search review "Hide from top
+searches" button was removed with it.
 Rules (`search-log.cjs`, tested): the last 30 days; a search counts only if it found at least one page, was made on at least
 two separate visits, is at most 60 characters, and does not look personal (an email address or 7 or more digits); the chips show
 the text only, never counts or who searched. The team lead can hide a search with **Hide from top searches** on the Search review
@@ -853,7 +855,7 @@ In the Claude artifact there is no background process: the lists are recalculate
 log. The log has no retention limit yet (suggest 90 days; agree with IT). Synonyms, pins and saved tests from the Search review screen
 are still recorded only; they are not applied to search yet.
 
-**Sticky shrinking search band.** On the landing page the page scrolls normally. As soon as something is typed, the night-sky band folds
-the logo, heading and chips away (`is-compact`, animated unless reduced motion is requested) and shrinks to just the search box, which
-sticks to the top of the screen while the results scroll under it. Clearing the box restores the full band. Escape closes the
-suggestions without clearing the box.
+**Sticky search bar.** The page scrolls normally and the band is not changed by typing. Only once the night-sky band has scrolled
+out of sight does a slim bar slide in at the top of the screen with the Planet DDS logo on the left and the search box on the right
+(the same box, moved with its focus and suggestions; it moves back when scrolling up past the band). Escape closes the suggestions
+without clearing the box. The logo is hidden in the bar on narrow screens.

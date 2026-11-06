@@ -1287,19 +1287,14 @@
     // The landing page: the white Planet DDS logo above "How Can We Help" and one big search box, on a dark starfield
     main.classList.add('is-landing');
     var hero = el('section', 'landing-hero');
-    // The logo and heading sit in a wrapper that folds away once someone searches (the band shrinks to just the search box)
-    var intro = el('div', 'landing-intro');
-    var introInner = el('div', 'landing-intro-inner');
-    intro.appendChild(introInner);
     var logo = el('div', 'landing-logo');
     logo.setAttribute('role', 'img');
     logo.setAttribute('aria-label', 'Planet DDS');
     logo.innerHTML = window.Brand.logoSvg;   // the supplied logo: fixed markup, no page text
-    introInner.appendChild(logo);
+    hero.appendChild(logo);
     var title = el('h1', 'landing-title', 'How Can We ');
     title.appendChild(el('span', '', 'Help?'));
-    introInner.appendChild(title);
-    hero.appendChild(intro);
+    hero.appendChild(title);
     var search = el('input', 'lib-search landing-search');
     search.type = 'search';
     search.placeholder = 'Search the wiki';
@@ -1312,12 +1307,58 @@
     suggestBox.setAttribute('role', 'listbox');
     suggestBox.hidden = true;
     searchWrap.appendChild(suggestBox);
-    hero.appendChild(searchWrap);
-    // The top searches (filled in by showTopPages): small chips under the box, hidden while something is typed
-    var chips = el('div', 'landing-chips');
-    chips.hidden = true;
-    hero.appendChild(chips);
+    // The search box lives in a slot in the band. Once the band has scrolled out of sight it moves into a slim bar that sticks to
+    // the top of the screen (the Planet DDS logo on the left, the search box on the right), and moves back when scrolling up.
+    var searchSlot = el('div', 'landing-search-slot');
+    searchSlot.appendChild(searchWrap);
+    hero.appendChild(searchSlot);
     main.appendChild(hero);
+    var barAnchor = el('div', 'landing-bar-anchor');
+    var bar = el('div', 'landing-bar');
+    var barLogo = el('a', 'landing-bar-logo');
+    barLogo.href = '#/public';
+    barLogo.setAttribute('aria-label', 'Planet DDS: back to the top');
+    barLogo.innerHTML = window.Brand.logoSvg;   // the supplied logo: fixed markup, no page text
+    barLogo.addEventListener('click', function (event) { event.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    bar.appendChild(barLogo);
+    var barSlot = el('div', 'landing-bar-slot');
+    bar.appendChild(barSlot);
+    barAnchor.appendChild(bar);
+    main.appendChild(barAnchor);
+
+    var moving = false;   // true while the box is being moved, so the move is not mistaken for the person leaving it
+    function moveSearchTo(container) {
+      var hadFocus = document.activeElement === search;
+      var from = search.selectionStart;
+      var to = search.selectionEnd;
+      moving = true;
+      container.appendChild(searchWrap);
+      if (hadFocus) {
+        search.focus({ preventScroll: true });   // the page must not scroll just because the box moved
+        try { search.setSelectionRange(from, to); } catch (error) { /* the browser keeps the caret where it was */ }
+      }
+      moving = false;
+    }
+    var barShown = false;
+    function updateBar() {
+      var shown = hero.getBoundingClientRect().bottom <= 0;
+      if (shown === barShown) { return; }
+      barShown = shown;
+      if (shown) {
+        searchSlot.style.height = searchSlot.offsetHeight + 'px';   // the band keeps its height, so the page does not jump
+        bar.classList.add('is-shown');   // visible first: a hidden box cannot take focus
+        moveSearchTo(barSlot);
+      } else {
+        moveSearchTo(searchSlot);
+        searchSlot.style.height = '';
+        bar.classList.remove('is-shown');
+      }
+    }
+    function onScroll() {
+      if (mine !== routing) { window.removeEventListener('scroll', onScroll); return; }   // another screen is showing now
+      updateBar();
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
     var listBox = el('div', 'lib-list landing-results');
     main.appendChild(listBox);
 
@@ -1336,16 +1377,6 @@
       var result;
       try { result = await backend().popular(); } catch (error) { return; }
       if (mine !== routing || search.value.trim()) { return; }
-      // The top searches: choosing one fills the box and searches, like a suggestion
-      chips.textContent = '';
-      (result.searches || []).forEach(function (query) {
-        var chip = el('button', 'landing-chip', query);
-        chip.type = 'button';
-        chip.addEventListener('click', function () { search.value = query; refresh(); search.focus(); });
-        chips.appendChild(chip);
-      });
-      if (result.searches && result.searches.length) { chips.insertBefore(el('span', 'landing-chips-label', 'Popular searches'), chips.firstChild); }
-      chips.hidden = !chips.childNodes.length;
       if (!result.pages.length) { return; }
       listBox.textContent = '';
       var anyOpened = result.pages.some(function (page) { return page.views > 0; });
@@ -1377,9 +1408,6 @@
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
     async function refresh() {
       var q = search.value.trim();
-      chips.hidden = !!q || !chips.childNodes.length;
-      // While searching, the band shrinks to the search box and stays at the top of the screen as the results scroll
-      hero.classList.toggle('is-compact', !!q);
       listBox.textContent = '';
       if (!q) {
         clearTimeout(settleTimer);
@@ -1503,7 +1531,7 @@
       else if (event.key === 'Enter' && active >= 0) { event.preventDefault(); chooseSuggestion(suggestions[active]); }
       else if (event.key === 'Escape') { event.preventDefault(); closeSuggestions(); }   // closes the list only; the browser would also clear the box
     });
-    search.addEventListener('blur', function () { suggestToken += 1; closeSuggestions(); });
+    search.addEventListener('blur', function () { if (moving) { return; } suggestToken += 1; closeSuggestions(); });
     search.addEventListener('focus', function () { if (search.value.trim()) { askForSuggestions(); } });
     refresh();
   }

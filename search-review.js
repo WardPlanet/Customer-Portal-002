@@ -172,9 +172,6 @@
         if (!title) { notice('Choose the page to pin.'); return; }
         decide('common', item, 'Page pinned', item.query + ' → ' + title, 'This page will always come first for “' + item.query + '”.');
       }));
-      actions.appendChild(button('Hide from top searches', 'review-secondary', function () {
-        decide('common', item, 'Hidden from top searches', item.query, 'Will not be offered as a popular search on the landing page, even if it is common.');
-      }));
       row.appendChild(actions);
       return row;
     }
