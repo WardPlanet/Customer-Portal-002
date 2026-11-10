@@ -943,3 +943,20 @@ anything, it is a testing tool and must be removed with the Testing bar when sig
 **New page as Admin.** On a new page in Admin mode, Page Setup shows a **Team** choice (instead of the fixed team name). Choosing another team reloads
 the page as that department, with Admin mode kept, so Owner lists that team's roles (after asking, if something has been typed); the page is
 saved under that team. Existing pages show their team as plain text.
+
+## Planned: Admin tools page (not built)
+
+A page only Admin can open, where Admin has complete control over **teams** and **employee placement**:
+- **Teams:** create a team (name, short name used in storage, icon, the places its pages live, which role is the lead, whether only the lead publishes),
+  edit it, and retire one (its pages must be moved first). Today a team is a file in `teams/`; creating one from a page means the server and the
+  artifact both need to read and write team definitions, not just read files.
+- **People:** add a person to a team and role, move them between teams or roles, remove them, and see who is where across every team.
+  Admin can do this without being the team lead; a team lead keeps managing their own roles in Team & roles.
+- **Invitations:** adding a person sends an invitation email. The account counts as confirmed only after the person accepts it (with
+  Microsoft Entra ID sign-in, only people with a Planet DDS account can accept). Until then the person shows as "Invited" and cannot own or
+  receive pages (see the earlier note that documents are transferred only to accepted accounts). The page lists pending invitations
+  with resend and cancel.
+- **Record:** who changed what and when (a short history on the page).
+
+Depends on: Entra ID sign-in, sending email from a company mailbox, and the server working with several teams (see "Departments").
+Admin mode in the Testing bar is the stand-in for this role until then.
