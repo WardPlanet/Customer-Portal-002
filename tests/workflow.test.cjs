@@ -469,3 +469,13 @@ test('Admin acts as the team lead of whichever team a page belongs to', () => {
   assert.equal(W.isLead(W.actorFor('Molly', web), web), false);
   assert.equal(W.ADMIN_NAME, 'Admin');
 });
+
+test('a role whose person has not accepted an invitation cannot be given pages, and the roster keeps that mark', () => {
+  const team = { lead: 'Lead', roles: [{ title: 'Lead', person: 'Ann', email: 'a@example.com' }, { title: 'New', person: 'Bo', email: 'b@example.com', status: 'invited' }] };
+  assert.equal(W.roleInvited(team, 'New'), true);
+  assert.equal(W.roleInvited(team, 'Lead'), false);
+  assert.throws(() => W.checkReassignRoles(team, 'Lead', 'New'), /not accepted/);
+  const kept = W.checkRoster(team, team.roles, {}, W.actorFor('Ann', team));
+  assert.equal(kept[1].status, 'invited');
+  assert.equal(kept[0].status, undefined);
+});

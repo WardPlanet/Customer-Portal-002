@@ -69,6 +69,7 @@
   // A small picture beside a search result showing which team made the page. The Web Team's pages get a
   // website (browser window) icon. The picture is named in the team file ("icon": "website").
   var TEAM_ICONS = {
+    document: { label: 'Team', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>' },
     support: { label: 'Support', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="11.5" r="2.8"/><path d="M6.5 21c.4-3 2.6-4.6 5.5-4.6s5.1 1.6 5.5 4.6"/><path d="M5 11.5a7 7 0 0 1 14 0"/><path d="M5 11v2.5M19 11v2.5"/><path d="M19 13.5v1c0 1-.8 1.8-1.8 1.8H15"/></svg>' },
     website: { label: 'Web Team', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="M2.5 9h19M6 6.8h.01M8.8 6.8h.01"/></svg>' }
   };
@@ -127,6 +128,11 @@
 
   function roleLabel(title, t) {
     return title ? (personFor(title, t) || 'Unassigned') + ' — ' + title : 'No owner';   // the name first, then the role
+  }
+
+  // "Name — Role", with "(invited)" after the name until the person has accepted their invitation
+  function roleOptionText(role) {
+    return (role.person ? role.person + (role.status === 'invited' ? ' (invited)' : '') : 'Unassigned') + ' \u2014 ' + role.title;
   }
 
   function actingAsAdmin() { return window.Store.getActor().toLowerCase() === 'admin'; }
@@ -205,7 +211,7 @@
         adminOption.value = window.Workflow.ADMIN_NAME;
         select.appendChild(adminOption);
       } else {
-        team.roles.forEach(function (role) {
+        team.roles.filter(function (role) { return role.person && role.status !== 'invited'; }).forEach(function (role) {   // not vacant roles, not people who have yet to accept
           var option = el('option', '', role.person + ' — ' + role.title);
           option.value = role.person;
           select.appendChild(option);
@@ -611,7 +617,7 @@
       var ownerPrompt = el('option', '', 'Change owner\u2026');
       ownerPrompt.value = '';
       ownerPick.appendChild(ownerPrompt);
-      team.roles.forEach(function (role) { var option = el('option', '', (role.person || 'Unassigned') + ' \u2014 ' + role.title); option.value = role.title; ownerPick.appendChild(option); });
+      team.roles.forEach(function (role) { var option = el('option', '', roleOptionText(role)); option.value = role.title; option.disabled = role.status === 'invited'; ownerPick.appendChild(option); });
       ownerPick.addEventListener('change', async function () { var role = ownerPick.value; ownerPick.value = ''; if (role) { await bulkSetOwner(chosenPages(), role); } });
       bulkBar.appendChild(ownerPick);
       bulkBar.appendChild(button('Delete', 'row-btn row-btn-danger', function () { bulkDelete(chosenPages()); }));
@@ -706,8 +712,9 @@
         if (!p.owner) { var emptyOption = el('option', '', 'No owner'); emptyOption.value = ''; ownerSelect.appendChild(emptyOption); }
         else if (!roleOnTeam) { var goneOption = el('option', '', 'Unassigned (' + p.owner + ' left the team)'); goneOption.value = p.owner; ownerSelect.appendChild(goneOption); }
         pageTeam.roles.forEach(function (role) {
-          var option = el('option', '', (role.person || 'Unassigned') + ' — ' + role.title);
+          var option = el('option', '', roleOptionText(role));
           option.value = role.title;
+          option.disabled = role.status === 'invited' && role.title !== p.owner;   // invited people cannot be given pages yet
           ownerSelect.appendChild(option);
         });
         ownerSelect.value = p.owner || '';
@@ -1193,7 +1200,7 @@
       var roleHint = el('option', '', 'Assign to\u2026');
       roleHint.value = '';
       roleChoice.appendChild(roleHint);
-      team.roles.filter(function (role) { return role.person; }).forEach(function (role) {
+      team.roles.filter(function (role) { return role.person && role.status !== 'invited'; }).forEach(function (role) {
         var option = el('option', '', role.person + ' \u2014 ' + role.title);
         option.value = role.title;
         roleChoice.appendChild(option);
@@ -1293,7 +1300,7 @@
       var prompt = el('option', '', 'Choose a team member…');
       prompt.value = '';
       select.appendChild(prompt);
-      team.roles.filter(function (other) { return other.title !== role.title; }).forEach(function (other) {
+      team.roles.filter(function (other) { return other.title !== role.title && other.status !== 'invited'; }).forEach(function (other) {
         var option = el('option', '', other.person + ' — ' + other.title);
         option.value = other.title;
         select.appendChild(option);
@@ -2503,6 +2510,11 @@
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
     else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true, parts[2]); }
     else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; } }); }
+    else if (screen === 'admin' && window.Store.isAdminMode && window.Store.isAdminMode()) {
+      showScreen('library', false);
+      document.getElementById('nav-library').classList.remove('is-current');
+      window.Admin.show(main, { el: el, button: button, notice: notice, departmentsChanged: mountActing });
+    }
     else if (screen === 'search-review' && actorIsLead()) {
       showScreen('library', false);
       document.getElementById('nav-library').classList.remove('is-current');
@@ -2511,6 +2523,9 @@
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }
     // Search review is for the team lead only for now
+    var adminLink = document.getElementById('nav-admin');
+    adminLink.hidden = !(window.Store.isAdminMode && window.Store.isAdminMode());   // Admin tools are for Admin only
+    adminLink.classList.toggle('is-current', screen === 'admin' && !adminLink.hidden);
     var reviewLink = document.getElementById('nav-review');
     reviewLink.hidden = !actorIsLead();
     reviewLink.classList.toggle('is-current', screen === 'search-review' && actorIsLead());

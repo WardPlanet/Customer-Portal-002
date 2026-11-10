@@ -738,9 +738,15 @@
   }
 
   // Changes the owner of one page (team lead only), on its live and in-progress versions. Linked roles stay as they are.
+  // A person who has been invited but has not accepted cannot own pages or be given them
+  function roleInvited(team, title) {
+    return ((team && team.roles) || []).some(function (role) { return role.title === title && role.person && role.status === 'invited'; });
+  }
+
   function setOwner(page, to, actor, team, now) {
     requireLead(actor, team, 'change a page\'s owner');
     if (team.roles.every(function (role) { return role.title !== to; })) { throw new WorkflowError('bad_role', 'Choose a role on the team.', 400); }
+    if (roleInvited(team, to)) { throw new WorkflowError('not_accepted', 'That person has not accepted their invitation yet, so they cannot be given pages.', 409); }
     var changed = false;
     currentVersions(page).forEach(function (version) {
       if (fields(version.text).owner === to) { return; }
@@ -765,6 +771,7 @@
     var titles = team.roles.map(function (role) { return role.title; });
     if (titles.indexOf(from) < 0 || titles.indexOf(to) < 0) { throw new WorkflowError('bad_role', 'Choose two roles on the team.', 400); }
     if (from === to) { throw new WorkflowError('same_role', 'Choose two different roles.', 400); }
+    if (roleInvited(team, to)) { throw new WorkflowError('not_accepted', 'That person has not accepted their invitation yet, so they cannot be given pages.', 409); }
   }
 
   // Checks a new list of roles from the team lead and returns a clean copy. A role in use cannot be removed
@@ -784,7 +791,8 @@
       if (seen[title.toLowerCase()]) { throw new WorkflowError('bad_roster', 'The role "' + title + '" is listed twice.', 400); }
       seen[title.toLowerCase()] = true;
       if (!/^[^\s@\[\]~<>,;]+@[^\s@\[\]~<>,;]+\.[^\s@\[\]~<>,;]+$/.test(email)) { throw new WorkflowError('bad_roster', 'The role "' + title + '" needs a contact email address.', 400); }
-      return { title: title, person: person, email: email };
+      // An invitation not yet accepted stays marked until the person accepts it (the Admin tools page changes it)
+      return role && role.status === 'invited' && person ? { title: title, person: person, email: email, status: 'invited' } : { title: title, person: person, email: email };
     });
     var titles = clean.map(function (role) { return role.title; });
     if (team.lead && titles.indexOf(team.lead) < 0) {
@@ -927,6 +935,7 @@
     parseTableLines: parseTableLines,
     tableToLines: tableToLines,
     ownerIsUnassigned: ownerIsUnassigned,
+    roleInvited: roleInvited,
     normalizeTable: normalizeTable,
     normalizeTableWidths: normalizeTableWidths,
     parseTableWidths: parseTableWidths,

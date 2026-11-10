@@ -1317,7 +1317,8 @@
 
     // The name first, then the role
     function roleLabel(title) {
-      return (personFor(title) || 'Unassigned') + ' — ' + title;
+      var held = rosterRoles().filter(function (role) { return role.title === title; })[0];
+      return (personFor(title) ? personFor(title) + (held && held.status === 'invited' ? ' (invited)' : '') : 'Unassigned') + ' — ' + title;
     }
 
     // Older drafts stored people's names. Turn a name into the role that person holds today.
@@ -1377,6 +1378,12 @@
       if (lock.locked && !state.owner && lock.role) { state.owner = lock.role; }
       var select = byId('owner');
       fillRoleSelect(select, 'Select an owner role', state.owner);
+      // A person who has been invited but has not accepted cannot own pages yet
+      rosterRoles().forEach(function (role) {
+        if (role.status === 'invited' && role.title !== state.owner) {
+          Array.prototype.forEach.call(select.options, function (option) { if (option.value === role.title) { option.disabled = true; } });
+        }
+      });
       select.disabled = !!lock.locked;
       markOwnerUnassigned();
       var hint = byId('owner-field').querySelector('.field-hint');

@@ -20,11 +20,28 @@
   var DEPARTMENT_KEY = 'pageEditor.department.v1';   // which department the artifact is showing
   var ADMIN_KEY = 'pageEditor.adminMode.v1';         // "1" while the Department dropdown is on Admin (every department, acting as Admin)
   var SEED_KEY = 'pageEditor.seededSupport.v1';
+  var DIRECTORY_KEY = 'pageEditor.directory.v1';   // what the Admin tools page changed: new teams, team edits, retired teams, invitations, history
 
   // The artifact carries every department (window.TEAMS). The one chosen in the Testing bar is the team this copy works as; the
   // others' live pages still appear in search. Chosen here, before app.js reads window.TEAM_ROSTER.
   (function chooseDepartment() {
     if (!window.TEAMS || !window.TEAMS.length) { return; }
+    // The Admin tools page adds teams, edits them and retires them: the teams built into the page are adjusted accordingly
+    try {
+      var directory = JSON.parse(localStorage.getItem(DIRECTORY_KEY) || 'null');
+      if (directory) {
+        var edits = directory.edits || {};
+        window.TEAMS.forEach(function (candidate) { if (edits[candidate.slug]) { Object.keys(edits[candidate.slug]).forEach(function (key) { candidate[key] = edits[candidate.slug][key]; }); } });
+        (directory.custom || []).forEach(function (custom) {
+          if (!window.TEAMS.some(function (candidate) { return candidate.slug === custom.slug; })) {
+            if (edits[custom.slug]) { Object.keys(edits[custom.slug]).forEach(function (key) { custom[key] = edits[custom.slug][key]; }); }
+            window.TEAMS.push(custom);
+          }
+        });
+        var retired = directory.retired || [];
+        window.TEAMS = window.TEAMS.filter(function (candidate) { return retired.indexOf(candidate.slug) < 0; });
+      }
+    } catch (error) { /* damaged or unavailable: the teams built into the page are used */ }
     var slug = '';
     try { slug = localStorage.getItem(DEPARTMENT_KEY) || ''; } catch (error) { /* storage unavailable */ }
     window.TEAM_ROSTER = window.TEAMS.filter(function (candidate) { return candidate.slug === slug; })[0] || window.TEAMS[0];
@@ -464,9 +481,188 @@
     try { localStorage.setItem(SEED_KEY, '1'); } catch (error) { /* made again next time, which only adds the pages that are missing */ }
   }
 
+  /* ---------- Admin tools (artifact only) ----------
+     Teams and people are changed here with the rules in admin-core.cjs. The roster of a team is kept in ROSTER_KEY + '.' + slug as
+     before; what makes a team new, edited or retired, the invitations and the history are kept in DIRECTORY_KEY. Invitation
+     emails are written out but not sent. */
+  function readDirectory() {
+    try { return Object.assign({ custom: [], edits: {}, retired: [], invites: [], log: [] }, JSON.parse(localStorage.getItem(DIRECTORY_KEY) || '{}')); } catch (error) { return { custom: [], edits: {}, retired: [], invites: [], log: [] }; }
+  }
+
+  function writeDirectory(directory) {
+    directory.log = (directory.log || []).slice(0, 200);
+    try { localStorage.setItem(DIRECTORY_KEY, JSON.stringify(directory)); } catch (error) { /* kept for this visit only */ }
+  }
+
+  function saveRosterOf(team) {
+    try { localStorage.setItem(ROSTER_KEY + '.' + team.slug, JSON.stringify(team.roles)); } catch (error) { /* kept for this visit only */ }
+  }
+
+  var adminApi = {
+    // Only for Admin (the Admin choice of the Department dropdown)
+    allowed: function () { return !!window.ADMIN_MODE && !!window.AdminCore; },
+    guard: function () {
+      if (!window.AdminCore) { throw fail('no_admin', 'The admin tools are not available here.'); }
+      if (!window.ADMIN_MODE) { throw fail('not_admin', 'Only Admin can use the admin tools.'); }
+    },
+    wrap: function (fn) {
+      this.guard();
+      try { return fn(); } catch (error) {
+        if (error && error.name === 'AdminError') { throw fail('admin', error.message); }
+        throw error;
+      }
+    },
+    log: function (directory, text) { directory.log.unshift({ at: new Date().toISOString(), by: 'Admin (test)', text: text }); },
+    // Everything the page shows
+    load: function () {
+      this.guard();
+      var directory = readDirectory();
+      var pages = readAll().pages;
+      var counts = {};
+      pages.forEach(function (page) { counts[page.team] = (counts[page.team] || 0) + 1; });
+      return {
+        teams: window.TEAMS.map(function (team) { return { slug: team.slug, name: team.name, lead: team.lead, icon: team.icon, directPublish: team.directPublish, locations: team.locations.slice(), roles: team.roles.map(function (r) { return { title: r.title, person: r.person, email: r.email, status: r.status || '' }; }), pageCount: counts[team.slug] || 0 }; }),
+        people: window.AdminCore.people(window.TEAMS),
+        invitations: directory.invites,
+        log: directory.log
+      };
+    },
+    createTeam: function (input) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var made = window.AdminCore.createTeam(window.TEAMS, input, new Date().toISOString());
+        directory.custom.push(JSON.parse(JSON.stringify(made.team)));
+        directory.invites.unshift(made.invitation);
+        self.log(directory, 'Created the team ' + made.team.name + ' and invited ' + made.invitation.person + ' as ' + made.invitation.role + '.');
+        saveRosterOf(made.team);
+        writeDirectory(directory);
+        return { team: made.team, invitation: made.invitation };
+      });
+    },
+    editTeam: function (slug, input) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var team = window.AdminCore.editTeam(window.TEAMS, slug, input);
+        directory.edits[slug] = { name: team.name, locations: team.locations, icon: team.icon, directPublish: team.directPublish, lead: team.lead };
+        self.log(directory, 'Changed the details of ' + team.name + '.');
+        writeDirectory(directory);
+        return team;
+      });
+    },
+    retireTeam: function (slug) {
+      var self = this;
+      return this.wrap(function () {
+        var team = window.TEAMS.filter(function (candidate) { return candidate.slug === slug; })[0];
+        if (!team) { throw window.AdminCore.AdminError('That team does not exist.'); }
+        var count = readAll().pages.filter(function (page) { return page.team === slug; }).length;
+        var problem = window.AdminCore.canRetire(team, count);
+        if (problem) { throw window.AdminCore.AdminError(problem); }
+        if (window.TEAMS.length < 2) { throw window.AdminCore.AdminError('There must be at least one team.'); }
+        if (window.TEAM_ROSTER && window.TEAM_ROSTER.slug === slug) { throw window.AdminCore.AdminError('This copy is working as ' + team.name + ' right now. Switch the Department to another team first.'); }
+        var directory = readDirectory();
+        directory.retired.push(slug);
+        window.TEAMS = window.TEAMS.filter(function (candidate) { return candidate.slug !== slug; });
+        directory.invites.forEach(function (invite) { if (invite.team === slug && invite.status === 'pending') { invite.status = 'cancelled'; } });
+        self.log(directory, 'Retired the team ' + team.name + '.');
+        writeDirectory(directory);
+        return {};
+      });
+    },
+    addPerson: function (input) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var result = window.AdminCore.addPerson(window.TEAMS, input, new Date().toISOString());
+        var team = window.TEAMS.filter(function (candidate) { return candidate.slug === input.team; })[0];
+        directory.invites.unshift(result.invitation);
+        self.log(directory, 'Invited ' + result.invitation.person + ' as ' + result.invitation.role + ' in ' + team.name + '.');
+        saveRosterOf(team);
+        writeDirectory(directory);
+        return result;
+      });
+    },
+    movePerson: function (input) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var result = window.AdminCore.movePerson(window.TEAMS, input);
+        window.TEAMS.forEach(function (team) { if (team.slug === input.fromTeam || team.slug === input.toTeam) { saveRosterOf(team); } });
+        // An invitation still pending follows the person to their new role
+        directory.invites.forEach(function (invite) {
+          if (invite.status === 'pending' && invite.person === result.moved) { invite.team = input.toTeam; invite.teamName = result.toTeam; invite.role = result.toRole; }
+        });
+        self.log(directory, 'Moved ' + result.moved + ' from ' + result.fromTeam + ' (' + result.fromRole + ') to ' + result.toTeam + ' (' + result.toRole + ').');
+        writeDirectory(directory);
+        return result;
+      });
+    },
+    removePerson: function (teamSlug, role) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var result = window.AdminCore.removePerson(window.TEAMS, teamSlug, role);
+        var team = window.TEAMS.filter(function (candidate) { return candidate.slug === teamSlug; })[0];
+        directory.invites.forEach(function (invite) { if (invite.status === 'pending' && invite.team === teamSlug && invite.role === role) { invite.status = 'cancelled'; } });
+        saveRosterOf(team);
+        self.log(directory, 'Removed ' + result.removed + ' from ' + result.team + ' (' + result.role + ').');
+        writeDirectory(directory);
+        return result;
+      });
+    },
+    // The person accepts: in the real system they sign in with their Planet DDS account and click the link in the email
+    acceptInvitation: function (id) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var invite = directory.invites.filter(function (candidate) { return candidate.id === id; })[0];
+        if (!invite) { throw window.AdminCore.AdminError('That invitation does not exist.'); }
+        window.AdminCore.acceptInvitation(window.TEAMS, invite);
+        saveRosterOf(window.TEAMS.filter(function (candidate) { return candidate.slug === invite.team; })[0]);
+        self.log(directory, invite.person + ' accepted the invitation (' + invite.teamName + ', ' + invite.role + ').');
+        writeDirectory(directory);
+        return invite;
+      });
+    },
+    cancelInvitation: function (id) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var invite = directory.invites.filter(function (candidate) { return candidate.id === id; })[0];
+        if (!invite) { throw window.AdminCore.AdminError('That invitation does not exist.'); }
+        window.AdminCore.cancelInvitation(window.TEAMS, invite);
+        saveRosterOf(window.TEAMS.filter(function (candidate) { return candidate.slug === invite.team; })[0]);
+        self.log(directory, 'Cancelled the invitation to ' + invite.person + ' (' + invite.teamName + ', ' + invite.role + ').');
+        writeDirectory(directory);
+        return invite;
+      });
+    },
+    resendInvitation: function (id) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var invite = directory.invites.filter(function (candidate) { return candidate.id === id && candidate.status === 'pending'; })[0];
+        if (!invite) { throw window.AdminCore.AdminError('There is no pending invitation to resend.'); }
+        invite.sentAt = new Date().toISOString();
+        self.log(directory, 'Sent the invitation to ' + invite.person + ' again.');
+        writeDirectory(directory);
+        return invite;
+      });
+    },
+    // The email text for an invitation (shown, not sent)
+    email: function (id) {
+      this.guard();
+      var invite = readDirectory().invites.filter(function (candidate) { return candidate.id === id; })[0];
+      if (!invite) { throw fail('no_invite', 'That invitation does not exist.'); }
+      return window.AdminCore.invitationEmail(invite, 'Admin');
+    }
+  };
+
   /* ---------- Picking the backend ---------- */
   window.Store = {
     backend: null,
+    admin: adminApi,
     getActor: function () { return actingAs; },
     getLastBackup: function () {
       try { return localStorage.getItem(BACKUP_KEY) || ''; } catch (error) { return ''; }
