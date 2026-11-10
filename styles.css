@@ -2106,3 +2106,27 @@ td > .admin-badge:first-child { margin-left: 0; }
 .admin-log { margin: 0; padding: 0; list-style: none; }
 .admin-log li { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
 .admin-log-when { display: inline-block; min-width: 130px; color: var(--text-muted); font-size: 13px; }
+
+/* The person picker (search the people who can be placed, or invite a new one) */
+.admin-picker-list { margin: 4px 0 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; }
+.admin-picker-list[hidden] { display: none; }
+.admin-picker-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; min-width: 0; overflow-wrap: anywhere; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.admin-picker-row:hover, .admin-picker-row.is-active { background: var(--accent-soft); }
+.admin-picker-row.is-taken { cursor: default; opacity: 0.6; }
+.admin-picker-row.is-taken:hover { background: none; }
+.admin-picker-note { font-size: 12px; color: var(--text-muted); }
+.admin-picker-invite { color: var(--accent-text); border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+.admin-picker-chosen { padding: 8px 10px; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 8px; font-size: 14px; }
+.admin-picker-chosen[hidden], .admin-picker-new[hidden], .admin-picker .admin-input[hidden] { display: none; }
+.admin-picker-new { display: grid; gap: 10px; padding: 10px; border: 1px dashed var(--border-strong); border-radius: 10px; }
+.admin-link { padding: 0; font: inherit; font-size: 13px; color: var(--accent-text); background: none; border: 0; text-decoration: underline; cursor: pointer; text-align: left; }
+
+/* The triangle that folds a team's details down, accordion style */
+.admin-name-cell { display: flex; align-items: flex-start; gap: 6px; }
+.admin-toggle { flex: none; width: 28px; height: 28px; margin: -2px 0 0 -6px; padding: 0; font-size: 17px; line-height: 1; color: var(--text-muted); background: none; border: 0; border-radius: 6px; cursor: pointer; transition: transform 0.2s ease; }
+.admin-toggle:hover { color: var(--accent); background: var(--accent-soft); }
+.admin-toggle.is-open { transform: rotate(90deg); color: var(--accent); }
+.admin-toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.admin-fold { animation: admin-fold-down 0.22s ease; transform-origin: top; }
+@keyframes admin-fold-down { from { opacity: 0; transform: scaleY(0.92); } to { opacity: 1; transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .admin-fold, .admin-toggle { animation: none; transition: none; } }

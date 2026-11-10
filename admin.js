@@ -92,6 +92,109 @@
       return options;
     }
 
+    /* ---------- Choosing a person ----------
+       Typing searches the people who can be put on a team (the company directory and everyone already placed). Choosing one fills in
+       their name and email; "Invite a new person" is always the last choice, for someone who is not listed. Someone who already has a
+       place is shown but cannot be picked here (Move them instead). */
+    function personPicker(label, hint) {
+      var chosen = null;      // { person, email } from the list
+      var wrap = el('div', 'admin-field admin-picker');
+      wrap.appendChild(el('span', 'admin-label', label));
+      var input = textInput('', 'Start typing a name or email');
+      input.setAttribute('role', 'combobox');
+      input.setAttribute('aria-autocomplete', 'list');
+      input.setAttribute('aria-expanded', 'false');
+      var list = el('ul', 'admin-picker-list');
+      list.setAttribute('role', 'listbox');
+      list.hidden = true;
+      var picked = el('div', 'admin-picker-chosen');
+      picked.hidden = true;
+      var fresh = el('div', 'admin-picker-new');
+      fresh.hidden = true;
+      var freshName = textInput('', 'Full name');
+      var freshEmail = textInput('', 'name@planetdds.com', 'email');
+      fresh.appendChild(el('p', 'admin-field-hint', 'A new person: they will be sent an invitation at this address.'));
+      fresh.appendChild(field('Name', freshName));
+      fresh.appendChild(field('Email', freshEmail));
+      fresh.appendChild(button('Search the list instead', 'admin-link', function () { fresh.hidden = true; input.hidden = false; input.focus(); }));
+      wrap.appendChild(input);
+      wrap.appendChild(list);
+      wrap.appendChild(picked);
+      wrap.appendChild(fresh);
+      if (hint) { wrap.appendChild(el('span', 'admin-field-hint', hint)); }
+      var rows = [];
+      var active = -1;
+
+      function closeList() { list.hidden = true; list.textContent = ''; rows = []; active = -1; input.setAttribute('aria-expanded', 'false'); }
+      function highlight(i) { active = i; rows.forEach(function (row, n) { row.classList.toggle('is-active', n === i); }); }
+      function choose(result) {
+        chosen = { person: result.person, email: result.email };
+        closeList();
+        input.hidden = true;
+        fresh.hidden = true;
+        picked.textContent = '';
+        picked.appendChild(el('strong', '', result.person));
+        picked.appendChild(document.createTextNode(' ' + result.email + (result.jobTitle ? ' · ' + result.jobTitle : '') + ' '));
+        picked.appendChild(button('Change', 'admin-link', function () { chosen = null; picked.hidden = true; input.hidden = false; input.value = ''; input.focus(); }));
+        picked.hidden = false;
+      }
+      function showNew(text) {
+        chosen = null;
+        closeList();
+        input.hidden = true;
+        picked.hidden = true;
+        freshName.value = text;
+        fresh.hidden = false;
+        (text ? freshEmail : freshName).focus();
+      }
+      function render() {
+        var query = input.value.trim();
+        closeList();
+        if (!query) { return; }
+        var found = [];
+        try { found = store.searchPeople(query); } catch (error) { found = []; }
+        found.forEach(function (result) {
+          var row = el('li', 'admin-picker-row' + (result.placed ? ' is-taken' : ''));
+          row.setAttribute('role', 'option');
+          var main = el('span', 'admin-picker-main');
+          main.appendChild(el('strong', '', result.person));
+          main.appendChild(document.createTextNode(' ' + result.email));
+          row.appendChild(main);
+          row.appendChild(el('span', 'admin-picker-note', result.placed ? 'Already in ' + result.placed.team + ' (' + result.placed.role + '). Use Move.' : (result.jobTitle || '')));
+          if (!result.placed) { row.addEventListener('mousedown', function (event) { event.preventDefault(); choose(result); }); }
+          list.appendChild(row);
+          rows.push(row);
+        });
+        var invite = el('li', 'admin-picker-row admin-picker-invite');
+        invite.setAttribute('role', 'option');
+        invite.appendChild(el('strong', '', '+ Invite a new person'));
+        invite.appendChild(document.createTextNode(' “' + query + '” is not listed'));
+        invite.addEventListener('mousedown', function (event) { event.preventDefault(); showNew(query); });
+        list.appendChild(invite);
+        rows.push(invite);
+        list.hidden = false;
+        input.setAttribute('aria-expanded', 'true');
+      }
+      input.addEventListener('input', render);
+      input.addEventListener('blur', function () { setTimeout(closeList, 120); });
+      input.addEventListener('keydown', function (event) {
+        if (list.hidden) { return; }
+        if (event.key === 'ArrowDown') { event.preventDefault(); highlight((active + 1) % rows.length); }
+        else if (event.key === 'ArrowUp') { event.preventDefault(); highlight((active - 1 + rows.length) % rows.length); }
+        else if (event.key === 'Escape') { event.preventDefault(); closeList(); }
+        else if (event.key === 'Enter') {
+          event.preventDefault();
+          var row = rows[active >= 0 ? active : 0];
+          if (row) { row.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); }
+        }
+      });
+      return {
+        node: wrap,
+        // The person as chosen from the list, or as typed for a new person (the rules say what is missing)
+        value: function () { return chosen || { person: freshName.value, email: freshEmail.value }; }
+      };
+    }
+
     /* ---------- Teams ---------- */
     function teamsSection(data) {
       var box = section('Teams', 'Each team has its own library, roles and lead. Creating a team invites its lead; the team starts empty.');
@@ -104,9 +207,19 @@
       var body = el('tbody');
       data.teams.forEach(function (team) {
         var row = el('tr', 'lib-row');
-        var nameCell = el('td');
-        nameCell.appendChild(el('strong', '', team.name));
-        nameCell.appendChild(el('div', 'lib-row-sub', team.slug + ' · icon: ' + (ICON_NAMES[team.icon] || team.icon)));
+        var nameCell = el('td', 'admin-name-cell');
+        // A triangle folds the team's details down underneath it, one team at a time
+        var toggle = el('button', 'admin-toggle' + (openEditor === team.slug ? ' is-open' : ''));
+        toggle.type = 'button';
+        toggle.setAttribute('aria-expanded', String(openEditor === team.slug));
+        toggle.setAttribute('aria-label', (openEditor === team.slug ? 'Fold up' : 'Open') + ' the details of ' + team.name);
+        toggle.textContent = '▸';
+        toggle.addEventListener('click', function () { openEditor = openEditor === team.slug ? null : team.slug; draw(); });
+        nameCell.appendChild(toggle);
+        var nameText = el('span', 'admin-name-text');
+        nameCell.appendChild(nameText);
+        nameText.appendChild(el('strong', '', team.name));
+        nameText.appendChild(el('div', 'lib-row-sub', team.slug + ' · icon: ' + (ICON_NAMES[team.icon] || team.icon)));
         row.appendChild(nameCell);
         var leadRole = team.roles.filter(function (role) { return role.title === team.lead; })[0];
         var leadCell = el('td');
@@ -118,7 +231,6 @@
         row.appendChild(el('td', '', team.directPublish === 'lead' ? 'Only the lead' : 'Anyone on the team'));
         row.appendChild(el('td', '', team.locations.join(', ')));
         var actions = el('td', 'admin-actions');
-        actions.appendChild(button('Edit', 'row-btn', function () { openEditor = openEditor === team.slug ? null : team.slug; draw(); }));
         var retire = button('Retire', 'row-btn row-btn-danger', async function () {
           if (!(await window.askConfirm('“' + team.name + '” is removed from the Department list. Its people stay on the list of roles but nobody can act as it. This team has no pages.', { title: 'Retire this team?', ok: 'Retire team' }))) { return; }
           if (attempt(function () { return store.retireTeam(team.slug); }, 'Retired ' + team.name + '.')) { helpers.departmentsChanged(); draw(); }
@@ -132,7 +244,9 @@
           var editRow = el('tr', 'admin-edit-row');
           var cell = el('td');
           cell.colSpan = 7;
-          cell.appendChild(teamEditForm(team));
+          var fold = el('div', 'admin-fold');
+          fold.appendChild(teamEditForm(team));
+          cell.appendChild(fold);
           editRow.appendChild(cell);
           body.appendChild(editRow);
         }
@@ -178,18 +292,16 @@
       var icon = select(Object.keys(ICON_NAMES).map(function (key) { return [key, ICON_NAMES[key]]; }), 'document');
       var publish = select([['lead', 'Only the team lead'], ['anyone', 'Anyone on the team']], 'lead');
       var leadTitle = textInput('', 'For example Customer Success Manager');
-      var leadPerson = textInput('', 'Full name');
-      var leadEmail = textInput('', 'name@planetdds.com', 'email');
+      var leadPicker = personPicker('Lead (invited by email)', 'Pick someone from the list, or invite a new person.');
       form.appendChild(field('Team name', name));
       form.appendChild(field('Places its pages live', places, 'Separate with commas.'));
       form.appendChild(field('Icon', icon));
       form.appendChild(field('Who publishes without review', publish));
       form.appendChild(field('Lead role', leadTitle));
-      form.appendChild(field('Lead (invited by email)', leadPerson));
-      form.appendChild(field('Lead’s email', leadEmail));
+      form.appendChild(leadPicker.node);
       var actions = el('div', 'admin-form-actions');
       actions.appendChild(button('Create team and invite its lead', 'primary-btn', function () {
-        var made = attempt(function () { return store.createTeam({ name: name.value, locations: places.value, icon: icon.value, directPublish: publish.value, leadTitle: leadTitle.value, leadPerson: leadPerson.value, leadEmail: leadEmail.value }); }, null);
+        var made = attempt(function () { return store.createTeam({ name: name.value, locations: places.value, icon: icon.value, directPublish: publish.value, leadTitle: leadTitle.value, leadPerson: leadPicker.value().person, leadEmail: leadPicker.value().email }); }, null);
         if (made) {
           notice('Created ' + made.team.name + '. An invitation was written for ' + made.invitation.person + '; they are the lead once they accept.');
           helpers.departmentsChanged();
@@ -292,8 +404,7 @@
     // Invite a person into a role
     function askInvite(data, teamSlug, roleTitle) {
       dialog('Invite a person', function (box, close) {
-        var name = textInput('', 'Full name');
-        var email = textInput('', 'name@planetdds.com', 'email');
+        var picker = personPicker('Person', 'Pick someone from the list. If they are not listed, invite a new person.');
         var team = select(data.teams.map(function (t) { return [t.slug, t.name]; }), teamSlug);
         var role = select([]);
         var newRole = textInput('', 'Name of the new role');
@@ -309,16 +420,16 @@
         role.addEventListener('change', function () { newRoleField.hidden = role.value !== '__new__'; });
         fillRoles();
         var form = el('div', 'admin-form');
-        form.appendChild(field('Name', name));
-        form.appendChild(field('Email', email, 'The invitation is sent here. They must accept it to confirm their account.'));
+        form.appendChild(picker.node);
         form.appendChild(field('Team', team));
-        form.appendChild(field('Role', role));
+        form.appendChild(field('Role', role, 'They must accept the invitation email to confirm their account.'));
         form.appendChild(newRoleField);
         box.appendChild(form);
         var actions = el('div', 'dialog-actions');
         actions.appendChild(button('Cancel', 'secondary-link', function () { close(); }));
         actions.appendChild(button('Send invitation', 'primary-btn', function () {
-          var input = { person: name.value, email: email.value, team: team.value };
+          var chosen = picker.value();
+          var input = { person: chosen.person, email: chosen.email, team: team.value };
           if (role.value === '__new__') { input.newRole = newRole.value; } else { input.role = role.value; }
           var result = attempt(function () { return store.addPerson(input); }, null);
           if (result) { notice('Invited ' + result.invitation.person + '. They show as Invited until they accept.'); close('yes'); draw(); }

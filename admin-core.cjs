@@ -84,6 +84,58 @@
     return { person: person, email: address };
   }
 
+  /* ---------- Finding people ----------
+     The people who can be put on a team come from the company's directory (in the real system, the Planet DDS Entra ID accounts). In the
+     prototype that directory is this made-up list, plus everyone already on a team. Searching it is what lets Admin pick an existing
+     person when naming a lead or adding someone, with the option to invite a new person who is not listed. */
+  var COMPANY_PEOPLE = [
+    ['Alex Johnson', 'Marketing Specialist'], ['Amira Hassan', 'Implementation Consultant'], ['Ben Carter', 'Sales Engineer'], ['Carla Mendes', 'Account Manager'],
+    ['Daniel Kim', 'Data Analyst'], ['Elena Petrova', 'Product Designer'], ['Frank Moretti', 'Billing Specialist'], ['Grace Okafor', 'Customer Success Manager'],
+    ['Hannah Weiss', 'Content Strategist'], ['Isaac Brown', 'QA Engineer'], ['Jasmine Patel', 'Training Specialist'], ['Kevin O\u2019Neill', 'IT Support Analyst'],
+    ['Laura Chen', 'Revenue Operations'], ['Miguel Santos', 'Software Engineer'], ['Nora Fitzgerald', 'HR Business Partner'], ['Omar Rahman', 'Product Manager'],
+    ['Paula Nguyen', 'Onboarding Coordinator'], ['Quinn Murphy', 'Support Engineer'], ['Rosa Alvarez', 'Compliance Analyst'], ['Samuel Adeyemi', 'Sales Manager'],
+    ['Tara Lindqvist', 'Marketing Manager'], ['Victor Hugo', 'Network Engineer'], ['Wendy Zhao', 'Finance Analyst'], ['Yusuf Demir', 'Customer Support Lead']
+  ].map(function (pair) {
+    var parts = pair[0].toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/);
+    return { person: pair[0], email: parts[0] + '.' + parts[parts.length - 1] + '@example.com', jobTitle: pair[1] };
+  });
+
+  function nameWords(text) { return clean(text).toLowerCase().split(/[\s.@_\-]+/).filter(Boolean); }
+
+  // People matching what was typed: every typed word must start a word of the name or the email address. Each result says where the
+  // person already is (placed: { team, role }) or null. Best matches first, people not yet on a team before those who are.
+  function searchPeople(query, teams, limit) {
+    var typed = nameWords(query);
+    if (!typed.length) { return []; }
+    var seen = {};
+    var pool = [];
+    function add(person, email, jobTitle) {
+      var key = clean(email).toLowerCase() || clean(person).toLowerCase();
+      if (seen[key]) { return; }
+      seen[key] = true;
+      pool.push({ person: person, email: email, jobTitle: jobTitle || '' });
+    }
+    COMPANY_PEOPLE.forEach(function (entry) { add(entry.person, entry.email, entry.jobTitle); });
+    (teams || []).forEach(function (team) { team.roles.forEach(function (role) { if (role.person) { add(role.person, role.email, role.title); } }); });
+    function placedIn(entry) {
+      var found = null;
+      (teams || []).forEach(function (team) {
+        team.roles.forEach(function (role) { if (role.person && (same(role.person, entry.person) || (role.email && same(role.email, entry.email)))) { found = { team: team.name, teamSlug: team.slug, role: role.title }; } });
+      });
+      return found;
+    }
+    var results = [];
+    pool.forEach(function (entry) {
+      var words = nameWords(entry.person).concat(nameWords(entry.email));
+      var all = typed.every(function (word) { return words.some(function (candidate) { return candidate.indexOf(word) === 0; }); });
+      if (!all) { return; }
+      var starts = clean(entry.person).toLowerCase().indexOf(typed.join(' ')) === 0;
+      results.push({ person: entry.person, email: entry.email, jobTitle: entry.jobTitle, placed: placedIn(entry), rank: starts ? 0 : 1 });
+    });
+    results.sort(function (a, b) { return (a.placed ? 1 : 0) - (b.placed ? 1 : 0) || a.rank - b.rank || a.person.localeCompare(b.person); });
+    return results.slice(0, limit || 6);
+  }
+
   /* ---------- Invitations ---------- */
 
   var invitationCounter = 0;
@@ -276,6 +328,8 @@
     AdminError: AdminError,
     slugify: slugify,
     people: people,
+    searchPeople: searchPeople,
+    COMPANY_PEOPLE: COMPANY_PEOPLE,
     createTeam: createTeam,
     editTeam: editTeam,
     canRetire: canRetire,

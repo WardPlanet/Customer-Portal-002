@@ -93,3 +93,23 @@ test('editing and retiring teams', () => {
   assert.equal(A.slugify('  Customer  Success!! '), 'customer-success');
   assert.equal(A.people(all).length, 5);
 });
+
+test('searching for people: matches names and emails as you type, and says where someone already is', () => {
+  const all = teams();
+  const names = (q) => A.searchPeople(q, all).map((r) => r.person);
+  assert.ok(names('gra').includes('Grace Okafor'));
+  assert.deepEqual(names('grace ok'), ['Grace Okafor']);
+  assert.deepEqual(names('okafor'), ['Grace Okafor']);
+  assert.deepEqual(names('grace.o'), ['Grace Okafor']);            // part of the email address
+  assert.deepEqual(names('zzzz'), []);
+  assert.deepEqual(names('   '), []);
+  const mol = A.searchPeople('mol', all)[0];                        // someone already on a team
+  assert.equal(mol.person, 'Molly');
+  assert.deepEqual(mol.placed, { team: 'Web Team', teamSlug: 'web', role: 'Designer' });
+  assert.equal(A.searchPeople('grace', all)[0].placed, null);
+  // people who are not on a team come before those who are
+  const both = A.searchPeople('a', all);
+  const firstPlaced = both.findIndex((r) => r.placed);
+  assert.ok(firstPlaced === -1 || both.slice(firstPlaced).every((r) => r.placed));
+  assert.ok(A.searchPeople('a', all, 3).length <= 3);
+});

@@ -959,6 +959,12 @@ saved under that team. Existing pages show their team as plain text.
   accept they cannot own or be given pages (`Workflow.roleInvited`, enforced in `setOwner` and the transfer rules; the owner lists show
   "(invited)" and disable them), and they are not offered under Acting as. "Accept (test)" stands in for the person accepting. Resend and
   Cancel are there; cancelling empties the role it was for.
+- **Choosing a person** (naming a team's lead, or Add a person): typing searches the people who can be placed and the list shows matches
+  by name or email as you type (`AdminCore.searchPeople`, tested). People already on a team are listed but cannot be picked (Move them);
+  the last row, "+ Invite a new person", opens name and email fields for someone who is not listed. Every placement is an invitation
+  that must be accepted. In the prototype the searchable directory is a made-up list of 24 employees (`COMPANY_PEOPLE` in
+  `admin-core.cjs`) plus everyone already on a team; in the real system it is the Planet DDS Entra ID accounts (Microsoft Graph).
+- **Team details** fold down from a triangle at the left of each team (one open at a time), instead of an Edit button.
 - **History:** the latest changes, with when.
 Kept in browser storage (`pageEditor.directory.v1` for teams, invitations and history; rosters per team as before). Needed for the real
 system: Entra sign-in (acceptance means signing in with a Planet DDS account), sending the email from a company mailbox, and the server

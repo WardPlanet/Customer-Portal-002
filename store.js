@@ -650,6 +650,11 @@
         return invite;
       });
     },
+    // People who can be put on a team, matching what was typed (the company directory and everyone already on a team)
+    searchPeople: function (query) {
+      this.guard();
+      return window.AdminCore.searchPeople(query, window.TEAMS, 6);
+    },
     // The email text for an invitation (shown, not sent)
     email: function (id) {
       this.guard();
