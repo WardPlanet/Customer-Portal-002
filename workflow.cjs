@@ -189,6 +189,52 @@
     return clean ? [clean.join(' | ')] : [];
   }
 
+  /* ---------- Photos ----------
+     A photo block holds a reference, never the picture. The page text keeps four small sections:
+       [BLOCK n PHOTO]          the image id (a fingerprint of the picture, so one picture is stored once)
+       [BLOCK n PHOTO ALT]      what the picture shows, for people who cannot see it
+       [BLOCK n PHOTO CAPTION]  an optional caption under the picture
+       [BLOCK n PHOTO SIZE]     full, medium or small (how wide it is drawn; full when missing)
+     Every version of a page points at the same stored file, so history costs no extra space. */
+  var PHOTO_SIZES = ['full', 'medium', 'small'];
+  var PHOTO_ID = /^[a-f0-9]{32}$/;
+
+  function photoFromSections(sections, prefix) {
+    var idLines = sections[prefix + 'PHOTO'];
+    if (!idLines) { return null; }
+    var id = idLines.join('').trim();
+    if (!PHOTO_ID.test(id)) { return null; }
+    function body(name) { return sections[name] ? sections[name].join('\n').trim() : ''; }
+    var size = body(prefix + 'PHOTO SIZE');
+    return {
+      id: id,
+      alt: body(prefix + 'PHOTO ALT').replace(/\s+/g, ' '),
+      caption: body(prefix + 'PHOTO CAPTION'),
+      size: PHOTO_SIZES.indexOf(size) >= 0 ? size : 'full'
+    };
+  }
+
+  // The sections to write for one photo block: [[name, lines], ...]
+  function photoToSections(prefix, photo) {
+    var out = [[prefix + 'PHOTO', [photo.id]]];
+    out.push([prefix + 'PHOTO ALT', photo.alt ? String(photo.alt).replace(/\s+/g, ' ').trim().split('\n') : []]);
+    if (photo.caption) { out.push([prefix + 'PHOTO CAPTION', String(photo.caption).split('\n')]); }
+    if (photo.size && photo.size !== 'full' && PHOTO_SIZES.indexOf(photo.size) >= 0) { out.push([prefix + 'PHOTO SIZE', [photo.size]]); }
+    return out;
+  }
+
+  // Every image id a page text points at (to keep them in a backup, or to find ones nothing uses any more)
+  function photoIds(text) {
+    var ids = [];
+    String(text || '').replace(/\r\n?/g, '\n').split('\n').forEach(function (line, i, lines) {
+      if (/^\[BLOCK \d+ PHOTO\]$/.test(line)) {
+        var id = String(lines[i + 1] || '').trim();
+        if (PHOTO_ID.test(id) && ids.indexOf(id) < 0) { ids.push(id); }
+      }
+    });
+    return ids;
+  }
+
   /* ---------- People ---------- */
 
   // The roles a person holds today, from the team roster
@@ -635,7 +681,7 @@
   // All the readable text of a page (step titles, step text, headers, notes, code), for searching
   function bodyText(sections) {
     return Object.keys(sections).filter(function (name) {
-      return /^BLOCK \d+ /.test(name) && !/STEP NUMBER$/.test(name);
+      return /^BLOCK \d+ /.test(name) && !/STEP NUMBER$/.test(name) && !/ PHOTO( SIZE)?$/.test(name);
     }).map(function (name) { return sections[name].join('\n'); }).join('\n');
   }
 
@@ -940,6 +986,10 @@
     normalizeTableWidths: normalizeTableWidths,
     parseTableWidths: parseTableWidths,
     tableWidthsToLines: tableWidthsToLines,
+    PHOTO_SIZES: PHOTO_SIZES,
+    photoFromSections: photoFromSections,
+    photoToSections: photoToSections,
+    photoIds: photoIds,
     reassignRole: reassignRole,
     setOwner: setOwner,
     setOwnerInText: setOwnerInText,

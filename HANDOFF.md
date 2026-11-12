@@ -726,8 +726,7 @@ disk behaves the same way.
 
 ## Not built yet, or placeholders
 
-- Batch import, handling of images and screenshots, and page types other than Process Documentation.
-- The toolbar **image** button is visual only.
+- Page types other than Process Documentation, and keeping the pictures that sit inside imported Word and PDF files (see "Photos").
 - **Search** is built (see "How search ranks results"); an external engine (Azure AI Search) is still to come.
 - Sample content in Page Setup is still invented: the page types (Process Documentation, Policy,
   Reference Guide, How-To Guide). The team, its roles and its location (Websites) are real (see Teams and
@@ -972,3 +971,64 @@ Needed for the real system: Entra sign-in (acceptance means signing in with a Pl
 mailbox, and the server working with several teams (it reads `teams/*.json` only for the Web Team; creating teams from a page needs
 storage the server owns). Not built: the page on the server, bulk move, moving pages between teams, expiring an invitation
 automatically (it only shows as expired).
+
+## Photos
+
+A **Photo** block (add-block menu and toolbar chip) puts a picture on a page. A page never holds the picture, only a
+reference, so history and backups stay light.
+
+**In the page text** (additive: `FORMAT` stays 2; an older copy of the app would ignore these sections and drop the photo
+when it next saved the page):
+
+```
+[BLOCK 3 PHOTO]
+cd5b048e787f5bdb8506ea6ed6031bf9      the image id: the first 32 characters of the picture's SHA-256
+[BLOCK 3 PHOTO ALT]
+The Open Invoices screen with the Export button highlighted
+[BLOCK 3 PHOTO CAPTION]               optional
+Figure 1
+[BLOCK 3 PHOTO SIZE]                  optional: full (the default), medium or small
+medium
+```
+
+`workflow.cjs` has the helpers (`photoFromSections`, `photoToSections`, `photoIds`; tests in `tests/photo.test.cjs`). The id and size
+are left out of search text; the alt text and caption are searched like body text.
+
+**Adding a photo.** Choose a file in the block, paste a screenshot (Ctrl/Cmd+V while editing; it lands after the block being
+edited, or above "+ Add a block"), or drop a file on the page. PNG, JPG, WebP and GIF only. The browser shrinks anything over
+1,600 pixels on its longest side or over about 1.5 MB to a WebP of at most 1,600 pixels before storing it (an animated GIF that
+needs shrinking becomes a still picture). Originals over 20 MB are refused; the stored picture must be 5 MB or less on the
+client and 6 MB or less on the server.
+
+**Alt text.** Required to save (a photo with no description is flagged like a missing title). When a picture is added the AI
+suggests one, using the style guide, and fills the box only if it is empty. The note under the box says it was suggested, the
+author can change it, and **Suggest with AI** asks again on request (replacing what is there). With no AI available the author
+types it. The AI only ever describes the picture; it cannot change the page.
+
+**Where pictures live.**
+- *Server* (`library.js`): `drafts/<team>/images/<id>.<png|jpg|webp|gif>`. `POST /api/images` (raw bytes) checks the type from the
+  file's own first bytes, not the browser's claim, and files it under its fingerprint, so the same picture is stored once.
+  `GET /api/images/:id` only answers for a 32-character hex id, so no other file can be asked for. Both need the acting-as header
+  like every other route, so the browser fetches pictures with `fetch` and shows them from blob addresses
+  (`Store.images.show`). Nothing deletes a picture: older versions may still use it. A cleanup that removes pictures no version
+  uses (`Workflow.photoIds` finds the ones in use) is not built.
+- *Claude artifact* (`store.js`): data addresses in `localStorage` under `pageEditor.images.v1`. Browsers allow only a few MB, so
+  only a handful fit; when storage is full the person is told to use a smaller picture or the server version. Pictures here exist
+  only in that browser, like the pages.
+- Both: **Download backup** includes the pictures a page uses (`images` in the backup file, as data addresses) and **Restore**
+  brings them back (the server re-checks each is a real picture filed under its own fingerprint).
+
+**Reading and export.** The reader draws the picture with its alt text and caption (`previewPhoto` in `library-ui.js`). Print
+and **Export PDF** include the pictures at the chosen size (pdfmake draws only PNG and JPEG, so each is redrawn as a JPEG first;
+alt text is not part of the PDF).
+
+**AI.** `/api/ai/json` accepts an optional `image: { mediaType, data (base64) }`, sent with the prompt as an image block. In the
+Claude artifact the page uses `sample.json(..., { images: [blob] })`, which needs the `sample` capability published with
+`{ images: true }`; where that is missing the call fails and the author types the description.
+
+**Not built:**
+- Pictures inside imported Word and PDF files are not kept yet (the importer reads text and tables only).
+- Pictures for people who are not signed in: the public routes (`/api/public/...`) do not serve images, so a public page shows a
+  missing picture until that route exists (it would serve only pictures used by a live Client-Safe page).
+- Cropping, rotating and alt text for pictures other than by hand.
+- Cleaning up pictures no page uses.

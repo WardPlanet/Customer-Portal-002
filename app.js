@@ -135,8 +135,276 @@
     function buildBlockElement(type, values) {
       if (type === 'step') { return buildStepBlock(values.title, values.text, values.items); }
       if (type === 'table') { return buildTableBlock(values.rows, values.widths); }
+      if (type === 'photo') { return buildPhotoBlock(values); }
       return buildTextBlock(type, values.text, values.level);
     }
+
+    /* ---------- Photos ----------
+       A photo block holds a reference to a stored picture, its description (alt text) and an optional caption. Pictures are
+       added by choosing a file, pasting a screenshot, or dropping a file on the page. Each is shrunk in the browser first so
+       pages, backups and the PDF stay light, then stored by window.Store.images (a folder on the server, browser storage in
+       the Claude artifact). The AI only suggests the description; the author sees it and can change it. */
+    var PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    var PHOTO_MAX_EDGE = 1600;                 // the longest side, in pixels, after shrinking
+    var PHOTO_KEEP_BYTES = 1500 * 1024;        // a picture this small and no bigger than the edge is kept exactly as it is
+    var PHOTO_MAX_ORIGINAL = 20 * 1024 * 1024;
+    var PHOTO_SIZES = [['full', 'Full width'], ['medium', 'Medium'], ['small', 'Small']];
+
+    function loadPicture(blob) {
+      return new Promise(function (resolve, reject) {
+        var address = URL.createObjectURL(blob);
+        var picture = new Image();
+        picture.onload = function () { URL.revokeObjectURL(address); resolve(picture); };
+        picture.onerror = function () { URL.revokeObjectURL(address); reject(new Error('That file could not be read as a picture.')); };
+        picture.src = address;
+      });
+    }
+
+    // Resolves to the picture to store: the file itself when it is already small, otherwise a shrunk copy
+    async function preparePhoto(file) {
+      if (PHOTO_TYPES.indexOf(file.type) < 0) { throw new Error('Only PNG, JPG, WebP and GIF pictures can be added.'); }
+      if (file.size > PHOTO_MAX_ORIGINAL) { throw new Error('That picture is larger than 20 MB.'); }
+      var picture = await loadPicture(file);
+      var longest = Math.max(picture.naturalWidth, picture.naturalHeight);
+      if (longest <= PHOTO_MAX_EDGE && file.size <= PHOTO_KEEP_BYTES) { return file; }
+      var scale = Math.min(1, PHOTO_MAX_EDGE / longest);
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(picture.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(picture.naturalHeight * scale));
+      canvas.getContext('2d').drawImage(picture, 0, 0, canvas.width, canvas.height);
+      var shrunk = await new Promise(function (resolve) { canvas.toBlob(resolve, 'image/webp', 0.88); });
+      if (!shrunk) { throw new Error('That picture could not be shrunk.'); }
+      return shrunk;
+    }
+
+    function photoField(block, name) { return block.querySelector('.photo-' + name); }
+
+    function readPhoto(block) {
+      var size = photoField(block, 'size').value;
+      return {
+        type: 'photo',
+        id: block.getAttribute('data-photo-id') || '',
+        alt: photoField(block, 'alt').value.replace(/\s+/g, ' ').trim(),
+        caption: photoField(block, 'caption').value.trim(),
+        size: size,
+        text: ''   // nothing for the text-only features (outline, AI assist) to read
+      };
+    }
+
+    function buildPhotoBlock(values) {
+      values = values || {};
+      var block = document.createElement('div');
+      block.className = 'text-block photo-block';
+
+      var tag = document.createElement('span');
+      tag.className = 'block-tag';
+      tag.textContent = 'Photo';
+      block.appendChild(tag);
+
+      // Shown until a picture is chosen
+      var drop = document.createElement('div');
+      drop.className = 'photo-drop';
+      var choose = document.createElement('button');
+      choose.type = 'button';
+      choose.className = 'photo-choose';
+      choose.textContent = 'Choose a photo';
+      var hint = document.createElement('p');
+      hint.className = 'photo-hint';
+      hint.textContent = 'or paste a screenshot, or drop a file here (PNG, JPG, WebP or GIF)';
+      var file = document.createElement('input');
+      file.type = 'file';
+      file.className = 'photo-file';
+      file.accept = PHOTO_TYPES.join(',');
+      file.hidden = true;
+      choose.addEventListener('click', function () { file.click(); });
+      file.addEventListener('change', function () {
+        if (file.files && file.files[0]) { attachPhoto(block, file.files[0]); }
+        file.value = '';
+      });
+      drop.appendChild(choose);
+      drop.appendChild(hint);
+      drop.appendChild(file);
+      block.appendChild(drop);
+
+      // Shown once there is one
+      var figure = document.createElement('figure');
+      figure.className = 'photo-figure';
+      figure.hidden = true;
+      var image = document.createElement('img');
+      image.className = 'photo-img';
+      image.alt = '';
+      figure.appendChild(image);
+      var replace = document.createElement('button');
+      replace.type = 'button';
+      replace.className = 'photo-replace';
+      replace.textContent = 'Replace photo';
+      replace.addEventListener('click', function () { file.click(); });
+      figure.appendChild(replace);
+      block.appendChild(figure);
+
+      var details = document.createElement('div');
+      details.className = 'photo-details';
+
+      var altLabel = document.createElement('label');
+      altLabel.className = 'photo-label';
+      altLabel.textContent = 'Description for people who cannot see it';
+      var alt = document.createElement('input');
+      alt.type = 'text';
+      alt.className = 'photo-alt';
+      alt.maxLength = 300;
+      alt.placeholder = 'What the photo shows';
+      alt.value = values.alt || '';
+      alt.addEventListener('input', function () { photoField(block, 'alt-note').textContent = ''; clearBlockError(block); markDirty(); refreshOutline(); });
+      altLabel.appendChild(alt);
+      details.appendChild(altLabel);
+      var altRow = document.createElement('div');
+      altRow.className = 'photo-alt-row';
+      var altNote = document.createElement('span');
+      altNote.className = 'photo-alt-note';
+      altNote.setAttribute('aria-live', 'polite');
+      var suggest = document.createElement('button');
+      suggest.type = 'button';
+      suggest.className = 'photo-suggest';
+      suggest.textContent = 'Suggest with AI';
+      suggest.addEventListener('click', function () { suggestPhotoAlt(block, true); });
+      altRow.appendChild(altNote);
+      altRow.appendChild(suggest);
+      details.appendChild(altRow);
+
+      var captionLabel = document.createElement('label');
+      captionLabel.className = 'photo-label';
+      captionLabel.textContent = 'Caption (optional)';
+      var caption = document.createElement('input');
+      caption.type = 'text';
+      caption.className = 'photo-caption';
+      caption.maxLength = 300;
+      caption.value = values.caption || '';
+      caption.addEventListener('input', function () { markDirty(); });
+      captionLabel.appendChild(caption);
+      details.appendChild(captionLabel);
+
+      var sizeLabel = document.createElement('label');
+      sizeLabel.className = 'photo-label photo-size-label';
+      sizeLabel.textContent = 'Size';
+      var size = document.createElement('select');
+      size.className = 'photo-size';
+      PHOTO_SIZES.forEach(function (pair) {
+        var option = document.createElement('option');
+        option.value = pair[0];
+        option.textContent = pair[1];
+        size.appendChild(option);
+      });
+      size.value = values.size || 'full';
+      size.addEventListener('change', function () { image.setAttribute('data-size', size.value); markDirty(); });
+      sizeLabel.appendChild(size);
+      details.appendChild(sizeLabel);
+      block.appendChild(details);
+
+      if (values.id) { showPhoto(block, values.id); }
+      return block;
+    }
+
+    // Puts a stored picture on the block
+    function showPhoto(block, id) {
+      block.setAttribute('data-photo-id', id);
+      var image = photoField(block, 'img');
+      image.classList.remove('photo-missing');
+      image.setAttribute('data-size', photoField(block, 'size').value);
+      window.Store.images.show(image, id);
+      block.querySelector('.photo-drop').hidden = true;
+      block.querySelector('.photo-figure').hidden = false;
+    }
+
+    // Shrinks, stores and shows a chosen file, then asks for a description when there is none
+    async function attachPhoto(block, file) {
+      block.classList.add('is-busy');
+      try {
+        var picture = await preparePhoto(file);
+        var id = await window.Store.images.put(picture);
+        block._photoBlob = picture;
+        showPhoto(block, id);
+        markDirty();
+        refreshOutline();
+        if (!photoField(block, 'alt').value.trim()) { suggestPhotoAlt(block, false); }
+      } catch (error) {
+        showNotice(error.message || 'That picture could not be added.');
+      } finally {
+        block.classList.remove('is-busy');
+      }
+    }
+
+    // Adds a Photo block holding this file (before beforeNode, or above "+ Add a block" when null)
+    function addPhotoFromFile(file, beforeNode) {
+      var block = addBlock('photo', {}, beforeNode || byId('add-block'), null);
+      markDirty();
+      attachPhoto(block, file);
+      return block;
+    }
+
+    function photoPrompt() {
+      return [
+        'Write the alt text for the attached picture, for a company help page. A person who cannot see the picture will hear it read aloud.',
+        '',
+        'Rules:',
+        '- One short sentence, at most 140 characters. Start with what the picture shows. Do not begin with "Image of" or "Screenshot of" unless that is the point.',
+        '- For a screenshot of software, name the screen or window and the main thing on it, using the labels as they appear.',
+        '- Describe only what is visible. Never guess names, numbers, people or facts that are not shown.',
+        '- Do not copy out long text from the picture.',
+        '',
+        'Reply with JSON only: {"alt": "<the description>"}'
+      ].join(NL);
+    }
+
+    // Asks the AI to describe the picture. It only fills an empty box (unless the author asked for a new one), the author
+    // sees the result and can change it, and when no AI is available the author just types the description.
+    async function suggestPhotoAlt(block, replaceExisting) {
+      var field = photoField(block, 'alt');
+      var note = photoField(block, 'alt-note');
+      var id = block.getAttribute('data-photo-id');
+      if (!id) { note.textContent = 'Choose a photo first.'; return; }
+      note.textContent = 'Writing a description…';
+      try {
+        var sample = await getSample();
+        if (!sample) { note.textContent = 'Type a description for people who cannot see the photo.'; return; }
+        var blob = block._photoBlob;
+        if (!blob) { blob = await (await fetch(await window.Store.images.dataUrl(id))).blob(); }
+        var result = await sample.json(photoPrompt(), { modelTier: 'default', imageBlob: blob });
+        var alt = oneLine(result && result.alt, 200);
+        if (!alt) { throw new Error('empty'); }
+        if (field.value.trim() && !replaceExisting) { note.textContent = ''; return; }
+        field.value = alt;
+        note.textContent = 'Suggested by AI. Change it if it is not right.';
+        markDirty();
+      } catch (error) {
+        note.textContent = 'A description could not be suggested. Type one instead.';
+      }
+    }
+
+    // A picture pasted into the page (a screenshot, or a copied image) becomes a Photo block, placed after the block being
+    // edited, or above "+ Add a block". A paste of plain text is left alone.
+    document.addEventListener('paste', function (event) {
+      var files = event.clipboardData && event.clipboardData.files;
+      var picture = files && Array.prototype.filter.call(files, function (file) { return PHOTO_TYPES.indexOf(file.type) >= 0; })[0];
+      if (!picture || !contentEl.offsetParent) { return; }
+      var focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.text-block, .step-block') : null;
+      if (document.activeElement && !contentEl.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) { return; }
+      event.preventDefault();
+      var before = focused && contentEl.contains(focused) && !focused.classList.contains('step-block') ? focused.nextElementSibling : null;
+      addPhotoFromFile(picture, before);
+    }, true);
+
+    contentEl.addEventListener('dragover', function (event) {
+      if (event.dataTransfer && Array.prototype.indexOf.call(event.dataTransfer.types || [], 'Files') >= 0) { event.preventDefault(); }
+    });
+    contentEl.addEventListener('drop', function (event) {
+      var files = event.dataTransfer && event.dataTransfer.files;
+      var picture = files && Array.prototype.filter.call(files, function (file) { return PHOTO_TYPES.indexOf(file.type) >= 0; })[0];
+      if (!picture) { return; }
+      event.preventDefault();
+      var onBlock = event.target.closest ? event.target.closest('.photo-block') : null;
+      if (onBlock && !onBlock.getAttribute('data-photo-id')) { attachPhoto(onBlock, picture); return; }   // dropped on an empty Photo block
+      addPhotoFromFile(picture, null);
+    });
 
     /* ---------- Tables ----------
        A table is a block of editable cells. The first row is the header. It is saved as pipe-separated lines
@@ -605,6 +873,7 @@
             items: stepItems(block)
           };
         }
+        if (block.classList.contains('photo-block')) { return readPhoto(block); }
         if (block.classList.contains('table-block')) {
           var rows = Array.prototype.map.call(block.querySelectorAll('tr'), function (tr) {
             return Array.prototype.map.call(tr.children, function (cell) { return readText(cell); });
@@ -1093,6 +1362,17 @@
         }
       });
 
+      // A photo needs a picture and a description (the AI suggests one when the picture is added)
+      Array.prototype.forEach.call(contentEl.querySelectorAll('.photo-block'), function (block) {
+        if (!block.getAttribute('data-photo-id')) {
+          flagBlock(block, 'Choose a photo, or remove this block.');
+          missing.push({ label: 'a photo', target: photoField(block, 'choose') });
+        } else if (!photoField(block, 'alt').value.trim()) {
+          flagBlock(block, 'Describe the photo for people who cannot see it.');
+          missing.push({ label: 'a photo description', target: photoField(block, 'alt') });
+        }
+      });
+
       if (ownerIsMissing()) {
         flagBlock(byId('owner-field'), 'Choose an owner role to save a draft.');
         missing.push({ label: 'owner role', target: byId('owner') });
@@ -1105,6 +1385,12 @@
     function insertBlockAndFocus(type, beforeNode, level, inserterTypes) {
       var block = addBlock(type, { level: level }, beforeNode, inserterTypes);
       markDirty();
+      if (type === 'photo') {
+        // The click that chose Photo is still fresh enough for the browser to open the file chooser straight away
+        photoField(block, 'choose').focus();
+        photoField(block, 'file').click();
+        return;
+      }
       block.querySelector('[contenteditable]').focus();
     }
 
@@ -1517,6 +1803,9 @@
           });
         } else if (block.type === 'header') {
           section(prefix + 'HEADER ' + block.level, textLines(block.text));
+        } else if (block.type === 'photo') {
+          // A photo block with no picture chosen has nothing to save
+          if (block.id) { window.Workflow.photoToSections(prefix, block).forEach(function (pair) { section(pair[0], pair[1]); }); }
         } else if (block.type === 'table') {
           section(prefix + 'TABLE', window.Workflow.tableToLines(block.rows));
           var widthLines = window.Workflow.tableWidthsToLines(block.widths, block.rows[0] ? block.rows[0].length : 0);
@@ -1591,7 +1880,7 @@
       var blocks = [];
       var numbers = {};
       Object.keys(sections).forEach(function (name) {
-        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|TABLE|STEP TITLE|STEP TEXT|STEP NUMBER|STEP (?:CODE|NOTE|WARNING) [0-9]+)$/.exec(name);
+        var match = /^BLOCK (\d+) (PARAGRAPH|HEADER [1-5]|HEADER|NOTE|WARNING|CODE|TABLE|PHOTO(?: ALT| CAPTION| SIZE)?|STEP TITLE|STEP TEXT|STEP NUMBER|STEP (?:CODE|NOTE|WARNING) [0-9]+)$/.exec(name);
         if (match) { numbers[Number(match[1])] = true; }
       });
 
@@ -1604,7 +1893,10 @@
         var textType = ['paragraph', 'header', 'note', 'warning', 'code'].filter(function (type) {
           return sections[prefix + type.toUpperCase()];
         })[0];
-        if (sections[prefix + 'TABLE']) {
+        if (sections[prefix + 'PHOTO']) {
+          var photoRead = window.Workflow.photoFromSections(sections, prefix);
+          if (photoRead) { blocks.push({ type: 'photo', id: photoRead.id, alt: photoRead.alt, caption: photoRead.caption, size: photoRead.size }); }
+        } else if (sections[prefix + 'TABLE']) {
           var tableRowsRead = window.Workflow.parseTableLines(sections[prefix + 'TABLE']);
           blocks.push({ type: 'table', rows: tableRowsRead, widths: window.Workflow.parseTableWidths(sections[prefix + 'TABLE WIDTHS'], tableRowsRead[0] ? tableRowsRead[0].length : 0) });
         } else if (headerLevel) {
@@ -2334,11 +2626,22 @@
     var aiClient = {
       json: async function (prompt, options) {
         var response;
+        // A picture to describe goes along as base64
+        var picture;
+        if (options.imageBlob) {
+          var address = await new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function () { resolve(String(reader.result)); };
+            reader.onerror = reject;
+            reader.readAsDataURL(options.imageBlob);
+          });
+          picture = { mediaType: options.imageBlob.type, data: address.split(',')[1] };
+        }
         try {
           response = await fetch('/api/ai/json', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: prompt, modelTier: options.modelTier, skipStyleGuide: options.skipStyleGuide === true }),
+            body: JSON.stringify({ prompt: prompt, modelTier: options.modelTier, skipStyleGuide: options.skipStyleGuide === true, image: picture }),
             signal: options.signal
           });
         } catch (error) {
@@ -2372,7 +2675,9 @@
       return {
         json: function (prompt, options) {
           var addGuide = options.modelTier === 'default' && !options.skipStyleGuide && window.STYLE_PREAMBLE;
-          return sample.json(addGuide ? window.STYLE_PREAMBLE + prompt : prompt, { modelTier: options.modelTier, signal: options.signal });
+          var sampleOptions = { modelTier: options.modelTier, signal: options.signal };
+          if (options.imageBlob) { sampleOptions.images = [options.imageBlob]; }
+          return sample.json(addGuide ? window.STYLE_PREAMBLE + prompt : prompt, sampleOptions);
         }
       };
     }
@@ -2445,6 +2750,8 @@
           lines.push('[' + label + ', level ' + block.level + '] ' + block.text);
         } else if (block.type === 'code') {
           lines.push('[' + label + ', code snippet: never suggest changes to it] ' + block.text);
+        } else if (block.type === 'photo') {
+          lines.push('[' + label + ', photo: never suggest changes to it] ' + block.alt);
         } else if (block.type === 'table') {
           lines.push('[' + label + ', table: never suggest changes to it] ' + block.text);
         } else {
@@ -2514,7 +2821,7 @@
       if (target === 'description') { return descriptionEl.closest('.text-block'); }
       var block = blocks[Number(target.split(' ')[1]) - 1] || null;
       // Code and tables are never rewritten by the AI
-      return block && (block.classList.contains('code-block') || block.classList.contains('table-block')) ? null : block;
+      return block && (block.classList.contains('code-block') || block.classList.contains('table-block') || block.classList.contains('photo-block')) ? null : block;
     }
 
     // An edit that would leave the section exactly as it is is not worth showing
@@ -2874,7 +3181,7 @@
     // section has text
     function ensureSectionAiButtons() {
       allSections().forEach(function (host) {
-        if (host.classList.contains('code-block')) { return; }   // the AI does not touch code
+        if (host.classList.contains('code-block') || host.classList.contains('photo-block')) { return; }   // the AI does not touch code or photos
         var button = host.querySelector(':scope > .section-ai');
         if (!button) {
           button = createSectionAiButton(host);
@@ -3262,6 +3569,18 @@
       if (description) { printView.appendChild(printRichText(description)); }
 
       readBlocks().forEach(function (block) {
+        if (block.type === 'photo') {
+          if (block.id) {
+            var printed = printElement('figure', 'print-photo print-photo-' + block.size, '');
+            var printedImage = document.createElement('img');
+            printedImage.alt = block.alt;
+            window.Store.images.show(printedImage, block.id);
+            printed.appendChild(printedImage);
+            if (block.caption) { printed.appendChild(printElement('figcaption', '', block.caption)); }
+            printView.appendChild(printed);
+          }
+          return;
+        }
         if (!block.text && !block.title && !(block.items && block.items.length)) { return; }
 
         if (block.type === 'header') {
@@ -3440,6 +3759,32 @@
     }
 
     // A code snippet: monospace on a light grey box, line breaks and indentation kept
+    // The pictures the PDF will draw, as { id: JPEG data address }. Filled by exportPdfFile just before the document is built.
+    var pdfPictures = {};
+    var PDF_PHOTO_SCALE = { full: 1, medium: 0.6, small: 0.35 };
+
+    function pdfPhoto(block) {
+      var width = (595.28 - PDF_MARGIN * 2) * (PDF_PHOTO_SCALE[block.size] || 1);
+      var stack = [{ image: pdfPictures[block.id], fit: [width, 460] }];
+      if (block.caption) { stack.push({ text: block.caption, italics: true, fontSize: 9, color: PDF_COLORS.muted, margin: [0, 4, 0, 0] }); }
+      return { stack: stack, margin: [0, 6, 0, 12], unbreakable: true };
+    }
+
+    // pdfmake only draws PNG and JPEG, and pictures are stored as WebP when they were shrunk, so each is redrawn as a JPEG
+    async function pdfPictureFor(id) {
+      var address = await window.Store.images.dataUrl(id);
+      if (!address) { return ''; }
+      var picture = await loadPicture(await (await fetch(address)).blob());
+      var canvas = document.createElement('canvas');
+      canvas.width = picture.naturalWidth;
+      canvas.height = picture.naturalHeight;
+      var context = canvas.getContext('2d');
+      context.fillStyle = '#FFFFFF';   // JPEG has no see-through areas
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(picture, 0, 0);
+      return canvas.toDataURL('image/jpeg', 0.92);
+    }
+
     function pdfCode(text) {
       return {
         table: { widths: ['*'], body: [[{ text: text, font: 'Courier', fontSize: 9, lineHeight: 1.3, preserveLeadingSpaces: true, color: PDF_COLORS.text, fillColor: '#F4F5F9', margin: [8, 6, 8, 6] }]] },
@@ -3506,6 +3851,10 @@
       if (description) { content = content.concat(pdfRichText(description)); }
 
       readBlocks().forEach(function (block) {
+        if (block.type === 'photo') {
+          if (block.id && pdfPictures[block.id]) { content.push(pdfPhoto(block)); }
+          return;
+        }
         if (!block.text && !block.title && !(block.items && block.items.length)) { return; }
         if (block.type === 'header') {
           content.push({ text: block.text, bold: true, color: PDF_COLORS.navy, fontSize: PDF_HEADER_SIZES[block.level - 1] || 11, margin: [0, 14, 0, 6], headlineLevel: block.level });
@@ -3552,6 +3901,13 @@
 
     async function exportPdfFile() {
       await loadPdfLibrary();
+      pdfPictures = {};
+      var photos = readBlocks().filter(function (block) { return block.type === 'photo' && block.id; });
+      for (var photo of photos) {
+        if (!pdfPictures[photo.id]) {
+          try { pdfPictures[photo.id] = await pdfPictureFor(photo.id); } catch (error) { console.error('A picture could not go into the PDF:', error); }
+        }
+      }
       var blob = await window.pdfMake.createPdf(buildPdfDefinition()).getBlob();
       var filename = pdfFilename();
 
@@ -3574,7 +3930,7 @@
 
     var isExporting = false;
     byId('export-pdf').addEventListener('click', async function () {
-      var hasContent = readText(titleEl) || readText(descriptionEl) || readBlocks().some(function (block) { return block.text || block.title || (block.items && block.items.length); });
+      var hasContent = readText(titleEl) || readText(descriptionEl) || readBlocks().some(function (block) { return block.text || block.title || block.id || (block.items && block.items.length); });
       if (!hasContent) {
         showNotice('There is nothing to export yet.');
         return;
@@ -3711,7 +4067,6 @@
       if (event.target.closest('#menu-back')) { showMenuPanel('main'); return; }
       var item = event.target.closest('[data-type]');
       if (!item) { return; }
-      if (item.hasAttribute('data-soon')) { showNotice('Photos aren\u2019t available yet.'); return; }
       if (item.getAttribute('aria-disabled') === 'true') {
         showNotice('Headers step down one level at a time, so that level can\u2019t go here.');
         return;
@@ -3754,7 +4109,7 @@
     window.addEventListener('resize', closeBlockMenu);
 
     // The toolbar chips match the add-block menu (Header, Text, Step, Table, Note, Warning, Code, Photo) and add that block at the very end of the page
-    var CHIP_BLOCK_TYPES = { Text: 'paragraph', Step: 'step', Note: 'note', Warning: 'warning', Table: 'table', Code: 'code' };
+    var CHIP_BLOCK_TYPES = { Text: 'paragraph', Step: 'step', Note: 'note', Warning: 'warning', Table: 'table', Code: 'code', Photo: 'photo' };
     document.querySelectorAll('.block-chip').forEach(function (chip) {
       var label = chip.textContent.trim();
       var type = CHIP_BLOCK_TYPES[label];
@@ -3764,8 +4119,6 @@
           openBlockMenu(chip, null, null);
           if (!blockMenu.hidden) { showMenuPanel('headers'); }
         });
-      } else if (label === 'Photo') {
-        chip.addEventListener('click', function () { showNotice('Photos aren\u2019t available yet.'); });
       } else if (type) {
         chip.addEventListener('click', function () {
           insertBlockAndFocus(type, null, undefined, null);

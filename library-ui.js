@@ -1866,6 +1866,19 @@
     if (last < text.length) { parent.appendChild(document.createTextNode(text.slice(last))); }
   }
 
+  // A photo: the stored picture, its description as the alt text, and the caption underneath
+  function previewPhoto(photo) {
+    var figure = el('figure', 'preview-photo');
+    figure.setAttribute('data-size', photo.size);
+    var image = document.createElement('img');
+    image.alt = photo.alt;
+    image.loading = 'lazy';
+    window.Store.images.show(image, photo.id);
+    figure.appendChild(image);
+    if (photo.caption) { figure.appendChild(el('figcaption', '', photo.caption)); }
+    return figure;
+  }
+
   // A table: the first row is the header. Wide tables scroll sideways instead of squashing the page.
   function previewTable(rows, savedWidths) {
     var wrap = el('div', 'preview-table-wrap');
@@ -2276,6 +2289,9 @@
       } else if (sections[prefix + 'NOTE'] || sections[prefix + 'WARNING']) {
         var isWarning = !!sections[prefix + 'WARNING'];
         article.appendChild(previewCallout(isWarning, body(prefix + (isWarning ? 'WARNING' : 'NOTE'))));
+      } else if (sections[prefix + 'PHOTO']) {
+        var photo = W.photoFromSections(sections, prefix);
+        if (photo) { article.appendChild(previewPhoto(photo)); }
       } else if (sections[prefix + 'TABLE']) {
         var tableRows = W.parseTableLines(sections[prefix + 'TABLE']);
         if (tableRows.length) { article.appendChild(previewTable(tableRows, W.parseTableWidths(sections[prefix + 'TABLE WIDTHS'], tableRows[0].length))); }

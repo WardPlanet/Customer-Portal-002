@@ -61,6 +61,120 @@
   var actingAs = DEFAULT_ACTOR;
   try { actingAs = localStorage.getItem(ACTOR_KEY) || DEFAULT_ACTOR; } catch (error) { /* storage unavailable */ }
 
+  /* ---------- Photos ----------
+     A page holds only a photo's id (see "Photos" in workflow.cjs). Where the picture itself lives depends on the backend:
+       server - one file in the team's images folder (POST /api/images, GET /api/images/<id>). The server asks who is
+                acting, so a picture is fetched with that header and shown from a blob address.
+       local  - the Claude artifact has no server, so the picture is kept in this browser's storage as a data address,
+                with the pages. Browsers allow only a few MB there, so only a handful of (already shrunk) photos fit.
+     The screens use Store.images and never care which. */
+  var IMAGES_KEY = 'pageEditor.images.v1';
+  var IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+  var imageCache = null;          // local backend: { id: data address }, read once
+  var shownImages = {};           // server backend: { id: Promise of a blob address }
+
+  function toDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result)); };
+      reader.onerror = function () { reject(fail('bad_image', 'That picture could not be read.')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // The picture's id: the first 32 characters of its SHA-256, so the same picture always gets the same id
+  async function fingerprint(blob) {
+    if (window.crypto && window.crypto.subtle) {
+      var digest = await window.crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+      return Array.prototype.map.call(new Uint8Array(digest), function (byte) { return ('0' + byte.toString(16)).slice(-2); }).join('').slice(0, 32);
+    }
+    // No secure context (plain http): a random id still works, it just cannot spot a duplicate
+    return Array.prototype.map.call(window.crypto.getRandomValues(new Uint8Array(16)), function (byte) { return ('0' + byte.toString(16)).slice(-2); }).join('');
+  }
+
+  function localImages() {
+    if (!imageCache) {
+      try { imageCache = JSON.parse(localStorage.getItem(IMAGES_KEY) || '{}') || {}; } catch (error) { imageCache = {}; }
+    }
+    return imageCache;
+  }
+
+  function saveLocalImages() {
+    try { localStorage.setItem(IMAGES_KEY, JSON.stringify(imageCache)); return true; } catch (error) { return false; }
+  }
+
+  function checkImage(blob) {
+    if (!blob || IMAGE_TYPES.indexOf(blob.type) < 0) { throw fail('bad_image', 'Only PNG, JPG, WebP and GIF pictures can be added.'); }
+    if (blob.size > 5 * 1024 * 1024) { throw fail('image_too_big', 'That picture is larger than 5 MB, even after shrinking it.'); }
+  }
+
+  var imageApi = {
+    // Stores a picture and resolves to its id
+    put: async function (blob) {
+      checkImage(blob);
+      var id = await fingerprint(blob);
+      if (window.Store.backend && window.Store.backend.mode === 'local') {
+        var all = localImages();
+        if (!all[id]) {
+          all[id] = await toDataUrl(blob);
+          if (!saveLocalImages()) {
+            delete all[id];
+            throw fail('storage_full', 'This browser has no room left for photos. Try a smaller picture, or use the server version, which keeps them in a folder.');
+          }
+        }
+        return id;
+      }
+      var response;
+      try {
+        response = await fetch('/api/images', { method: 'POST', headers: { 'X-Acting-As': encodeURIComponent(actingAs), 'Content-Type': blob.type }, body: blob });
+      } catch (error) { throw fail('network_error', 'Could not reach the server.'); }
+      var data = await response.json().catch(function () { return {}; });
+      if (!response.ok) { throw fail((data.error && data.error.code) || 'error', (data.error && data.error.message) || 'The picture could not be saved.'); }
+      return data.id;
+    },
+    // Resolves to a data address for the picture (for the PDF), or '' when it cannot be found
+    dataUrl: async function (id) {
+      if (window.Store.backend && window.Store.backend.mode === 'local') { return localImages()[id] || ''; }
+      try {
+        var response = await fetch('/api/images/' + id, { headers: { 'X-Acting-As': encodeURIComponent(actingAs) } });
+        return response.ok ? await toDataUrl(await response.blob()) : '';
+      } catch (error) { return ''; }
+    },
+    // Fills an <img> once the picture is ready; adds the class "photo-missing" when it cannot be found
+    show: function (img, id) {
+      function missing() { img.classList.add('photo-missing'); }
+      if (window.Store.backend && window.Store.backend.mode === 'local') {
+        var address = localImages()[id];
+        if (address) { img.src = address; } else { missing(); }
+        return;
+      }
+      if (!shownImages[id]) {
+        shownImages[id] = fetch('/api/images/' + id, { headers: { 'X-Acting-As': encodeURIComponent(actingAs) } })
+          .then(function (response) { if (!response.ok) { throw new Error('missing'); } return response.blob(); })
+          .then(function (blob) { return URL.createObjectURL(blob); });
+      }
+      shownImages[id].then(function (address) { img.src = address; }, function () { delete shownImages[id]; missing(); });
+    },
+    // Local backend, for backups: the pictures a set of pages uses, as { id: data address }
+    forBackup: function (pages) {
+      var found = {};
+      var all = localImages();
+      pages.forEach(function (page) {
+        page.versions.forEach(function (version) {
+          window.Workflow.photoIds(version.text).forEach(function (id) { if (all[id]) { found[id] = all[id]; } });
+        });
+      });
+      return found;
+    },
+    fromBackup: function (pictures) {
+      var all = localImages();
+      Object.keys(pictures || {}).slice(0, 2000).forEach(function (id) {
+        if (/^[a-f0-9]{32}$/.test(id) && /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(String(pictures[id]))) { all[id] = pictures[id]; }
+      });
+      if (!saveLocalImages()) { throw fail('storage_full', 'The photos in that backup do not fit in this browser\u2019s storage.'); }
+    }
+  };
+
   /* ---------- Server backend ---------- */
   var server = {
     mode: 'server',
@@ -396,7 +510,10 @@
       // Everything, as one object the screen saves to a file
       exportBackup: async function () {
         actor();
-        return W.makeBackup(team, teamPages(), now());
+        var pages = teamPages();
+        var backup = W.makeBackup(team, pages, now());
+        backup.images = imageApi.forBackup(pages);
+        return backup;
       },
       // Adds new pages and replaces ones the backup has newer copies of. Only the team lead may restore,
       // because a restored file can change a page's review status.
@@ -404,6 +521,7 @@
         var who = actor();
         if (!W.isLead(who, team)) { throw fail('not_lead', 'Only the team lead (' + team.lead + ') can restore a backup.'); }
         var incoming = guard(function () { return W.validateBackup(data, team); });
+        imageApi.fromBackup(data && data.images);
         var all = readAll();
         var merged = W.mergeBackup(all.pages, incoming);
         all.pages = merged.pages;
@@ -691,6 +809,7 @@
   /* ---------- Picking the backend ---------- */
   window.Store = {
     backend: null,
+    images: imageApi,
     admin: adminApi,
     getActor: function () { return actingAs; },
     getLastBackup: function () {

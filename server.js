@@ -29,6 +29,7 @@ const DRAFT_NAME = /^[a-z0-9][a-z0-9-]{0,79}-draft\.txt$/;
 const app = express();
 // A backup file holds every page, so that one route accepts a much larger body
 app.use('/api/library/restore', express.json({ limit: '50mb' }));
+app.use('/api/ai/json', express.json({ limit: '10mb' }));   // a picture to describe travels as base64
 app.use(express.json({ limit: '1mb' }));
 
 /* ---------- Team ----------
@@ -124,7 +125,17 @@ app.post('/api/ai/json', async function (req, res) {
       var team = await readTeam().catch(function () { return null; });
       if (styleGuide) { prompt = stylePreamble(styleGuide, team) + prompt; }
     }
-    res.json({ result: await askForJson(prompt, req.body.modelTier) });
+    // An optional picture (for describing it): { mediaType, data } with the bytes as base64. It is sent to the AI beside the prompt.
+    var content = prompt;
+    var picture = req.body.image;
+    if (picture) {
+      var okType = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].indexOf(picture.mediaType) >= 0;
+      if (!okType || typeof picture.data !== 'string' || picture.data.length > 9 * 1024 * 1024) {
+        return sendError(res, 400, 'bad_request', 'The picture must be a PNG, JPG, WebP or GIF under 6 MB.');
+      }
+      content = [{ type: 'image', source: { type: 'base64', media_type: picture.mediaType, data: picture.data } }, { type: 'text', text: prompt }];
+    }
+    res.json({ result: await askForJson(content, req.body.modelTier) });
   } catch (error) {
     sendAiError(res, error);
   }

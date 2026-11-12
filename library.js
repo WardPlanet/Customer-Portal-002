@@ -2,6 +2,7 @@
 //
 //   drafts/<team>/pages/<page id>/page.json   the page and the facts about each version (no text)
 //   drafts/<team>/pages/<page id>/v1.txt ...  each version's text, in the editor's draft format
+//   drafts/<team>/images/<id>.<ext>           the photos pages point at; <id> is a fingerprint of the picture
 //
 // All the rules (who may do what, what each status allows) live in workflow.cjs, which the browser's
 // artifact build also uses. This file only reads, writes and routes.
@@ -12,6 +13,8 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import crypto from 'node:crypto';
+import express from 'express';
 import { createRequire } from 'node:module';
 import { readTeam, writeRoles } from './teams.js';
 
@@ -22,6 +25,55 @@ const SearchLog = createRequire(import.meta.url)('./search-log.cjs');
 const PAGE_ID = /^[a-z0-9][a-z0-9-]{0,80}$/;
 
 /* ---------- Files ---------- */
+
+/* ---------- Photos ----------
+   A page holds only a photo's id. The picture is stored once, in the team's images folder, under a name made from its
+   contents (the first 32 characters of its SHA-256), so a picture added twice is kept once and every version of a page
+   keeps working. Only these four picture types are accepted, and the type is read from the file itself, not from what
+   the browser says. */
+const IMAGE_MAX_BYTES = 6 * 1024 * 1024;
+const IMAGE_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' };
+const IMAGE_ID = /^[a-f0-9]{32}$/;
+
+function imageTypeOf(buffer) {
+  if (buffer.length > 12 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) { return 'image/png'; }
+  if (buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) { return 'image/jpeg'; }
+  if (buffer.length > 12 && buffer.subarray(0, 4).toString('latin1') === 'RIFF' && buffer.subarray(8, 12).toString('latin1') === 'WEBP') { return 'image/webp'; }
+  if (buffer.length > 6 && /^GIF8[79]a$/.test(buffer.subarray(0, 6).toString('latin1'))) { return 'image/gif'; }
+  return '';
+}
+
+function imageId(buffer) {
+  return crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 32);
+}
+
+function imagesFolder(draftsDir, team) {
+  return path.join(draftsDir, team.slug, 'images');
+}
+
+// Saves a picture and answers its id. Throws a WorkflowError for anything that is not a usable picture.
+async function saveImage(draftsDir, team, buffer) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length) { throw new Workflow.WorkflowError('bad_image', 'No picture was sent.', 400); }
+  if (buffer.length > IMAGE_MAX_BYTES) { throw new Workflow.WorkflowError('image_too_big', 'That picture is larger than 6 MB.', 413); }
+  var type = imageTypeOf(buffer);
+  if (!type) { throw new Workflow.WorkflowError('bad_image', 'Only PNG, JPG, WebP and GIF pictures can be added.', 415); }
+  var id = imageId(buffer);
+  var folder = imagesFolder(draftsDir, team);
+  await fs.mkdir(folder, { recursive: true });
+  var file = path.join(folder, id + '.' + IMAGE_TYPES[type]);
+  try { await fs.access(file); } catch (missing) { await fs.writeFile(file, buffer); }
+  return { id: id, type: type };
+}
+
+// The stored picture for an id: { buffer, type } or null
+async function loadImage(draftsDir, team, id) {
+  if (!IMAGE_ID.test(id)) { return null; }
+  for (var type of Object.keys(IMAGE_TYPES)) {
+    try { return { buffer: await fs.readFile(path.join(imagesFolder(draftsDir, team), id + '.' + IMAGE_TYPES[type])), type: type }; } catch (error) { /* try the next type */ }
+  }
+  return null;
+}
+
 
 function pagesFolder(draftsDir, team) {
   return path.join(draftsDir, team.slug, 'pages');
@@ -320,9 +372,35 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json(detail(page, ctx));
   }));
 
+  // Photos: any staff member adds one (the raw picture bytes in the body); anyone on the team can read one. Pages only
+  // ever point at a picture by id, so there is no way to ask for another file through these routes.
+  app.post('/api/images', express.raw({ type: function () { return true; }, limit: IMAGE_MAX_BYTES }), staff(async function (req, res, ctx) {
+    res.json(await saveImage(draftsDir, ctx.team, req.body));
+  }));
+
+  app.get('/api/images/:id', staff(async function (req, res, ctx) {
+    var image = await loadImage(draftsDir, ctx.team, req.params.id);
+    if (!image) { throw new Workflow.WorkflowError('no_image', 'That picture does not exist.', 404); }
+    res.set('Cache-Control', 'private, max-age=31536000, immutable');   // the id is a fingerprint of the contents, so it never changes
+    res.type(image.type).send(image.buffer);
+  }));
+
   // Every page with all of its versions, as one file the screen offers for download
   app.get('/api/library/backup', staff(async function (req, res, ctx) {
-    res.json(Workflow.makeBackup(ctx.team, await loadAllPages(draftsDir, ctx.team), ctx.now));
+    var pages = await loadAllPages(draftsDir, ctx.team);
+    var backup = Workflow.makeBackup(ctx.team, pages, ctx.now);
+    // The pictures the pages use travel inside the backup, as data addresses, so a restore brings the photos back too
+    backup.images = {};
+    for (var page of pages) {
+      for (var version of page.versions) {
+        for (var id of Workflow.photoIds(version.text)) {
+          if (backup.images[id]) { continue; }
+          var image = await loadImage(draftsDir, ctx.team, id);
+          if (image) { backup.images[id] = 'data:' + image.type + ';base64,' + image.buffer.toString('base64'); }
+        }
+      }
+    }
+    res.json(backup);
   }));
 
   // Adds new pages and replaces ones the backup has newer copies of. Team lead only: a restored file can
@@ -332,6 +410,14 @@ export function registerLibraryRoutes(app, draftsDir) {
       throw new Workflow.WorkflowError('not_lead', 'Only the team lead (' + ctx.team.lead + ') can restore a backup.', 403);
     }
     var incoming = Workflow.validateBackup(req.body && req.body.backup, ctx.team);
+    // Pictures first, so no restored page points at one that is missing. Each must really be a picture, filed under its own fingerprint.
+    var pictures = (req.body.backup && req.body.backup.images) || {};
+    for (var pictureId of Object.keys(pictures).slice(0, 2000)) {
+      var match = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/=]+)$/.exec(String(pictures[pictureId]));
+      if (!match || !IMAGE_ID.test(pictureId)) { continue; }
+      var bytes = Buffer.from(match[2], 'base64');
+      if (imageTypeOf(bytes) === match[1] && imageId(bytes) === pictureId) { await saveImage(draftsDir, ctx.team, bytes); }
+    }
     var existing = await loadAllPages(draftsDir, ctx.team);
     var merged = Workflow.mergeBackup(existing, incoming);
     for (var page of merged.pages) {
