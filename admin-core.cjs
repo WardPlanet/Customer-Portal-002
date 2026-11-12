@@ -137,6 +137,15 @@
   }
 
   /* ---------- Invitations ---------- */
+  var INVITATION_DAYS = 7;   // an invitation not accepted within this many days shows as expired (it can be sent again)
+
+  // 'pending', 'expired', 'accepted' or 'cancelled'
+  function invitationState(invitation, now) {
+    if (invitation.status !== 'pending') { return invitation.status; }
+    var age = (Date.parse(now) || Date.now()) - (Date.parse(invitation.sentAt) || 0);
+    return age > INVITATION_DAYS * 24 * 60 * 60 * 1000 ? 'expired' : 'pending';
+  }
+
 
   var invitationCounter = 0;
   function newInvitation(team, role, person, email, now) {
@@ -338,6 +347,8 @@
     removePerson: removePerson,
     acceptInvitation: acceptInvitation,
     cancelInvitation: cancelInvitation,
+    INVITATION_DAYS: INVITATION_DAYS,
+    invitationState: invitationState,
     invitationEmail: invitationEmail,
     canHoldPages: canHoldPages
   };

@@ -947,26 +947,28 @@ saved under that team. Existing pages show their team as plain text.
 ## Admin tools page (prototype in the artifact)
 
 `#/admin` ("Admin tools" in the top bar) is shown only in Admin mode (Department dropdown set to Admin). Rules are in `admin-core.cjs`
-(tested, `tests/admin-core.test.cjs`), storage and the API in `store.js` (`Store.admin`), the screen in `admin.js`.
-- **Teams:** create a team (name, places its pages live, icon, who publishes, lead role and lead person), edit it (name, places, icon,
-  publishing, which accepted person leads) and retire it (only when it has no pages, is not the one the page is working as, and
-  another team remains). New teams appear in the Department dropdown at once. Icons: website, support (headset), document.
-- **People:** every role of every team and who holds it. Invite someone into a vacant role or a new role, **Move** them (to a vacant
-  role or a new one, in any team), or **Remove** them. The role someone leaves becomes vacant; its pages stay with the role and show no
-  one to contact. A person's name and email each appear once across all teams, and a lead cannot be moved or removed until another role
-  leads.
-- **Invitations:** adding a person marks them **Invited** and writes an invitation email (preview only; nothing is sent). Until they
-  accept they cannot own or be given pages (`Workflow.roleInvited`, enforced in `setOwner` and the transfer rules; the owner lists show
-  "(invited)" and disable them), and they are not offered under Acting as. "Accept (test)" stands in for the person accepting. Resend and
-  Cancel are there; cancelling empties the role it was for.
-- **Choosing a person** (naming a team's lead, or Add a person): typing searches the people who can be placed and the list shows matches
-  by name or email as you type (`AdminCore.searchPeople`, tested). People already on a team are listed but cannot be picked (Move them);
-  the last row, "+ Invite a new person", opens name and email fields for someone who is not listed. Every placement is an invitation
-  that must be accepted. In the prototype the searchable directory is a made-up list of 24 employees (`COMPANY_PEOPLE` in
-  `admin-core.cjs`) plus everyone already on a team; in the real system it is the Planet DDS Entra ID accounts (Microsoft Graph).
-- **Team details** fold down from a triangle at the left of each team (one open at a time), instead of an Edit button.
+(tested), storage and the API in `store.js` (`Store.admin`), the screen in `admin.js`. Laid out as an admin console: four tabs
+(`#/admin/teams`, `/people`, `/invitations`, `/history`), a list per tab with search and filters, and one main action per row.
+- **Teams:** a list (search, **+ New team**). Clicking a team opens a **side panel** (Esc or the overlay closes it) with its details
+  (name, places, icon, who publishes, which accepted person leads), its people, and a "Retire this team" section that explains why it
+  is disabled (it has pages, or it is the last team). **+ New team** is a two-step dialog: the team, then its lead role and lead.
+- **People:** search (name, email, role), team and status filters (Active, Invited, Invitation expired, Vacant roles), sortable
+  headings, a checkbox per person for **bulk** actions (resend invitations, remove), and one **"..." menu** per row: Move, Remove,
+  and for invited people Preview email, Resend, Cancel invitation, plus Accept (test) under **Testing only**. **Move** and **Remove**
+  say which pages are affected ("N pages use that role and will show no one to contact until it is filled"). Moving does not move
+  pages: the role someone leaves becomes vacant. A person's name and email appear once across all teams; a lead cannot be moved or
+  removed until another role leads.
+- **Choosing a person** (a team's lead, or Add person): typing searches the people who can be placed (`AdminCore.searchPeople`);
+  people already on a team are listed but cannot be picked; "+ Invite a new person" is always the last row. The prototype's directory
+  is a made-up list (`COMPANY_PEOPLE` in `admin-core.cjs`) plus everyone on a team; in the real system it is the Planet DDS Entra ID accounts.
+- **Invitations:** adding a person marks them **Invited** and writes an invitation email (preview only; nothing is sent). They cannot
+  own or be given pages until they accept (`Workflow.roleInvited`; the owner lists show "(invited)" and disable them) and are not
+  offered under Acting as. Grouped as Pending, Expired (sent more than 7 days ago, `AdminCore.INVITATION_DAYS`), Accepted and
+  Cancelled, with Resend all; the tab shows a count of pending and expired ones. Cancelling empties the role it was for.
+- **Undo:** every change shows a message ("Moved Molly ...") with **Undo** for 9 seconds (`Store.admin.snapshot` and `restore`).
 - **History:** the latest changes, with when.
-Kept in browser storage (`pageEditor.directory.v1` for teams, invitations and history; rosters per team as before). Needed for the real
-system: Entra sign-in (acceptance means signing in with a Planet DDS account), sending the email from a company mailbox, and the server
-working with several teams (it reads `teams/*.json` only for the Web Team; creating teams from a page needs storage the server owns).
-Not built: the Admin tools page on the server, Admin choosing a lead's replacement when retiring, moving pages between teams.
+Kept in browser storage (`pageEditor.directory.v1` for new and edited teams, invitations and history; rosters per team as before).
+Needed for the real system: Entra sign-in (acceptance means signing in with a Planet DDS account), sending the email from a company
+mailbox, and the server working with several teams (it reads `teams/*.json` only for the Web Team; creating teams from a page needs
+storage the server owns). Not built: the page on the server, bulk move, moving pages between teams, expiring an invitation
+automatically (it only shows as expired).

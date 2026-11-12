@@ -113,3 +113,13 @@ test('searching for people: matches names and emails as you type, and says where
   assert.ok(firstPlaced === -1 || both.slice(firstPlaced).every((r) => r.placed));
   assert.ok(A.searchPeople('a', all, 3).length <= 3);
 });
+
+test('an invitation expires after a week, and sending it again renews it', () => {
+  const sent = { id: 'i', status: 'pending', sentAt: '2026-11-01T12:00:00.000Z' };
+  assert.equal(A.invitationState(sent, '2026-11-05T12:00:00.000Z'), 'pending');
+  assert.equal(A.invitationState(sent, '2026-11-09T12:00:00.000Z'), 'expired');
+  sent.sentAt = '2026-11-09T00:00:00.000Z';   // sent again
+  assert.equal(A.invitationState(sent, '2026-11-09T12:00:00.000Z'), 'pending');
+  assert.equal(A.invitationState({ status: 'accepted', sentAt: '2020-01-01T00:00:00Z' }, NOW), 'accepted');
+  assert.equal(A.INVITATION_DAYS, 7);
+});

@@ -523,7 +523,13 @@
       return {
         teams: window.TEAMS.map(function (team) { return { slug: team.slug, name: team.name, lead: team.lead, icon: team.icon, directPublish: team.directPublish, locations: team.locations.slice(), roles: team.roles.map(function (r) { return { title: r.title, person: r.person, email: r.email, status: r.status || '' }; }), pageCount: counts[team.slug] || 0 }; }),
         people: window.AdminCore.people(window.TEAMS),
-        invitations: directory.invites,
+        // How many of each team's pages use each of its roles (so a move or removal can say what it affects)
+        roleUsage: (function () {
+          var usage = {};
+          window.TEAMS.forEach(function (team) { usage[team.slug] = window.Workflow.roleUsage(pages.filter(function (page) { return page.team === team.slug; })); });
+          return usage;
+        })(),
+        invitations: directory.invites.map(function (invite) { return Object.assign({}, invite, { state: window.AdminCore.invitationState(invite, new Date().toISOString()) }); }),
         log: directory.log
       };
     },
@@ -649,6 +655,24 @@
         writeDirectory(directory);
         return invite;
       });
+    },
+    // A copy of everything the admin tools change, so the last change can be undone
+    snapshot: function () {
+      this.guard();
+      return JSON.parse(JSON.stringify({ teams: window.TEAMS, directory: readDirectory() }));
+    },
+    // Puts a snapshot back: the teams (changed in place, because the rest of the page holds them), their rosters and the directory
+    restore: function (snap) {
+      this.guard();
+      var wanted = {};
+      snap.teams.forEach(function (copy) { wanted[copy.slug] = true; });
+      for (var i = window.TEAMS.length - 1; i >= 0; i -= 1) { if (!wanted[window.TEAMS[i].slug]) { window.TEAMS.splice(i, 1); } }
+      snap.teams.forEach(function (copy) {
+        var current = window.TEAMS.filter(function (candidate) { return candidate.slug === copy.slug; })[0];
+        if (current) { Object.keys(copy).forEach(function (key) { current[key] = copy[key]; }); } else { window.TEAMS.push(copy); }
+      });
+      window.TEAMS.forEach(saveRosterOf);
+      writeDirectory(snap.directory);
     },
     // People who can be put on a team, matching what was typed (the company directory and everyone already on a team)
     searchPeople: function (query) {

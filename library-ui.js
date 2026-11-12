@@ -2504,6 +2504,7 @@
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
     setBanner(null);
+    if (screen !== 'admin' && window.Admin) { window.Admin.leave(); }   // the Admin tools page lets go of its listeners
     if (screen === 'new') { openNewPage(); }
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
@@ -2513,7 +2514,7 @@
     else if (screen === 'admin' && window.Store.isAdminMode && window.Store.isAdminMode()) {
       showScreen('library', false);
       document.getElementById('nav-library').classList.remove('is-current');
-      window.Admin.show(main, { el: el, button: button, notice: notice, departmentsChanged: mountActing });
+      window.Admin.show(main, { el: el, button: button, departmentsChanged: mountActing }, parts[1]);
     }
     else if (screen === 'search-review' && actorIsLead()) {
       showScreen('library', false);
