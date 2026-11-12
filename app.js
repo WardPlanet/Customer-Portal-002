@@ -815,7 +815,11 @@
           if (endsSection) { child.after(createStepActions()); }
         }
         setRequiredDecoration(child, isRequired);
-        if (!isStep && !child.querySelector(':scope > .block-handle')) { child.appendChild(createBlockHandle(child)); }
+        // Every block has a handle; of a run of steps only the first does (it moves the whole run)
+        var wantsHandle = isStep ? !(children[index - 1] && children[index - 1].classList.contains('step-block')) : true;
+        var handle = child.querySelector(':scope > .block-handle');
+        if (wantsHandle && !handle) { child.appendChild(createBlockHandle(child)); }
+        else if (!wantsHandle && handle) { handle.remove(); }
       });
 
       enforceHeaderHierarchy();
@@ -1190,11 +1194,30 @@
       return grip;
     }
 
-    /* ---------- Move any other block (the ≡ handle) ----------
-       Every block except a step has a ≡ handle on its left edge. Drag it to move the block, press the up or down arrow
-       key while it has focus, or click it for a small menu (Move up, Move down, to the top, to the bottom). A step keeps
-       its own grip, which reorders within its section. A section of steps counts as one place to move past. */
+    /* ---------- Move blocks and sections (the ≡ handle) ----------
+       Every block has a ≡ handle on its left edge. Drag it, press the up or down arrow key while it has focus, or click it (or
+       press Enter) for a small menu: Move up, Move down, Move to the top, Move to the bottom.
+         - A header moves its whole section: itself and everything under it, up to the next header of the same or a higher level.
+         - The first step of a run of steps moves the whole run. (Each step also keeps its own grip, which reorders within the run.)
+         - Any other block moves alone.
+       After a move the insert lines are tidied, steps are renumbered and header levels are re-checked. */
     var MENU_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
+
+    function headerLevelOf(block) { return Number(block.getAttribute('data-level')) || 2; }
+
+    // The blocks that move together with this one
+    function groupOf(block) {
+      if (block.classList.contains('step-block')) { return stepsInSection(block); }
+      if (!block.classList.contains('header-block')) { return [block]; }
+      var all = contentBlocks();
+      var level = headerLevelOf(block);
+      var group = [block];
+      for (var i = all.indexOf(block) + 1; i < all.length; i += 1) {
+        if (all[i].classList.contains('header-block') && headerLevelOf(all[i]) <= level) { break; }
+        group.push(all[i]);
+      }
+      return group;
+    }
 
     // Every place a block can sit, in page order: one entry per block, or per whole run of steps
     function blockUnits() {
@@ -1207,6 +1230,17 @@
         units.push(unit);
       });
       return units;
+    }
+
+    // The places a group can go: every place except the ones inside it
+    function placesOutside(group) {
+      return blockUnits().filter(function (unit) { return !unit.some(function (member) { return group.indexOf(member) >= 0; }); });
+    }
+
+    // How many of the other places sit above the group (its own position, counting from 0)
+    function groupSlot(group) {
+      var places = placesOutside(group);
+      return { index: places.filter(function (unit) { return unit[0].compareDocumentPosition(group[0]) & Node.DOCUMENT_POSITION_FOLLOWING; }).length, count: places.length + 1 };
     }
 
     function neighbourBlock(block, delta) {
@@ -1226,51 +1260,84 @@
       contentEl.insertBefore(createInserter(null), second);
     }
 
-    // Puts the block at "slot" among the other places (0 = first). Returns true when it ended up somewhere new.
-    function placeBlock(block, slot) {
-      var units = blockUnits().filter(function (unit) { return unit.indexOf(block) < 0; });
-      var oldPrevious = neighbourBlock(block, -1);
-      var oldNext = neighbourBlock(block, 1);
-      var trailing = block.nextElementSibling && block.nextElementSibling.classList.contains('section-insert') ? block.nextElementSibling : null;
+    // Puts the group at "slot" among the other places (0 = first). Returns true when it ended up somewhere new.
+    function placeGroup(group, slot) {
+      var places = placesOutside(group);
+      var first = group[0];
+      var last = group[group.length - 1];
+      var oldPrevious = neighbourBlock(first, -1);
+      var oldNext = neighbourBlock(last, 1);
+      var startedAt = contentBlocks().indexOf(first);
 
       var before;
-      if (slot < units.length) {
-        before = units[slot][0];
+      if (slot < places.length) {
+        before = places[slot][0];
       } else {
         // After the last place: past its "+ Add step" button and insert line
-        var lastBlock = units.length ? units[units.length - 1][units[units.length - 1].length - 1] : null;
-        before = lastBlock ? lastBlock.nextSibling : byId('add-block');
+        var lastPlace = places.length ? places[places.length - 1] : null;
+        before = lastPlace ? lastPlace[lastPlace.length - 1].nextSibling : byId('add-block');
         while (before && before.nodeType === 1 && (before.classList.contains('step-actions') || before.classList.contains('section-insert'))) { before = before.nextSibling; }
       }
-      if (before === block || before === trailing) { return false; }
-      var startedAt = contentBlocks().indexOf(block);
-      contentEl.insertBefore(block, before);
-      if (trailing) { contentEl.insertBefore(trailing, before); }
-      if (contentBlocks().indexOf(block) === startedAt) { return false; }
+
+      // Everything from the first block to the last one and its insert line goes together
+      var tail = last.nextElementSibling && last.nextElementSibling.classList.contains('section-insert') ? last.nextElementSibling : last;
+      if (before === first || (before && first.compareDocumentPosition(before) & Node.DOCUMENT_POSITION_FOLLOWING && tail.compareDocumentPosition(before) & Node.DOCUMENT_POSITION_PRECEDING)) { return false; }
+      var piece = document.createDocumentFragment();
+      var node = first;
+      while (node) {
+        var after = node.nextSibling;
+        piece.appendChild(node);
+        if (node === tail) { break; }
+        node = after;
+      }
+      contentEl.insertBefore(piece, before);
+      if (contentBlocks().indexOf(first) === startedAt) { refreshBlocks(); return false; }
 
       ensureInserterBetween(oldPrevious, oldNext);
-      ensureInserterBetween(neighbourBlock(block, -1), block);
-      ensureInserterBetween(block, neighbourBlock(block, 1));
+      ensureInserterBetween(neighbourBlock(first, -1), first);
+      ensureInserterBetween(last, neighbourBlock(last, 1));
       removeRedundantInserters();
       refreshBlocks();   // renumbers steps, keeps the header levels in order, refreshes the outline
       markDirty();
       return true;
     }
 
-    // Where this block sits among the places it can move to, and how many there are
-    function blockSlot(block) {
-      var units = blockUnits();
-      for (var i = 0; i < units.length; i += 1) { if (units[i].indexOf(block) >= 0) { return { index: i, count: units.length }; } }
-      return { index: 0, count: units.length };
+    // Where "Move up" and "Move down" would put the group: a place number (see groupSlot), or null when it cannot go that way.
+    // A single block moves one place; a header's section moves past the neighbouring section of the same level.
+    function neighbourSlot(group, delta) {
+      var places = placesOutside(group);
+      var here = groupSlot(group).index;
+      var block = group[0];
+      if (!block.classList.contains('header-block')) {
+        var target = here + delta;
+        return target >= 0 && target < places.length + 1 ? target : null;
+      }
+      var level = headerLevelOf(block);
+      var all = contentBlocks();
+      function placeOf(member) {
+        for (var i = 0; i < places.length; i += 1) { if (places[i].indexOf(member) >= 0) { return i; } }
+        return -1;
+      }
+      if (delta < 0) {
+        for (var i = all.indexOf(block) - 1; i >= 0; i -= 1) {
+          if (all[i].classList.contains('header-block') && headerLevelOf(all[i]) <= level) {
+            // Past a header of the same level: above that whole section. Reaching the header it sits under: first place under it.
+            return headerLevelOf(all[i]) < level ? placeOf(all[i]) + 1 : placeOf(all[i]);
+          }
+        }
+        return here > 0 ? 0 : null;
+      }
+      var next = neighbourBlock(group[group.length - 1], 1);
+      if (!next || headerLevelOf(next) < level) { return null; }   // the end of the section it sits in
+      var nextGroup = groupOf(next);
+      return placeOf(nextGroup[nextGroup.length - 1]) + 1;
     }
 
-    function moveBlockTo(block, slot, label) {
-      if (placeBlock(block, slot)) {
-        var now = blockSlot(block);
-        showNotice((label || 'Block') + ' moved. It is now ' + (now.index + 1) + ' of ' + now.count + '.');
-        return true;
-      }
-      return false;
+    function moveGroupTo(group, slot) {
+      if (slot === null || !placeGroup(group, slot)) { return false; }
+      var now = groupSlot(group);
+      showNotice((group.length > 1 ? 'Section' : 'Block') + ' moved. It is now ' + (now.index + 1) + ' of ' + now.count + '.');
+      return true;
     }
 
     var blockMoveMenu = null;
@@ -1281,21 +1348,22 @@
 
     function openBlockMoveMenu(block, handle) {
       closeBlockMoveMenu();
-      var where = blockSlot(block);
+      var group = groupOf(block);
+      var where = groupSlot(group);
       var menu = document.createElement('div');
       menu.className = 'block-move-menu';
       menu.setAttribute('role', 'menu');
-      [['Move up', where.index - 1, where.index > 0], ['Move down', where.index + 1, where.index < where.count - 1],
-        ['Move to the top', 0, where.index > 0], ['Move to the bottom', where.count - 1, where.index < where.count - 1]].forEach(function (item) {
+      var noun = group.length > 1 ? 'section' : 'block';
+      [['Move ' + noun + ' up', neighbourSlot(group, -1)], ['Move ' + noun + ' down', neighbourSlot(group, 1)],
+        ['Move to the top', where.index > 0 ? 0 : null], ['Move to the bottom', where.index < where.count - 1 ? where.count - 1 : null]].forEach(function (item) {
         var option = document.createElement('button');
         option.type = 'button';
         option.setAttribute('role', 'menuitem');
         option.textContent = item[0];
-        option.disabled = !item[2];
+        option.disabled = item[1] === null || item[1] === where.index;
         option.addEventListener('click', function () {
           closeBlockMoveMenu();
-          // The slot counts the other places, so a place further down is one less than its position
-          moveBlockTo(block, item[1], 'Block');
+          moveGroupTo(groupOf(block), item[1]);
           handle.focus();
         });
         menu.appendChild(option);
@@ -1304,6 +1372,7 @@
       var box = handle.getBoundingClientRect();
       menu.style.left = Math.max(8, Math.min(box.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
       menu.style.top = Math.min(box.bottom + 4, window.innerHeight - menu.offsetHeight - 8) + 'px';
+      menu.owner = handle;
       blockMoveMenu = menu;
       blockMenuOpenedAt = Date.now();
       var first = menu.querySelector('button:not(:disabled)');
@@ -1320,8 +1389,8 @@
         var owner = blockMoveMenu.owner;
         closeBlockMoveMenu();
         if (owner) { owner.focus(); }
-      } else if (event.key === 'ArrowDown') { event.preventDefault(); options[(at + 1) % options.length].focus(); }
-      else if (event.key === 'ArrowUp') { event.preventDefault(); options[(at - 1 + options.length) % options.length].focus(); }
+      } else if (options.length && event.key === 'ArrowDown') { event.preventDefault(); options[(at + 1) % options.length].focus(); }
+      else if (options.length && event.key === 'ArrowUp') { event.preventDefault(); options[(at - 1 + options.length) % options.length].focus(); }
     });
     // A scroll closes the menu, except the small shift when a selected photo folds its details away as the menu takes the focus
     window.addEventListener('scroll', function () {
@@ -1338,7 +1407,8 @@
         var last = unit[unit.length - 1].getBoundingClientRect();
         return y > (first.top + last.bottom) / 2;
       }).length;
-      var anchor = drag.slot < drag.others.length ? drag.others[drag.slot][0] : drag.others[drag.others.length - 1][drag.others[drag.others.length - 1].length - 1];
+      var lastPlace = drag.others[drag.others.length - 1];
+      var anchor = drag.slot < drag.others.length ? drag.others[drag.slot][0] : lastPlace[lastPlace.length - 1];
       var box = anchor.getBoundingClientRect();
       drag.line.style.left = box.left + 'px';
       drag.line.style.width = box.width + 'px';
@@ -1346,13 +1416,14 @@
     }
 
     function startBlockDrag(block, handle, event) {
-      var units = blockUnits().filter(function (unit) { return unit.indexOf(block) < 0; });
-      if (!units.length) { return false; }
+      var group = groupOf(block);
+      var places = placesOutside(group);
+      if (!places.length) { return false; }
       var line = document.createElement('div');
       line.className = 'step-drop-line';
       document.body.appendChild(line);
-      blockDrag = { block: block, handle: handle, others: units, startY: event.clientY, slot: 0, line: line };
-      block.classList.add('is-dragging');
+      blockDrag = { group: group, handle: handle, others: places, startY: event.clientY, slot: 0, line: line };
+      group.forEach(function (member) { member.classList.add('is-dragging'); });
       document.body.classList.add('is-reordering');
       placeFromPointer(blockDrag, event.clientY);
       return true;
@@ -1362,11 +1433,10 @@
       if (!blockDrag) { return; }
       var drag = blockDrag;
       blockDrag = null;
-      drag.block.classList.remove('is-dragging');
-      drag.block.style.transform = '';
+      drag.group.forEach(function (member) { member.classList.remove('is-dragging'); member.style.transform = ''; });
       document.body.classList.remove('is-reordering');
       drag.line.remove();
-      if (commit) { moveBlockTo(drag.block, drag.slot, 'Block'); }
+      if (commit) { moveGroupTo(drag.group, drag.slot); }
       drag.handle.focus();
     }
 
@@ -1374,9 +1444,11 @@
       var handle = document.createElement('button');
       handle.type = 'button';
       handle.className = 'block-handle';
-      handle.setAttribute('aria-label', 'Move this block: drag it, press the up or down arrow key, or press Enter for a menu');
+      handle.setAttribute('aria-label', 'Move this block or section: drag it, press the up or down arrow key, or press Enter for a menu');
       handle.setAttribute('aria-haspopup', 'menu');
-      handle.title = 'Drag to move this block, or click for a menu';
+      handle.title = block.classList.contains('header-block') ? 'Drag to move this header and everything under it, or click for a menu'
+        : block.classList.contains('step-block') ? 'Drag to move this whole run of steps, or click for a menu'
+        : 'Drag to move this block, or click for a menu';
       handle.innerHTML = MENU_ICON;
       var pressed = null;   // set between pressing the handle and letting go
 
@@ -1384,18 +1456,18 @@
         if (event.pointerType === 'mouse' && event.button !== 0) { return; }
         event.preventDefault();
         closeBlockMoveMenu();
-        pressed = { x: event.clientX, y: event.clientY, dragging: false, id: event.pointerId };
+        pressed = { x: event.clientX, y: event.clientY, dragging: false };
         handle.setPointerCapture(event.pointerId);
       });
       handle.addEventListener('pointermove', function (event) {
         if (!pressed) { return; }
         if (!pressed.dragging) {
-          // A press that barely moves is a click (it opens the menu); only a real drag moves the block
+          // A press that barely moves is a click (it opens the menu); only a real drag moves anything
           if (Math.abs(event.clientY - pressed.y) < 5 && Math.abs(event.clientX - pressed.x) < 5) { return; }
           pressed.dragging = startBlockDrag(block, handle, event);
           if (!pressed.dragging) { return; }
         }
-        block.style.transform = 'translateY(' + (event.clientY - blockDrag.startY) + 'px)';
+        blockDrag.group.forEach(function (member) { member.style.transform = 'translateY(' + (event.clientY - blockDrag.startY) + 'px)'; });
         placeFromPointer(blockDrag, event.clientY);
         if (event.clientY < 50) { window.scrollBy(0, -12); }
         else if (event.clientY > window.innerHeight - 50) { window.scrollBy(0, 12); }
@@ -1405,20 +1477,17 @@
         pressed = null;
         if (!wasPressed) { return; }
         if (wasPressed.dragging) { endBlockDrag(commit); }
-        else if (commit) { openBlockMoveMenu(block, handle); blockMoveMenu.owner = handle; }
+        else if (commit) { openBlockMoveMenu(block, handle); }
       }
       handle.addEventListener('pointerup', function () { release(true); });
       handle.addEventListener('pointercancel', function () { release(false); });
       handle.addEventListener('keydown', function (event) {
         if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
           event.preventDefault();
-          var where = blockSlot(block);
-          var target = where.index + (event.key === 'ArrowUp' ? -1 : 1);
-          if (target >= 0 && target < where.count && moveBlockTo(block, target, 'Block')) { handle.focus(); }
+          if (moveGroupTo(groupOf(block), neighbourSlot(groupOf(block), event.key === 'ArrowUp' ? -1 : 1))) { handle.focus(); }
         } else if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           openBlockMoveMenu(block, handle);
-          if (blockMoveMenu) { blockMoveMenu.owner = handle; }
         } else if (event.key === 'Escape') {
           if (blockDrag) { endBlockDrag(false); }
         }

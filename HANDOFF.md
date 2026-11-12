@@ -1036,13 +1036,19 @@ Claude artifact the page uses `sample.json(..., { images: [blob] })`, which need
 
 ## Moving blocks, and the editor's "On this page"
 
-**Moving blocks.** Every block except a step has a **≡ handle** on its left edge (`createBlockHandle` in `app.js`). Drag it to move the
-block (a blue line shows where it will land; the window scrolls near its edges), press the up or down arrow key while it has focus, or
-click it (or press Enter) for a small menu: Move up, Move down, Move to the top, Move to the bottom. A run of steps counts as one place
-to move past, and steps keep their own grip, which reorders within a section. After a move the insert lines are tidied, steps are
-renumbered, header levels are re-checked (a header that ends up too deep under the one above it is pulled up, as when a draft loads)
-and the page is marked changed. The handle is hidden in read-only views. Not built: moving a whole run of steps, or a step out of its
-section.
+**Moving blocks and sections.** Every block has a **≡ handle** on its left edge (`createBlockHandle` in `app.js`; the canvas has extra left
+padding for it, because the editor card clips anything outside it). Drag it (a blue line shows where it will land; the window scrolls
+near its edges), press the up or down arrow key while it has focus, or click it (or press Enter) for a small menu: Move up, Move down,
+Move to the top, Move to the bottom. What moves with the handle:
+- a **header** takes its whole section: itself and everything under it, up to the next header of the same or a higher level (`groupOf`).
+  Move up and down skip past the neighbouring section of the same level, and stop at the edge of the section it sits in;
+- the **first step of a run of steps** takes the whole run (only the first step has a handle; each step also keeps its own grip, which
+  reorders within the run);
+- any other block moves alone.
+
+After a move the insert lines are tidied, steps are renumbered, header levels are re-checked (a header left too deep under the one
+above is pulled up, as when a draft loads) and the page is marked changed. The handle is hidden in read-only views. Not built: moving
+a step out of its run into another.
 
 **Photo blocks.** Only the selected photo block (click it, or focus inside it) shows its description, caption and size; the others
 show just the picture and its caption.

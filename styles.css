@@ -232,7 +232,7 @@
 
   /* ---------- Canvas (content) ---------- */
   .canvas {
-   padding: 24px 16px 20px;
+   padding: 24px 16px 20px 36px;   /* the left side holds the ≡ handles */
    min-width: 0;
  }
   /* Every piece of content is its own block: title, description, each step */
@@ -1317,7 +1317,7 @@
   @media (max-width: 820px) {
     .editor-body { grid-template-columns: minmax(0, 1fr); }
     .outline { display: none; }
-    .canvas { padding: 20px 12px; }
+    .canvas { padding: 20px 12px 20px 32px; }
     .workspace { padding: 16px; }
     .topbar { padding: 14px 16px; }
     .save-status span:last-child { display: none; }
@@ -2222,7 +2222,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 }
 
 /* ---------- Move a block: the ≡ handle and its menu ---------- */
-.block-handle { position: absolute; left: -28px; top: 5px; display: grid; place-items: center; width: 24px; height: 28px; padding: 0; background: none; border: 0; border-radius: 6px; color: var(--text-muted); cursor: grab; touch-action: none; opacity: 0.8; }
+.block-handle { position: absolute; left: -27px; top: 5px; display: grid; place-items: center; width: 24px; height: 28px; padding: 0; background: none; border: 0; border-radius: 6px; color: var(--text-muted); cursor: grab; touch-action: none; opacity: 0.8; }
 .block-handle svg { width: 17px; height: 17px; }
 .text-block:hover > .block-handle, .text-block:focus-within > .block-handle, .block-handle:hover, .block-handle:focus-visible { opacity: 1; }
 .block-handle:hover { color: var(--text); background: var(--surface-muted); }
