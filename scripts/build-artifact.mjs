@@ -37,6 +37,7 @@ const adminCore = await read('admin-core.cjs');
 const adminUi = await read('admin.js');
 const store = await read('store.js');
 const libraryUi = await read('library-ui.js');
+const outline = await read('outline.js');
 const guidelines = await read('guidelines', 'import-guidelines.md');
 const styleGuide = await read('guidelines', 'style-guide.md');
 const team = await readTeam();
@@ -68,7 +69,7 @@ const instructions =
   'window.TEAM_ROSTER = ' + safeForScript(JSON.stringify(team)) + ';';
 
 const linkTag = '<link rel="stylesheet" href="styles.css">';
-const scriptTag = ['<script src="brand.js"></script>', '<script src="workflow.cjs"></script>', '<script src="search.cjs"></script>', '<script src="search-log.cjs"></script>', '<script src="admin-core.cjs"></script>', '<script src="batch-core.cjs"></script>', '<script src="store.js"></script>', '<script src="app.js"></script>', '<script src="batch.js"></script>', '<script src="search-review.js"></script>', '<script src="admin.js"></script>', '<script src="library-ui.js"></script>'].join('\n');
+const scriptTag = ['<script src="brand.js"></script>', '<script src="workflow.cjs"></script>', '<script src="search.cjs"></script>', '<script src="search-log.cjs"></script>', '<script src="admin-core.cjs"></script>', '<script src="batch-core.cjs"></script>', '<script src="outline.js"></script>', '<script src="store.js"></script>', '<script src="app.js"></script>', '<script src="batch.js"></script>', '<script src="search-review.js"></script>', '<script src="admin.js"></script>', '<script src="library-ui.js"></script>'].join('\n');
 if (!html.includes(linkTag) || !html.includes(scriptTag)) {
   throw new Error('index.html no longer has the stylesheet and script tags this build looks for.');
 }
@@ -77,7 +78,7 @@ const output = html
   .replace(linkTag, () => '<style>\n' + css + '\n</style>')
   .replace(scriptTag, () => pdfLibrary + '<script>\n' + instructions + '\n</script>\n' +
     // The rules and the store first, then the editor, then the library screens (the same order as index.html)
-    ['<script>\n' + safeForScript(brand) + '\n</script>', '<script>\n' + safeForScript(workflow) + '\n</script>', '<script>\n' + safeForScript(search) + '\n</script>', '<script>\n' + safeForScript(searchLog) + '\n</script>', '<script>\n' + safeForScript(adminCore) + '\n</script>', '<script>\n' + safeForScript(batchCore) + '\n</script>', '<script>\n' + safeForScript(store) + '\n</script>', '<script>\n' + safeForScript(app) + '\n</script>', '<script>\n' + safeForScript(batch) + '\n</script>', '<script>\n' + safeForScript(searchReview) + '\n</script>', '<script>\n' + safeForScript(adminUi) + '\n</script>', '<script>\n' + safeForScript(libraryUi) + '\n</script>'].join('\n'));
+    ['<script>\n' + safeForScript(brand) + '\n</script>', '<script>\n' + safeForScript(workflow) + '\n</script>', '<script>\n' + safeForScript(search) + '\n</script>', '<script>\n' + safeForScript(searchLog) + '\n</script>', '<script>\n' + safeForScript(adminCore) + '\n</script>', '<script>\n' + safeForScript(batchCore) + '\n</script>', '<script>\n' + safeForScript(outline) + '\n</script>', '<script>\n' + safeForScript(store) + '\n</script>', '<script>\n' + safeForScript(app) + '\n</script>', '<script>\n' + safeForScript(batch) + '\n</script>', '<script>\n' + safeForScript(searchReview) + '\n</script>', '<script>\n' + safeForScript(adminUi) + '\n</script>', '<script>\n' + safeForScript(libraryUi) + '\n</script>'].join('\n'));
 
 await fs.mkdir(path.join(here, 'dist'), { recursive: true });
 const target = path.join(here, 'dist', 'page-editor-artifact.html');

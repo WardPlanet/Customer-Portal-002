@@ -12,6 +12,7 @@ only work inside Claude's artifact runtime, and what is still open.
 | `styles.css` | The stylesheet (originally inline in `page-editor.html`). |
 | `app.js` | The script (originally inline in `page-editor.html`). |
 | `search.cjs` | The search: ranking, word forms, typing mistakes, phrases (used by the server and the artifact). |
+| `outline.js` | "On this page": the folded outline of headings, shared by the live page and the editor (`OnThisPage.build`). |
 | `HANDOFF.md` | This file. |
 
 To run it, open `index.html` in a browser. Everything works except the two things in
@@ -1032,3 +1033,23 @@ Claude artifact the page uses `sample.json(..., { images: [blob] })`, which need
   missing picture until that route exists (it would serve only pictures used by a live Client-Safe page).
 - Cropping, rotating and alt text for pictures other than by hand.
 - Cleaning up pictures no page uses.
+
+## Moving blocks, and the editor's "On this page"
+
+**Moving blocks.** Every block except a step has a **≡ handle** on its left edge (`createBlockHandle` in `app.js`). Drag it to move the
+block (a blue line shows where it will land; the window scrolls near its edges), press the up or down arrow key while it has focus, or
+click it (or press Enter) for a small menu: Move up, Move down, Move to the top, Move to the bottom. A run of steps counts as one place
+to move past, and steps keep their own grip, which reorders within a section. After a move the insert lines are tidied, steps are
+renumbered, header levels are re-checked (a header that ends up too deep under the one above it is pulled up, as when a draft loads)
+and the page is marked changed. The handle is hidden in read-only views. Not built: moving a whole run of steps, or a step out of its
+section.
+
+**Photo blocks.** Only the selected photo block (click it, or focus inside it) shows its description, caption and size; the others
+show just the picture and its caption.
+
+**The editor's "On this page"** is the live page's outline (`outline.js`), so both behave the same: headers as a tree, folded groups
+with their own arrows, the arrow that shows every top-level header (the first five show, two fade), **Expand all / Collapse all**, and
+links that scroll to the header. It is fixed beside the page (sticky, scrolls inside itself when tall), so `.editor` uses
+`overflow: clip`, not `hidden`, which would stop it sticking. It is drawn again only when a header is added, moved, renamed or
+removed, and what was opened is kept (`outlineMemory`; a renamed header counts as a new one and starts folded). Steps are not listed
+(the live page does not list them either); the read time and the counts of steps and warnings sit underneath.

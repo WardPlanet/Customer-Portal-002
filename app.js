@@ -242,6 +242,13 @@
       figure.appendChild(replace);
       block.appendChild(figure);
 
+      // What is shown under the picture while the block is not selected
+      var shownCaption = document.createElement('figcaption');
+      shownCaption.className = 'photo-shown-caption';
+      shownCaption.textContent = values.caption || '';
+      figure.appendChild(shownCaption);
+
+      // The description, caption and size only show while the block is selected (see syncSelectedPhoto)
       var details = document.createElement('div');
       details.className = 'photo-details';
 
@@ -279,7 +286,7 @@
       caption.className = 'photo-caption';
       caption.maxLength = 300;
       caption.value = values.caption || '';
-      caption.addEventListener('input', function () { markDirty(); });
+      caption.addEventListener('input', function () { shownCaption.textContent = caption.value; markDirty(); });
       captionLabel.appendChild(caption);
       details.appendChild(captionLabel);
 
@@ -323,6 +330,7 @@
         var id = await window.Store.images.put(picture);
         block._photoBlob = picture;
         showPhoto(block, id);
+        selectPhotoBlock(block);   // so the new description (and the AI's note) can be seen
         markDirty();
         refreshOutline();
         if (!photoField(block, 'alt').value.trim()) { suggestPhotoAlt(block, false); }
@@ -332,6 +340,20 @@
         block.classList.remove('is-busy');
       }
     }
+
+    // Only the photo block being worked on shows its description, caption and size. A click or the keyboard focus selects it.
+    function selectPhotoBlock(chosen) {
+      Array.prototype.forEach.call(contentEl.querySelectorAll('.photo-block'), function (block) {
+        block.classList.toggle('is-selected', block === chosen);
+      });
+    }
+    function syncSelectedPhoto(event) {
+      var target = event && event.target && event.target.closest ? event.target : document.activeElement;
+      var block = target && target.closest ? target.closest('.photo-block') : null;
+      selectPhotoBlock(block && contentEl.contains(block) ? block : null);
+    }
+    document.addEventListener('pointerdown', syncSelectedPhoto, true);
+    document.addEventListener('focusin', syncSelectedPhoto);
 
     // Adds a Photo block holding this file (before beforeNode, or above "+ Add a block" when null)
     function addPhotoFromFile(file, beforeNode) {
@@ -793,6 +815,7 @@
           if (endsSection) { child.after(createStepActions()); }
         }
         setRequiredDecoration(child, isRequired);
+        if (!isStep && !child.querySelector(':scope > .block-handle')) { child.appendChild(createBlockHandle(child)); }
       });
 
       enforceHeaderHierarchy();
@@ -1167,6 +1190,242 @@
       return grip;
     }
 
+    /* ---------- Move any other block (the ≡ handle) ----------
+       Every block except a step has a ≡ handle on its left edge. Drag it to move the block, press the up or down arrow
+       key while it has focus, or click it for a small menu (Move up, Move down, to the top, to the bottom). A step keeps
+       its own grip, which reorders within its section. A section of steps counts as one place to move past. */
+    var MENU_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
+
+    // Every place a block can sit, in page order: one entry per block, or per whole run of steps
+    function blockUnits() {
+      var units = [];
+      var seen = [];
+      contentBlocks().forEach(function (block) {
+        if (seen.indexOf(block) >= 0) { return; }
+        var unit = block.classList.contains('step-block') ? stepsInSection(block) : [block];
+        unit.forEach(function (member) { seen.push(member); });
+        units.push(unit);
+      });
+      return units;
+    }
+
+    function neighbourBlock(block, delta) {
+      var blocks = contentBlocks();
+      return blocks[blocks.indexOf(block) + delta] || null;
+    }
+
+    // Two blocks that sit one after the other need an insert line between them (except two steps in one run)
+    function ensureInserterBetween(first, second) {
+      if (!first || !second) { return; }
+      if (first.classList.contains('step-block') && second.classList.contains('step-block') && first.nextElementSibling === second) { return; }
+      var node = first.nextElementSibling;
+      while (node && node !== second) {
+        if (node.classList.contains('section-insert')) { return; }
+        node = node.nextElementSibling;
+      }
+      contentEl.insertBefore(createInserter(null), second);
+    }
+
+    // Puts the block at "slot" among the other places (0 = first). Returns true when it ended up somewhere new.
+    function placeBlock(block, slot) {
+      var units = blockUnits().filter(function (unit) { return unit.indexOf(block) < 0; });
+      var oldPrevious = neighbourBlock(block, -1);
+      var oldNext = neighbourBlock(block, 1);
+      var trailing = block.nextElementSibling && block.nextElementSibling.classList.contains('section-insert') ? block.nextElementSibling : null;
+
+      var before;
+      if (slot < units.length) {
+        before = units[slot][0];
+      } else {
+        // After the last place: past its "+ Add step" button and insert line
+        var lastBlock = units.length ? units[units.length - 1][units[units.length - 1].length - 1] : null;
+        before = lastBlock ? lastBlock.nextSibling : byId('add-block');
+        while (before && before.nodeType === 1 && (before.classList.contains('step-actions') || before.classList.contains('section-insert'))) { before = before.nextSibling; }
+      }
+      if (before === block || before === trailing) { return false; }
+      var startedAt = contentBlocks().indexOf(block);
+      contentEl.insertBefore(block, before);
+      if (trailing) { contentEl.insertBefore(trailing, before); }
+      if (contentBlocks().indexOf(block) === startedAt) { return false; }
+
+      ensureInserterBetween(oldPrevious, oldNext);
+      ensureInserterBetween(neighbourBlock(block, -1), block);
+      ensureInserterBetween(block, neighbourBlock(block, 1));
+      removeRedundantInserters();
+      refreshBlocks();   // renumbers steps, keeps the header levels in order, refreshes the outline
+      markDirty();
+      return true;
+    }
+
+    // Where this block sits among the places it can move to, and how many there are
+    function blockSlot(block) {
+      var units = blockUnits();
+      for (var i = 0; i < units.length; i += 1) { if (units[i].indexOf(block) >= 0) { return { index: i, count: units.length }; } }
+      return { index: 0, count: units.length };
+    }
+
+    function moveBlockTo(block, slot, label) {
+      if (placeBlock(block, slot)) {
+        var now = blockSlot(block);
+        showNotice((label || 'Block') + ' moved. It is now ' + (now.index + 1) + ' of ' + now.count + '.');
+        return true;
+      }
+      return false;
+    }
+
+    var blockMoveMenu = null;
+    var blockMenuOpenedAt = 0;
+    function closeBlockMoveMenu() {
+      if (blockMoveMenu) { blockMoveMenu.remove(); blockMoveMenu = null; }
+    }
+
+    function openBlockMoveMenu(block, handle) {
+      closeBlockMoveMenu();
+      var where = blockSlot(block);
+      var menu = document.createElement('div');
+      menu.className = 'block-move-menu';
+      menu.setAttribute('role', 'menu');
+      [['Move up', where.index - 1, where.index > 0], ['Move down', where.index + 1, where.index < where.count - 1],
+        ['Move to the top', 0, where.index > 0], ['Move to the bottom', where.count - 1, where.index < where.count - 1]].forEach(function (item) {
+        var option = document.createElement('button');
+        option.type = 'button';
+        option.setAttribute('role', 'menuitem');
+        option.textContent = item[0];
+        option.disabled = !item[2];
+        option.addEventListener('click', function () {
+          closeBlockMoveMenu();
+          // The slot counts the other places, so a place further down is one less than its position
+          moveBlockTo(block, item[1], 'Block');
+          handle.focus();
+        });
+        menu.appendChild(option);
+      });
+      document.body.appendChild(menu);
+      var box = handle.getBoundingClientRect();
+      menu.style.left = Math.max(8, Math.min(box.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+      menu.style.top = Math.min(box.bottom + 4, window.innerHeight - menu.offsetHeight - 8) + 'px';
+      blockMoveMenu = menu;
+      blockMenuOpenedAt = Date.now();
+      var first = menu.querySelector('button:not(:disabled)');
+      if (first) { first.focus(); }
+    }
+    document.addEventListener('pointerdown', function (event) {
+      if (blockMoveMenu && !blockMoveMenu.contains(event.target) && !event.target.closest('.block-handle')) { closeBlockMoveMenu(); }
+    }, true);
+    document.addEventListener('keydown', function (event) {
+      if (!blockMoveMenu) { return; }
+      var options = Array.prototype.slice.call(blockMoveMenu.querySelectorAll('button:not(:disabled)'));
+      var at = options.indexOf(document.activeElement);
+      if (event.key === 'Escape') {
+        var owner = blockMoveMenu.owner;
+        closeBlockMoveMenu();
+        if (owner) { owner.focus(); }
+      } else if (event.key === 'ArrowDown') { event.preventDefault(); options[(at + 1) % options.length].focus(); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); options[(at - 1 + options.length) % options.length].focus(); }
+    });
+    // A scroll closes the menu, except the small shift when a selected photo folds its details away as the menu takes the focus
+    window.addEventListener('scroll', function () {
+      if (Date.now() - blockMenuOpenedAt > 500) { closeBlockMoveMenu(); }
+    }, true);
+
+    // Dragging with the handle
+    var blockDrag = null;
+
+    function placeFromPointer(drag, y) {
+      // The slot is how many of the other places sit above the pointer
+      drag.slot = drag.others.filter(function (unit) {
+        var first = unit[0].getBoundingClientRect();
+        var last = unit[unit.length - 1].getBoundingClientRect();
+        return y > (first.top + last.bottom) / 2;
+      }).length;
+      var anchor = drag.slot < drag.others.length ? drag.others[drag.slot][0] : drag.others[drag.others.length - 1][drag.others[drag.others.length - 1].length - 1];
+      var box = anchor.getBoundingClientRect();
+      drag.line.style.left = box.left + 'px';
+      drag.line.style.width = box.width + 'px';
+      drag.line.style.top = (drag.slot < drag.others.length ? box.top - 3 : box.bottom + 1) + 'px';
+    }
+
+    function startBlockDrag(block, handle, event) {
+      var units = blockUnits().filter(function (unit) { return unit.indexOf(block) < 0; });
+      if (!units.length) { return false; }
+      var line = document.createElement('div');
+      line.className = 'step-drop-line';
+      document.body.appendChild(line);
+      blockDrag = { block: block, handle: handle, others: units, startY: event.clientY, slot: 0, line: line };
+      block.classList.add('is-dragging');
+      document.body.classList.add('is-reordering');
+      placeFromPointer(blockDrag, event.clientY);
+      return true;
+    }
+
+    function endBlockDrag(commit) {
+      if (!blockDrag) { return; }
+      var drag = blockDrag;
+      blockDrag = null;
+      drag.block.classList.remove('is-dragging');
+      drag.block.style.transform = '';
+      document.body.classList.remove('is-reordering');
+      drag.line.remove();
+      if (commit) { moveBlockTo(drag.block, drag.slot, 'Block'); }
+      drag.handle.focus();
+    }
+
+    function createBlockHandle(block) {
+      var handle = document.createElement('button');
+      handle.type = 'button';
+      handle.className = 'block-handle';
+      handle.setAttribute('aria-label', 'Move this block: drag it, press the up or down arrow key, or press Enter for a menu');
+      handle.setAttribute('aria-haspopup', 'menu');
+      handle.title = 'Drag to move this block, or click for a menu';
+      handle.innerHTML = MENU_ICON;
+      var pressed = null;   // set between pressing the handle and letting go
+
+      handle.addEventListener('pointerdown', function (event) {
+        if (event.pointerType === 'mouse' && event.button !== 0) { return; }
+        event.preventDefault();
+        closeBlockMoveMenu();
+        pressed = { x: event.clientX, y: event.clientY, dragging: false, id: event.pointerId };
+        handle.setPointerCapture(event.pointerId);
+      });
+      handle.addEventListener('pointermove', function (event) {
+        if (!pressed) { return; }
+        if (!pressed.dragging) {
+          // A press that barely moves is a click (it opens the menu); only a real drag moves the block
+          if (Math.abs(event.clientY - pressed.y) < 5 && Math.abs(event.clientX - pressed.x) < 5) { return; }
+          pressed.dragging = startBlockDrag(block, handle, event);
+          if (!pressed.dragging) { return; }
+        }
+        block.style.transform = 'translateY(' + (event.clientY - blockDrag.startY) + 'px)';
+        placeFromPointer(blockDrag, event.clientY);
+        if (event.clientY < 50) { window.scrollBy(0, -12); }
+        else if (event.clientY > window.innerHeight - 50) { window.scrollBy(0, 12); }
+      });
+      function release(commit) {
+        var wasPressed = pressed;
+        pressed = null;
+        if (!wasPressed) { return; }
+        if (wasPressed.dragging) { endBlockDrag(commit); }
+        else if (commit) { openBlockMoveMenu(block, handle); blockMoveMenu.owner = handle; }
+      }
+      handle.addEventListener('pointerup', function () { release(true); });
+      handle.addEventListener('pointercancel', function () { release(false); });
+      handle.addEventListener('keydown', function (event) {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          event.preventDefault();
+          var where = blockSlot(block);
+          var target = where.index + (event.key === 'ArrowUp' ? -1 : 1);
+          if (target >= 0 && target < where.count && moveBlockTo(block, target, 'Block')) { handle.focus(); }
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openBlockMoveMenu(block, handle);
+          if (blockMoveMenu) { blockMoveMenu.owner = handle; }
+        } else if (event.key === 'Escape') {
+          if (blockDrag) { endBlockDrag(false); }
+        }
+      });
+      return handle;
+    }
+
     function readSteps() {
       return stepBlocks().map(function (block) {
         return {
@@ -1395,50 +1654,61 @@
     }
 
     /* ---------- On this page (outline) ---------- */
+    // The same outline as the live page (outline.js): the headers as a tree, folded groups, Expand all, and links that
+    // scroll to the header. What was opened stays open while the page is edited (outlineMemory).
+    var outlineMemory = { open: {}, listOpen: false };
+    var outlineSignature = null;
+
     function refreshOutline() {
       var title = readText(titleEl);
-      var outlineTitle = byId('outline-title');
-      outlineTitle.textContent = title || 'Untitled page';
-      outlineTitle.classList.toggle('is-empty', !title);
-
       var steps = readSteps();
-      var list = byId('outline-list');
-      list.textContent = '';
       var allText = [title, readText(descriptionEl)];
       var warningCount = 0;
-      readBlocks().forEach(function (block) {
-        var item = document.createElement('li');
+      var items = [];
+      var elements = contentBlocks();
+      readBlocks().forEach(function (block, index) {
         if (block.type === 'step') {
-          item.textContent = block.number + '. ' + (block.title || 'Untitled step');
           allText.push(block.title, block.text);
           block.items.forEach(function (stepItem) {
             if (stepItem.type === 'warning') { warningCount += 1; }
           });
         } else if (block.type === 'header') {
-          item.textContent = block.text || 'Untitled header';
-          item.className = 'outline-header';
-          item.style.marginLeft = ((block.level || 2) - 1) * 8 + 'px';
           allText.push(block.text);
+          var target = elements[index];
+          items.push({ level: block.level || 2, text: block.text || 'Untitled header', go: function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
         } else {
           allText.push(block.text);
           if (block.type === 'warning') { warningCount += 1; }
-          return;
         }
-        list.appendChild(item);
       });
 
-      if (warningCount) {
-        var warningItem = document.createElement('li');
-        warningItem.innerHTML = WARNING_ICON;
-        warningItem.appendChild(document.createTextNode(warningCount + (warningCount === 1 ? ' warning' : ' warnings')));
-        list.appendChild(warningItem);
+      // Drawn again only when a header was added, moved, renamed or removed, so a click or a fold is never lost mid-gesture
+      var signature = items.map(function (item) { return item.level + ':' + item.text; }).join('\n');
+      if (signature !== outlineSignature || !byId('outline-box').firstChild) {
+        outlineSignature = signature;
+        var box = byId('outline-box');
+        box.textContent = '';
+        var tree = window.OnThisPage.build(items, outlineMemory);
+        if (tree) {
+          box.appendChild(tree);
+        } else {
+          var heading = document.createElement('h2');
+          heading.className = 'section-label';
+          heading.textContent = 'On this page';
+          var empty = document.createElement('p');
+          empty.className = 'outline-empty';
+          empty.textContent = 'Headers you add will be listed here.';
+          box.appendChild(heading);
+          box.appendChild(empty);
+        }
       }
+
       var wordCount = allText.join(' ').split(/\s+/).filter(Boolean).length;
       var minutes = Math.max(1, Math.round(wordCount / 200));
-
-      byId('outline-meta').textContent = steps.length
-        ? '~' + minutes + ' min read \u00b7 ' + steps.length + (steps.length === 1 ? ' step' : ' steps')
-        : 'No steps yet';
+      var facts = [];
+      if (steps.length) { facts.push('~' + minutes + ' min read'); facts.push(steps.length + (steps.length === 1 ? ' step' : ' steps')); }
+      if (warningCount) { facts.push(warningCount + (warningCount === 1 ? ' warning' : ' warnings')); }
+      byId('outline-meta').textContent = facts.length ? facts.join(' \u00b7 ') : 'No steps yet';
 
       updateSaveState();
       ensureSectionAiButtons();
