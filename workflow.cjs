@@ -235,6 +235,40 @@
     return ids;
   }
 
+  /* ---------- How fresh a page is ----------
+     "8 days ago" for the Updated column, and the review cycle: a live page is due for review 180 days after its last update, until
+     pages get a review cycle of their own. */
+  var REVIEW_DAYS = 180;
+  var DAY_MS = 24 * 60 * 60 * 1000;
+
+  function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+
+  // A time as people say it: "just now", "5 minutes ago", "3 hours ago", "8 days ago", "1 month ago", "2 years ago"
+  function relativeTime(iso, now) {
+    var then = Date.parse(iso);
+    if (isNaN(then)) { return ''; }
+    var seconds = Math.max(0, Math.floor(((now === undefined ? Date.now() : now) - then) / 1000));
+    if (seconds < 60) { return 'just now'; }
+    if (seconds < 3600) { return plural(Math.floor(seconds / 60), 'minute') + ' ago'; }
+    if (seconds < 86400) { return plural(Math.floor(seconds / 3600), 'hour') + ' ago'; }
+    var days = Math.floor(seconds / 86400);
+    if (days < 30) { return plural(days, 'day') + ' ago'; }
+    if (days < 365) { return plural(Math.floor(days / 30), 'month') + ' ago'; }
+    return plural(Math.floor(days / 365), 'year') + ' ago';
+  }
+
+  // { overdue, days, text } for a page last updated at `iso`, or null when there is no date.
+  //   "Review due in 172 days"  /  "Review due today"  /  "Needs review \u00B7 30 days overdue"
+  function reviewStatus(iso, now) {
+    var then = Date.parse(iso);
+    if (isNaN(then)) { return null; }
+    var age = Math.floor(((now === undefined ? Date.now() : now) - then) / DAY_MS);
+    var left = REVIEW_DAYS - age;
+    if (left > 0) { return { overdue: false, days: left, text: 'Review due in ' + plural(left, 'day') }; }
+    if (left === 0) { return { overdue: false, days: 0, text: 'Review due today' }; }
+    return { overdue: true, days: -left, text: 'Needs review \u00B7 ' + plural(-left, 'day') + ' overdue' };
+  }
+
   /* ---------- People ---------- */
 
   // The roles a person holds today, from the team roster
@@ -986,6 +1020,9 @@
     normalizeTableWidths: normalizeTableWidths,
     parseTableWidths: parseTableWidths,
     tableWidthsToLines: tableWidthsToLines,
+    REVIEW_DAYS: REVIEW_DAYS,
+    relativeTime: relativeTime,
+    reviewStatus: reviewStatus,
     PHOTO_SIZES: PHOTO_SIZES,
     photoFromSections: photoFromSections,
     photoToSections: photoToSections,

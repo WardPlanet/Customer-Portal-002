@@ -50,6 +50,41 @@
     return a;
   }
 
+  // A small menu that opens from a button. It is a <details> element, so it opens with Enter or Space; a click anywhere else, or
+  // Escape, closes it. items: [{ label, onClick, danger }]. note: a line of plain text at the bottom (or a function that gives it,
+  // asked each time the menu opens).
+  function menuButton(summaryLabel, summaryClass, ariaLabel, items, note) {
+    var menu = el('details', 'menu');
+    var summary = el('summary', summaryClass + ' menu-summary', summaryLabel);
+    summary.setAttribute('aria-label', ariaLabel);
+    menu.appendChild(summary);
+    var list = el('div', 'menu-list');
+    items.forEach(function (item) {
+      var option = el('button', 'menu-item' + (item.danger ? ' is-danger' : ''), item.label);
+      option.type = 'button';
+      option.addEventListener('click', function () { menu.open = false; item.onClick(); });
+      list.appendChild(option);
+    });
+    var noteLine = null;
+    if (note) { noteLine = el('p', 'menu-note', typeof note === 'function' ? note() : note); list.appendChild(noteLine); }
+    menu.appendChild(list);
+    menu.addEventListener('toggle', function () {
+      if (!menu.open) { return; }
+      if (typeof note === 'function') { noteLine.textContent = note(); }
+      // Only one menu is open at a time
+      Array.prototype.forEach.call(document.querySelectorAll('details.menu[open]'), function (other) { if (other !== menu) { other.open = false; } });
+    });
+    return menu;
+  }
+  document.addEventListener('click', function (event) {
+    Array.prototype.forEach.call(document.querySelectorAll('details.menu[open]'), function (menu) { if (!menu.contains(event.target)) { menu.open = false; } });
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') { return; }
+    var open = document.querySelector('details.menu[open]');
+    if (open) { open.open = false; open.querySelector('summary').focus(); }
+  });
+
   function formatDate(iso) {
     var date = new Date(iso);
     return isNaN(date.getTime()) ? '' : date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
@@ -165,7 +200,7 @@
 
   function visibilityPill(visibility) {
     // "Internal-Only" is shortened to "Internal" so it stays on one line in the table
-    return el('span', 'pill ' + (visibility === 'Client-Safe' ? 'pill-public' : 'pill-internal'), visibility === 'Client-Safe' ? visibility : 'Internal');
+    return el('span', 'pill pill-nowrap ' + (visibility === 'Client-Safe' ? 'pill-public' : 'pill-internal'), visibility === 'Client-Safe' ? 'Shareable with clients' : 'Internal');
   }
 
   // Runs an action and reports a problem in plain words instead of failing silently
@@ -319,10 +354,13 @@
     var headActions = el('div', 'lib-actions');
     headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
     if (actorIsLead()) { headActions.appendChild(button('Team and roles', 'secondary-link', openTeamDialog)); }
-    // Backups cover the whole team's pages, so only the team lead sees them
+    // Backups cover the whole team's pages, so only the team lead sees them. They live in a "More" menu so they do not compete with
+    // New page; the menu also says when the last backup was made.
     if (actorIsLead()) {
-      headActions.appendChild(button('Download backup', 'secondary-link', downloadBackup));
-      headActions.appendChild(button('Restore backup', 'secondary-link', function () { restoreInput.click(); }));
+      headActions.appendChild(menuButton('More \u25BE', 'secondary-link', 'More actions', [
+        { label: 'Download backup', onClick: downloadBackup },
+        { label: 'Restore backup', onClick: function () { restoreInput.click(); } }
+      ], backupStatus));
     }
     headActions.appendChild(link('New page', '#/new', 'primary-link'));
     head.appendChild(headActions);
@@ -342,7 +380,7 @@
     search.value = libraryFilters.q;
     var status = el('select', 'lib-status');
     status.setAttribute('aria-label', 'Filter by status');
-    [['', 'All statuses'], ['live', 'Live'], ['draft', 'Draft'], ['review', 'In review'], ['sent-back', 'Sent back'], ['unpublished', 'Unpublished']].forEach(function (pair) {
+    [['', 'All statuses'], ['live', 'Live'], ['needs-review', 'Needs review'], ['draft', 'Draft'], ['review', 'In review'], ['sent-back', 'Sent back'], ['unpublished', 'Unpublished']].forEach(function (pair) {
       var option = el('option', '', pair[1]);
       option.value = pair[0];
       status.appendChild(option);
@@ -381,24 +419,26 @@
   /* ---------- Backups ----------
      A backup is one file with every page and all its versions. It is the safety net while pages live only
      in this browser (or on one computer): it can be restored on any copy of the app for this team. */
+  // The pages last listed (the More menu works out its backup line from them)
+  var libraryPages = [];
+
+  // The one-line backup status inside the More menu
+  function backupStatus() {
+    var last = window.Store.getLastBackup();
+    if (!last) { return 'No backup downloaded yet.'; }
+    var newest = libraryPages.reduce(function (latest, p) { return String(p.updatedAt) > latest ? String(p.updatedAt) : latest; }, '');
+    return 'Last backup: ' + W.relativeTime(last) + '. ' + (newest > last ? 'Pages have changed since.' : 'Up to date.');
+  }
+
+  // A banner on the page only when pages are NOT being kept (browser storage unavailable): that is a real risk. Otherwise nothing.
   function renderBackupLine(line, pages) {
+    libraryPages = pages;
     line.className = 'lib-backup';
     if (backend().isMemoryOnly()) {
       line.textContent = 'This browser is not keeping pages: they will be lost when you reload or close this page. Download a backup before you do.';
       line.classList.add('lib-backup-warn');
-      return;
-    }
-    if (!pages.length) { line.textContent = ''; return; }
-    var last = window.Store.getLastBackup();
-    var newest = pages.reduce(function (latest, p) { return String(p.updatedAt) > latest ? String(p.updatedAt) : latest; }, '');
-    if (!last) {
-      line.textContent = 'No backup yet. Download one so your pages are safe if this browser is cleared.';
-      line.classList.add('lib-backup-warn');
-    } else if (newest > last) {
-      line.textContent = 'Last backup: ' + formatDate(last) + '. Pages have changed since, so download a new one.';
-      line.classList.add('lib-backup-warn');
     } else {
-      line.textContent = 'Last backup: ' + formatDate(last) + '. Up to date.';
+      line.textContent = '';
     }
   }
 
@@ -582,6 +622,10 @@
   function renderList(box, pages) {
     box.textContent = '';
     var shown = pages.filter(function (p) {
+      if (libraryFilters.status === 'needs-review') {   // live pages past their review date
+        var due = p.liveVersion ? W.reviewStatus(p.updatedAt) : null;
+        return !!(due && due.overdue);
+      }
       return !libraryFilters.status || STATE_LABELS[p.state][1] === libraryFilters.status;
     });
     if (!shown.length) {
@@ -707,25 +751,46 @@
       var pageTeam = teamFor(p.team) || team;   // Admin sees every department's pages: each page's owner is chosen from its own team
       var noOwner = W.ownerIsUnassigned(pageTeam, p.owner);
       if (actorIsLead()) {
-        // The team lead can give any page to another role right here. Linked roles stay as they are.
-        var ownerSelect = el('select', 'acting-select owner-select' + (noOwner ? ' is-unassigned' : ''));
-        ownerSelect.setAttribute('aria-label', 'Owner of ' + p.title);
-        var roleOnTeam = pageTeam.roles.some(function (role) { return role.title === p.owner; });
-        if (!p.owner) { var emptyOption = el('option', '', 'No owner'); emptyOption.value = ''; ownerSelect.appendChild(emptyOption); }
-        else if (!roleOnTeam) { var goneOption = el('option', '', 'Unassigned (' + p.owner + ' left the team)'); goneOption.value = p.owner; ownerSelect.appendChild(goneOption); }
-        pageTeam.roles.forEach(function (role) {
-          var option = el('option', '', roleOptionText(role));
-          option.value = role.title;
-          option.disabled = role.status === 'invited' && role.title !== p.owner;   // invited people cannot be given pages yet
-          ownerSelect.appendChild(option);
-        });
-        ownerSelect.value = p.owner || '';
-        ownerSelect.addEventListener('change', async function () {
-          if (!ownerSelect.value) { ownerSelect.value = p.owner || ''; return; }
-          if (await attempt(backend().setOwner(p.id, ownerSelect.value))) { notice('\u201c' + p.title + '\u201d is now owned by ' + roleLabel(ownerSelect.value, pageTeam) + '.'); route(); }
-          else { ownerSelect.value = p.owner || ''; }
-        });
-        ownerCell.appendChild(ownerSelect);
+        // The team lead can give any page to another role right here. It shows as plain text with a Change link: the dropdown only
+        // appears after Change is clicked (so nothing is changed by accident), and clicking away puts the text back.
+        // Linked roles stay as they are.
+        var ownerText = noOwner ? 'Unassigned' + (p.owner ? ' (' + p.owner + ')' : '') : roleLabel(p.owner, pageTeam);
+        var showOwner = function () {
+          ownerCell.textContent = '';
+          ownerCell.appendChild(el('div', 'owner-name' + (noOwner ? ' is-unassigned' : ''), ownerText));
+          var change = el('button', 'owner-change', 'Change');
+          change.type = 'button';
+          change.setAttribute('aria-label', 'Change the owner of ' + p.title);
+          change.addEventListener('click', editOwner);
+          ownerCell.appendChild(change);
+        };
+        var editOwner = function () {
+          ownerCell.textContent = '';
+          var ownerSelect = el('select', 'acting-select owner-select' + (noOwner ? ' is-unassigned' : ''));
+          ownerSelect.setAttribute('aria-label', 'Owner of ' + p.title);
+          var roleOnTeam = pageTeam.roles.some(function (role) { return role.title === p.owner; });
+          if (!p.owner) { var emptyOption = el('option', '', 'No owner'); emptyOption.value = ''; ownerSelect.appendChild(emptyOption); }
+          else if (!roleOnTeam) { var goneOption = el('option', '', 'Unassigned (' + p.owner + ' left the team)'); goneOption.value = p.owner; ownerSelect.appendChild(goneOption); }
+          pageTeam.roles.forEach(function (role) {
+            var option = el('option', '', roleOptionText(role));
+            option.value = role.title;
+            option.disabled = role.status === 'invited' && role.title !== p.owner;   // invited people cannot be given pages yet
+            ownerSelect.appendChild(option);
+          });
+          ownerSelect.value = p.owner || '';
+          var saving = false;
+          ownerSelect.addEventListener('change', async function () {
+            if (!ownerSelect.value || ownerSelect.value === (p.owner || '')) { showOwner(); return; }
+            saving = true;
+            if (await attempt(backend().setOwner(p.id, ownerSelect.value))) { notice('\u201c' + p.title + '\u201d is now owned by ' + roleLabel(ownerSelect.value, pageTeam) + '.'); route(); }
+            else { saving = false; showOwner(); }
+          });
+          ownerSelect.addEventListener('blur', function () { if (!saving) { showOwner(); } });
+          ownerSelect.addEventListener('keydown', function (event) { if (event.key === 'Escape') { event.stopPropagation(); showOwner(); } });
+          ownerCell.appendChild(ownerSelect);
+          ownerSelect.focus();
+        };
+        showOwner();
       } else if (noOwner) {
         ownerCell.appendChild(el('span', 'owner-unassigned', 'Unassigned'));
       } else {
@@ -735,7 +800,13 @@
       var visCell = el('td');
       visCell.appendChild(visibilityPill(p.visibility));
       row.appendChild(visCell);
-      row.appendChild(el('td', 'lib-date', formatDate(p.updatedAt)));
+      var updatedCell = el('td', 'lib-date');
+      var when = el('div', '', W.relativeTime(p.updatedAt));
+      when.title = formatDate(p.updatedAt);   // the full date, on hover
+      updatedCell.appendChild(when);
+      var review = p.liveVersion ? W.reviewStatus(p.updatedAt) : null;
+      if (review) { updatedCell.appendChild(el('div', 'lib-row-sub review-line' + (review.overdue ? ' is-overdue' : ''), review.text)); }
+      row.appendChild(updatedCell);
       if (canDelete) {
         var deleteCell = el('td', 'lib-row-actions');
         var lead = actorIsLead();
@@ -766,26 +837,22 @@
           publishButton.setAttribute('aria-label', 'Publish ' + p.title);
           deleteCell.appendChild(publishButton);
         }
+        // Unpublish and the delete actions sit one step away, in the "..." menu. Each still asks before it does anything.
+        var moreItems = [];
         if (lead && p.liveVersion) {
-          var unpublishButton = button('Unpublish', 'row-btn', async function () {
+          moreItems.push({ label: 'Unpublish', onClick: async function () {
             if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }
             if (await attempt(backend().unpublish(p.id))) { notice('Unpublished \u201c' + p.title + '\u201d.'); route(); }
-          });
-          unpublishButton.setAttribute('aria-label', 'Unpublish ' + p.title);
-          deleteCell.appendChild(unpublishButton);
+          } });
         }
-        var rowButton;
         if (lead || !p.liveVersion) {
-          rowButton = button('Delete', 'row-btn row-btn-danger', async function () { if (await confirmAndDelete(p)) { route(); } });
-          rowButton.setAttribute('aria-label', 'Delete ' + p.title);
+          moreItems.push({ label: 'Delete', danger: true, onClick: async function () { if (await confirmAndDelete(p)) { route(); } } });
         } else if (p.deleteRequest) {
-          rowButton = button('Cancel request', 'row-btn', async function () { if (await cancelDeletionRequest(p)) { route(); } });
-          rowButton.setAttribute('aria-label', 'Cancel the request to delete ' + p.title);
+          moreItems.push({ label: 'Cancel deletion request', onClick: async function () { if (await cancelDeletionRequest(p)) { route(); } } });
         } else {
-          rowButton = button('Request deletion', 'row-btn row-btn-danger', async function () { if (await confirmAndRequestDelete(p)) { route(); } });
-          rowButton.setAttribute('aria-label', 'Ask to delete ' + p.title);
+          moreItems.push({ label: 'Request deletion', danger: true, onClick: async function () { if (await confirmAndRequestDelete(p)) { route(); } } });
         }
-        deleteCell.appendChild(rowButton);
+        deleteCell.appendChild(menuButton('\u22EF', 'row-btn', 'More actions for ' + p.title, moreItems));
         row.appendChild(deleteCell);
       }
       body.appendChild(row);

@@ -1059,3 +1059,22 @@ links that scroll to the header. It is fixed beside the page (sticky, scrolls in
 `overflow: clip`, not `hidden`, which would stop it sticking. It is drawn again only when a header is added, moved, renamed or
 removed, and what was opened is kept (`outlineMemory`; a renamed header counts as a new one and starts folded). Steps are not listed
 (the live page does not list them either); the read time and the counts of steps and warnings sit underneath.
+
+## UX review changes (in progress, one section at a time)
+
+The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, each with a numbered note). Done so far:
+
+**Section 1: Library (frames 1 and 2).**
+- **More menu** (team lead): Download backup, Restore backup and a one-line backup status ("No backup downloaded yet." / "Last backup: 3 days ago.
+  Up to date." / "... Pages have changed since."). The backup banner is gone from the page except when the browser is not keeping pages.
+  Menus are `<details>` elements (`menuButton` in `library-ui.js`): Enter or Space opens, a click elsewhere or Escape closes.
+- **Needs review** is a new status filter (live pages past their review date).
+- **Freshness.** The Updated column reads "8 days ago" (full date on hover) with a second line on live pages: "Review due in N days", or red
+  "Needs review · N days overdue". The cycle is **180 days after the last update** (`REVIEW_DAYS` in `workflow.cjs`, with `relativeTime`
+  and `reviewStatus`; tests in `tests/freshness.test.cjs`) until pages get their own review cycle. Changing a page's owner counts as an update,
+  so it also restarts the clock.
+- **Owner** is plain text with a **Change** link; the dropdown appears only after Change, saves when a role is chosen, and clicking away
+  puts the text back.
+- **Row actions:** Edit (and the lead's Publish shortcut on drafts) stay visible; Unpublish, Delete, Request deletion and Cancel deletion
+  request are in the "..." menu, and each still asks first.
+- "Client-Safe" reads **Shareable with clients** in the table (one line, never wraps).
