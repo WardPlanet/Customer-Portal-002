@@ -1201,7 +1201,7 @@
   async function showTeam(box, dialog) {
     box.textContent = '';
     box.appendChild(el('h2', 'dialog-title', 'Team and roles'));
-    box.appendChild(el('p', 'dialog-hint', 'Pages belong to a role, not a person. To replace someone, choose Replace person on their row: the new person takes over the role and all its pages. Use Transfer pages to move pages to a different role.'));
+    box.appendChild(el('p', 'dialog-hint', 'Pages belong to a role, not a person. To replace someone, add the new person and role, transfer the old role’s pages, then remove the old role.'));
 
     if (!actorIsLead()) {
       box.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
@@ -1495,7 +1495,7 @@
     emailInput.maxLength = 120;
     var fromDirectory = el('p', 'dir-note');
     fromDirectory.hidden = true;
-    var personPicker = directoryPicker('Search the company directory', 'New person', function (state) {
+    var personPicker = directoryPicker('Name', 'New person (search the company directory)', function (state) {
       if (state.chosen) {
         emailInput.value = state.chosen.email;
         emailInput.readOnly = true;

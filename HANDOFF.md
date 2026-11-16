@@ -1062,6 +1062,9 @@ removed, and what was opened is kept (`outlineMemory`; a renamed header counts a
 
 ## UX review changes (in progress, one section at a time)
 
+**Copy rule:** where the wording in the review canvas and the "In-App Text Revisions" list differ, the text-revision list wins. The canvas only
+supplies copy for things the list does not cover.
+
 The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, each with a numbered note). Done so far:
 
 **Section 1: Library (frames 1 and 2).**
@@ -1082,8 +1085,8 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
 - "Client-Safe" reads **Shareable with clients** in the table (one line, never wraps).
 
 **Section 2: Team and roles and Replace person (frames 3 and 4).**
-- **Team and roles** is wider (980 px) so emails stay on one line. The hint says to use **Replace person** on a row, and **Transfer pages** to move pages
-  to another role. A row's **Remove** stays off while its role owns pages, with the reason in plain text under the buttons ("Can be removed
+- **Team and roles** is wider (980 px) so emails stay on one line. The hint is the text-revision list's wording ("To replace someone, add the new person
+  and role, transfer the old role’s pages, then remove the old role."), even though a row's **Replace person** now does that in one step. A row's **Remove** stays off while its role owns pages, with the reason in plain text under the buttons ("Can be removed
   once its pages are transferred."); the team lead's stays off with a tooltip. The "Pages without an owner" block is calm (a neutral box,
   "✓ Every page has an owner") when there is nothing to do, and keeps the red alert look only when pages really have no owner.
 - **Replace person** is one dialog instead of add, transfer and remove: "Replace Chris Ortega as Tier 1 Agent". The new person is picked from the
