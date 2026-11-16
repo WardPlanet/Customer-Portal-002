@@ -308,6 +308,8 @@
       var left = el('div');
       left.appendChild(ui.link('← Back to library', '#/', 'back-link'));
       left.appendChild(el('h1', 'lib-title', title));
+      // Where the drafts will land, on every import screen
+      if (ui.destination) { left.appendChild(el('p', 'batch-destination', 'Importing into: ' + ui.destination())); }
       if (sub) { left.appendChild(el('p', 'lib-sub', sub)); }
       box.appendChild(left);
       root.appendChild(box);
@@ -362,31 +364,55 @@
       clear();
       head('Batch import', 'Add several pages at once. Upload one file that contains multiple pages, or upload a separate file for each page. Imported pages are saved as drafts.');
       if (message) { root.appendChild(el('p', 'batch-problem', message)); }
+      // The limitation is a visible warning above the form, not small grey text inside it
+      var warning = el('p', 'batch-warning', 'Images and pictures are not imported. Add them back by hand after the page is created.');
+      warning.setAttribute('role', 'note');
+      root.appendChild(warning);
 
       var card = el('section', 'batch-card');
       card.appendChild(el('h2', 'lib-h2', '1. Upload files'));
-      card.appendChild(el('p', 'lib-hint', 'Supported formats: Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text, and Markdown. You’ll review everything before any pages are created. Images aren’t imported.'));
+      card.appendChild(el('p', 'lib-hint', 'Supported formats: Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text, and Markdown. You’ll review everything before any pages are created.'));
 
-      var input = el('input');
+      function chooseFiles(files) {
+        if (files.length > 1) { loadSeveral(files); }   // several files: each is its own document, so straight to the review
+        else if (files[0]) { load(files[0]); }
+      }
+
+      // A real drop zone. The file input inside it is hidden from the eye but still takes the keyboard focus (the zone shows the focus ring).
+      var zone = el('label', 'batch-drop');
+      var input = el('input', 'batch-file-input');
       input.type = 'file';
       input.accept = '.docx,.pdf,.odt,.rtf,.html,.htm,.txt,.md';
       input.multiple = true;
-      input.setAttribute('aria-label', 'Files to import');
-      input.addEventListener('change', function () {
-        if (input.files.length > 1) { loadSeveral(Array.prototype.slice.call(input.files)); }
-        else if (input.files[0]) { load(input.files[0]); }
+      input.setAttribute('aria-label', 'Choose files to import');
+      input.addEventListener('change', function () { chooseFiles(Array.prototype.slice.call(input.files)); });
+      zone.appendChild(input);
+      zone.appendChild(el('span', 'batch-drop-title', 'Drop files here, or click to choose'));
+      zone.appendChild(el('span', 'batch-drop-sub', 'Up to 25 MB each'));
+      ['dragenter', 'dragover'].forEach(function (name) {
+        zone.addEventListener(name, function (event) { event.preventDefault(); zone.classList.add('is-over'); });
       });
-      card.appendChild(input);
+      zone.addEventListener('dragleave', function () { zone.classList.remove('is-over'); });
+      zone.addEventListener('drop', function (event) {
+        event.preventDefault();
+        zone.classList.remove('is-over');
+        chooseFiles(Array.prototype.slice.call(event.dataTransfer.files || []));
+      });
+      card.appendChild(zone);
 
-      card.appendChild(el('p', 'lib-hint', 'Or paste text below:'));
+      // Either / or is explicit: "or", then pasting is tucked into a section that opens
+      card.appendChild(el('p', 'batch-or', 'or'));
+      var pasteBox = el('details', 'batch-paste-box');
+      pasteBox.appendChild(el('summary', 'batch-paste-summary', 'Paste text below'));
       var paste = el('textarea', 'dialog-text batch-paste');
       paste.placeholder = 'Paste text for several pages, one after another. Lines that start with # become headings.';
       paste.setAttribute('aria-label', 'Text to split into documents');
-      card.appendChild(paste);
-      card.appendChild(ui.button('Preview', 'secondary-link', function () {
+      pasteBox.appendChild(paste);
+      pasteBox.appendChild(ui.button('Preview', 'secondary-link', function () {
         if (!paste.value.trim()) { paste.focus(); return; }
         loadSegments('pasted-text', textToSegments(paste.value), 0);
       }));
+      card.appendChild(pasteBox);
       root.appendChild(card);
     }
 
@@ -396,7 +422,7 @@
       return error;
     }
 
-    // Reads one file into pieces. Throws an error with a plain-words message when it cannot.
+    // Reads one file into sections. Throws an error with a plain-words message when it cannot.
     async function readFile(file) {
       if (file.size > MAX_FILE_BYTES) { throw plainError(file.name + ' is over 25 MB. Split it into smaller files first.'); }
       var segments;
@@ -492,7 +518,7 @@
 
     async function loadSegments(fileName, segments, images) {
       if (!segments.length) { stepChoose('There is no text in that file.'); return; }
-      if (segments.length > Core.MAX_SEGMENTS) { stepChoose('That file has ' + segments.length + ' pieces, which is too many to scan at once. Split it into smaller files first.'); return; }
+      if (segments.length > Core.MAX_SEGMENTS) { stepChoose('That file has ' + segments.length + ' sections, which is too many to scan at once. Split it into smaller files first.'); return; }
       session = { fileName: fileName, segments: segments, imageCount: images, plan: null, notes: [] };
       var pages = await ui.backend().list('').catch(function () { return { pages: [] }; });
       existingTitles = {};
@@ -503,7 +529,7 @@
     /* ----- 2. Scan ----- */
     async function scan() {
       clear();
-      head('Batch import', session.fileName + ' · ' + session.segments.length + ' pieces');
+      head('Batch import', session.fileName + ' · ' + session.segments.length + ' sections');
       var scanBar = progressBar('Looking for separate documents…');
       scanBar.set(null);
       root.appendChild(scanBar.node);
@@ -539,7 +565,7 @@
       self.stage = 'review';
       clear();
       var plan = session.plan;
-      head('Batch import', session.fileName + ' · ' + session.segments.length + ' pieces · ' + plan.documents.length + (plan.documents.length === 1 ? ' document found' : ' documents found'));
+      head('Batch import', session.fileName + ' · ' + session.segments.length + ' sections · ' + plan.documents.length + (plan.documents.length === 1 ? ' document found' : ' documents found'));
 
       session.notes.forEach(function (n) { root.appendChild(el('p', 'batch-note', n)); });
       if (session.imageCount) { root.appendChild(el('p', 'batch-note', session.imageCount + ' image(s) in the file are not imported. Add them back by hand where needed.')); }
@@ -572,7 +598,7 @@
 
       var list = el('div', 'batch-list');
       plan.documents.forEach(function (doc, index) { list.appendChild(documentRow(doc, index)); });
-      if (!plan.documents.length) { list.appendChild(el('p', 'lib-empty', 'No documents found. Try Scan again, or choose another file.')); }
+      if (!plan.documents.length) { list.appendChild(el('p', 'lib-empty', 'No documents found. Try Check for documents again, or start over with another file.')); }
       root.appendChild(list);
 
       if (plan.skipped.length) {
@@ -582,16 +608,29 @@
 
       var bar = el('div', 'batch-bar');
       var count = plan.documents.filter(function (d) { return d.include !== false; }).length;
-      var create = ui.button('Create ' + count + (count === 1 ? ' draft' : ' drafts'), 'primary-btn', function () { create_(); });
       var missingOwner = needsOwner() ? plan.documents.filter(function (d) { return d.include !== false && !d.owner; }).length : 0;
-      if (!count || !session.aiOk || missingOwner) { create.disabled = true; }
-      if (missingOwner) { create.title = 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + ' first'; }
+      var missingText = 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + '.';
+      // Create stays on, so a person can try it and be told why not. It is off only when nothing is chosen or the AI is not available.
+      var create = ui.button('Create ' + count + (count === 1 ? ' draft' : ' drafts'), 'primary-btn', function () {
+        if (missingOwner) {
+          session.triedCreate = true;
+          review();
+          var first = root.querySelector('.batch-doc .has-error');
+          if (first) { first.scrollIntoView({ block: 'center' }); first.focus(); }
+          return;
+        }
+        create_();
+      });
+      if (!count || !session.aiOk) { create.disabled = true; }
       if (!session.aiOk) { create.title = 'Creating pages needs the AI, which is not available here'; }
       bar.appendChild(create);
-      if (!session.multiFile) { bar.appendChild(ui.button('Scan again', 'secondary-link', scan)); }
-      bar.appendChild(ui.button('Choose another file', 'secondary-link', function () { session = null; stepChoose(); }));
-      if (missingOwner) { bar.appendChild(el('span', 'batch-problem', 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + '.')); }
-      else if (count) { bar.appendChild(el('span', 'lib-hint', 'Uses about ' + count + ' AI request' + (count === 1 ? '' : 's') + ' and takes a minute or so each.')); }
+      if (!session.multiFile) { bar.appendChild(ui.button('Check for documents again', 'secondary-link', scan)); }
+      bar.appendChild(ui.button('Start over with another file', 'quiet-link', function () { session = null; stepChoose(); }));
+      if (missingOwner && session.triedCreate) {
+        var problem = el('span', 'batch-problem', missingText);
+        problem.setAttribute('role', 'alert');
+        bar.appendChild(problem);
+      } else if (count) { bar.appendChild(el('span', 'lib-hint', 'Uses about ' + count + ' AI request' + (count === 1 ? '' : 's') + ' and takes a minute or so each.')); }
       root.appendChild(bar);
     }
 
@@ -622,12 +661,13 @@
       window.PageEditor.roles().forEach(function (roleTitle) { var o = el('option', '', roleTitle); o.value = roleTitle; docOwner.appendChild(o); });
       docOwner.value = doc.owner || '';
       docOwner.addEventListener('change', function () { doc.owner = docOwner.value; review(); });
-      if (needsOwner() && doc.include !== false && !doc.owner) { docOwner.classList.add('has-error'); }
+      // Red only after the person has tried to create (validation on submit, not on load)
+      if (needsOwner() && session.triedCreate && doc.include !== false && !doc.owner) { docOwner.classList.add('has-error'); }
       ownerRow.appendChild(docOwner);
       body.appendChild(ownerRow);
 
       var words = Core.wordCount(session.segments, doc.first, doc.last);
-      var meta = el('p', 'lib-row-sub', 'Pieces ' + doc.first + '–' + doc.last + ' · about ' + words.toLocaleString() + ' words');
+      var meta = el('p', 'lib-row-sub', 'Sections ' + doc.first + '–' + doc.last + ' · about ' + words.toLocaleString() + ' words');
       body.appendChild(meta);
       if (existingTitles[String(doc.title).toLowerCase()]) {
         body.appendChild(el('p', 'batch-dupe', 'A page with this title is already in the library. A new draft will be added, not replaced.'));
@@ -648,7 +688,7 @@
     function skippedRow(gap) {
       var row = el('div', 'batch-skipped');
       var text = session.segments.slice(gap.first - 1, Math.min(gap.last, gap.first + 1)).map(function (s) { return s.text; }).join(' — ');
-      row.appendChild(el('span', 'batch-skipped-text', 'Pieces ' + gap.first + '–' + gap.last + ' · ' + gap.reason + ': ' + (text.length > 120 ? text.slice(0, 119) + '…' : text)));
+      row.appendChild(el('span', 'batch-skipped-text', 'Sections ' + gap.first + '–' + gap.last + ' · ' + gap.reason + ': ' + (text.length > 120 ? text.slice(0, 119) + '…' : text)));
       row.appendChild(ui.button('Make this a document', 'row-btn', function () {
         var firstHeading = session.segments.slice(gap.first - 1, gap.last).filter(function (s) { return /^H[1-6]$/.test(s.tag); })[0];
         var owners = {};   // the plan is rebuilt below, so keep the owners already chosen
@@ -744,9 +784,15 @@
       }
       var source = doc.fileName ? doc.fileName : session.fileName + ' (document ' + job.number + ' of ' + job.of + ')';
       result.source = source;
+      var aiTitle = String(result.title || '').trim();
       if (doc.edited && String(doc.title).trim()) { result.title = String(doc.title).trim(); }   // a title you typed wins
       var text = window.PageEditor.draftTextFromResult(result, { owner: ownerFor(doc), visibility: session.visibility, source: source });
-      var notes = result.review_notes.slice();
+      var notes = [];
+      // The AI's own edits are disclosed: if its title differs from the one shown in the review step, say so and show both
+      if (!doc.edited && aiTitle && aiTitle.toLowerCase() !== String(doc.title).trim().toLowerCase()) {
+        notes.push('The AI changed the title from \u201C' + String(doc.title).trim() + '\u201D to \u201C' + aiTitle + '\u201D.');
+      }
+      notes = notes.concat(result.review_notes);
       if (session.imageCount) { notes.push('Images in the original file were not imported.'); }
       var note = ('Imported from ' + source + '.' + (notes.length ? ' Check: ' + notes.join(' • ') : '')).slice(0, 2000);
       var created = await ui.backend().create(text, note);
@@ -762,16 +808,27 @@
       var failed = chosen.filter(function (d) { var r = session.results[d.first + '-' + d.last]; return !r || r.error; });
       head(made.length + (made.length === 1 ? ' draft created' : ' drafts created'), session.fileName);
       if (session.cancelled) { root.appendChild(el('p', 'batch-note', 'You stopped it, so some documents were not converted. They are listed below.')); }
-      root.appendChild(el('p', 'lib-hint', 'They are drafts in the library. Open each one to check it, and publish or submit it. The points the AI flagged are shown when you open a draft.'));
+      root.appendChild(el('p', 'lib-hint', 'They are drafts in the library. Open each one to check it, and publish or submit it. The points the AI flagged are listed here and on the draft itself.'));
 
       var list = el('div', 'batch-list');
       made.forEach(function (doc) {
         var r = session.results[doc.first + '-' + doc.last];
+        var card = el('div', 'batch-result');
         var row = el('div', 'batch-progress');
         row.appendChild(stateMark('done'));
         row.appendChild(ui.link(r.title, '#/preview/' + r.id, 'lib-page-link'));
-        row.appendChild(el('span', 'lib-row-sub', r.notes.length ? r.notes.length + ' point' + (r.notes.length === 1 ? '' : 's') + ' to check' : 'nothing flagged'));
-        list.appendChild(row);
+        row.appendChild(el('span', 'lib-row-sub', r.notes.length ? r.notes.length + ' point' + (r.notes.length === 1 ? '' : 's') + ' to check' : 'nothing flagged by the AI'));
+        var open = ui.link('Review draft', '#/preview/' + r.id, 'row-btn');
+        open.setAttribute('aria-label', 'Review the draft “' + r.title + '”');
+        row.appendChild(open);
+        card.appendChild(row);
+        // Each flagged point is listed under its draft, so the summary is not a dead end
+        if (r.notes.length) {
+          var points = el('ul', 'batch-points');
+          r.notes.forEach(function (note) { points.appendChild(el('li', '', note)); });
+          card.appendChild(points);
+        }
+        list.appendChild(card);
       });
       failed.forEach(function (doc) {
         var r = session.results[doc.first + '-' + doc.last];

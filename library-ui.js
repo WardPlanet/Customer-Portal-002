@@ -340,6 +340,14 @@
     if (node) { banner.appendChild(node); }
   }
 
+  // Where imported drafts will land: this department's places, then its name ("Support Center · Support"). Admin has no single
+  // destination yet (there is no picker), so it gets a general line.
+  function batchDestination() {
+    if (actingAsAdmin()) { return 'the department each draft is assigned to'; }
+    var places = (team.locations || []).join(', ');
+    return places ? places + ' \u00B7 ' + team.name : team.name;
+  }
+
   /* ---------- The library ---------- */
   async function showLibrary() {
     var mine = routing;
@@ -2659,7 +2667,7 @@
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
     else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true, parts[2]); }
-    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; } }); }
+    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; }, destination: batchDestination }); }
     else if (screen === 'admin' && window.Store.isAdminMode && window.Store.isAdminMode()) {
       showScreen('library', false);
       document.getElementById('nav-library').classList.remove('is-current');

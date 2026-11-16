@@ -1095,3 +1095,20 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
   email is typed by hand. The role box suggests the role titles used in other departments. In the artifact the directory is the made-up company
   list plus everyone who holds a role in any department (the same one the Admin tools use); on the server it is only the people on this team.
   The real directory (Entra ID) replaces both.
+
+**Section 3: Batch import (frames 5 to 7).**
+- **Every import screen** shows where the drafts will land ("Importing into: Support Center · Support": the department's places, then its name;
+  Admin gets a general line until there is a destination picker).
+- **Choose:** the limitation is a visible warning above the form ("Images and pictures are not imported. Add them back by hand after the page is
+  created."). There is a real drop zone (drag and drop, or click; the file input inside it is hidden from sight but takes the keyboard
+  focus, and the zone shows the focus ring). Several files go straight to the review. "or", then pasting is in a section that opens
+  ("Paste text below", with the **Preview** button).
+- **Review:** "pieces" are "sections" everywhere a person reads it. The owner field is not red until the person tries **Create draft**; then it turns red
+  and the message appears. Create stays on (off only when nothing is chosen or the AI is unavailable). **Check for documents again** is the
+  secondary button, **Start over with another file** a quiet link.
+- **Done:** every flagged point is listed under its draft with a **Review draft** button ("N points to check", or "nothing flagged by the AI").
+  If the AI's title differs from the title shown in the review step, a point says so and shows both titles. The same points are stored in the
+  draft's version note (after "Check:"), for the page view to show.
+- Where the review notes and the earlier text-revision list disagree, the text-revision list wins: the button stays **Preview** (not "Find documents
+  in this text"), and the step heading and description use its wording. The "Images aren't imported" sentence moved out of the description into
+  the warning, so it is not said twice.
