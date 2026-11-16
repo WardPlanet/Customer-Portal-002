@@ -325,7 +325,7 @@ a sandboxed frame, so the browser ignores them and answers "no"), which made but
 nothing. Every "are you sure?" now goes through `window.askConfirm(message, { title, ok })` in `app.js`, which
 draws a normal dialog in the page. Use that for any new confirmation, never `confirm()`.
 
-**Team & roles (team lead only).** The library's **Team & roles** button opens a pop-up on the library page that:
+**Team and roles (team lead only).** The library's **Team and roles** button opens a pop-up on the library page that:
 - lists each person, their role, contact email and how many pages the role has (every role needs an email);
 - **adds a person and role** (a new hire);
 - **transfers a role's pages** to another person/role, chosen from a drop-down on the row (all of them: owner and linked role, on the live and in-progress
@@ -364,7 +364,7 @@ when it is done. If the person importing is not the team lead, every draft is ow
 menus are not shown.
 
 **Changing one page's owner.** In the library the team lead's Owner column is a drop-down on every row: picking another role
-moves that one page (its live and in-progress versions) to it at once; linked roles stay. In Team & roles, each row's
+moves that one page (its live and in-progress versions) to it at once; linked roles stay. In Team and roles, each row's
 **Transfer pages to…** drop-down lists the other team members; choosing one (after a confirmation) moves all of that role's
 pages to them.
 
@@ -374,7 +374,7 @@ page screen with the version table is gone (`#/page/<id>` now shows the library)
 button in the editor's banner: it opens a pop-up listing every version (who, when, status), with a **Notes** link
 where a version has notes (how it was made, the reviewer's comment) and the actions each person may use (View, Restore,
 and the review steps). The lead's **Unpublish** button moved to the library rows. "Internal-Only" is shown as "Internal"
-in pills so it does not wrap. In Team & roles, **Transfer pages** opens a small window to pick the receiving person.
+in pills so it does not wrap. In Team and roles, **Transfer pages** opens a small window to pick the receiving person.
 
 **Status, autosave and what "version" means.** A page has one status in the library: Live, Draft, In review, Sent back
 or Unpublished. A live page that is being edited is still just Live (the edit is its own draft; the lead sees pages
@@ -499,7 +499,7 @@ page from any screen.
 
 **Only the team lead chooses the owner.** In Page Setup the Owner field is filled in with the signed-in person's own role and
 greyed out ("Only the team lead can change the owner."); a page that already has an owner keeps it. The team lead's Owner field is
-the normal drop-down. The library's per-page Owner drop-down, Change owner and Team & roles are lead-only as before. The server
+the normal drop-down. The library's per-page Owner drop-down, Change owner and Team and roles are lead-only as before. The server
 enforces it: `createPage` refuses an owner role the person does not hold, and `saveDraft` refuses a change of owner, unless the
 person is the team lead. Restoring an older version into the editor keeps the page's current owner for anyone but the lead.
 
@@ -565,7 +565,7 @@ signed-in person to the roles they hold. Everything that checks "who" already go
 
 **Planned requirement: sign-in and who can be on a team.** The editor will be operated through Planet DDS Azure
 (Microsoft Entra ID) sign-in. Only people who already have a Planet DDS Azure account may be added to a team as a
-role holder. Not built yet; today the Team & roles pop-up accepts any typed name and email. When sign-in is added:
+role holder. Not built yet; today the Team and roles pop-up accepts any typed name and email. When sign-in is added:
 - the person and email on a role should come from the directory (pick an existing account, never free text), and a
   role's email should be that account's sign-in address;
 - the signed-in account decides who is acting, replacing "Acting as" (map the account to the role it holds; an
@@ -574,7 +574,7 @@ role holder. Not built yet; today the Team & roles pop-up accepts any typed name
 - keep the existing rules: each role holds one person, and a role with pages cannot be removed;
 - **invitations:** adding an Azure account to a team sends it an invitation. Until that account accepts, it cannot receive
   transferred documents (Transfer pages, and changing a page's owner, must refuse a role whose person has not accepted).
-  Show such people as "invited" in the Team & roles list.
+  Show such people as "invited" in the Team and roles list.
 
 **Planned requirement: company-wide library.** When more teams exist, a person choosing related pages (and, later, search) should draw
 from the whole company's live pages, not only their own or their team's. Today there is one team, so the related-pages
@@ -812,7 +812,7 @@ final version; remove `.demo-bar` and `mountActing` when Azure sign-in is added.
 
 A page has no owner to contact when its OWNER ROLE is empty, names a role that has left the team, or names a role nobody holds
 (`Workflow.ownerIsUnassigned`). Then: the owner selector is red (library row for the lead, Page Setup in the editor, "Unassigned"
-text for others); the live page lists the **team lead** as "Contact (team lead)"; and **Team & roles** has a red "Pages without an
+text for others); the live page lists the **team lead** as "Contact (team lead)"; and **Team and roles** has a red "Pages without an
 owner" list where the lead ticks pages and assigns them to a role that has a person in one step. The Testing bar (Acting as) is
 always shown, including in the public preview.
 
@@ -907,10 +907,10 @@ The search log records what the words found, before any filter is applied. Team 
 ## Departments (Claude artifact)
 
 The Testing bar has a **Department** dropdown next to **Acting as**. The artifact carries every team file in `teams/` (`window.TEAMS`);
-switching reloads the page as that department and makes its lead the person acting. A department's library, Team & roles and
+switching reloads the page as that department and makes its lead the person acting. A department's library, Team and roles and
 backups are its own; **live pages of every department are searched together** (landing page, suggestions, filters: the Team
 filter lists them) and can be read from any department, with the contacts of the page's own team and no Edit button unless you are
-in that department. Rosters edited in Team & roles are kept per department in browser storage. Editing a page of another department
+in that department. Rosters edited in Team and roles are kept per department in browser storage. Editing a page of another department
 is refused (acting as a Web Team person, the Support lead is nobody).
 
 **Support** (`teams/support.json`): lead Support Manager, directPublish "lead" (the lead has exactly the Web Team lead's powers),
@@ -934,7 +934,7 @@ confirmations; the linked-role chips show the name above the role). An unfilled 
 `Store.isAdminMode`): the only person to act as is **Admin (test)**, which is on no roster; `Workflow.actorFor('Admin', team)` gives it the
 lead role of whichever team a page belongs to, so it can do everything a team lead can in every department. The artifact still starts
 as **Micah** in the Web department (saved-choice key `pageEditor.actingAs.v4`). In Admin mode the library lists **every department's
-pages and drafts**, with a **Department** column that can be sorted (the owner list on each row is that page's own team's roles); Team & roles,
+pages and drafts**, with a **Department** column that can be sorted (the owner list on each row is that page's own team's roles); Team and roles,
 Search review and the bell work for the department the page is working as (the Web Team unless a page of another department was opened).
 Opening another department's page in the editor reloads the page as that department first (`inPageDepartment`, Admin mode kept) so
 Page Setup shows the right roles. Choosing a department leaves Admin mode and acts as that department's lead. Because Admin can do

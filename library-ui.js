@@ -1,7 +1,7 @@
 // The library screens and the router that moves between them and the editor.
 //
 //   #/                    the library: every page in the team, filters, search, the review queue
-//   (pop-up)              Team & roles, on the library page: who holds each role, add roles, move pages between roles
+//   (pop-up)              Team and roles, on the library page: who holds each role, add roles, move pages between roles
 //   #/batch               batch import: one file with several documents becomes several draft pages
 //   #/new                 the editor, on a blank page
 //   #/edit/<id>/<n>       the editor, on a version that can still be changed
@@ -318,11 +318,11 @@
     head.appendChild(titles);
     var headActions = el('div', 'lib-actions');
     headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
-    if (actorIsLead()) { headActions.appendChild(button('Team & roles', 'secondary-link', openTeamDialog)); }
+    if (actorIsLead()) { headActions.appendChild(button('Team and roles', 'secondary-link', openTeamDialog)); }
     // Backups cover the whole team's pages, so only the team lead sees them
     if (actorIsLead()) {
       headActions.appendChild(button('Download backup', 'secondary-link', downloadBackup));
-      headActions.appendChild(button('Restore from backup', 'secondary-link', function () { restoreInput.click(); }));
+      headActions.appendChild(button('Restore backup', 'secondary-link', function () { restoreInput.click(); }));
     }
     headActions.appendChild(link('New page', '#/new', 'primary-link'));
     head.appendChild(headActions);
@@ -337,8 +337,8 @@
     var filters = el('div', 'lib-filters');
     var search = el('input', 'lib-search');
     search.type = 'search';
-    search.placeholder = 'Search live pages (try "exact phrase", -leave out, title:word)';
-    search.setAttribute('aria-label', 'Search live pages');
+    search.placeholder = 'Search published pages';
+    search.setAttribute('aria-label', 'Search published pages');
     search.value = libraryFilters.q;
     var status = el('select', 'lib-status');
     status.setAttribute('aria-label', 'Filter by status');
@@ -351,6 +351,8 @@
     filters.appendChild(search);
     filters.appendChild(status);
     main.appendChild(filters);
+    // The search tips used to sit inside the box as its placeholder; they now have their own line underneath
+    main.appendChild(el('p', 'lib-hint search-tip', 'Use quotes for an exact phrase (\u201Cpassword reset\u201D), a minus sign to exclude a word (-billing), or title: to search titles only (title: escalation).'));
 
     var listBox = el('div', 'lib-list');
     main.appendChild(listBox);
@@ -1049,7 +1051,7 @@
     picker.textContent = '';
     picker.hidden = !show;
     fixed.hidden = !!show;
-    document.getElementById('team-hint').textContent = show ? 'Admin: choose the team this page belongs to.' : 'Everything saved belongs to this team.';
+    document.getElementById('team-hint').textContent = show ? 'Admin: choose the team this page belongs to.' : 'Pages you save belong to this team.';
     if (!show) { return; }
     var select = el('select', 'acting-select team-select');
     select.setAttribute('aria-label', 'Team for this page');
@@ -1109,12 +1111,22 @@
 
   function describe(status) { return W.describeStatus(status); }
 
+  // A disabled button gets no mouse events in some browsers, so its tooltip may never show. Wrapping it in a span that carries the same
+  // tooltip makes the reason visible on hover.
+  function withTip(buttonEl) {
+    if (!buttonEl.disabled || !buttonEl.title) { return buttonEl; }
+    var wrap = el('span', 'tip-wrap');
+    wrap.title = buttonEl.title;
+    wrap.appendChild(buttonEl);
+    return wrap;
+  }
+
   /* ---------- The team lead's screen: people, roles and moving pages between roles ---------- */
   // Draws the team screen into the pop-up's body. Called again after each change.
   async function showTeam(box, dialog) {
     box.textContent = '';
-    box.appendChild(el('h2', 'dialog-title', 'Team & roles'));
-    box.appendChild(el('p', 'dialog-hint', 'Pages belong to a role, not a person. To replace someone: add the new person and role, transfer the old role’s pages to it, then remove the old role.'));
+    box.appendChild(el('h2', 'dialog-title', 'Team and roles'));
+    box.appendChild(el('p', 'dialog-hint', 'Pages belong to a role, not a person. To replace someone, add the new person and role, transfer the old role’s pages, then remove the old role.'));
 
     if (!actorIsLead()) {
       box.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
@@ -1140,7 +1152,7 @@
     /* ----- a) The people and roles ----- */
     var table = el('table', 'lib-table');
     var headRow = el('tr');
-    ['Person', 'Role', 'Email', 'Pages', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
+    ['Person', 'Role', 'Email', 'Pages owned', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
     var thead = el('thead');
     thead.appendChild(headRow);
     table.appendChild(thead);
@@ -1166,7 +1178,7 @@
       transfer.disabled = !count;
       transfer.title = count ? '' : 'This role has no pages to transfer.';
       transfer.setAttribute('aria-label', 'Transfer pages of ' + role.title);
-      actions.appendChild(transfer);
+      actions.appendChild(withTip(transfer));
 
       // d) Remove: only when the role no longer has any pages (and never the team lead)
       var remove = button('Remove', 'row-btn row-btn-danger', async function () {
@@ -1174,9 +1186,9 @@
         await save(currentRoles().filter(function (r) { return r.title !== role.title; }), 'Removed ' + role.title + '.');
       });
       remove.disabled = role.title === team.lead || count > 0;
-      remove.title = role.title === team.lead ? 'The team lead cannot be removed.' : count ? 'Transfer its pages first.' : '';
+      remove.title = role.title === team.lead ? 'Team leads can’t be removed. Assign a new team lead first.' : count ? 'Transfer its pages first.' : '';
       remove.setAttribute('aria-label', 'Remove ' + role.title);
-      actions.appendChild(remove);
+      actions.appendChild(withTip(remove));
       row.appendChild(actions);
       tbody.appendChild(row);
     });
@@ -1260,7 +1272,7 @@
     /* ----- b) Add a person and role ----- */
     var add = el('div', 'team-add');
     var personInput = el('input', 'lib-search');
-    personInput.placeholder = 'Person';
+    personInput.placeholder = 'Name';
     personInput.setAttribute('aria-label', 'New person');
     personInput.maxLength = 80;
     var roleInput = el('input', 'lib-search');
@@ -1275,7 +1287,7 @@
     add.appendChild(personInput);
     add.appendChild(roleInput);
     add.appendChild(emailInput);
-    add.appendChild(button('Add person & role', 'secondary-link', async function () {
+    add.appendChild(button('Add person and role', 'secondary-link', async function () {
       if (!personInput.value.trim()) { personInput.focus(); return; }
       if (!roleInput.value.trim()) { roleInput.focus(); return; }
       if (!emailInput.value.trim()) { emailInput.focus(); return; }
@@ -1284,7 +1296,7 @@
     box.appendChild(add);
 
     var done = el('div', 'dialog-actions');
-    done.appendChild(button('Done', 'primary-btn', function () { dialog.close(); }));
+    done.appendChild(button('Close', 'primary-btn', function () { dialog.close(); }));
     box.appendChild(done);
   }
 
@@ -1322,7 +1334,7 @@
     });
   }
 
-  // The "Team & roles" pop-up on the library page. Closing it redraws the library, since owners may have changed.
+  // The "Team and roles" pop-up on the library page. Closing it redraws the library, since owners may have changed.
   function openTeamDialog() {
     var dialog = el('dialog', 'draft-dialog team-dialog');
     dialog.setAttribute('aria-label', 'Team and roles');
@@ -1395,8 +1407,8 @@
     hero.appendChild(title);
     var search = el('input', 'lib-search landing-search');
     search.type = 'search';
-    search.placeholder = 'Search the wiki';
-    search.setAttribute('aria-label', 'Search the wiki');
+    search.placeholder = 'Search by title or keyword';
+    search.setAttribute('aria-label', 'Search by title or keyword');
     search.autofocus = true;
     var searchWrap = el('div', 'suggest-wrap landing-search-wrap');
     searchWrap.appendChild(search);
@@ -1463,7 +1475,7 @@
     function updateFilterUi() {
       var keys = activeKeys();
       Object.keys(filterSelects).forEach(function (key) { filterSelects[key].value = filters[key]; });
-      filterToggle.textContent = 'Filters' + (keys.length ? ' (' + keys.length + ')' : '');
+      filterToggle.textContent = 'Filter pages' + (keys.length ? ' (' + keys.length + ')' : '');
       filterChips.textContent = '';
       keys.forEach(function (key) {
         var chip = el('button', 'landing-filter-chip', FILTER_LABELS[key] + ': ' + filterText(key) + ' \u00D7');
@@ -1563,7 +1575,7 @@
     // At the bottom, one quiet line that sends people to the company's support team when the search does not find it
     var help = el('p', 'landing-help');
     help.appendChild(document.createTextNode('Can\u2019t find what you\u2019re looking for? '));
-    var helpLink = link('Contact your support team', 'https://www.planetdds.com/contact-us/');
+    var helpLink = link('Contact support', 'https://www.planetdds.com/contact-us/');
     helpLink.target = '_blank';
     helpLink.rel = 'noopener noreferrer';
     help.appendChild(helpLink);
@@ -1578,7 +1590,7 @@
       if (!result.pages.length) { return; }
       listBox.textContent = '';
       var anyOpened = result.pages.some(function (page) { return page.views > 0; });
-      listBox.appendChild(el('h2', 'landing-top-title', 'Popular Pages'));
+      listBox.appendChild(el('h2', 'landing-top-title', 'Popular pages'));
       var grid = el('div', 'landing-top');
       result.pages.forEach(function (page) {
         var tile = link('', '#/public/' + page.id, 'landing-tile');

@@ -1588,7 +1588,7 @@
       button.type = 'button';
       button.className = 'add-block';
       button.id = 'add-block';
-      button.textContent = '+ Add a block';
+      button.textContent = 'Add block';
       button.addEventListener('click', function () {
         // Full menu; the new block goes directly below this button
         openBlockMenu(button, function () { return button.nextSibling; }, null);
@@ -1777,7 +1777,7 @@
       var facts = [];
       if (steps.length) { facts.push('~' + minutes + ' min read'); facts.push(steps.length + (steps.length === 1 ? ' step' : ' steps')); }
       if (warningCount) { facts.push(warningCount + (warningCount === 1 ? ' warning' : ' warnings')); }
-      byId('outline-meta').textContent = facts.length ? facts.join(' \u00b7 ') : 'No steps yet';
+      byId('outline-meta').textContent = facts.length ? facts.join(' \u00b7 ') : 'No steps yet. Add a Step block to list steps here.';
 
       updateSaveState();
       ensureSectionAiButtons();
@@ -2062,7 +2062,7 @@
 
       var addSelect = byId('role-add');
       addSelect.textContent = '';
-      addOption(addSelect, '', 'Link a role…');
+      addOption(addSelect, '', 'Select a role');
       rosterRoles().forEach(function (role) {
         if (state.roles.indexOf(role.title) < 0) { addOption(addSelect, role.title, roleLabel(role.title)); }
       });
@@ -3543,7 +3543,7 @@
       missing[0].target.focus();
       return true;
     }
-    [['save-draft', 'save', 'save'], ['submit-draft', 'submit for approval', 'submit'], ['publish-draft', 'publish', 'publish']].forEach(function (item) {
+    [['save-draft', 'save', 'save'], ['submit-draft', 'send for review', 'submit'], ['publish-draft', 'publish', 'publish']].forEach(function (item) {
       byId(item[0]).addEventListener('click', function () {
         if (byId(item[0]).getAttribute('aria-disabled') === 'true' && explainMissing(item[1])) { return; }
         saveAndMaybeSubmit(item[2]);
@@ -4448,11 +4448,11 @@
     window.addEventListener('resize', closeBlockMenu);
 
     // The toolbar chips match the add-block menu (Header, Text, Step, Table, Note, Warning, Code, Photo) and add that block at the very end of the page
-    var CHIP_BLOCK_TYPES = { Text: 'paragraph', Step: 'step', Note: 'note', Warning: 'warning', Table: 'table', Code: 'code', Photo: 'photo' };
+    var CHIP_BLOCK_TYPES = { Text: 'paragraph', Step: 'step', Note: 'note', Warning: 'warning', Table: 'table', Code: 'code', Image: 'photo' };
     document.querySelectorAll('.block-chip').forEach(function (chip) {
       var label = chip.textContent.trim();
       var type = CHIP_BLOCK_TYPES[label];
-      if (label === 'Header') {
+      if (label === 'Heading') {
         // Same Header choice as the add-block menu: the levels open next to the block types
         chip.addEventListener('click', function () {
           openBlockMenu(chip, null, null);

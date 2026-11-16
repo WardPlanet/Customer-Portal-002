@@ -2242,3 +2242,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .outline .toc-actions { margin: 8px -15px 0; padding: 4px 15px 8px; border-radius: 0; }
 .outline-empty { margin: 0; color: var(--text-faint); font-size: 12px; }
 .header-block { scroll-margin-top: 110px; }
+
+/* "On this page" and "Page setup" are written in sentence case, not capitals */
+.outline .section-label, .outline .side-title, #editor-setup > .section-label { text-transform: none; letter-spacing: 0; font-size: 13px; }
+.tip-wrap { display: inline-block; }

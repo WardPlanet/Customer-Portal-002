@@ -306,7 +306,7 @@
     function head(title, sub) {
       var box = el('div', 'lib-head');
       var left = el('div');
-      left.appendChild(ui.link('← Library', '#/', 'back-link'));
+      left.appendChild(ui.link('← Back to library', '#/', 'back-link'));
       left.appendChild(el('h1', 'lib-title', title));
       if (sub) { left.appendChild(el('p', 'lib-sub', sub)); }
       box.appendChild(left);
@@ -360,12 +360,12 @@
     function stepChoose(message) {
       self.stage = 'choose';
       clear();
-      head('Batch import', 'One file with several documents, or several files, become draft pages.');
+      head('Batch import', 'Add several pages at once. Upload one file that contains multiple pages, or upload a separate file for each page. Imported pages are saved as drafts.');
       if (message) { root.appendChild(el('p', 'batch-problem', message)); }
 
       var card = el('section', 'batch-card');
-      card.appendChild(el('h2', 'lib-h2', '1. Choose the file or files'));
-      card.appendChild(el('p', 'lib-hint', 'A Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text or Markdown file. Choose one file and the app finds where each document starts and ends. Choose several files and each one is treated as its own document. You check everything before anything is created. Images are not imported.'));
+      card.appendChild(el('h2', 'lib-h2', '1. Upload files'));
+      card.appendChild(el('p', 'lib-hint', 'Supported formats: Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text, and Markdown. You’ll review everything before any pages are created. Images aren’t imported.'));
 
       var input = el('input');
       input.type = 'file';
@@ -378,12 +378,12 @@
       });
       card.appendChild(input);
 
-      card.appendChild(el('p', 'lib-hint', 'Or paste the text of the whole file:'));
+      card.appendChild(el('p', 'lib-hint', 'Or paste text below:'));
       var paste = el('textarea', 'dialog-text batch-paste');
-      paste.placeholder = 'Paste several documents here, one after another. Lines starting with # are treated as headings.';
+      paste.placeholder = 'Paste text for several pages, one after another. Lines that start with # become headings.';
       paste.setAttribute('aria-label', 'Text to split into documents');
       card.appendChild(paste);
-      card.appendChild(ui.button('Scan pasted text', 'secondary-link', function () {
+      card.appendChild(ui.button('Preview', 'secondary-link', function () {
         if (!paste.value.trim()) { paste.focus(); return; }
         loadSegments('pasted-text', textToSegments(paste.value), 0);
       }));

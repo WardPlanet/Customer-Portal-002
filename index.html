@@ -75,7 +75,7 @@
         <div class="tool-group" style="gap: 8px; flex-wrap: wrap;">
           <button class="block-chip" type="button" aria-haspopup="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>
-            Header
+            Heading
           </button>
           <button class="block-chip" type="button">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4v16M17 4v16M19 4H9.5a4.5 4.5 0 0 0 0 9H13"/></svg>
@@ -103,7 +103,7 @@
           </button>
           <button class="block-chip" type="button">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>
-            Photo
+            Image
           </button>
         </div>
         <button class="block-chip ai-chip" id="ai-assist" type="button" aria-disabled="true" title="Fill in the required fields (*) first">
@@ -121,13 +121,13 @@
             <div class="text-block">
               <span class="block-tag">Page title</span>
               <span class="required-mark" aria-hidden="true">*</span>
-              <h1 class="canvas-title" id="field-title" data-single-line contenteditable="true" spellcheck="true" data-placeholder="Page title (required)"></h1>
+              <h1 class="canvas-title" id="field-title" data-single-line contenteditable="true" spellcheck="true" data-placeholder="Page title"></h1>
             </div>
 
             <div class="text-block">
               <span class="block-tag">Description</span>
               <span class="required-mark" aria-hidden="true">*</span>
-              <p class="canvas-description" id="field-description" data-rich contenteditable="true" spellcheck="true" data-placeholder="Description (required): what this page covers and when to use it"></p>
+              <p class="canvas-description" id="field-description" data-rich contenteditable="true" spellcheck="true" data-placeholder="Describe what this page covers and when to use it"></p>
             </div>
 
             <!-- Paragraph, header and step blocks are created by the script, in page order -->
@@ -139,7 +139,7 @@
         <aside class="outline" aria-label="On this page">
           <div class="outline-sticky">
             <div id="outline-box"></div>
-            <p class="outline-meta" id="outline-meta">No steps yet</p>
+            <p class="outline-meta" id="outline-meta">No steps yet. Add a Step block to list steps here.</p>
           </div>
         </aside>
 
@@ -154,7 +154,7 @@
         <span class="field-label">Team</span>
         <p class="team-name" id="team-name"></p>
         <div id="team-picker" hidden></div>   <!-- Admin only, on a new page: choose the team -->
-        <p class="field-hint" id="team-hint">Everything saved belongs to this team.</p>
+        <p class="field-hint" id="team-hint">Pages you save belong to this team.</p>
       </div>
 
       <div id="version-field" hidden>
@@ -163,7 +163,7 @@
       </div>
 
       <div>
-        <span class="field-label">Where This Lives</span>
+        <span class="field-label">Library</span>
         <div class="chips" id="chips"></div>
       </div>
 
@@ -173,24 +173,24 @@
           <select class="select-field" id="owner"></select>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </div>
-        <p class="field-hint">Whoever holds this role owns the page. Contact details follow the role, not the name.</p>
+        <p class="field-hint">The person in this role owns the page. Contact details follow the role, not the person.</p>
       </div>
 
       <div>
-        <span class="field-label">Linked Roles</span>
+        <span class="field-label">Linked roles</span>
         <ul class="role-list" id="roles"></ul>
         <div class="select-wrap" id="role-add-wrap">
-          <select class="select-field" id="role-add" aria-label="Link a role"></select>
+          <select class="select-field" id="role-add" aria-label="Select a role"></select>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </div>
       </div>
 
       <div id="related-field">
-        <span class="field-label">Related Pages</span>
+        <span class="field-label">Related pages</span>
         <ul class="related-list" id="related"></ul>
-        <input type="search" class="related-search" id="related-search" placeholder="Search for a page to add" aria-label="Search for a related page" autocomplete="off">
+        <input type="search" class="related-search" id="related-search" placeholder="Search pages" aria-label="Search for a related page" autocomplete="off">
         <ul class="related-suggestions" id="related-suggestions"></ul>
-        <p class="field-hint">Shown first on the live page, in this order.</p>
+        <p class="field-hint">Appear at the top of the published page, in this order.</p>
       </div>
 
       <div>
@@ -199,14 +199,14 @@
           <span class="avatar avatar-blue avatar-small" id="reviewer-avatar" hidden></span>
           <select class="reviewer-select" id="reviewer" disabled></select>
         </div>
-        <p class="field-hint">Always the team lead, so it can&rsquo;t be changed.</p>
+        <p class="field-hint">The team lead always reviews, so this can&rsquo;t be changed.</p>
       </div>
 
       <div>
         <span class="field-label">Visibility</span>
         <div class="segmented" role="group" aria-label="Visibility">
-          <button class="segment" type="button" data-value="Internal-Only" aria-pressed="true">Internal-Only</button>
-          <button class="segment" type="button" data-value="Client-Safe" aria-pressed="false">Client-Safe</button>
+          <button class="segment" type="button" data-value="Internal-Only" aria-pressed="true">Internal only</button>
+          <button class="segment" type="button" data-value="Client-Safe" aria-pressed="false">Client-safe</button>
         </div>
       </div>
     </aside>
@@ -223,8 +223,8 @@
     <div class="footer-group">
       <button class="secondary-btn" type="button" id="export-pdf" title="Save the page as a PDF: title, description and content only">Export PDF</button>
       <button class="secondary-btn" type="button" id="save-draft" aria-disabled="true">Save draft</button>
-      <button class="secondary-btn" type="button" id="submit-draft" aria-disabled="true">Submit for approval</button>
-      <button class="submit-btn" type="button" id="publish-draft" aria-disabled="true" title="Make this page live now and download a copy as a text file. Skips review.">Publish</button>
+      <button class="secondary-btn" type="button" id="submit-draft" aria-disabled="true">Send for review</button>
+      <button class="submit-btn" type="button" id="publish-draft" aria-disabled="true" title="Make this page live now and download a copy as a text file. Skips review.">Publish page</button>
     </div>
   </footer>
 
@@ -234,7 +234,7 @@
   <div class="menu-panel" id="menu-main">
   <button type="button" role="menuitem" data-type="header" data-submenu="headers" aria-haspopup="true">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v16M18 4v16M6 12h12"/></svg>
-    <span class="menu-text"><span class="menu-title">Header</span><span class="menu-hint">A section heading (H1 to H5)</span></span>
+    <span class="menu-text"><span class="menu-title">Heading</span><span class="menu-hint">A section heading (H1 to H5)</span></span>
     <svg class="menu-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
   </button>
   <button type="button" role="menuitem" data-type="paragraph">
@@ -263,7 +263,7 @@
   </button>
   <button type="button" role="menuitem" data-type="photo">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>
-    <span class="menu-text"><span class="menu-title">Photo</span><span class="menu-hint">A screenshot or picture</span></span>
+    <span class="menu-text"><span class="menu-title">Image</span><span class="menu-hint">A screenshot or picture</span></span>
   </button>
   </div>
 
