@@ -28,6 +28,7 @@
   // Counts navigations. A screen that finishes loading after the person has already moved on must not
   // draw itself, so each screen remembers the count when it started and checks it after every wait.
   var routing = 0;
+  var routeHistory = { previous: '', current: '' };   // the screen before this one (the page view's back link follows it)
 
   /* ---------- Small helpers ---------- */
   function el(tag, className, text) {
@@ -2213,6 +2214,16 @@
   }
 
   // Who to contact about a page: its owner first, then the team lead, then anyone linked to it
+  // A first name alone, with an email that spells out the rest ("Molly" and molly.joseph@...), shows as the full name ("Molly Joseph").
+  // Anything else is left as it is: nothing is guessed from a short address like mrubart@.
+  function fullName(person, email) {
+    var name = String(person || '').trim();
+    var match = /^([a-z]+)\.([a-z]+)@/i.exec(String(email || ''));
+    if (!name || /\s/.test(name) || !match || match[1].toLowerCase() !== name.toLowerCase()) { return name; }
+    function cap(word) { return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(); }
+    return cap(match[1]) + ' ' + cap(match[2]);
+  }
+
   function renderContacts(fieldsOfPage, pageTeam) {
     var pageOwnerTeam = pageTeam;   // the contacts are the page's own department's, not the one showing
     var wanted = [];
@@ -2229,11 +2240,16 @@
       var label = index === 0 && title === fieldsOfPage.owner && !ownerGone ? 'Page owner' : title === pageOwnerTeam.lead ? (ownerGone ? 'Contact (team lead)' : 'Team lead') : 'Linked';
       var card = el('div', 'preview-contact');
       card.appendChild(el('span', 'preview-contact-label', label));
-      card.appendChild(el('strong', '', role && role.person ? role.person : 'Unassigned'));
+      card.appendChild(el('strong', '', role && role.person ? fullName(role.person, role.email) : 'Unassigned'));
       card.appendChild(document.createTextNode(' · ' + title));
       if (role && role.email) {
         card.appendChild(document.createTextNode(' · '));
         card.appendChild(link(role.email, 'mailto:' + role.email));
+        card.appendChild(document.createTextNode(' · '));
+        var teamsLink = link('Message on Teams', 'https://teams.microsoft.com/l/chat/0/0?users=' + encodeURIComponent(role.email));
+        teamsLink.target = '_blank';
+        teamsLink.rel = 'noopener noreferrer';
+        card.appendChild(teamsLink);
       }
       box.appendChild(card);
     });
@@ -2483,14 +2499,35 @@
     }
     showScreen('library', true);
     main.textContent = '';
-    // Always a way back to the search landing page (the Library is in the top bar)
+    // The back link follows where you came from: the batch import's results, the library, or the search page
     var backRow = el('div', 'back-row');
-    backRow.appendChild(link('← Back to search', '#/public', 'back-link'));
+    var cameFromBatch = fromLibrary && /^#\/batch/.test(routeHistory.previous);
+    backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));
     main.appendChild(backRow);
     var bar = el('div', 'preview-bar');
     bar.appendChild(visibilityPill(detail.page.visibility));
     if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet')); }
+    // How fresh the page is: "Updated 2 days ago" (the full date on hover), and on a live page when it is due for review
+    if (detail.page.updatedAt) {
+      var fresh = el('span', 'preview-updated', 'Updated ' + W.relativeTime(detail.page.updatedAt));
+      fresh.title = formatDate(detail.page.updatedAt);
+      bar.appendChild(fresh);
+      var due = detail.page.liveVersion ? W.reviewStatus(detail.page.updatedAt) : null;
+      if (due) { bar.appendChild(el('span', 'preview-updated review-line' + (due.overdue ? ' is-overdue' : ''), due.text)); }
+    }
     main.appendChild(bar);
+    // Points the AI flagged when the document was imported are shown ON the draft, while it is not live (they are in its version note)
+    var shownNote = ((detail.history || []).filter(function (h) { return h.n === shownVersion; })[0] || {}).note || '';
+    var flagged = !detail.page.liveVersion && /Check:/.test(shownNote) ? shownNote.slice(shownNote.indexOf('Check:') + 6).split(' \u2022 ').map(function (s) { return s.trim(); }).filter(Boolean) : [];
+    if (flagged.length) {
+      var flags = el('section', 'preview-flags');
+      flags.appendChild(el('h2', 'preview-flags-title', flagged.length + (flagged.length === 1 ? ' point' : ' points') + ' to check before this goes live'));
+      flags.appendChild(el('p', 'preview-flags-hint', 'Flagged by the AI when the document was imported. Text and title may have been reworded.'));
+      var flagList = el('ul', 'preview-flags-list');
+      flagged.forEach(function (point) { flagList.appendChild(el('li', '', point)); });
+      flags.appendChild(flagList);
+      main.appendChild(flags);
+    }
     var isClientSafe = detail.page.visibility === 'Client-Safe';
     var layout = el('div', 'preview-layout');
     main.appendChild(layout);
@@ -2548,10 +2585,24 @@
     var who = actor();
     var ownDepartment = !detail.page.team || detail.page.team === team.slug || window.Store.getActor().toLowerCase() === 'admin';   // another department's page can only be read from here (Admin can open it: the editor then switches department)
     if (ownDepartment && (W.isLead(who, team) || who.roles.indexOf(detail.page.owner) >= 0)) {
-      footerActions.appendChild(button(detail.page.workingVersion ? 'Continue editing' : 'Edit', 'primary-btn', async function () {
+      // A draft can be sent for review (draft or sent-back pages) or published from here (only by someone allowed to publish directly).
+      // While either shows, Continue editing is secondary, so there is one main action.
+      var versionActions = data.actions || [];
+      var canSend = versionActions.indexOf('submit') >= 0;
+      var canPublishNow = versionActions.indexOf('publish') >= 0;
+      var editLabel = detail.page.workingVersion ? 'Continue editing' : 'Edit';
+      footerActions.appendChild(button(editLabel, canSend || canPublishNow ? 'secondary-btn' : 'primary-btn', async function () {
         var result = await attempt(backend().edit(id));
         if (result) { location.hash = '#/edit/' + id + '/' + result.version; }
       }));
+      if (canSend) {
+        footerActions.appendChild(button('Send for review', canPublishNow ? 'secondary-btn' : 'primary-btn', function () {
+          runAction(id, shownVersion, 'submit', 'Sent for review. ' + personFor(team.lead) + ' (' + team.lead + ') has been notified and can approve it or send it back.');
+        }));
+      }
+      if (canPublishNow) {
+        footerActions.appendChild(button('Publish page', 'primary-btn', function () { publishVersion(id, shownVersion); }));
+      }
     }
 
     // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)
@@ -2655,6 +2706,8 @@
     if (!team) { return; }
     flushPendingSearch();   // a search still waiting to be logged is logged as the person leaves the screen
     routing += 1;
+    var hereNow = location.hash || '#/';
+    if (hereNow !== routeHistory.current) { routeHistory.previous = routeHistory.current; routeHistory.current = hereNow; }
     refreshNotifications();   // the lead's bell (counts what is waiting)
     main.classList.remove('has-preview-footer');   // only a page's preview has the fixed bottom bar
     main.classList.remove('is-landing');           // only the landing search page runs edge to edge

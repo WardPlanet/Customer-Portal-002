@@ -2049,8 +2049,8 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 
 /* Headings on a live page are the dark blue of the logo and the PDF (a lighter blue on a dark theme, where navy would not read) */
 .preview-title, .preview-h, .preview-step-title { color: #000F60; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .preview-title, :root:not([data-theme="light"]) .preview-h, :root:not([data-theme="light"]) .preview-step-title { color: #A9C2FF; } }
-:root[data-theme="dark"] .preview-title, :root[data-theme="dark"] .preview-h, :root[data-theme="dark"] .preview-step-title { color: #A9C2FF; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .preview-title, :root:not([data-theme="light"]) .preview-h, :root:not([data-theme="light"]) .preview-step-title { color: var(--text); } }
+:root[data-theme="dark"] .preview-title, :root[data-theme="dark"] .preview-h, :root[data-theme="dark"] .preview-step-title { color: var(--text); }
 
 /* The whole search result is one link: the title's link is stretched over the box */
 .public-card { position: relative; cursor: pointer; }
@@ -2311,3 +2311,12 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .batch-points { margin: 8px 0 0 34px; padding: 0; color: var(--text-muted); font-size: 0.9rem; }
 .batch-points li { margin: 3px 0; }
 .batch-result .batch-progress { padding: 0; border: 0; background: none; }
+
+/* ---------- Page view: freshness, flagged points, contact links ---------- */
+.preview-updated { color: var(--text-muted); font-size: 0.85rem; }
+.preview-bar { align-items: center; }
+.preview-flags { margin: 0 0 18px; padding: 12px 16px; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 10px; }
+.preview-flags-title { margin: 0 0 2px; font-size: 0.95rem; }
+.preview-flags-hint { margin: 0 0 6px; color: var(--text-muted); font-size: 0.85rem; }
+.preview-flags-list { margin: 0; padding-left: 20px; font-size: 0.9rem; }
+.preview-flags-list li { margin: 2px 0; }

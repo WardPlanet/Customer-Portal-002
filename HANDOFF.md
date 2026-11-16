@@ -1115,3 +1115,15 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
 - Where the review notes and the earlier text-revision list disagree, the text-revision list wins: the button stays **Preview** (not "Find documents
   in this text"), and the step heading and description use its wording. The "Images aren't imported" sentence moved out of the description into
   the warning, so it is not said twice.
+
+**Section 4: Page view of an imported draft (frame 8).**
+- The **back link follows where you came from**: "← Batch import" (from the import results), "← Back to library", or "← Back to search" (from the
+  search page). `routeHistory` in `library-ui.js` remembers the screen before this one.
+- **Freshness** sits beside the pills: "Updated 2 days ago" (full date on hover) and, on live pages, "Review due in N days" or the red "Needs review".
+- **Flagged points are shown on the draft** while it is not live, in a box above the page ("N points to check before this goes live"). They come from the
+  version note (the text after "Check:", separated by •), which the batch import writes.
+- **Headings** use the main text colour in dark mode (they were the same periwinkle as links); light mode keeps the Planet DDS navy you asked for earlier.
+- **Contacts** show the full name when the email spells it out ("Molly" with molly.joseph@ shows "Molly Joseph"; mrubart@ is not guessed), and add
+  **Message on Teams** (a teams.microsoft.com chat link on the email address).
+- **Footer:** a draft can be sent for review ("Send for review", on draft and sent-back pages) or published ("Publish page", only for people who may publish
+  directly) from here. While either shows, Continue editing is secondary so there is one main action. The wording is the text-revision list's.
