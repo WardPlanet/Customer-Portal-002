@@ -2005,18 +2005,22 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-results { width: 100%; max-width: 1080px; margin: 0 auto; padding: 32px 28px 28px; box-sizing: border-box; }
 .landing-top-title { margin: 0 0 16px; font-size: 20px; font-weight: 700; color: var(--text); }
 .landing-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+/* The tiles follow the theme: pale blue in light mode (as before), dark surfaces in dark mode. The description shows up to three lines and
+   ends with an ellipsis; the tile grows to fit, with a "View page" line at the bottom. */
 .landing-tile {
-  display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; height: 230px; padding: 22px 24px; box-sizing: border-box;
-  background: #EAF3FC; border: 1px solid #CFE2F6; border-radius: 12px; color: #000F60; text-decoration: none;
+  --tile-bg: #EAF3FC; --tile-hover: #E0EDFB; --tile-border: #CFE2F6; --tile-title: #000F60; --tile-text: #2A3F6B; --tile-link: #0A5BC4; --tile-icon: #0069DC;
+  display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; min-height: 200px; padding: 22px 24px; box-sizing: border-box;
+  background: var(--tile-bg); border: 1px solid var(--tile-border); border-radius: 12px; color: var(--tile-title); text-decoration: none;
 }
-.landing-tile:hover { background: #E0EDFB; box-shadow: 0 8px 24px rgba(0, 15, 96, 0.12); transform: translateY(-2px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .landing-tile { --tile-bg: #1A2236; --tile-hover: #212C46; --tile-border: #2C3858; --tile-title: var(--text); --tile-text: #C3CBDD; --tile-link: #8FB8FF; --tile-icon: #8FB8FF; } }
+:root[data-theme="dark"] .landing-tile { --tile-bg: #1A2236; --tile-hover: #212C46; --tile-border: #2C3858; --tile-title: var(--text); --tile-text: #C3CBDD; --tile-link: #8FB8FF; --tile-icon: #8FB8FF; }
+.landing-tile:hover { background: var(--tile-hover); box-shadow: 0 8px 24px rgba(0, 15, 96, 0.12); transform: translateY(-2px); }
 .landing-tile:focus-visible { outline: 3px solid #0069DC; outline-offset: 2px; }
 .landing-tile-top { display: flex; align-items: center; flex: none; }
-.landing-tile-top .team-icon { color: #0069DC; }
-.landing-tile-title { flex: none; overflow-wrap: anywhere; font-size: 22px; line-height: 1.2; font-weight: 800; color: #000F60; }
-/* The description fills the rest of the box; when it is longer it fades out at the bottom instead of ending in dots */
-.landing-tile-text { flex: 1 1 0; min-height: 0; overflow: hidden; overflow-wrap: anywhere; font-size: 14px; line-height: 1.45; color: #2A3F6B; }
-.landing-tile-text.is-cut { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 36px), transparent); }
+.landing-tile-top .team-icon { color: var(--tile-icon); }
+.landing-tile-title { flex: none; overflow-wrap: anywhere; font-size: 22px; line-height: 1.2; font-weight: 800; color: var(--tile-title); }
+.landing-tile-text { flex: none; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-size: 14px; line-height: 1.45; color: var(--tile-text); }
+.landing-tile-more { margin-top: auto; padding-top: 6px; font-size: 14px; font-weight: 700; color: var(--tile-link); }
 .landing-help { margin: auto 0 0; padding: 28px 24px 32px; text-align: center; font-size: 14px; color: var(--text-muted); }
 .landing-help a { color: var(--accent-text); font-weight: 500; text-underline-offset: 3px; }
 
@@ -2320,3 +2324,7 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .preview-flags-hint { margin: 0 0 6px; color: var(--text-muted); font-size: 0.85rem; }
 .preview-flags-list { margin: 0; padding-left: 20px; font-size: 0.9rem; }
 .preview-flags-list li { margin: 2px 0; }
+
+/* Search results: who to ask, and how fresh the answer is */
+.search-owner { margin: 6px 0 0; color: var(--text-muted); font-size: 0.85rem; }
+.search-owner .is-overdue { color: var(--danger); font-weight: 600; }

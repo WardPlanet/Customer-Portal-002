@@ -1127,3 +1127,12 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
   **Message on Teams** (a teams.microsoft.com chat link on the email address).
 - **Footer:** a draft can be sent for review ("Send for review", on draft and sent-back pages) or published ("Publish page", only for people who may publish
   directly) from here. While either shows, Continue editing is secondary so there is one main action. The wording is the text-revision list's.
+
+**Section 5: Landing tiles and search results (frame 9).** Layout, Popular pages and what is searched are unchanged.
+- The **Popular pages tiles follow the theme**: pale blue in light mode (as before), dark surfaces in dark mode (`--tile-*` custom properties in
+  `styles.css`). The department icon stays.
+- The tile **description shows up to three lines and ends with an ellipsis** (the fade-out mask is gone), with a **"View page →"** line at the bottom.
+  Tiles grow to fit, at least 200 px tall; the three in a row match.
+- **Search results** say who to ask and how fresh the answer is: "Owner: Lena Brooks — Knowledge Base Editor · Updated 15 days ago" (full date on hover).
+  When the owner role has no one in it the line says "Contact:" and names the team lead, as on the page itself. A page past its review date adds a
+  red "Needs review". The "Shareable with clients" badge shows here too.

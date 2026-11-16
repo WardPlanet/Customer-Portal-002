@@ -1842,21 +1842,14 @@
         if (teamMark) { var top = el('span', 'landing-tile-top'); top.appendChild(teamMark); tile.appendChild(top); }
         tile.appendChild(el('span', 'landing-tile-title', page.title));
         if (page.description) { tile.appendChild(el('span', 'landing-tile-text', page.description)); }
+        tile.appendChild(el('span', 'landing-tile-more', 'View page \u2192'));
         grid.appendChild(tile);
       });
       listBox.appendChild(grid);
-      fitTileText(grid);
     }
 
     // The description runs on until the bottom of its box and fades out there when there is more of it. Whether it is cut is
     // measured, so short descriptions are not faded.
-    function fitTileText(grid) {
-      Array.prototype.forEach.call(grid.querySelectorAll('.landing-tile-text'), function (text) {
-        text.classList.toggle('is-cut', text.scrollHeight > text.clientHeight + 1);
-      });
-    }
-    window.addEventListener('resize', function () { var grid = listBox.querySelector('.landing-top'); if (grid) { fitTileText(grid); } });
-
     // Nothing is listed until someone searches. Results cover live Internal-Only and Client-Safe pages,
     // each labelled; Client-Safe ones open as the public sees them, Internal-Only ones as staff see them.
     // options.keepHeight: this refresh comes from typing, so the page must not move. The results area keeps its height while its
@@ -1927,6 +1920,18 @@
           body.appendChild(snippet);
         }
         if (p.search && p.search.fields && p.search.fields.length) { body.appendChild(el('p', 'search-fields', 'Matched in ' + p.search.fields.join(', ').toLowerCase())); }
+        // Who to ask and how fresh the answer is: "Owner: Lena Brooks \u2014 Knowledge Base Editor \u00B7 Updated 15 days ago". When the owner role has no one
+        // in it, the team lead is the contact (as on the page itself). A page past its review date says so, in red.
+        var resultTeam = teamFor(p.team) || team;
+        var ownerGone = W.ownerIsUnassigned(resultTeam, p.owner);
+        var meta = el('p', 'search-owner');
+        meta.appendChild(document.createTextNode(ownerGone ? 'Contact: ' + roleLabel(resultTeam.lead, resultTeam) : 'Owner: ' + roleLabel(p.owner, resultTeam)));
+        var updated = el('span', '', ' \u00B7 Updated ' + W.relativeTime(p.updatedAt));
+        updated.title = formatDate(p.updatedAt);
+        meta.appendChild(updated);
+        var review = W.reviewStatus(p.updatedAt);
+        if (review && review.overdue) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(el('span', 'is-overdue', 'Needs review')); }
+        body.appendChild(meta);
         card.appendChild(body);
         listBox.appendChild(card);
       });
