@@ -1193,7 +1193,7 @@
   async function showTeam(box, dialog) {
     box.textContent = '';
     box.appendChild(el('h2', 'dialog-title', 'Team and roles'));
-    box.appendChild(el('p', 'dialog-hint', 'Pages belong to a role, not a person. To replace someone, add the new person and role, transfer the old role’s pages, then remove the old role.'));
+    box.appendChild(el('p', 'dialog-hint', 'Pages belong to a role, not a person. To replace someone, choose Replace person on their row: the new person takes over the role and all its pages. Use Transfer pages to move pages to a different role.'));
 
     if (!actorIsLead()) {
       box.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
@@ -1203,9 +1203,21 @@
     if (!info) { box.appendChild(el('p', 'lib-empty', 'The team could not be loaded.')); return; }
 
     // Saves a new list of roles. If the lead's own person changed, "Acting as" follows.
-    async function save(roles, doneMessage) {
-      var result = await attempt(backend().saveRoster(roles));
-      if (!result) { return false; }
+    // onProblem (optional): where to show the server's message when the change is refused, for a dialog that is open on top of this one
+    // (the notice bar sits underneath it). The message also goes to the notice bar.
+    async function save(roles, doneMessage, onProblem) {
+      var result;
+      if (onProblem) {
+        try { result = await backend().saveRoster(roles); } catch (error) {
+          var problem = error && error.message ? error.message : 'That did not work.';
+          onProblem(problem);
+          notice(problem);
+          return false;
+        }
+      } else {
+        result = await attempt(backend().saveRoster(roles));
+        if (!result) { return false; }
+      }
       team.roles = result.roles;
       if (!team.roles.some(function (r) { return r.person === window.Store.getActor(); })) { window.Store.setActor(personFor(team.lead)); }
       mountActing();
@@ -1215,6 +1227,124 @@
     }
 
     function currentRoles() { return team.roles.map(function (r) { return { title: r.title, person: r.person, email: r.email || '' }; }); }
+
+    /* ----- The company directory ----- */
+    // Who can be put on a team. In the Claude artifact that is the made-up company directory plus everyone who holds a role in any
+    // department; on the server it is the people on this team (the real directory, Entra ID, comes with sign-in). Each match says
+    // where the person already is, if anywhere.
+    function searchDirectory(query) {
+      if (window.TEAMS && window.AdminCore) { return window.AdminCore.searchPeople(query, window.TEAMS, 6); }
+      var typed = String(query || '').toLowerCase().split(/[\s.@_\-]+/).filter(Boolean);
+      if (!typed.length) { return []; }
+      return team.roles.filter(function (role) {
+        if (!role.person) { return false; }
+        var words = (role.person + ' ' + (role.email || '')).toLowerCase().split(/[\s.@_\-]+/);
+        return typed.every(function (word) { return words.some(function (candidate) { return candidate.indexOf(word) === 0; }); });
+      }).slice(0, 6).map(function (role) { return { person: role.person, email: role.email || '', jobTitle: role.title, placed: { team: team.name, role: role.title } }; });
+    }
+
+    // A type-ahead on the directory. The caller puts picker.list (the matches) and picker.note (the line that says nobody matched)
+    // wherever they should appear. picker.chosen is the match picked, or null; onChange runs whenever that, or the "nobody matched"
+    // state, changes.
+    function directoryPicker(placeholder, label, onChange) {
+      var picker = { chosen: null, noMatch: false };
+      picker.input = el('input', 'lib-search');
+      picker.input.type = 'text';
+      picker.input.placeholder = placeholder;
+      picker.input.setAttribute('aria-label', label);
+      picker.input.setAttribute('autocomplete', 'off');
+      picker.input.maxLength = 80;
+      picker.list = el('ul', 'dir-list');
+      picker.list.setAttribute('role', 'listbox');
+      picker.list.hidden = true;
+      picker.note = el('p', 'dir-note');
+      picker.note.hidden = true;
+      var active = -1;
+
+      function items() { return Array.prototype.slice.call(picker.list.children); }
+      function mark(index) {
+        active = index;
+        items().forEach(function (item, i) { item.classList.toggle('is-active', i === index); item.setAttribute('aria-selected', String(i === index)); });
+      }
+      function choose(entry) {
+        picker.chosen = entry;
+        picker.noMatch = false;
+        picker.input.value = entry.person;
+        picker.list.hidden = true;
+        picker.note.hidden = true;
+        onChange(picker);
+      }
+      function show() {
+        var query = picker.input.value.trim();
+        picker.chosen = null;
+        picker.list.textContent = '';
+        active = -1;
+        var found = query ? searchDirectory(query) : [];
+        picker.noMatch = !!query && !found.length;
+        found.forEach(function (entry) {
+          var item = el('li', 'dir-item');
+          item.setAttribute('role', 'option');
+          item.appendChild(el('span', 'dir-name', entry.person));
+          item.appendChild(el('span', 'dir-email', ' · ' + entry.email));
+          if (entry.placed) { item.appendChild(el('span', 'dir-placed', ' · already ' + entry.placed.role)); }
+          item.addEventListener('mousedown', function (event) { event.preventDefault(); choose(entry); });
+          picker.list.appendChild(item);
+        });
+        picker.list.hidden = !found.length;
+        picker.note.hidden = !picker.noMatch;
+        picker.note.textContent = picker.noMatch ? 'Not found in the company directory.' : '';
+        onChange(picker);
+      }
+      picker.input.addEventListener('input', show);
+      picker.input.addEventListener('keydown', function (event) {
+        var list = items();
+        if (event.key === 'ArrowDown' && list.length) { event.preventDefault(); mark((active + 1) % list.length); }
+        else if (event.key === 'ArrowUp' && list.length) { event.preventDefault(); mark((active - 1 + list.length) % list.length); }
+        else if (event.key === 'Enter' && active >= 0) { event.preventDefault(); list[active].dispatchEvent(new MouseEvent('mousedown')); }
+        else if (event.key === 'Escape' && !picker.list.hidden) { event.stopPropagation(); picker.list.hidden = true; }
+      });
+      picker.reset = function () { picker.chosen = null; picker.noMatch = false; picker.input.value = ''; picker.list.hidden = true; picker.note.hidden = true; onChange(picker); };
+      return picker;
+    }
+
+    /* ----- Replace person: one step instead of add, transfer and remove ----- */
+    // The role keeps its title and all of its pages; only the person and email on it change. The new person is picked from the
+    // directory, and Replace stays disabled until a match is picked.
+    function openReplaceDialog(role, count) {
+      var replaceDialog = el('dialog', 'draft-dialog replace-dialog');
+      var heading = role.person ? 'Replace ' + role.person + ' as ' + role.title : 'Choose a person for ' + role.title;
+      replaceDialog.setAttribute('aria-label', heading);
+      replaceDialog.appendChild(el('h2', 'dialog-title', heading));
+      replaceDialog.appendChild(el('p', 'dialog-hint', 'The new person takes over the role and every page it owns. Contact details follow the role.'));
+      var go;
+      var picker = directoryPicker('Search the company directory', 'New person', function (state) { go.disabled = !state.chosen; problem.hidden = true; });
+      var problem = el('p', 'dialog-hint is-error');
+      problem.setAttribute('role', 'alert');
+      problem.hidden = true;
+      replaceDialog.appendChild(picker.input);
+      replaceDialog.appendChild(picker.list);
+      replaceDialog.appendChild(picker.note);
+      replaceDialog.appendChild(problem);
+      var actions = el('div', 'dialog-actions');
+      actions.appendChild(button('Cancel', 'secondary-link', function () { replaceDialog.close(); }));
+      go = button('Replace', 'primary-btn', async function () {
+        if (!picker.chosen) { return; }
+        var next = picker.chosen;
+        var roles = currentRoles().map(function (r) { return r.title === role.title ? { title: r.title, person: next.person, email: next.email } : r; });
+        var message = (role.person ? 'Replaced ' + role.person + ' with ' + next.person + ' as ' + role.title + '.' : next.person + ' now holds ' + role.title + '.')
+          + (count ? ' Its ' + count + (count === 1 ? ' page stays' : ' pages stay') + ' with the role.' : '');
+        go.disabled = true;
+        var saved = await save(roles, message, function (text) { problem.textContent = text; problem.hidden = false; go.disabled = !picker.chosen; });
+        if (saved) { replaceDialog.close(); }
+      });
+      go.disabled = true;
+      actions.appendChild(go);
+      replaceDialog.appendChild(actions);
+      replaceDialog.addEventListener('close', function () { replaceDialog.remove(); });
+      document.body.appendChild(replaceDialog);
+      replaceDialog.showModal();
+      picker.input.focus();
+    }
 
     /* ----- a) The people and roles ----- */
     var table = el('table', 'lib-table');
@@ -1232,6 +1362,10 @@
       row.appendChild(el('td', 'team-email', role.email || 'No email'));
       row.appendChild(el('td', '', String(count)));
       var actions = el('td', 'team-actions');
+      var buttons = el('div', 'team-buttons');
+      var replace = button('Replace person', 'row-btn', function () { openReplaceDialog(role, count); });
+      replace.setAttribute('aria-label', (role.person ? 'Replace ' + role.person + ' as ' : 'Choose a person for ') + role.title);
+      buttons.appendChild(replace);
 
       // c) Transfer: a button that opens a small window to choose another team member
       var transfer = button('Transfer pages', 'row-btn', async function () {
@@ -1245,7 +1379,7 @@
       transfer.disabled = !count;
       transfer.title = count ? '' : 'This role has no pages to transfer.';
       transfer.setAttribute('aria-label', 'Transfer pages of ' + role.title);
-      actions.appendChild(withTip(transfer));
+      buttons.appendChild(withTip(transfer));
 
       // d) Remove: only when the role no longer has any pages (and never the team lead)
       var remove = button('Remove', 'row-btn row-btn-danger', async function () {
@@ -1255,7 +1389,10 @@
       remove.disabled = role.title === team.lead || count > 0;
       remove.title = role.title === team.lead ? 'Team leads can’t be removed. Assign a new team lead first.' : count ? 'Transfer its pages first.' : '';
       remove.setAttribute('aria-label', 'Remove ' + role.title);
-      actions.appendChild(withTip(remove));
+      buttons.appendChild(withTip(remove));
+      actions.appendChild(buttons);
+      // Why Remove is off, in plain text (the team lead's stays off, with its reason as a tooltip)
+      if (role.title !== team.lead && count > 0) { actions.appendChild(el('p', 'team-why', 'Can be removed once its pages are transferred.')); }
       row.appendChild(actions);
       tbody.appendChild(row);
     });
@@ -1265,11 +1402,13 @@
     /* ----- Pages with no owner: assign several at once ----- */
     var everything = await attempt(backend().list(''));
     var ownerless = everything ? everything.pages.filter(function (p) { return W.ownerIsUnassigned(team, p.owner); }) : [];
-    var orphans = el('section', 'team-orphans');
-    orphans.appendChild(el('h3', 'team-subtitle', 'Pages without an owner (' + ownerless.length + ')'));
+    // Calm when there is nothing to do; the alert look is only for when pages really have no owner
+    var orphans = el('section', 'team-orphans ' + (ownerless.length ? 'is-alert' : 'is-calm'));
     if (!ownerless.length) {
-      orphans.appendChild(el('p', 'dialog-hint', 'Every page has an owner.'));
+      orphans.appendChild(el('h3', 'team-subtitle', '\u2713 Every page has an owner'));
+      orphans.appendChild(el('p', 'dialog-hint', 'Nothing to assign right now.'));
     } else {
+      orphans.appendChild(el('h3', 'team-subtitle', 'Pages without an owner (' + ownerless.length + ')'));
       orphans.appendChild(el('p', 'dialog-hint', 'Their owner role has left the team, or nobody holds it. Until they are assigned, the team lead is shown as the contact.'));
       var picked = {};
       ownerless.forEach(function (p) { picked[p.id] = true; });
@@ -1337,30 +1476,58 @@
     box.appendChild(orphans);
 
     /* ----- b) Add a person and role ----- */
+    // The person is looked up in the company directory as you type; picking one fills in their email address (read-only, so names and
+    // emails are exact). Someone who is not in the directory can still be added: the note says so and the email is typed by hand.
+    // The role box suggests the role titles used in other departments, so the same job is not written two ways.
     var add = el('div', 'team-add');
-    var personInput = el('input', 'lib-search');
-    personInput.placeholder = 'Name';
-    personInput.setAttribute('aria-label', 'New person');
-    personInput.maxLength = 80;
-    var roleInput = el('input', 'lib-search');
-    roleInput.placeholder = 'Role (for example SEO Analyst)';
-    roleInput.setAttribute('aria-label', 'New role');
-    roleInput.maxLength = 80;
     var emailInput = el('input', 'lib-search');
     emailInput.type = 'email';
     emailInput.placeholder = 'Email';
     emailInput.setAttribute('aria-label', 'New email');
     emailInput.maxLength = 120;
-    add.appendChild(personInput);
+    var fromDirectory = el('p', 'dir-note');
+    fromDirectory.hidden = true;
+    var personPicker = directoryPicker('Search the company directory', 'New person', function (state) {
+      if (state.chosen) {
+        emailInput.value = state.chosen.email;
+        emailInput.readOnly = true;
+        fromDirectory.textContent = 'From the company directory: ' + state.chosen.email + '.';
+        fromDirectory.hidden = false;
+      } else {
+        if (emailInput.readOnly) { emailInput.value = ''; }
+        emailInput.readOnly = false;
+        fromDirectory.hidden = true;
+      }
+    });
+    var roleInput = el('input', 'lib-search');
+    roleInput.placeholder = 'Role (choose or type a new one)';
+    roleInput.setAttribute('aria-label', 'New role');
+    roleInput.maxLength = 80;
+    var roleSuggestions = el('datalist');
+    roleSuggestions.id = 'team-role-suggestions';
+    var ownTitles = team.roles.map(function (r) { return r.title.toLowerCase(); });
+    var suggested = {};
+    (window.TEAMS || [team]).forEach(function (other) {
+      other.roles.forEach(function (r) {
+        if (ownTitles.indexOf(r.title.toLowerCase()) < 0 && !suggested[r.title.toLowerCase()]) { suggested[r.title.toLowerCase()] = true; roleSuggestions.appendChild(el('option', '', r.title)); }
+      });
+    });
+    roleInput.setAttribute('list', roleSuggestions.id);
+    add.appendChild(personPicker.input);
     add.appendChild(roleInput);
+    add.appendChild(roleSuggestions);
     add.appendChild(emailInput);
     add.appendChild(button('Add person and role', 'secondary-link', async function () {
-      if (!personInput.value.trim()) { personInput.focus(); return; }
+      var name = personPicker.input.value.trim();
+      if (!name) { personPicker.input.focus(); return; }
       if (!roleInput.value.trim()) { roleInput.focus(); return; }
       if (!emailInput.value.trim()) { emailInput.focus(); return; }
-      await save(currentRoles().concat([{ title: roleInput.value.trim(), person: personInput.value.trim(), email: emailInput.value.trim() }]), 'Added ' + personInput.value.trim() + ' as ' + roleInput.value.trim() + '.');
+      await save(currentRoles().concat([{ title: roleInput.value.trim(), person: name, email: emailInput.value.trim() }]), 'Added ' + name + ' as ' + roleInput.value.trim() + '.');
     }));
     box.appendChild(add);
+    box.appendChild(personPicker.list);
+    box.appendChild(personPicker.note);
+    box.appendChild(fromDirectory);
 
     var done = el('div', 'dialog-actions');
     done.appendChild(button('Close', 'primary-btn', function () { dialog.close(); }));

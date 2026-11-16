@@ -2267,3 +2267,27 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .lib-table td.lib-row-actions { display: table-cell; text-align: right; white-space: nowrap; }
 .lib-table td.lib-row-actions > * { vertical-align: middle; }
 .lib-table td.lib-row-actions > * + * { margin-left: 6px; }
+
+/* ---------- Team and roles: wider, one-line emails, directory type-ahead ---------- */
+.team-dialog { width: min(980px, calc(100vw - 32px)); }
+.team-email { white-space: nowrap; word-break: normal; }
+.team-buttons { display: flex; gap: 6px; flex-wrap: nowrap; }
+.team-why { margin: 4px 0 0; color: var(--text-muted); font-size: 0.78rem; white-space: normal; }
+.team-orphans { margin-top: 16px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; }
+.team-orphans.is-calm { background: var(--surface-muted); }
+.team-orphans.is-calm .team-subtitle { color: var(--success); }
+.team-orphans.is-alert { background: var(--danger-soft); border-color: var(--danger-border); }
+.team-orphans .team-subtitle { margin: 0 0 4px; font-size: 0.95rem; }
+.team-orphans .dialog-hint { margin: 0; }
+.team-add { align-items: flex-start; }
+.team-add .lib-search { flex: 1 1 220px; max-width: none; }
+.dir-list { list-style: none; margin: 6px 0 0; padding: 4px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); }
+.dir-list[hidden], .dir-note[hidden] { display: none; }
+.dir-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 0.92rem; }
+.dir-item:hover, .dir-item.is-active { background: var(--accent-soft); }
+.dir-email, .dir-placed { color: var(--text-muted); font-size: 0.85rem; }
+.dir-note { margin: 8px 0 0; color: var(--text-muted); font-size: 0.85rem; }
+.replace-dialog { width: min(520px, calc(100vw - 32px)); }
+.replace-dialog .lib-search { width: 100%; max-width: none; }
+.is-error { color: var(--danger); }
+.team-dialog .lib-table td:first-child, .team-dialog .lib-table th { white-space: nowrap; }

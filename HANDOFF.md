@@ -1078,3 +1078,18 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
 - **Row actions:** Edit (and the lead's Publish shortcut on drafts) stay visible; Unpublish, Delete, Request deletion and Cancel deletion
   request are in the "..." menu, and each still asks first.
 - "Client-Safe" reads **Shareable with clients** in the table (one line, never wraps).
+
+**Section 2: Team and roles and Replace person (frames 3 and 4).**
+- **Team and roles** is wider (980 px) so emails stay on one line. The hint says to use **Replace person** on a row, and **Transfer pages** to move pages
+  to another role. A row's **Remove** stays off while its role owns pages, with the reason in plain text under the buttons ("Can be removed
+  once its pages are transferred."); the team lead's stays off with a tooltip. The "Pages without an owner" block is calm (a neutral box,
+  "✓ Every page has an owner") when there is nothing to do, and keeps the red alert look only when pages really have no owner.
+- **Replace person** is one dialog instead of add, transfer and remove: "Replace Chris Ortega as Tier 1 Agent". The new person is picked from the
+  directory; **Replace** stays disabled until a match is picked. The role keeps its title and all its pages (only the person and email change)
+  and the confirmation says so ("Its 2 pages stay with the role."). If the team lead is replaced, "Acting as" follows the role. A refusal
+  from the roster check (for example the person already holds another role) shows in the dialog and in the notice bar.
+- **Add person and role** looks the person up in the company directory as you type (`directoryPicker` and `searchDirectory` in `library-ui.js`);
+  picking one fills the email read-only ("From the company directory: ..."). Someone not found can still be added: the note says so and the
+  email is typed by hand. The role box suggests the role titles used in other departments. In the artifact the directory is the made-up company
+  list plus everyone who holds a role in any department (the same one the Admin tools use); on the server it is only the people on this team.
+  The real directory (Entra ID) replaces both.
