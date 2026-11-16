@@ -1071,8 +1071,10 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
 - **Needs review** is a new status filter (live pages past their review date).
 - **Freshness.** The Updated column reads "8 days ago" (full date on hover) with a second line on live pages: "Review due in N days", or red
   "Needs review · N days overdue". The cycle is **180 days after the last update** (`REVIEW_DAYS` in `workflow.cjs`, with `relativeTime`
-  and `reviewStatus`; tests in `tests/freshness.test.cjs`) until pages get their own review cycle. Changing a page's owner counts as an update,
-  so it also restarts the clock.
+  and `reviewStatus`; tests in `tests/freshness.test.cjs`) until pages get their own review cycle. **"Updated" means when the live version went
+  live** (published or approved by the team lead: the version's `decidedAt`). Changing the owner, moving pages between roles, or saving a draft of
+  a live page does not count; only republishing does. A page that is not live shows its last save. The summary keeps `changedAt` (the last
+  change of any kind) separately, which is what decides whether a backup is out of date.
 - **Owner** is plain text with a **Change** link; the dropdown appears only after Change, saves when a role is chosen, and clicking away
   puts the text back.
 - **Row actions:** Edit (and the lead's Publish shortcut on drafts) stay visible; Unpublish, Delete, Request deletion and Cancel deletion

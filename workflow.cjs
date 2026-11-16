@@ -627,7 +627,11 @@
       versionCount: page.versions.length,
       releaseCount: page.versions.filter(isPublished).length,
       liveRelease: live ? releaseNumber(page, live) : null,
-      updatedAt: page.updatedAt
+      // "Updated" is when the live version went live (published or approved by the team lead). Changing the owner, moving pages between roles or
+      // saving a draft of a live page does not count: the live page itself has not changed. A page that is not live shows its last save.
+      updatedAt: live ? (live.decidedAt || live.updatedAt || page.updatedAt) : page.updatedAt,
+      // The last change of any kind, for knowing whether a backup is out of date
+      changedAt: page.updatedAt
     };
   }
 
@@ -700,7 +704,7 @@
       owner: f.owner,
       keywords: f.keywords,
       headings: headingTexts(f.sections),
-      updatedAt: live.updatedAt || page.updatedAt || '',
+      updatedAt: live.decidedAt || live.updatedAt || page.updatedAt || '',   // when it went live (see summary)
       body: bodyText(f.sections)
     };
   }

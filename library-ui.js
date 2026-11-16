@@ -426,7 +426,7 @@
   function backupStatus() {
     var last = window.Store.getLastBackup();
     if (!last) { return 'No backup downloaded yet.'; }
-    var newest = libraryPages.reduce(function (latest, p) { return String(p.updatedAt) > latest ? String(p.updatedAt) : latest; }, '');
+    var newest = libraryPages.reduce(function (latest, p) { var changed = String(p.changedAt || p.updatedAt); return changed > latest ? changed : latest; }, '');
     return 'Last backup: ' + W.relativeTime(last) + '. ' + (newest > last ? 'Pages have changed since.' : 'Up to date.');
   }
 

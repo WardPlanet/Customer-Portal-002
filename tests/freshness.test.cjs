@@ -30,3 +30,38 @@ test('past the cycle the page needs review, and says by how long', () => {
   assert.equal(status.text, 'Needs review \u00B7 30 days overdue');
   assert.equal(W.reviewStatus('', NOW), null);
 });
+
+// A live page's "Updated" date is when it went live, not when anything else about it changed
+const team = { name: 'T', slug: 't', lead: 'Lead', locations: ['Websites'], roles: [{ title: 'Writer', person: 'Wanda' }, { title: 'Editor', person: 'Eddie' }, { title: 'Lead', person: 'Lou' }] };
+const wanda = W.actorFor('Wanda', team);
+const lou = W.actorFor('Lou', team);
+const draft = (title) => ['[TITLE]', title, '', '[DESCRIPTION]', 'D.', '', '[BLOCK 1 STEP NUMBER]', '1', '', '[BLOCK 1 STEP TITLE]', 'Do it', '', '[BLOCK 1 STEP TEXT]', 'x', '',
+  '[OWNER ROLE]', 'Writer', '', '[WHERE THIS LIVES]', 'Websites', '', '[VISIBILITY]', 'Internal-Only', ''].join('\n');
+
+test('changing the owner does not change when a live page was updated', () => {
+  const page = W.createPage(team, draft('Refunds'), wanda, '2026-01-01T10:00:00.000Z');
+  W.submit(page, 1, wanda, team, '2026-01-02T10:00:00.000Z');
+  W.approve(page, 1, lou, team, '2026-01-03T10:00:00.000Z');
+  assert.equal(W.summary(page).updatedAt, '2026-01-03T10:00:00.000Z');
+  W.setOwner(page, 'Editor', lou, team, '2026-06-01T10:00:00.000Z');
+  const after = W.summary(page);
+  assert.equal(after.updatedAt, '2026-01-03T10:00:00.000Z');          // still when it went live
+  assert.equal(after.changedAt, '2026-06-01T10:00:00.000Z');          // but the library knows something changed, for backups
+  assert.equal(W.searchEntry(page, 'staff').updatedAt, '2026-01-03T10:00:00.000Z');
+});
+
+test('saving a draft of a live page does not change it either, but republishing does', () => {
+  const page = W.createPage(team, draft('Refunds'), wanda, '2026-01-01T10:00:00.000Z');
+  W.submit(page, 1, wanda, team, '2026-01-02T10:00:00.000Z');
+  W.approve(page, 1, lou, team, '2026-01-03T10:00:00.000Z');
+  const next = W.startEdit(page, wanda, '2026-02-01T10:00:00.000Z');
+  assert.equal(W.summary(page).updatedAt, '2026-01-03T10:00:00.000Z');
+  W.submit(page, next.n, wanda, team, '2026-02-02T10:00:00.000Z');
+  W.approve(page, next.n, lou, team, '2026-02-03T10:00:00.000Z');
+  assert.equal(W.summary(page).updatedAt, '2026-02-03T10:00:00.000Z');
+});
+
+test('a page that is not live shows its last save', () => {
+  const page = W.createPage(team, draft('Refunds'), wanda, '2026-01-01T10:00:00.000Z');
+  assert.equal(W.summary(page).updatedAt, page.updatedAt);
+});
