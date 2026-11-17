@@ -19,6 +19,7 @@
   var ROSTER_KEY = 'pageEditor.roster.v1';   // the artifact keeps changes to the team here (one list per department: ROSTER_KEY + '.' + slug)
   var DEPARTMENT_KEY = 'pageEditor.department.v1';   // which department the artifact is showing
   var ADMIN_KEY = 'pageEditor.adminMode.v1';         // "1" while the Department dropdown is on Admin (every department, acting as Admin)
+  var PUBLIC_KEY = 'pageEditor.publicMode.v1';       // "1" while the Department dropdown is on Public (the site as a signed-out visitor sees it)
   var SEED_KEY = 'pageEditor.seededSupport.v1';
   var DIRECTORY_KEY = 'pageEditor.directory.v1';   // what the Admin tools page changed: new teams, team edits, retired teams, invitations, history
 
@@ -46,6 +47,9 @@
     try { slug = localStorage.getItem(DEPARTMENT_KEY) || ''; } catch (error) { /* storage unavailable */ }
     window.TEAM_ROSTER = window.TEAMS.filter(function (candidate) { return candidate.slug === slug; })[0] || window.TEAMS[0];
     try { window.ADMIN_MODE = localStorage.getItem(ADMIN_KEY) === '1'; } catch (error) { window.ADMIN_MODE = false; }
+    try { window.PUBLIC_MODE = localStorage.getItem(PUBLIC_KEY) === '1'; } catch (error) { window.PUBLIC_MODE = false; }
+    if (window.PUBLIC_MODE) { window.ADMIN_MODE = false; }   // one mode at a time
+    document.documentElement.classList.toggle('public-mode', !!window.PUBLIC_MODE);
   })();
 
   function fail(code, message) {
@@ -246,6 +250,46 @@
     } catch (error) {
       memory = data;   // keep going in memory; the library says so
     }
+  }
+
+  // The site as a signed-out visitor sees it: only live Client-Safe pages can be found or opened, and nothing can be changed.
+  function publicOnly(inner) {
+    var READS = ['mode', 'isMemoryOnly', 'logSearch', 'viewCounts'];
+    var view = {};
+    Object.keys(inner).forEach(function (name) {
+      if (READS.indexOf(name) >= 0) { view[name] = inner[name]; return; }
+      view[name] = async function () { throw fail('public_view', 'The public view is read-only.'); };
+    });
+    async function publicIds() {
+      var all = await inner.list('', true);
+      var ids = {};
+      all.pages.forEach(function (row) { if (row.visibility === 'Client-Safe') { ids[row.id] = true; } });
+      return ids;
+    }
+    async function requireOpen(id) {
+      if (!(await publicIds())[id]) { throw fail('not_public', 'That page is not available to the public.'); }
+    }
+    view.list = async function (q) {
+      var ids = await publicIds();
+      var found = await inner.list(q || '', true);
+      found.pages = found.pages.filter(function (row) { return ids[row.id]; });
+      return found;
+    };
+    view.suggest = async function (q) {
+      var ids = await publicIds();
+      var found = await inner.suggest(q);
+      found.suggestions = (found.suggestions || []).filter(function (item) { return ids[item.id]; });
+      return found;
+    };
+    view.popular = async function () {
+      var ids = await publicIds();
+      var found = await inner.popular();
+      found.pages = (found.pages || []).filter(function (item) { return ids[item.id]; });
+      return found;
+    };
+    view.get = async function (id) { await requireOpen(id); return inner.get(id); };
+    view.getVersion = async function (id, n) { await requireOpen(id); return inner.getVersion(id, n); };
+    return view;
   }
 
   function local(team, allTeams) {
@@ -865,21 +909,27 @@
     // The departments this copy can show (more than one only in the Claude artifact), and which one is showing
     teams: function () { return window.TEAMS && window.TEAMS.length ? window.TEAMS : (window.TEAM_ROSTER ? [window.TEAM_ROSTER] : []); },
     // What the Department dropdown shows: a department's slug, or "admin"
-    getDepartment: function () { return window.ADMIN_MODE ? 'admin' : (window.TEAM_ROSTER ? window.TEAM_ROSTER.slug : ''); },
+    getDepartment: function () { return window.PUBLIC_MODE ? 'public' : window.ADMIN_MODE ? 'admin' : (window.TEAM_ROSTER ? window.TEAM_ROSTER.slug : ''); },
     isAdminMode: function () { return !!window.ADMIN_MODE; },
+    isPublicMode: function () { return !!window.PUBLIC_MODE; },
     // Switching department is a reload of the page (the page then works as that team); the person acting becomes that team's lead.
     // "admin" is not a team: it shows every department's pages, and the only person to act as is Admin (test). keepMode: change the
     // team the page works as without leaving the mode (Admin opening another department's page).
     setDepartment: function (slug, keepMode) {
+      if (slug === 'public') {
+        try { localStorage.setItem(PUBLIC_KEY, '1'); localStorage.removeItem(ADMIN_KEY); } catch (error) { /* storage unavailable */ }
+        return true;
+      }
       if (slug === 'admin') {
-        try { localStorage.setItem(ADMIN_KEY, '1'); } catch (error) { /* storage unavailable */ }
+        try { localStorage.setItem(ADMIN_KEY, '1'); localStorage.removeItem(PUBLIC_KEY); } catch (error) { /* storage unavailable */ }
         this.setActor('Admin');
         return true;
       }
       var chosen = this.teams().filter(function (candidate) { return candidate.slug === slug; })[0];
       if (!chosen) { return false; }
       try { localStorage.setItem(DEPARTMENT_KEY, slug); } catch (error) { /* storage unavailable */ }
-      if (keepMode && window.ADMIN_MODE) { return true; }
+      if (keepMode && (window.ADMIN_MODE || window.PUBLIC_MODE)) { return true; }
+      try { localStorage.removeItem(PUBLIC_KEY); } catch (error) { /* storage unavailable */ }
       try { localStorage.removeItem(ADMIN_KEY); } catch (error) { /* storage unavailable */ }
       var lead = chosen.roles.filter(function (role) { return role.title === chosen.lead; })[0];
       if (lead && lead.person) { this.setActor(lead.person); }
@@ -894,6 +944,7 @@
         else if (actingAs.toLowerCase() === 'admin') { this.setActor(DEFAULT_ACTOR); }
         this.backend = local(team, window.TEAMS);
         seedSupportDemo(window.TEAMS);
+        if (window.PUBLIC_MODE) { this.backend = publicOnly(this.backend); }
         return team;
       }
       try {

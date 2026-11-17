@@ -249,6 +249,9 @@
         var adminDepartment = el('option', '', 'Admin');   // every department's pages, acting as Admin (test)
         adminDepartment.value = 'admin';
         deptSelect.appendChild(adminDepartment);
+        var publicDepartment = el('option', '', 'Public');   // the site as a signed-out visitor sees it (Client-Safe pages only)
+        publicDepartment.value = 'public';
+        deptSelect.appendChild(publicDepartment);
         deptSelect.value = window.Store.getDepartment();
         deptSelect.addEventListener('change', function () {
           if (window.Store.setDepartment(deptSelect.value)) { location.reload(); }
@@ -256,6 +259,7 @@
         deptLabel.appendChild(deptSelect);
         slot.appendChild(deptLabel);
       }
+      if ((window.Store.isPublicMode && window.Store.isPublicMode())) { return; }   // a visitor is nobody in particular
       var label = el('label', 'acting-label', 'Acting as ');
       var select = el('select', 'acting-select');
       select.setAttribute('aria-label', 'Acting as');
@@ -1780,7 +1784,7 @@
     }
     addFilterSelect('team', [['', 'Any team']]);
     addFilterSelect('location', [['', 'Anywhere']]);
-    addFilterSelect('visibility', [['', 'Any'], ['Internal-Only', 'Internal-Only'], ['Client-Safe', 'Client-Safe']]);
+    if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { addFilterSelect('visibility', [['', 'Any'], ['Internal-Only', 'Internal-Only'], ['Client-Safe', 'Client-Safe']]); }
     addFilterSelect('updated', [['', 'Any time'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90 days'], ['365', 'Last year']]);
     addFilterSelect('sort', [['best', 'Best match'], ['newest', 'Newest'], ['opened', 'Most opened'], ['az', 'A to Z']]);
     function hasFilters() { return !!(filters.team || filters.location || filters.visibility || filters.updated); }
@@ -1984,7 +1988,7 @@
           if (q) { logClick(q, p, position + 1); }
         });
         titleRow.appendChild(titleLink);
-        titleRow.appendChild(visibilityPill(p.visibility));
+        if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { titleRow.appendChild(visibilityPill(p.visibility)); }
         body.appendChild(titleRow);
         if (p.search && p.search.snippetParts && p.search.snippetParts.length) {
           var snippet = el('p', 'search-snippet');
@@ -1996,12 +2000,12 @@
         // in it, the team lead is the contact (as on the page itself). A page past its review date says so, in red.
         var resultOwner = ownerShown(p, teamFor(p.team) || team);
         var meta = el('p', 'search-owner');
-        meta.appendChild(document.createTextNode('Owner: ' + resultOwner.label));
-        var updated = el('span', '', ' \u00B7 Updated ' + W.relativeTime(p.updatedAt));
+        if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { meta.appendChild(document.createTextNode('Owner: ' + resultOwner.label)); }
+        var updated = el('span', '', (window.Store.isPublicMode && window.Store.isPublicMode() ? 'Updated ' : ' \u00B7 Updated ') + W.relativeTime(p.updatedAt));
         updated.title = formatDate(p.updatedAt);
         meta.appendChild(updated);
         var review = W.reviewStatus(p.updatedAt);
-        if (review && review.overdue) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(el('span', 'is-overdue', 'Needs review')); }
+        if (review && review.overdue && !(window.Store.isPublicMode && window.Store.isPublicMode())) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(el('span', 'is-overdue', 'Needs review')); }
         body.appendChild(meta);
         card.appendChild(body);
         listBox.appendChild(card);
@@ -2587,7 +2591,7 @@
     backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));
     main.appendChild(backRow);
     var bar = el('div', 'preview-bar');
-    bar.appendChild(visibilityPill(detail.page.visibility));
+    if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { bar.appendChild(visibilityPill(detail.page.visibility)); }
     if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet')); }
     // How fresh the page is: "Updated 2 days ago" (the full date on hover), and on a live page when it is due for review
     if (detail.page.updatedAt) {
@@ -2595,7 +2599,7 @@
       fresh.title = formatDate(detail.page.updatedAt);
       bar.appendChild(fresh);
       var due = detail.page.liveVersion ? W.reviewStatus(detail.page.updatedAt) : null;
-      if (due) { bar.appendChild(el('span', 'preview-updated review-line' + (due.overdue ? ' is-overdue' : ''), due.text)); }
+      if (due && !(window.Store.isPublicMode && window.Store.isPublicMode())) { bar.appendChild(el('span', 'preview-updated review-line' + (due.overdue ? ' is-overdue' : ''), due.text)); }
     }
     main.appendChild(bar);
     // Points the AI flagged when the document was imported are shown ON the draft, while it is not live (they are in its version note)
@@ -2666,7 +2670,7 @@
 
     var who = actor();
     var ownDepartment = !detail.page.team || detail.page.team === team.slug || window.Store.getActor().toLowerCase() === 'admin';   // another department's page can only be read from here (Admin can open it: the editor then switches department)
-    if (ownDepartment && (W.isLead(who, team) || who.roles.indexOf(detail.page.owner) >= 0)) {
+    if (!(window.Store.isPublicMode && window.Store.isPublicMode()) && ownDepartment && (W.isLead(who, team) || who.roles.indexOf(detail.page.owner) >= 0)) {
       // A draft can be sent for review (draft or sent-back pages) or published from here (only by someone allowed to publish directly).
       // While either shows, Continue editing is secondary, so there is one main action.
       var versionActions = data.actions || [];
@@ -2688,7 +2692,7 @@
     }
 
     // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)
-    var asPublicNow = false;
+    var asPublicNow = (window.Store.isPublicMode && window.Store.isPublicMode());   // the public view always reads as the public sees it
     var exportButton = button('Export PDF', 'secondary-btn', async function () {
       exportButton.disabled = true;
       try {
@@ -2708,7 +2712,7 @@
     });
     footerActions.appendChild(copyButton);
 
-    if (isClientSafe) {
+    if (isClientSafe && !(window.Store.isPublicMode && window.Store.isPublicMode())) {
       var viewing = false;
       var toggle = button('View as the public', 'secondary-link', async function () {
         viewing = !viewing;
@@ -2719,7 +2723,7 @@
       });
       bar.appendChild(toggle);
     }
-    await draw(false);
+    await draw(asPublicNow);
   }
 
   /* ---------- What app.js calls when someone saves, submits or leaves ---------- */
@@ -2795,6 +2799,8 @@
     main.classList.remove('is-landing');           // only the landing search page runs edge to edge
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
+    // The public view is the site a signed-out visitor sees: the search page and the Client-Safe pages, nothing else
+    if ((window.Store.isPublicMode && window.Store.isPublicMode()) && screen !== 'public') { screen = 'public'; parts = ['public']; if (location.hash !== '#/public') { history.replaceState(null, '', '#/public'); } }
     setBanner(null);
     if (screen !== 'admin' && window.Admin) { window.Admin.leave(); }   // the Admin tools page lets go of its listeners
     if (screen === 'new') { openNewPage(); }

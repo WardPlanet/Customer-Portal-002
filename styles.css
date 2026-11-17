@@ -2337,3 +2337,10 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 
 /* A page the team lead has as the default owner, until someone reassigns it */
 .owner-name.is-default { color: var(--text-muted); font-style: italic; }
+
+/* Public view (Testing bar > Department > Public): the site as a signed-out visitor sees it, so staff navigation is hidden */
+.public-mode #nav-library,
+.public-mode #nav-review,
+.public-mode #nav-admin,
+.public-mode #nav-new,
+.public-mode .notify-slot { display: none !important; }

@@ -1203,3 +1203,11 @@ order (the first three fit what is already built or already needs IT):
 
 **Also pending (documents, not code):** the management summary written earlier still says pages follow the role ("Contacts and owners update automatically when roles change
 hands"); it predates ownership by person and needs that bullet updated. The Notion comparison document is current.
+
+## Public view (Testing bar)
+
+Department dropdown now has **Public**: the artifact shows the site as a signed-out visitor sees it.
+- Only live Client-Safe pages can be searched or opened (`publicOnly()` wrapper in `store.js`); every write is refused ("The public view is read-only").
+- Staff navigation (Library, Search review, Admin tools, New page, bell) and "Acting as" are hidden; every route other than `#/public…` redirects to the search page.
+- No visibility filter or pill, no owner line, no review warning, no Edit button or "View as the public" toggle; page view always reads as the public sees it (support link, no contacts).
+- Local to the artifact. On the real server this is simply the signed-out routes; the server's public routes still need to serve images (see open items).
