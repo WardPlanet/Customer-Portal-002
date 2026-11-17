@@ -1180,3 +1180,26 @@ to the person; it owns nothing. (Earlier sections of this file that say "pages b
 - **Backups** keep working as they are (owners are inside the page text). A backup from before this change restores fine.
 - **Sign-in later:** the email in `[OWNER]` is what Entra ID will match to the signed-in account; no change to the page format is needed then.
 - **Not built:** editing a person's job title in place (add or replace them to change it); a person on two teams (the roster rule is one entry per person per team).
+
+## Ideas to make it stronger than a general workspace (noted for later; none built)
+
+Raised while comparing the wiki with Notion. The aim is to lean into what a general tool does least well: trusted, owned, current answers. In the suggested
+order (the first three fit what is already built or already needs IT):
+
+1. **Review reminders and "Still accurate".** Today the 180-day review clock only restarts when a page is republished. Add a nudge (Teams or email) to the owner as a
+   page nears its date, one click to confirm "still accurate" without republishing, and a digest of overdue pages for the team lead. Suggested first build.
+2. **Search that learns.** Apply the decisions recorded on Search review (synonyms, pinned pages, saved tests: set `DECISIONS_APPLY`), add a "Was this helpful?" on each
+   page, and turn "found nothing" into a "request this page" message to the right owner.
+3. **Teams integration.** Search from Teams ("/wiki password reset"), approval requests and review reminders there; needs Entra sign-in first.
+4. **One source for staff and customers.** Publish the "Shareable with clients" pages to a customer help center from the same authoring and approval process.
+5. **Policy acknowledgement and an audit trail.** "I have read this" tracking, required review cycles by page type (for example yearly for compliance pages), and an
+   exportable record of who approved what and when.
+6. **Ask, with citations.** An optional question box that answers only from live, approved pages and always links the source with its owner and updated date. Search itself
+   stays AI-free; this would be a separate, narrow use of the AI.
+7. **Guided page types.** Policy, how-to and FAQ templates with required sections and a checklist before sending for review (builds on the style guide).
+8. **"What changed" and follow a page.** A short change note and a diff between versions, and a "What's new" feed for pages and teams people follow.
+9. **Health checks.** Broken links, similar or duplicate pages, and a "similar page already exists" prompt when starting a new one.
+10. **Context help from the products.** Deep links from Denticon, Cloud 9 and the other Planet DDS products to the right page.
+
+**Also pending (documents, not code):** the management summary written earlier still says pages follow the role ("Contacts and owners update automatically when roles change
+hands"); it predates ownership by person and needs that bullet updated. The Notion comparison document is current.
