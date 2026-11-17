@@ -571,13 +571,13 @@
       if (session.imageCount) { root.appendChild(el('p', 'batch-note', session.imageCount + ' image(s) in the file are not imported. Add them back by hand where needed.')); }
 
       var settings = el('section', 'batch-card batch-settings');
-      var ownerLabel = el('label', 'batch-field', 'Set the owner role of every document to ');
+      var ownerLabel = el('label', 'batch-field', 'Set the owner of every document to ');
       if (!needsOwner()) { ownerLabel.hidden = true; }   // not the lead: uploads belong to the uploader
       var owner = el('select', 'acting-select');
       var none = el('option', '', needsOwner() ? 'Choose a role…' : 'Choose later');
       none.value = '';
       owner.appendChild(none);
-      window.PageEditor.roles().forEach(function (title) { var o = el('option', '', title); o.value = title; owner.appendChild(o); });
+      window.PageEditor.people().forEach(function (person) { var o = el('option', '', person.label); o.value = person.key; owner.appendChild(o); });
       owner.value = '';
       owner.addEventListener('change', function () {
         // A shortcut: fills in every document at once. Each one can still be changed below.
@@ -593,7 +593,7 @@
       vis.addEventListener('change', function () { session.visibility = vis.value; });
       visLabel.appendChild(vis);
       settings.appendChild(visLabel);
-      settings.appendChild(el('p', 'lib-hint', needsOwner() ? 'Every document needs an owner role before the drafts can be created. Choose one for each below, or set them all above.' : 'Pages are created as drafts for you to check. They will be owned by ' + ((ui.myRole && ui.myRole()) || 'you') + ', your role.'));
+      settings.appendChild(el('p', 'lib-hint', needsOwner() ? 'Every document needs an owner before the drafts can be created. Choose one for each below, or set them all above.' : 'Pages are created as drafts for you to check. They will be owned by ' + ((ui.myRole && ui.myRole()) || 'you') + ', your role.'));
       root.appendChild(settings);
 
       var list = el('div', 'batch-list');
@@ -609,7 +609,7 @@
       var bar = el('div', 'batch-bar');
       var count = plan.documents.filter(function (d) { return d.include !== false; }).length;
       var missingOwner = needsOwner() ? plan.documents.filter(function (d) { return d.include !== false && !d.owner; }).length : 0;
-      var missingText = 'Choose an owner role for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + '.';
+      var missingText = 'Choose an owner for ' + missingOwner + (missingOwner === 1 ? ' more document' : ' more documents') + '.';
       // Create stays on, so a person can try it and be told why not. It is off only when nothing is chosen or the AI is not available.
       var create = ui.button('Create ' + count + (count === 1 ? ' draft' : ' drafts'), 'primary-btn', function () {
         if (missingOwner) {
@@ -651,14 +651,14 @@
       title.addEventListener('input', function () { doc.title = title.value; doc.edited = true; });
       body.appendChild(title);
 
-      var ownerRow = el('label', 'batch-field', 'Owner role ');
+      var ownerRow = el('label', 'batch-field', 'Owner ');
       if (!needsOwner()) { ownerRow.hidden = true; }
       var docOwner = el('select', 'acting-select');
-      docOwner.setAttribute('aria-label', 'Owner role for ' + doc.title);
+      docOwner.setAttribute('aria-label', 'Owner of ' + doc.title);
       var blank = el('option', '', needsOwner() ? 'Choose a role…' : 'Choose later');
       blank.value = '';
       docOwner.appendChild(blank);
-      window.PageEditor.roles().forEach(function (roleTitle) { var o = el('option', '', roleTitle); o.value = roleTitle; docOwner.appendChild(o); });
+      window.PageEditor.people().forEach(function (person) { var o = el('option', '', person.label); o.value = person.key; docOwner.appendChild(o); });
       docOwner.value = doc.owner || '';
       docOwner.addEventListener('change', function () { doc.owner = docOwner.value; review(); });
       // Red only after the person has tried to create (validation on submit, not on load)

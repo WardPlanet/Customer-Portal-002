@@ -349,8 +349,8 @@
         form.appendChild(field('Role', roles.role, 'Only roles nobody holds are listed.'));
         form.appendChild(roles.newRoleField);
         box.appendChild(form);
-        var used = (data.roleUsage[row.team] || {})[row.role] || 0;
-        box.appendChild(el('p', 'admin-effect', 'The ' + row.role + ' role becomes vacant. ' + (used ? plural(used, 'page uses', 'pages use') + ' it, and ' + (used === 1 ? 'it' : 'they') + ' will show no one to contact until it is filled.' : 'No page uses it.')));
+        var used = (data.roleUsage[row.team] || {})[(row.email || '').toLowerCase()] || 0;
+        box.appendChild(el('p', 'admin-effect', 'The ' + row.role + ' role becomes vacant. ' + (used ? plural(used, 'page names', 'pages name') + ' them. ' + (used === 1 ? 'It goes' : 'They go') + ' to the team lead, marked (Default), until someone reassigns ' + (used === 1 ? 'it' : 'them') + '.' : 'No page names them.')));
         dialogActions(box, close, 'Move', function () {
           var picked = roles.value();
           var input = { fromTeam: row.team, fromRole: row.role, toTeam: team.value };
@@ -361,8 +361,8 @@
     }
 
     function removeEffect(row) {
-      var used = (data.roleUsage[row.team] || {})[row.role] || 0;
-      return row.person + ' is taken out of the ' + row.role + ' role. ' + (used ? plural(used, 'page uses', 'pages use') + ' that role and will show no one to contact until it is filled.' : 'No page uses that role.');
+      var used = (data.roleUsage[row.team] || {})[(row.email || '').toLowerCase()] || 0;
+      return row.person + ' is taken out of the ' + row.role + ' role. ' + (used ? plural(used, 'page names', 'pages name') + ' them. ' + (used === 1 ? 'It goes' : 'They go') + ' to the team lead, marked (Default), until someone reassigns ' + (used === 1 ? 'it' : 'them') + '.' : 'No page names them.');
     }
 
     async function askRemove(row) {
@@ -599,8 +599,8 @@
         bulk.appendChild(resend);
         var removable = chosen.filter(function (row) { return !row.isLead; });
         var removeAll = button('Remove' + (removable.length ? ' (' + removable.length + ')' : ''), 'row-btn row-btn-danger', async function () {
-          var pagesAffected = removable.reduce(function (sum, row) { return sum + ((data.roleUsage[row.team] || {})[row.role] || 0); }, 0);
-          if (!(await window.askConfirm(plural(removable.length, 'person is', 'people are') + ' taken out of their roles. ' + (pagesAffected ? plural(pagesAffected, 'page uses', 'pages use') + ' those roles and will show no one to contact until they are filled.' : 'No page uses those roles.') + (chosen.length > removable.length ? ' Team leads cannot be removed and are left out.' : ''), { title: 'Remove ' + plural(removable.length, 'person', 'people') + '?', ok: 'Remove' }))) { return; }
+          var pagesAffected = removable.reduce(function (sum, row) { return sum + ((data.roleUsage[row.team] || {})[(row.email || '').toLowerCase()] || 0); }, 0);
+          if (!(await window.askConfirm(plural(removable.length, 'person is', 'people are') + ' taken out of their roles. ' + (pagesAffected ? plural(pagesAffected, 'page names', 'pages name') + ' them. ' + (pagesAffected === 1 ? 'It goes' : 'They go') + ' to their team lead, marked (Default), until someone reassigns ' + (pagesAffected === 1 ? 'it' : 'them') + '.' : 'No page names them.') + (chosen.length > removable.length ? ' Team leads cannot be removed and are left out.' : ''), { title: 'Remove ' + plural(removable.length, 'person', 'people') + '?', ok: 'Remove' }))) { return; }
           if (change('Removed ' + plural(removable.length, 'person', 'people') + '.', function () { removable.forEach(function (row) { store.removePerson(row.team, row.role); }); return {}; })) { ui.selected = {}; draw(); }
         });
         removeAll.disabled = !removable.length;

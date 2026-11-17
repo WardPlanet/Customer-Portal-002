@@ -2334,3 +2334,6 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .review-empty-title { margin: 0 0 6px; font-size: 1.1rem; }
 .review-empty-text { margin: 0; color: var(--text-muted); }
 .review-clear-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; }
+
+/* A page the team lead has as the default owner, until someone reassigns it */
+.owner-name.is-default { color: var(--text-muted); font-style: italic; }

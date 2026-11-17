@@ -156,19 +156,37 @@
   // The address of a page's preview (what a reader sees)
   function previewUrl(id) { return '#/preview/' + id; }
 
-  // t: the team whose roster to look in (the department showing, unless a page of another department is meant)
-  function personFor(title, t) {
-    var role = ((t || team).roles).filter(function (r) { return r.title === title; })[0];
-    return role ? role.person : '';
+  // A page is owned by a person, named by the email of their sign-in account. A "key" is that email (an older page may still hold a role title, which is
+  // looked up to whoever holds it). t: the team whose roster to look in (the department showing, unless a page of another department is meant).
+  function personEntry(key, t) { return W.findPerson(t || team, key); }
+
+  function personFor(key, t) {
+    var entry = personEntry(key, t);
+    return entry ? entry.person : '';
   }
 
-  function roleLabel(title, t) {
-    return title ? (personFor(title, t) || 'Unassigned') + ' — ' + title : 'No owner';   // the name first, then the role
+  // "Name — Job title" (the name first); isDefault adds "(Default)": the team lead has the page as a fallback until it is reassigned
+  function roleLabel(key, t, isDefault) {
+    if (!key) { return 'No owner'; }
+    var entry = personEntry(key, t);
+    return (entry && entry.person ? entry.person : 'Unassigned') + ' \u2014 ' + (entry ? entry.title : key) + (isDefault ? ' (Default)' : '');
   }
 
-  // "Name — Role", with "(invited)" after the name until the person has accepted their invitation
+  // "Name — Job title", with "(invited)" after the name until the person has accepted their invitation
   function roleOptionText(role) {
     return (role.person ? role.person + (role.status === 'invited' ? ' (invited)' : '') : 'Unassigned') + ' \u2014 ' + role.title;
+  }
+
+  // Who answers for a page: its owner, or the team lead marked "(Default)" when the owner has gone from the team. { entry, isDefault, label }
+  function ownerShown(p, t) {
+    var pageTeam = t || team;
+    var who = W.effectiveOwner(pageTeam, { owner: p.owner, ownerDefault: p.ownerDefault });
+    return { entry: who.entry, isDefault: who.isDefault, label: who.entry ? roleLabel(W.keyFor(who.entry), pageTeam, who.isDefault) : 'No owner' };
+  }
+
+  // The people a page can be given to: on the team, with a name, and past any invitation
+  function givablePeople(t) {
+    return ((t || team).roles).filter(function (role) { return role.person && role.status !== 'invited'; });
   }
 
   function actingAsAdmin() { return window.Store.getActor().toLowerCase() === 'admin'; }
@@ -569,7 +587,7 @@
     var value = {
       title: function (p) { return p.title.toLowerCase(); },
       status: function (p) { return STATE_LABELS[p.state][0].toLowerCase(); },
-      owner: function (p) { return (p.owner || '\uffff').toLowerCase(); },   // pages with no owner go last
+      owner: function (p) { return ownerShown(p, teamFor(p.team) || team).label.toLowerCase(); },
       visibility: function (p) { return p.visibility; },
       updated: function (p) { return String(p.updatedAt); },
       department: function (p) { return ((teamFor(p.team) || team).name || '').toLowerCase(); }   // Admin only
@@ -672,7 +690,7 @@
       var ownerPrompt = el('option', '', 'Change owner\u2026');
       ownerPrompt.value = '';
       ownerPick.appendChild(ownerPrompt);
-      team.roles.forEach(function (role) { var option = el('option', '', roleOptionText(role)); option.value = role.title; option.disabled = role.status === 'invited'; ownerPick.appendChild(option); });
+      givablePeople().forEach(function (role) { var option = el('option', '', roleOptionText(role)); option.value = W.keyFor(role); ownerPick.appendChild(option); });
       ownerPick.addEventListener('change', async function () { var role = ownerPick.value; ownerPick.value = ''; if (role) { await bulkSetOwner(chosenPages(), role); } });
       bulkBar.appendChild(ownerPick);
       bulkBar.appendChild(button('Delete', 'row-btn row-btn-danger', function () { bulkDelete(chosenPages()); }));
@@ -756,17 +774,16 @@
       statusCell.appendChild(badge(STATE_LABELS[p.state]));
       row.appendChild(statusCell);
       var ownerCell = el('td');
-      // No owner to contact: no role, a role that has left the team, or a role nobody holds. Shown in red.
+      // Who answers for the page. When the owner has left the team the team lead has it, marked "(Default)" until it is reassigned.
       var pageTeam = teamFor(p.team) || team;   // Admin sees every department's pages: each page's owner is chosen from its own team
-      var noOwner = W.ownerIsUnassigned(pageTeam, p.owner);
+      var shownOwner = ownerShown(p, pageTeam);
       if (actorIsLead()) {
-        // The team lead can give any page to another role right here. It shows as plain text with a Change link: the dropdown only
+        // The team lead can give any page to another person right here. It shows as plain text with a Change link: the dropdown only
         // appears after Change is clicked (so nothing is changed by accident), and clicking away puts the text back.
-        // Linked roles stay as they are.
-        var ownerText = noOwner ? 'Unassigned' + (p.owner ? ' (' + p.owner + ')' : '') : roleLabel(p.owner, pageTeam);
+        // Linked people stay as they are.
         var showOwner = function () {
           ownerCell.textContent = '';
-          ownerCell.appendChild(el('div', 'owner-name' + (noOwner ? ' is-unassigned' : ''), ownerText));
+          ownerCell.appendChild(el('div', 'owner-name' + (shownOwner.isDefault ? ' is-default' : ''), shownOwner.label));
           var change = el('button', 'owner-change', 'Change');
           change.type = 'button';
           change.setAttribute('aria-label', 'Change the owner of ' + p.title);
@@ -775,21 +792,20 @@
         };
         var editOwner = function () {
           ownerCell.textContent = '';
-          var ownerSelect = el('select', 'acting-select owner-select' + (noOwner ? ' is-unassigned' : ''));
+          var ownerSelect = el('select', 'acting-select owner-select');
           ownerSelect.setAttribute('aria-label', 'Owner of ' + p.title);
-          var roleOnTeam = pageTeam.roles.some(function (role) { return role.title === p.owner; });
-          if (!p.owner) { var emptyOption = el('option', '', 'No owner'); emptyOption.value = ''; ownerSelect.appendChild(emptyOption); }
-          else if (!roleOnTeam) { var goneOption = el('option', '', 'Unassigned (' + p.owner + ' left the team)'); goneOption.value = p.owner; ownerSelect.appendChild(goneOption); }
-          pageTeam.roles.forEach(function (role) {
+          // A page the lead has as the default starts with nothing chosen, so picking the lead again still counts as a decision
+          if (shownOwner.isDefault) { var choose = el('option', '', 'Choose a person\u2026'); choose.value = ''; ownerSelect.appendChild(choose); }
+          givablePeople(pageTeam).forEach(function (role) {
             var option = el('option', '', roleOptionText(role));
-            option.value = role.title;
-            option.disabled = role.status === 'invited' && role.title !== p.owner;   // invited people cannot be given pages yet
+            option.value = W.keyFor(role);
             ownerSelect.appendChild(option);
           });
-          ownerSelect.value = p.owner || '';
+          var currentKey = shownOwner.entry ? W.keyFor(shownOwner.entry) : '';
+          ownerSelect.value = shownOwner.isDefault ? '' : currentKey;
           var saving = false;
           ownerSelect.addEventListener('change', async function () {
-            if (!ownerSelect.value || ownerSelect.value === (p.owner || '')) { showOwner(); return; }
+            if (!ownerSelect.value || (!shownOwner.isDefault && ownerSelect.value === currentKey)) { showOwner(); return; }
             saving = true;
             if (await attempt(backend().setOwner(p.id, ownerSelect.value))) { notice('\u201c' + p.title + '\u201d is now owned by ' + roleLabel(ownerSelect.value, pageTeam) + '.'); route(); }
             else { saving = false; showOwner(); }
@@ -800,10 +816,8 @@
           ownerSelect.focus();
         };
         showOwner();
-      } else if (noOwner) {
-        ownerCell.appendChild(el('span', 'owner-unassigned', 'Unassigned'));
       } else {
-        ownerCell.textContent = roleLabel(p.owner, pageTeam);
+        ownerCell.appendChild(el('span', shownOwner.isDefault ? 'owner-name is-default' : '', shownOwner.label));
       }
       row.appendChild(ownerCell);
       var visCell = el('td');
@@ -941,7 +955,7 @@
             if (!old) { return; }
             dialog.close();
             // Only the team lead can change the owner, so a restored version keeps the page's current owner
-            var restoredText = actorIsLead() || !data.page.owner ? old.text : W.setOwnerInText(old.text, data.page.owner);
+            var restoredText = actorIsLead() || !data.page.owner ? old.text : W.setOwnerInText(old.text, data.page.owner, data.page.ownerDefault);
             window.PageEditor.load(restoredText, false);
             window.PageEditor.setStatus('Unsaved changes', false);
             await updateVersionLink(id);
@@ -1202,7 +1216,7 @@
   async function showTeam(box, dialog) {
     box.textContent = '';
     box.appendChild(el('h2', 'dialog-title', 'Team and roles'));
-    box.appendChild(el('p', 'dialog-hint', 'Pages belong to a role, not a person. To replace someone, add the new person and role, transfer the old role’s pages, then remove the old role.'));
+    box.appendChild(el('p', 'dialog-hint', 'Pages belong to a person, not a job title. To replace someone, choose Replace person on their row: the new person takes over their pages. Remove hands a person’s pages to someone you choose, or to the team lead (marked Default).'));
 
     if (!actorIsLead()) {
       box.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
@@ -1227,6 +1241,11 @@
         result = await attempt(backend().saveRoster(roles));
         if (!result) { return false; }
       }
+      return afterRosterChange(result, doneMessage);
+    }
+
+    // What happens after the team changed: the new list is kept, "Acting as" follows the lead if their person changed, and the screen is drawn again
+    function afterRosterChange(result, doneMessage) {
       team.roles = result.roles;
       if (!team.roles.some(function (r) { return r.person === window.Store.getActor(); })) { window.Store.setActor(personFor(team.lead)); }
       mountActing();
@@ -1339,12 +1358,21 @@
       go = button('Replace', 'primary-btn', async function () {
         if (!picker.chosen) { return; }
         var next = picker.chosen;
-        var roles = currentRoles().map(function (r) { return r.title === role.title ? { title: r.title, person: next.person, email: next.email } : r; });
         var message = (role.person ? 'Replaced ' + role.person + ' with ' + next.person + ' as ' + role.title + '.' : next.person + ' now holds ' + role.title + '.')
-          + (count ? ' Its ' + count + (count === 1 ? ' page stays' : ' pages stay') + ' with the role.' : '');
+          + (count ? ' Their ' + count + (count === 1 ? ' page goes' : ' pages go') + ' to ' + next.person + '.' : '');
         go.disabled = true;
-        var saved = await save(roles, message, function (text) { problem.textContent = text; problem.hidden = false; go.disabled = !picker.chosen; });
-        if (saved) { replaceDialog.close(); }
+        // One request: the person in the entry changes and every page that named the old person now names the new one
+        var result;
+        try { result = await backend().replacePerson(role.title, { person: next.person, email: next.email }); } catch (error) {
+          var failure = error && error.message ? error.message : 'That did not work.';
+          problem.textContent = failure;
+          problem.hidden = false;
+          notice(failure);
+          go.disabled = !picker.chosen;
+          return;
+        }
+        replaceDialog.close();
+        afterRosterChange(result, message);
       });
       go.disabled = true;
       actions.appendChild(go);
@@ -1358,13 +1386,13 @@
     /* ----- a) The people and roles ----- */
     var table = el('table', 'lib-table');
     var headRow = el('tr');
-    ['Person', 'Role', 'Email', 'Pages owned', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
+    ['Person', 'Job title', 'Email', 'Pages owned', ''].forEach(function (h) { headRow.appendChild(el('th', '', h)); });
     var thead = el('thead');
     thead.appendChild(headRow);
     table.appendChild(thead);
     var tbody = el('tbody');
     team.roles.forEach(function (role) {
-      var count = info.usage[role.title] || 0;
+      var count = info.usage[W.keyFor(role)] || 0;
       var row = el('tr', 'lib-row');
       row.appendChild(el('td', '', role.person || 'Unassigned'));
       row.appendChild(el('td', '', role.title + (role.title === team.lead ? ' (team lead)' : '')));
@@ -1380,28 +1408,32 @@
       var transfer = button('Transfer pages', 'row-btn', async function () {
         var target = await askTransferTarget(role, count);
         if (!target) { return; }
-        var result = await attempt(backend().reassign(role.title, target, null));
+        var result = await attempt(backend().reassign(W.keyFor(role), target, null));
         if (!result) { return; }
-        notice('Transferred ' + result.moved + (result.moved === 1 ? ' page' : ' pages') + ' to ' + target + '.');
+        notice('Transferred ' + result.moved + (result.moved === 1 ? ' page' : ' pages') + ' to ' + roleLabel(target) + '.');
         showTeam(box, dialog);
       });
       transfer.disabled = !count;
-      transfer.title = count ? '' : 'This role has no pages to transfer.';
-      transfer.setAttribute('aria-label', 'Transfer pages of ' + role.title);
+      transfer.title = count ? '' : 'This person has no pages to transfer.';
+      transfer.setAttribute('aria-label', 'Transfer pages of ' + (role.person || role.title));
       buttons.appendChild(withTip(transfer));
 
-      // d) Remove: only when the role no longer has any pages (and never the team lead)
+      // d) Remove: asks who takes over their pages (the team lead, marked Default, unless someone else is chosen). Never the team lead.
       var remove = button('Remove', 'row-btn row-btn-danger', async function () {
-        if (!(await window.askConfirm('This takes “' + role.person + ' — ' + role.title + '” off the team. No page uses the role.', { title: 'Remove this person and role?', ok: 'Remove' }))) { return; }
-        await save(currentRoles().filter(function (r) { return r.title !== role.title; }), 'Removed ' + role.title + '.');
+        var handover = await askHandover(role, count);
+        if (!handover) { return; }
+        if (count) {
+          var moved = await attempt(backend().reassign(W.keyFor(role), handover.to, null, { asDefault: handover.asDefault }));
+          if (!moved) { return; }
+        }
+        await save(currentRoles().filter(function (r) { return r.title !== role.title; }),
+          'Removed ' + (role.person || role.title) + '.' + (count ? ' Their ' + count + (count === 1 ? ' page' : ' pages') + ' went to ' + roleLabel(handover.to, team, handover.asDefault) + '.' : ''));
       });
-      remove.disabled = role.title === team.lead || count > 0;
-      remove.title = role.title === team.lead ? 'Team leads can’t be removed. Assign a new team lead first.' : count ? 'Transfer its pages first.' : '';
-      remove.setAttribute('aria-label', 'Remove ' + role.title);
+      remove.disabled = role.title === team.lead;
+      remove.title = role.title === team.lead ? 'Team leads can’t be removed. Assign a new team lead first.' : '';
+      remove.setAttribute('aria-label', 'Remove ' + (role.person || role.title));
       buttons.appendChild(withTip(remove));
       actions.appendChild(buttons);
-      // Why Remove is off, in plain text (the team lead's stays off, with its reason as a tooltip)
-      if (role.title !== team.lead && count > 0) { actions.appendChild(el('p', 'team-why', 'Can be removed once its pages are transferred.')); }
       row.appendChild(actions);
       tbody.appendChild(row);
     });
@@ -1410,15 +1442,16 @@
 
     /* ----- Pages with no owner: assign several at once ----- */
     var everything = await attempt(backend().list(''));
-    var ownerless = everything ? everything.pages.filter(function (p) { return W.ownerIsUnassigned(team, p.owner); }) : [];
+    // Waiting for an owner: the person who owned them has left the team, so the team lead has them as the default
+    var ownerless = everything ? everything.pages.filter(function (p) { return W.ownerIsUnassigned(team, p.owner) || p.ownerDefault; }) : [];
     // Calm when there is nothing to do; the alert look is only for when pages really have no owner
     var orphans = el('section', 'team-orphans ' + (ownerless.length ? 'is-alert' : 'is-calm'));
     if (!ownerless.length) {
       orphans.appendChild(el('h3', 'team-subtitle', '\u2713 Every page has an owner'));
       orphans.appendChild(el('p', 'dialog-hint', 'Nothing to assign right now.'));
     } else {
-      orphans.appendChild(el('h3', 'team-subtitle', 'Pages without an owner (' + ownerless.length + ')'));
-      orphans.appendChild(el('p', 'dialog-hint', 'Their owner role has left the team, or nobody holds it. Until they are assigned, the team lead is shown as the contact.'));
+      orphans.appendChild(el('h3', 'team-subtitle', 'Pages waiting for an owner (' + ownerless.length + ')'));
+      orphans.appendChild(el('p', 'dialog-hint', 'Their owner has left the team, so the team lead has them as the default (marked Default). Choose a person to take them over.'));
       var picked = {};
       ownerless.forEach(function (p) { picked[p.id] = true; });
       var assign = null;
@@ -1427,9 +1460,9 @@
       var roleHint = el('option', '', 'Assign to\u2026');
       roleHint.value = '';
       roleChoice.appendChild(roleHint);
-      team.roles.filter(function (role) { return role.person && role.status !== 'invited'; }).forEach(function (role) {
+      givablePeople().forEach(function (role) {
         var option = el('option', '', role.person + ' \u2014 ' + role.title);
-        option.value = role.title;
+        option.value = W.keyFor(role);
         roleChoice.appendChild(option);
       });
       function refreshAssign() {
@@ -1459,7 +1492,7 @@
         box.addEventListener('change', function () { picked[p.id] = box.checked; allBox.checked = ownerless.every(function (q) { return picked[q.id]; }); refreshAssign(); });
         label.appendChild(box);
         label.appendChild(document.createTextNode(' ' + p.title));
-        if (p.owner) { label.appendChild(el('span', 'team-orphan-was', ' (was ' + p.owner + ')')); }
+        if (p.owner && W.ownerIsUnassigned(team, p.owner)) { label.appendChild(el('span', 'team-orphan-was', ' (was ' + p.owner + ')')); }
         item.appendChild(label);
         list.appendChild(item);
       });
@@ -1487,7 +1520,7 @@
     /* ----- b) Add a person and role ----- */
     // The person is looked up in the company directory as you type; picking one fills in their email address (read-only, so names and
     // emails are exact). Someone who is not in the directory can still be added: the note says so and the email is typed by hand.
-    // The role box suggests the role titles used in other departments, so the same job is not written two ways.
+    // The job title box suggests the titles used in other departments, so the same job is not written two ways.
     var add = el('div', 'team-add');
     var emailInput = el('input', 'lib-search');
     emailInput.type = 'email';
@@ -1509,8 +1542,8 @@
       }
     });
     var roleInput = el('input', 'lib-search');
-    roleInput.placeholder = 'Role (choose or type a new one)';
-    roleInput.setAttribute('aria-label', 'New role');
+    roleInput.placeholder = 'Job title (choose or type a new one)';
+    roleInput.setAttribute('aria-label', 'New job title');
     roleInput.maxLength = 80;
     var roleSuggestions = el('datalist');
     roleSuggestions.id = 'team-role-suggestions';
@@ -1549,15 +1582,15 @@
       var dialog = el('dialog', 'draft-dialog transfer-dialog');
       dialog.setAttribute('aria-label', 'Transfer pages');
       dialog.appendChild(el('h2', 'dialog-title', 'Transfer pages'));
-      dialog.appendChild(el('p', 'dialog-hint', 'Move all ' + count + (count === 1 ? ' page' : ' pages') + ' owned by ' + role.person + ' (' + role.title + ') to:'));
+      dialog.appendChild(el('p', 'dialog-hint', 'Move all ' + count + (count === 1 ? ' page' : ' pages') + ' named on ' + (role.person || role.title) + ' to:'));
       var select = el('select', 'acting-select');
       select.setAttribute('aria-label', 'Transfer pages to');
       var prompt = el('option', '', 'Choose a team member…');
       prompt.value = '';
       select.appendChild(prompt);
-      team.roles.filter(function (other) { return other.title !== role.title && other.status !== 'invited'; }).forEach(function (other) {
+      givablePeople().filter(function (other) { return W.keyFor(other) !== W.keyFor(role); }).forEach(function (other) {
         var option = el('option', '', other.person + ' — ' + other.title);
-        option.value = other.title;
+        option.value = W.keyFor(other);
         select.appendChild(option);
       });
       dialog.appendChild(select);
@@ -1577,7 +1610,46 @@
     });
   }
 
-  // The "Team and roles" pop-up on the library page. Closing it redraws the library, since owners may have changed.
+  // Taking someone off the team: who takes over the pages that name them? The team lead is the default and is marked "(Default)" on those pages so they can
+  // be reassigned later. Resolves to { to (an email), asDefault }, or null when cancelled. With no pages it is a plain confirmation.
+  function askHandover(role, count) {
+    return new Promise(function (resolve) {
+      var lead = W.leadEntry(team);
+      var dialog = el('dialog', 'draft-dialog transfer-dialog');
+      var who = role.person || role.title;
+      dialog.setAttribute('aria-label', 'Remove ' + who);
+      dialog.appendChild(el('h2', 'dialog-title', 'Remove ' + who + '?'));
+      dialog.appendChild(el('p', 'dialog-hint', count
+        ? count + (count === 1 ? ' page names' : ' pages name') + ' them. Who takes over ' + (count === 1 ? 'it' : 'them') + '?'
+        : 'This takes them off the team. No page names them.'));
+      var select = el('select', 'acting-select');
+      select.setAttribute('aria-label', 'Who takes over their pages');
+      if (count) {
+        var def = el('option', '', (lead ? lead.person + ' \u2014 ' + lead.title : 'The team lead') + ' (Default)');
+        def.value = '__lead__';
+        select.appendChild(def);
+        givablePeople().filter(function (other) { return W.keyFor(other) !== W.keyFor(role) && W.keyFor(other) !== (lead && W.keyFor(lead)); }).forEach(function (other) {
+          var option = el('option', '', other.person + ' \u2014 ' + other.title);
+          option.value = W.keyFor(other);
+          select.appendChild(option);
+        });
+        dialog.appendChild(select);
+        dialog.appendChild(el('p', 'dialog-hint', 'Pages given to the team lead are marked Default, so you can reassign them later.'));
+      }
+      var actions = el('div', 'dialog-actions');
+      actions.appendChild(button('Cancel', 'secondary-link', function () { dialog.close(); }));
+      actions.appendChild(button('Remove', 'primary-btn', function () {
+        answer = select.value === '__lead__' || !count ? { to: lead ? W.keyFor(lead) : '', asDefault: true } : { to: select.value, asDefault: false };
+        dialog.close();
+      }));
+      dialog.appendChild(actions);
+      var answer = null;
+      dialog.addEventListener('close', function () { dialog.remove(); resolve(answer); });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
   function openTeamDialog() {
     var dialog = el('dialog', 'draft-dialog team-dialog');
     dialog.setAttribute('aria-label', 'Team and roles');
@@ -1922,10 +1994,9 @@
         if (p.search && p.search.fields && p.search.fields.length) { body.appendChild(el('p', 'search-fields', 'Matched in ' + p.search.fields.join(', ').toLowerCase())); }
         // Who to ask and how fresh the answer is: "Owner: Lena Brooks \u2014 Knowledge Base Editor \u00B7 Updated 15 days ago". When the owner role has no one
         // in it, the team lead is the contact (as on the page itself). A page past its review date says so, in red.
-        var resultTeam = teamFor(p.team) || team;
-        var ownerGone = W.ownerIsUnassigned(resultTeam, p.owner);
+        var resultOwner = ownerShown(p, teamFor(p.team) || team);
         var meta = el('p', 'search-owner');
-        meta.appendChild(document.createTextNode(ownerGone ? 'Contact: ' + roleLabel(resultTeam.lead, resultTeam) : 'Owner: ' + roleLabel(p.owner, resultTeam)));
+        meta.appendChild(document.createTextNode('Owner: ' + resultOwner.label));
         var updated = el('span', '', ' \u00B7 Updated ' + W.relativeTime(p.updatedAt));
         updated.title = formatDate(p.updatedAt);
         meta.appendChild(updated);
@@ -2231,23 +2302,29 @@
 
   function renderContacts(fieldsOfPage, pageTeam) {
     var pageOwnerTeam = pageTeam;   // the contacts are the page's own department's, not the one showing
+    var who = W.effectiveOwner(pageOwnerTeam, fieldsOfPage);
+    var lead = W.leadEntry(pageOwnerTeam);
     var wanted = [];
-    // When the owner role has no one in it (or has left the team), the team lead is the contact instead
-    var ownerGone = W.ownerIsUnassigned(pageOwnerTeam, fieldsOfPage.owner);
-    [ownerGone ? '' : fieldsOfPage.owner, pageOwnerTeam.lead].concat(fieldsOfPage.linkedRoles).forEach(function (title) {
-      if (title && wanted.indexOf(title) < 0) { wanted.push(title); }
-    });
+    function add(entry, label) {
+      if (!entry) { return; }
+      var key = W.keyFor(entry);
+      if (wanted.some(function (item) { return item.key === key; })) { return; }
+      wanted.push({ key: key, entry: entry, label: label });
+    }
+    // The owner comes first. When they have left the team, the team lead is the contact instead, marked as the default.
+    add(who.entry, who.isDefault ? (who.entry === lead ? 'Contact (team lead, default)' : 'Page owner (Default)') : 'Page owner');
+    add(lead, 'Team lead');
+    fieldsOfPage.linkedRoles.forEach(function (key) { var entry = W.findPerson(pageOwnerTeam, key); if (entry && entry.person) { add(entry, 'Linked'); } });
     if (!wanted.length) { return null; }
     var box = el('section', 'side-card');
     box.appendChild(el('h2', 'side-title', 'Contacts'));
-    wanted.forEach(function (title, index) {
-      var role = pageOwnerTeam.roles.filter(function (r) { return r.title === title; })[0];
-      var label = index === 0 && title === fieldsOfPage.owner && !ownerGone ? 'Page owner' : title === pageOwnerTeam.lead ? (ownerGone ? 'Contact (team lead)' : 'Team lead') : 'Linked';
+    wanted.forEach(function (item) {
+      var role = item.entry;
       var card = el('div', 'preview-contact');
-      card.appendChild(el('span', 'preview-contact-label', label));
-      card.appendChild(el('strong', '', role && role.person ? fullName(role.person, role.email) : 'Unassigned'));
-      card.appendChild(document.createTextNode(' · ' + title));
-      if (role && role.email) {
+      card.appendChild(el('span', 'preview-contact-label', item.label));
+      card.appendChild(el('strong', '', role.person ? fullName(role.person, role.email) : 'Unassigned'));
+      card.appendChild(document.createTextNode(' · ' + role.title));
+      if (role.email) {
         card.appendChild(document.createTextNode(' · '));
         card.appendChild(link(role.email, 'mailto:' + role.email));
         card.appendChild(document.createTextNode(' · '));
@@ -2265,7 +2342,7 @@
   // pages that share the owner role or a linked role. Five in all, unless the author chose more than five (then all of theirs);
   // only Client-Safe ones when viewed as the public.
   async function relatedPages(id, pageFields, publicOnly) {
-    var roles = [pageFields.owner].concat(pageFields.linkedRoles).filter(Boolean);
+    var people = [pageFields.owner].concat(pageFields.linkedRoles).filter(Boolean).map(function (key) { return W.resolveKey(team, key); });
     var all = await attempt(backend().list('', true));
     if (!all) { return null; }
     function allowed(p) { return p.id !== id && p.liveVersion && (!publicOnly || p.visibility === 'Client-Safe'); }
@@ -2276,7 +2353,7 @@
     var limit = Math.max(5, chosen.length);
     var matches = chosen.concat(all.pages.filter(function (p) {
       if (!allowed(p) || chosen.indexOf(p) >= 0) { return false; }
-      return roles.indexOf(p.owner) >= 0 || (p.linkedRoles || []).some(function (role) { return roles.indexOf(role) >= 0; });
+      return people.indexOf(W.resolveKey(team, p.owner)) >= 0 || (p.linkedRoles || []).some(function (key) { return people.indexOf(W.resolveKey(team, key)) >= 0; });
     })).slice(0, limit);
     if (!matches.length) { return null; }
     var box = el('section', 'side-card');
@@ -2672,7 +2749,7 @@
     // Who may choose a page's owner: the team lead. Anyone else owns what they create, shown greyed out in Page Setup.
     ownerLock: function () {
       var who = actor();
-      return W.isLead(who, team) ? { locked: false } : { locked: true, role: who.roles[0] || '' };
+      return W.isLead(who, team) ? { locked: false } : { locked: true, key: (who.emails || [])[0] || '' };
     },
     // The related-pages box: the best five live pages for what was typed, titles that match first. The same search
     // as everywhere else (live pages only).
@@ -2725,7 +2802,7 @@
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
     else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true, parts[2]); }
-    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return actor().roles[0] || ''; }, destination: batchDestination }); }
+    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return (actor().emails || [])[0] || ''; }, destination: batchDestination }); }
     else if (screen === 'admin' && window.Store.isAdminMode && window.Store.isAdminMode()) {
       showScreen('library', false);
       document.getElementById('nav-library').classList.remove('is-current');

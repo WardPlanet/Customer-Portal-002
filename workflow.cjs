@@ -78,8 +78,10 @@
       description: first(sections, 'DESCRIPTION') || first(sections, 'SUMMARY'),
       location: first(sections, 'WHERE THIS LIVES').split('\n')[0] || '',
       visibility: first(sections, 'VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only',
-      owner: first(sections, 'OWNER ROLE'),
-      linkedRoles: (sections['LINKED ROLES'] || []).map(function (line) { return line.trim(); }).filter(Boolean),
+      // The owner is a person, named by the email address of their sign-in account (older pages named a role title: see findPerson)
+      owner: first(sections, 'OWNER') || first(sections, 'OWNER ROLE'),
+      ownerDefault: first(sections, 'OWNER DEFAULT').toLowerCase() === 'yes',   // given to the team lead as a fallback, to be reassigned later
+      linkedRoles: (sections['LINKED PEOPLE'] || []).concat(sections['LINKED ROLES'] || []).map(function (line) { return line.trim(); }).filter(Boolean),   // people (emails)
       // The pages the author chose as related, in order (each line is "id | title"; only the id is used)
       related: (sections['RELATED PAGES'] || []).map(function (line) { return line.split(' | ')[0].trim(); }).filter(Boolean),
       pageType: first(sections, 'PAGE TYPE'),
@@ -95,7 +97,7 @@
     var missing = [];
     if (!f.title) { missing.push('a page title'); }
     if (!f.description) { missing.push('a description'); }
-    if (team && team.roles && team.roles.length && !f.owner) { missing.push('an owner role'); }
+    if (team && team.roles && team.roles.length && !f.owner) { missing.push('an owner'); }
     return missing;
   }
 
@@ -276,15 +278,64 @@
   // a lead can, in every department.
   var ADMIN_NAME = 'Admin';
 
+  /* ---------- People and ownership ----------
+     A page is owned by a PERSON, and a person is identified by the email address of their sign-in account. A job title is only a label the team
+     lead writes next to the person. Older pages named a role title as their owner; those keep working: the title is looked up to the person who holds
+     it today (see findPerson). */
+  function normEmail(value) { return String(value || '').trim().toLowerCase(); }
+
+  // The roster entry an owner key points at: an email address, or (older pages) a role title. null when nobody on the team matches.
+  function findPerson(team, key) {
+    var k = String(key || '').trim();
+    if (!k) { return null; }
+    var roles = (team && team.roles) || [];
+    if (k.indexOf('@') >= 0) { return roles.filter(function (role) { return normEmail(role.email) === normEmail(k); })[0] || null; }
+    return roles.filter(function (role) { return role.title === k; })[0] || null;
+  }
+
+  function leadEntry(team) {
+    return ((team && team.roles) || []).filter(function (role) { return team.lead && role.title === team.lead; })[0] || null;
+  }
+
+  // What to store on a page for this person: their email (a roster without one falls back to the title)
+  function keyFor(entry) { return normEmail(entry && entry.email) || (entry ? entry.title : ''); }
+
+  // The same person's key whichever way the page named them: their email, or the email of whoever holds the role title (as is when unknown)
+  function resolveKey(team, key) {
+    var entry = findPerson(team, key);
+    return entry ? keyFor(entry) : String(key || '').indexOf('@') >= 0 ? normEmail(key) : String(key || '').trim();
+  }
+
+  // A page has no owner to contact when it names nobody, names someone no longer on the team, or names a role nobody holds
+  function ownerIsUnassigned(team, key) {
+    if (!key) { return true; }
+    var entry = findPerson(team, key);
+    return !entry || !String(entry.person || '').trim();
+  }
+
+  // Who answers for a page: its owner, or the team lead (marked as the default) when the owner has gone. { entry, isDefault }
+  function effectiveOwner(team, f) {
+    var gone = ownerIsUnassigned(team, f.owner);
+    return { entry: gone ? leadEntry(team) : findPerson(team, f.owner), isDefault: gone || !!f.ownerDefault };
+  }
+
+  // Does this person own pages named by this key? (their sign-in email, or the role title they hold, for older pages)
+  function ownsKey(actor, key) {
+    if (!actor || !key) { return false; }
+    return (actor.emails || []).indexOf(normEmail(key)) >= 0 || (actor.roles || []).indexOf(key) >= 0;
+  }
+
   function actorFor(name, team) {
     var clean = String(name || '').trim();
     if (clean.toLowerCase() === ADMIN_NAME.toLowerCase()) {
-      return { name: ADMIN_NAME, roles: team && team.lead ? [team.lead] : [], admin: true };
+      var leader = leadEntry(team);
+      return { name: ADMIN_NAME, roles: team && team.lead ? [team.lead] : [], emails: leader && leader.email ? [normEmail(leader.email)] : [], admin: true };
     }
-    var roles = ((team && team.roles) || []).filter(function (role) {
+    var mine = ((team && team.roles) || []).filter(function (role) {
       return clean && String(role.person || '').toLowerCase() === clean.toLowerCase();
-    }).map(function (role) { return role.title; });
-    return { name: clean, roles: roles };
+    });
+    // roles: the titles they hold (the team lead is whoever holds the lead's title); emails: their sign-in accounts, which is what owns pages
+    return { name: clean, roles: mine.map(function (role) { return role.title; }), emails: mine.map(function (role) { return normEmail(role.email); }).filter(Boolean) };
   }
 
   function requireActor(actor) {
@@ -368,8 +419,8 @@
     requireActor(actor);
     // Only the team lead gives a page to another role: anyone else owns what they create
     var chosenOwner = fields(text).owner;
-    if (chosenOwner && !isLead(actor, team) && actor.roles.indexOf(chosenOwner) < 0) {
-      throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can make another role the owner.', 403);
+    if (chosenOwner && !isLead(actor, team) && !ownsKey(actor, chosenOwner)) {
+      throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can make someone else the owner.', 403);
     }
     var page = { id: newId(Date.parse(now) || Date.now()), team: team.slug, createdAt: now, updatedAt: now, liveVersion: null, versions: [] };
     newVersion(page, text, actor, now, note || '');
@@ -384,7 +435,7 @@
       throw new WorkflowError('not_editable', 'Version ' + version.n + ' is ' + describeStatus(version.status) + ' and cannot be edited. Start a new edit from the page.', 409);
     }
     // Only the team lead changes who owns a page
-    if (!isLead(actor, team) && fields(text).owner !== fields(version.text).owner) {
+    if (!isLead(actor, team) && resolveKey(team, fields(text).owner) !== resolveKey(team, fields(version.text).owner)) {
       throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can change the owner.', 403);
     }
     version.text = text;
@@ -527,11 +578,11 @@
     }
   }
 
-  // A page is "mine" when its owner role is one of the person's roles, or the person wrote its first version
+  // A page is "mine" when the person owns it (their sign-in email, or a role title they hold on an older page), or wrote its first version
   function isMine(page, actor) {
     if (!actor || !actor.name) { return false; }
     var shown = liveVersion(page) || workingVersion(page) || latestVersion(page);
-    if (shown && shown.owner && actor.roles.indexOf(shown.owner) >= 0) { return true; }
+    if (shown && shown.owner && ownsKey(actor, shown.owner)) { return true; }
     return !!page.versions.length && page.versions[0].author === actor.name;
   }
 
@@ -619,6 +670,7 @@
       location: shown.location,
       visibility: shown.visibility,
       owner: shown.owner,
+      ownerDefault: fields(shown.text).ownerDefault,
       linkedRoles: fields(shown.text).linkedRoles,
       state: state,
       deleteRequest: page.deleteRequest ? { by: page.deleteRequest.by, at: page.deleteRequest.at } : null,
@@ -688,7 +740,7 @@
      an older version never gets one, so old text cannot show up in search. The two audiences:
        staff  - every live page, Internal-Only and Client-Safe
        public - live pages that are Client-Safe, nothing else */
-  function searchEntry(page, audience) {
+  function searchEntry(page, audience, team) {
     var live = liveVersion(page);
     if (!live) { return null; }
     if (audience === 'public' && live.visibility !== 'Client-Safe') { return null; }
@@ -701,12 +753,19 @@
       description: f.description,
       location: f.location,
       visibility: f.visibility,
-      owner: f.owner,
+      owner: ownerSearchText(team, f),
       keywords: f.keywords,
       headings: headingTexts(f.sections),
       updatedAt: live.decidedAt || live.updatedAt || page.updatedAt || '',   // when it went live (see summary)
       body: bodyText(f.sections)
     };
+  }
+
+  // What a search matches as the page's owner: the person's name and job title (when the team is known), else the key as written
+  function ownerSearchText(team, f) {
+    if (!team) { return f.owner; }
+    var who = effectiveOwner(team, f).entry;
+    return who ? (who.person || '') + ' ' + who.title : f.owner;
   }
 
   // The page's headers and step titles, in order (they count for more than ordinary text when searching)
@@ -741,46 +800,46 @@
   }
 
   /* ---------- The roster and reassigning pages ----------
-     A page names a ROLE, so when someone leaves, change who holds the role and every page follows. These
-     are for the other cases: adding a role, retiring one, or moving pages from one role to another. Team
-     lead only. Changing the owner is not a change to the content, so it is made in place on the live and
-     in-progress versions and does not need a new review. */
+     A page names its owner by email. When someone leaves, the team lead (or the removal itself) hands their pages to someone else, or to the
+     team lead as the default, to be reassigned later. Team lead only. Changing the owner is not a change to the content, so it is made in place on
+     the live and in-progress versions and does not need a new review. */
   var MAX_ROLES = 60;
 
-  // Rewrites the roles in one version's text: OWNER ROLE becomes the new role, LINKED ROLES swaps the role
-  // (and drops a repeat if the new role was already linked)
-  function replaceRoleInText(text, from, to) {
-    var section = '';
-    var seenLinked = {};
-    return String(text || '').replace(/\r\n?/g, '\n').split('\n').map(function (line) {
+  // Removes whole sections (with their lines) from a version's text
+  function removeSections(text, names) {
+    var skipping = false;
+    return String(text || '').replace(/\r\n?/g, '\n').split('\n').filter(function (line) {
       var header = /^\[([A-Z0-9 ]+)\]$/.exec(line);
-      if (header) { section = header[1]; seenLinked = {}; return line; }
-      var value = line.trim();
-      if (section === 'OWNER ROLE' && value === from) { return to; }
-      if (section === 'LINKED ROLES' && value) {
-        var role = value === from ? to : value;
-        if (seenLinked[role]) { return null; }
-        seenLinked[role] = true;
-        return role;
-      }
-      return line;
-    }).filter(function (line) { return line !== null; }).join('\n');
+      if (header) { skipping = names.indexOf(header[1]) >= 0; }
+      return !skipping;
+    }).join('\n');
   }
 
-  // Sets the OWNER ROLE section of a version's text (adds the section when the page has none)
-  function setOwnerInText(text, to) {
-    var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
-    var start = lines.indexOf('[OWNER ROLE]');
-    if (start < 0) { return lines.join('\n').replace(/\s*$/, '\n') + '\n[OWNER ROLE]\n' + to + '\n'; }
-    var end = start + 1;
-    while (end < lines.length && !/^\[[A-Z0-9 ]+\]$/.test(lines[end])) { end += 1; }
-    lines.splice(start + 1, end - start - 1, to, '');
-    return lines.join('\n');
+  // Sets who owns a version: the OWNER section is the person's email, and OWNER DEFAULT says the team lead has it as a fallback
+  function setOwnerInText(text, key, isDefault) {
+    var body = removeSections(text, ['OWNER', 'OWNER ROLE', 'OWNER DEFAULT']).replace(/\s*$/, '\n');
+    return body + '\n[OWNER]\n' + key + '\n' + (isDefault ? '\n[OWNER DEFAULT]\nyes\n' : '');
   }
 
-  function usesRole(version, role) {
-    var f = fields(version.text);
-    return f.owner === role || f.linkedRoles.indexOf(role) >= 0;
+  // Rewrites the people a version names: where `from` is the owner or a linked person it becomes `to` (a repeat of a person already linked is dropped).
+  // Returns the new text, or null when `from` is not named at all. Keys are compared as people, so a role title and an email for the same person match.
+  function replacePersonInText(text, team, fromKey, toKey) {
+    var f = fields(text);
+    var from = resolveKey(team, fromKey);
+    var hit = false;
+    var next = text;
+    if (f.owner && resolveKey(team, f.owner) === from) { next = setOwnerInText(next, toKey, false); hit = true; }
+    if (f.linkedRoles.some(function (key) { return resolveKey(team, key) === from; })) {
+      var seen = {};
+      var linked = [];
+      f.linkedRoles.forEach(function (key) {
+        var mapped = resolveKey(team, key) === from ? toKey : resolveKey(team, key);
+        if (!seen[mapped]) { seen[mapped] = true; linked.push(mapped); }
+      });
+      next = removeSections(next, ['LINKED ROLES', 'LINKED PEOPLE']).replace(/\s*$/, '\n') + '\n[LINKED PEOPLE]\n' + linked.join('\n') + '\n';
+      hit = true;
+    }
+    return hit ? next : null;
   }
 
   // The versions a reassignment changes: the live one and any being worked on. Old versions stay as they were.
@@ -790,28 +849,32 @@
     });
   }
 
-  // How many pages use each role (as owner or linked role), counting the versions a reassignment would change
-  function roleUsage(pages) {
+  // How many pages each person is named on (as owner or linked), counting the versions a reassignment would change. Keyed by email.
+  function roleUsage(pages, team) {
     var usage = {};
     pages.forEach(function (page) {
-      var roles = {};
+      var named = {};
       currentVersions(page).forEach(function (version) {
         var f = fields(version.text);
-        if (f.owner) { roles[f.owner] = true; }
-        f.linkedRoles.forEach(function (role) { roles[role] = true; });
+        if (f.owner) { named[resolveKey(team, f.owner)] = true; }
+        f.linkedRoles.forEach(function (key) { named[resolveKey(team, key)] = true; });
       });
-      Object.keys(roles).forEach(function (role) { usage[role] = (usage[role] || 0) + 1; });
+      Object.keys(named).forEach(function (key) { usage[key] = (usage[key] || 0) + 1; });
     });
     return usage;
   }
 
-  // Moves one page from a role to another. Returns true if anything changed.
-  function reassignRole(page, from, to, actor, team, now) {
+  // Moves one page from a person to another. opts.asDefault: the new owner is the team lead as a fallback (shown as "(Default)"). Returns true if anything changed.
+  function reassignRole(page, from, to, actor, team, now, opts) {
     requireLead(actor, team, 'reassign pages');
+    var toEntry = findPerson(team, to);
+    var toKey = toEntry ? keyFor(toEntry) : to;
     var changed = false;
     currentVersions(page).forEach(function (version) {
-      if (!usesRole(version, from)) { return; }
-      version.text = replaceRoleInText(version.text, from, to);
+      var next = replacePersonInText(version.text, team, from, toKey);
+      if (next === null) { return; }
+      if (opts && opts.asDefault && fields(version.text).owner && resolveKey(team, fields(version.text).owner) === resolveKey(team, from)) { next = setOwnerInText(next, toKey, true); }
+      version.text = next;
       copyFields(version);
       version.updatedAt = now;
       version.updatedBy = actor.name;
@@ -821,20 +884,26 @@
     return changed;
   }
 
-  // Changes the owner of one page (team lead only), on its live and in-progress versions. Linked roles stay as they are.
   // A person who has been invited but has not accepted cannot own pages or be given them
-  function roleInvited(team, title) {
-    return ((team && team.roles) || []).some(function (role) { return role.title === title && role.person && role.status === 'invited'; });
+  function roleInvited(team, key) {
+    var entry = findPerson(team, key);
+    return !!(entry && entry.person && entry.status === 'invited');
   }
 
-  function setOwner(page, to, actor, team, now) {
+  // Changes the owner of one page (team lead only), on its live and in-progress versions. Linked people stay as they are.
+  // opts.asDefault: the team lead has it as a fallback, marked "(Default)" until someone reassigns it.
+  function setOwner(page, to, actor, team, now, opts) {
     requireLead(actor, team, 'change a page\'s owner');
-    if (team.roles.every(function (role) { return role.title !== to; })) { throw new WorkflowError('bad_role', 'Choose a role on the team.', 400); }
+    var entry = findPerson(team, to);
+    if (!entry || !String(entry.person || '').trim()) { throw new WorkflowError('bad_person', 'Choose a person on the team.', 400); }
     if (roleInvited(team, to)) { throw new WorkflowError('not_accepted', 'That person has not accepted their invitation yet, so they cannot be given pages.', 409); }
+    var key = keyFor(entry);
+    var asDefault = !!(opts && opts.asDefault);
     var changed = false;
     currentVersions(page).forEach(function (version) {
-      if (fields(version.text).owner === to) { return; }
-      version.text = setOwnerInText(version.text, to);
+      var f = fields(version.text);
+      if (f.owner && resolveKey(team, f.owner) === key && f.ownerDefault === asDefault) { return; }
+      version.text = setOwnerInText(version.text, key, asDefault);
       copyFields(version);
       version.updatedAt = now;
       version.updatedBy = actor.name;
@@ -844,37 +913,60 @@
     return changed;
   }
 
-  // A page has no owner to contact when it names no role, names a role that is no longer on the team, or names a role nobody holds
-  function ownerIsUnassigned(team, title) {
-    if (!title) { return true; }
-    var role = ((team && team.roles) || []).filter(function (r) { return r.title === title; })[0];
-    return !role || !String(role.person || '').trim();
+  // Puts a different person in a roster entry (same job title). Every page that named the old person (as owner or linked) names the new one, so
+  // pages follow. Returns { roles: the new list of people, pages: the pages that changed }; the caller saves both. Team lead only.
+  function replacePerson(team, pages, roleTitle, next, actor, now) {
+    requireLead(actor, team, 'change the team');
+    var entry = ((team && team.roles) || []).filter(function (role) { return role.title === roleTitle; })[0];
+    if (!entry) { throw new WorkflowError('bad_person', 'That person is not on the team.', 400); }
+    var person = text(next && next.person, 80).trim().replace(/\s+/g, ' ');
+    var email = text(next && next.email, 120).trim();
+    if (!person || !email) { throw new WorkflowError('bad_person', 'Choose the new person.', 400); }
+    var fromKey = keyFor(entry);
+    var toKey = normEmail(email);
+    var roles = team.roles.map(function (role) { return role === entry ? { title: role.title, person: person, email: email } : role; });
+    var changed = [];
+    pages.forEach(function (page) {
+      var did = false;
+      currentVersions(page).forEach(function (version) {
+        var rewritten = replacePersonInText(version.text, team, fromKey, toKey);
+        if (rewritten === null) { return; }
+        version.text = rewritten;
+        copyFields(version);
+        version.updatedAt = now;
+        version.updatedBy = actor.name;
+        did = true;
+      });
+      if (did) { page.updatedAt = now; changed.push(page); }
+    });
+    return { roles: roles, pages: changed, count: changed.length };
   }
 
   function checkReassignRoles(team, from, to) {
-    var titles = team.roles.map(function (role) { return role.title; });
-    if (titles.indexOf(from) < 0 || titles.indexOf(to) < 0) { throw new WorkflowError('bad_role', 'Choose two roles on the team.', 400); }
-    if (from === to) { throw new WorkflowError('same_role', 'Choose two different roles.', 400); }
+    var a = findPerson(team, from);
+    var b = findPerson(team, to);
+    if (!a || !b || !b.person) { throw new WorkflowError('bad_person', 'Choose two people on the team.', 400); }
+    if (keyFor(a) === keyFor(b)) { throw new WorkflowError('same_person', 'Choose two different people.', 400); }
     if (roleInvited(team, to)) { throw new WorkflowError('not_accepted', 'That person has not accepted their invitation yet, so they cannot be given pages.', 409); }
   }
 
-  // Checks a new list of roles from the team lead and returns a clean copy. A role in use cannot be removed
-  // (reassign its pages first), and the lead role must stay.
+  // Checks a new list of people from the team lead and returns a clean copy. Someone who still owns pages cannot be taken off the team (hand their pages
+  // over first), and the team lead must stay. A person's job title is a label the lead writes, and each person is on the team once.
   function checkRoster(team, roles, usage, actor) {
     requireLead(actor, team, 'change the team');
     if (!Array.isArray(roles) || !roles.length || roles.length > MAX_ROLES) {
-      throw new WorkflowError('bad_roster', 'The team needs between 1 and ' + MAX_ROLES + ' roles.', 400);
+      throw new WorkflowError('bad_roster', 'The team needs between 1 and ' + MAX_ROLES + ' people.', 400);
     }
     var seen = {};
     var clean = roles.map(function (role) {
       var title = text(role && role.title, 80).trim().replace(/\s+/g, ' ');
       var person = text(role && role.person, 80).trim().replace(/\s+/g, ' ');
       var email = text(role && role.email, 120).trim();
-      if (!title) { throw new WorkflowError('bad_roster', 'Every role needs a title.', 400); }
+      if (!title) { throw new WorkflowError('bad_roster', 'Every person needs a job title.', 400); }
       if (/[\[\]~]/.test(title) || /[\[\]~]/.test(person)) { throw new WorkflowError('bad_roster', 'Names and titles cannot contain [ ] or ~.', 400); }
-      if (seen[title.toLowerCase()]) { throw new WorkflowError('bad_roster', 'The role "' + title + '" is listed twice.', 400); }
+      if (seen[title.toLowerCase()]) { throw new WorkflowError('bad_roster', 'The title "' + title + '" is listed twice.', 400); }
       seen[title.toLowerCase()] = true;
-      if (!/^[^\s@\[\]~<>,;]+@[^\s@\[\]~<>,;]+\.[^\s@\[\]~<>,;]+$/.test(email)) { throw new WorkflowError('bad_roster', 'The role "' + title + '" needs a contact email address.', 400); }
+      if (!/^[^\s@\[\]~<>,;]+@[^\s@\[\]~<>,;]+\.[^\s@\[\]~<>,;]+$/.test(email)) { throw new WorkflowError('bad_roster', '"' + title + '" needs a contact email address.', 400); }
       // An invitation not yet accepted stays marked until the person accepts it (the Admin tools page changes it)
       return role && role.status === 'invited' && person ? { title: title, person: person, email: email, status: 'invited' } : { title: title, person: person, email: email };
     });
@@ -886,14 +978,20 @@
       throw new WorkflowError('bad_roster', 'The ' + team.lead + ' role needs a person.', 400);
     }
     var people = {};
+    var emails = {};
     clean.forEach(function (role) {
       var key = role.person.toLowerCase();
-      if (key && people[key]) { throw new WorkflowError('bad_roster', role.person + ' holds two roles. Give each person one role for now.', 400); }
+      if (key && people[key]) { throw new WorkflowError('bad_roster', role.person + ' is on the team twice.', 400); }
       people[key] = true;
+      if (emails[normEmail(role.email)]) { throw new WorkflowError('bad_roster', role.email + ' is on the team twice.', 400); }
+      emails[normEmail(role.email)] = true;
     });
+    var keepEmails = {};
+    clean.forEach(function (role) { keepEmails[normEmail(role.email)] = true; });
     team.roles.forEach(function (role) {
-      if (titles.indexOf(role.title) < 0 && usage[role.title]) {
-        throw new WorkflowError('role_in_use', 'The role "' + role.title + '" is still used by ' + usage[role.title] + (usage[role.title] === 1 ? ' page' : ' pages') + '. Reassign them first.', 409);
+      var key = normEmail(role.email);
+      if (key && !keepEmails[key] && usage[key]) {
+        throw new WorkflowError('role_in_use', (role.person || role.title) + ' is still named on ' + usage[key] + (usage[key] === 1 ? ' page' : ' pages') + '. Hand them over first.', 409);
       }
     });
     return clean;
@@ -1019,6 +1117,13 @@
     parseTableLines: parseTableLines,
     tableToLines: tableToLines,
     ownerIsUnassigned: ownerIsUnassigned,
+    normEmail: normEmail,
+    findPerson: findPerson,
+    leadEntry: leadEntry,
+    keyFor: keyFor,
+    resolveKey: resolveKey,
+    effectiveOwner: effectiveOwner,
+    ownsKey: ownsKey,
     roleInvited: roleInvited,
     normalizeTable: normalizeTable,
     normalizeTableWidths: normalizeTableWidths,
@@ -1032,12 +1137,13 @@
     photoToSections: photoToSections,
     photoIds: photoIds,
     reassignRole: reassignRole,
+    replacePerson: replacePerson,
     setOwner: setOwner,
     setOwnerInText: setOwnerInText,
+    replacePersonInText: replacePersonInText,
     checkReassignRoles: checkReassignRoles,
     checkRoster: checkRoster,
     requireLeadFor: requireLead,
-    replaceRoleInText: replaceRoleInText,
     searchEntry: searchEntry,
     canSeePublic: canSeePublic
   };

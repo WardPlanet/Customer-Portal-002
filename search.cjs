@@ -545,8 +545,9 @@
 
   // Searches pages (not entries): builds the entries of the live versions for an audience ('staff' or 'public'), ranks them, and
   // returns { order: [page ids, best first], info: { id: { score, fields, titleParts, snippetParts } }, partial, suggestion }.
-  function rank(Workflow, pages, queryText, audience) {
-    var entries = pages.map(function (page) { return Workflow.searchEntry(page, audience); }).filter(Boolean);
+  // teamOf (optional): gives the team a page belongs to, so its owner is searched by name and job title, not by email address.
+  function rank(Workflow, pages, queryText, audience, teamOf) {
+    var entries = pages.map(function (page) { return Workflow.searchEntry(page, audience, teamOf ? teamOf(page) : undefined); }).filter(Boolean);
     var answer = query(entries, queryText);
     var info = {};
     answer.results.forEach(function (result) { info[result.id] = { score: result.score, fields: result.fields, titleParts: result.titleParts, snippetParts: result.snippetParts }; });
@@ -639,8 +640,8 @@
       .map(function (item) { delete item.score; return item; });
   }
 
-  function suggestPages(Workflow, pages, queryText, audience, limit) {
-    var entries = pages.map(function (page) { return Workflow.searchEntry(page, audience); }).filter(Boolean);
+  function suggestPages(Workflow, pages, queryText, audience, limit, teamOf) {
+    var entries = pages.map(function (page) { return Workflow.searchEntry(page, audience, teamOf ? teamOf(page) : undefined); }).filter(Boolean);
     return suggest(entries, queryText, limit);
   }
 

@@ -292,7 +292,7 @@ export function registerLibraryRoutes(app, draftsDir) {
     var digest = await currentDigest();
     var top = SearchLog.rankPages(digest.views, pages.map(function (page) { return { id: page.id, updatedAt: page.updatedAt }; }), 3);
     var byId = {};
-    pages.forEach(function (page) { byId[page.id] = { summary: Workflow.summary(page), description: (Workflow.searchEntry(page, 'staff') || {}).description || '' }; });
+    pages.forEach(function (page) { byId[page.id] = { summary: Workflow.summary(page), description: (Workflow.searchEntry(page, 'staff', ctx.team) || {}).description || '' }; });
     var review = await fs.readFile(reviewFile, 'utf8').then(JSON.parse).catch(function () { return null; });
     var hidden = ((review && review.decisions) || []).filter(function (d) { return d.kind === 'Hidden from top searches'; }).map(function (d) { return d.itemId; });
     res.json({
@@ -307,7 +307,7 @@ export function registerLibraryRoutes(app, draftsDir) {
   // The search box's dropdown: titles, keywords and headings of live pages that match what has been typed so far
   app.get('/api/library/suggest', staff(async function (req, res, ctx) {
     var pages = (await loadAllPages(draftsDir, ctx.team)).filter(function (page) { return !!page.liveVersion; });
-    res.json({ suggestions: Search.suggestPages(Workflow, pages, String(req.query.q || ''), 'staff') });
+    res.json({ suggestions: Search.suggestPages(Workflow, pages, String(req.query.q || ''), 'staff', undefined, function () { return ctx.team; }) });
   }));
 
   app.get('/api/library/pages', staff(async function (req, res, ctx) {
@@ -321,7 +321,7 @@ export function registerLibraryRoutes(app, draftsDir) {
     var summaries = pages.map(Workflow.summary);
     if (q) {
       // Best match first, with where it matched and a snippet (see search.cjs)
-      var ranked = Search.rank(Workflow, pages, q, 'staff');
+      var ranked = Search.rank(Workflow, pages, q, 'staff', function () { return ctx.team; });
       var byId = {};
       summaries.forEach(function (item) { byId[item.id] = item; });
       summaries = ranked.order.map(function (id) { return Object.assign(byId[id], { search: ranked.info[id] }); });
@@ -335,18 +335,29 @@ export function registerLibraryRoutes(app, draftsDir) {
   // Team lead only: who holds each role, and how many pages use each role
   app.get('/api/library/roster', staff(async function (req, res, ctx) {
     Workflow.requireLeadFor(ctx.actor, ctx.team, 'manage the team');
-    res.json({ roles: ctx.team.roles, usage: Workflow.roleUsage(await loadAllPages(draftsDir, ctx.team)) });
+    res.json({ roles: ctx.team.roles, usage: Workflow.roleUsage(await loadAllPages(draftsDir, ctx.team), ctx.team) });
   }));
 
-  // Team lead only: replaces the list of roles and people (add a person or role, change who holds a role)
+  // Team lead only: replaces the list of people on the team (add or remove someone, change their job title or email)
   app.put('/api/library/roster', staff(async function (req, res, ctx) {
-    var usage = Workflow.roleUsage(await loadAllPages(draftsDir, ctx.team));
+    var usage = Workflow.roleUsage(await loadAllPages(draftsDir, ctx.team), ctx.team);
     var roles = Workflow.checkRoster(ctx.team, req.body && req.body.roles, usage, ctx.actor);
     await writeRoles(roles);
     res.json({ roles: roles, usage: usage });
   }));
 
-  // Team lead only: moves pages from one role to another (all of that role's pages, or the ids given)
+  // Team lead only: puts a different person in a roster entry; the pages that named the old person follow
+  app.post('/api/library/roster/replace', staff(async function (req, res, ctx) {
+    var pages = await loadAllPages(draftsDir, ctx.team);
+    var outcome = Workflow.replacePerson(ctx.team, pages, req.body && req.body.role, { person: req.body && req.body.person, email: req.body && req.body.email }, ctx.actor, ctx.now);
+    var nextTeam = Object.assign({}, ctx.team, { roles: outcome.roles });
+    var roles = Workflow.checkRoster(ctx.team, outcome.roles, Workflow.roleUsage(pages, nextTeam), ctx.actor);
+    for (var page of outcome.pages) { await savePage(draftsDir, ctx.team, page); }
+    await writeRoles(roles);
+    res.json({ roles: roles, moved: outcome.count });
+  }));
+
+  // Team lead only: moves pages from one person to another (all of theirs, or the ids given). asDefault: the new owner is the team lead as a fallback.
   app.post('/api/library/reassign', staff(async function (req, res, ctx) {
     var from = req.body && req.body.from;
     var to = req.body && req.body.to;
@@ -356,7 +367,7 @@ export function registerLibraryRoutes(app, draftsDir) {
     var moved = 0;
     for (var page of await loadAllPages(draftsDir, ctx.team)) {
       if (ids && ids.indexOf(page.id) < 0) { continue; }
-      if (Workflow.reassignRole(page, from, to, ctx.actor, ctx.team, ctx.now)) {
+      if (Workflow.reassignRole(page, from, to, ctx.actor, ctx.team, ctx.now, { asDefault: !!req.body.asDefault })) {
         await savePage(draftsDir, ctx.team, page);
         moved += 1;
       }
@@ -364,10 +375,10 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json({ moved: moved });
   }));
 
-  // Team lead only: changes the owner role of one page
+  // Team lead only: changes the owner of one page (a person's email)
   app.post('/api/library/pages/:id/owner', staff(async function (req, res, ctx) {
     var page = await open(req, ctx);
-    Workflow.setOwner(page, req.body && req.body.owner, ctx.actor, ctx.team, ctx.now);
+    Workflow.setOwner(page, req.body && req.body.owner, ctx.actor, ctx.team, ctx.now, { asDefault: !!(req.body && req.body.asDefault) });
     await savePage(draftsDir, ctx.team, page);
     res.json(detail(page, ctx));
   }));
@@ -518,7 +529,7 @@ export function registerLibraryRoutes(app, draftsDir) {
       var team = await readTeam();
       var pages = await loadAllPages(draftsDir, team);
       var q = String(req.query.q || '').trim();
-      var entries = pages.map(function (page) { return Workflow.searchEntry(page, 'public'); }).filter(Boolean);
+      var entries = pages.map(function (page) { return Workflow.searchEntry(page, 'public', team); }).filter(Boolean);
       if (!q) {
         res.json({ pages: entries.map(function (entry) { return { id: entry.id, title: entry.title, description: entry.description }; }) });
         return;
@@ -538,7 +549,7 @@ export function registerLibraryRoutes(app, draftsDir) {
     try {
       var team = await readTeam();
       var page = await loadPage(draftsDir, team, req.params.id);
-      var entry = Workflow.searchEntry(page, 'public');
+      var entry = Workflow.searchEntry(page, 'public', team);
       if (!entry) { throw new Workflow.WorkflowError('no_page', 'That page does not exist.', 404); }
       res.json({ title: entry.title, text: Workflow.publicText(Workflow.liveVersion(page).text) });
     } catch (error) { fail(res, error); }

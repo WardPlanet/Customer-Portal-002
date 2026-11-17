@@ -22,15 +22,16 @@
     var FORMAT_VERSION = '2';
     var ESCAPE = '~';
 
-    var KNOWN_SECTIONS = ['TITLE', 'DESCRIPTION', 'SUBTITLE', 'SUMMARY', 'PAGE TYPE', 'TEAM', 'OWNER ROLE', 'WHERE THIS LIVES', 'LINKED ROLES', 'RELATED PAGES', 'LINKED TEAM MEMBERS', 'REVIEWER', 'VISIBILITY', 'SOURCE FILE'];
+    var KNOWN_SECTIONS = ['TITLE', 'DESCRIPTION', 'SUBTITLE', 'SUMMARY', 'PAGE TYPE', 'TEAM', 'OWNER ROLE', 'OWNER', 'OWNER DEFAULT', 'LINKED PEOPLE', 'WHERE THIS LIVES', 'LINKED ROLES', 'RELATED PAGES', 'LINKED TEAM MEMBERS', 'REVIEWER', 'VISIBILITY', 'SOURCE FILE'];
 
     /* ---------- State for the Page Setup sidebar (text fields live in the DOM) ---------- */
     var state = {
       pageType: 'Process Documentation',   // not shown for now; every page is Process Documentation
       location: '',    // where this page lives: one of the team's locations (for example "Websites")
       team: '',        // the team every page belongs to (from the roster)
-      owner: '',       // a role title, for example "Website Editor". Roles own pages, never names.
-      roles: [],       // role titles linked to this page as contacts
+      owner: '',       // who owns the page: a person, named by the email of their sign-in account (job titles do not own pages)
+      ownerDefault: false,   // the team lead has the page as a fallback, marked "(Default)" until the lead reassigns it
+      roles: [],       // the other people (emails) linked to this page as contacts
       related: [],     // pages the author chose as related, in order: [{ id, title }]
       reviewer: '',    // a role title
       visibility: 'Internal-Only',
@@ -1702,8 +1703,8 @@
       });
 
       if (ownerIsMissing()) {
-        flagBlock(byId('owner-field'), 'Choose an owner role to save a draft.');
-        missing.push({ label: 'owner role', target: byId('owner') });
+        flagBlock(byId('owner-field'), 'Choose an owner to save a draft.');
+        missing.push({ label: 'owner', target: byId('owner') });
       }
 
       return missing;
@@ -1927,37 +1928,44 @@
       });
     }
 
-    /* ---------- Page Setup: team, owner, linked roles, reviewer ----------
-       A page is tied to ROLES (job titles). The roster says who holds each role today, and is only
-       used to show a name next to the title: change the roster and every page shows the new person.
-       The roster comes from the server (/api/team), or from the page itself in the Claude artifact. */
-    var roster = window.TEAM_ROSTER || null;   // { name, slug, roles: [{ title, person }] }
+    /* ---------- Page Setup: team, owner, linked people, reviewer ----------
+       A page is owned by a PERSON, named by the email address of their sign-in account. The roster says who is on the team and what job title the
+       team lead has written next to them. The roster comes from the server (/api/team), or from the page itself in the Claude artifact. */
+    var roster = window.TEAM_ROSTER || null;   // { name, slug, roles: [{ title, person, email }] } (each entry is a person; the title is a label)
 
     function rosterRoles() { return roster ? roster.roles : []; }
 
-    function personFor(title) {
-      var match = rosterRoles().filter(function (role) { return role.title === title; })[0];
-      return match ? match.person || '' : '';
+    // The people who can be chosen: someone is in the entry, and they have accepted any invitation (unless they already hold the page)
+    function choosablePeople(keep) {
+      return rosterRoles().filter(function (role) { return role.person && (role.status !== 'invited' || window.Workflow.keyFor(role) === keep); });
     }
 
-    // The name first, then the role
-    function roleLabel(title) {
-      var held = rosterRoles().filter(function (role) { return role.title === title; })[0];
-      return (personFor(title) ? personFor(title) + (held && held.status === 'invited' ? ' (invited)' : '') : 'Unassigned') + ' — ' + title;
+    function entryFor(key) { return key ? window.Workflow.findPerson(roster, key) : null; }
+
+    function personFor(key) {
+      var entry = entryFor(key);
+      return entry ? entry.person || '' : '';
     }
 
-    // Older drafts stored people's names. Turn a name into the role that person holds today.
-    // A role title stays as it is; anything else is dropped once the roster is known.
-    function roleFromValue(value) {
+    // The name first, then the job title (a key nobody on the team matches reads "Unassigned")
+    function roleLabel(key) {
+      var held = entryFor(key);
+      return (held && held.person ? held.person + (held.status === 'invited' ? ' (invited)' : '') : 'Unassigned') + ' — ' + (held ? held.title : key);
+    }
+
+    // Older drafts stored a role title or a person's name. Turn either into the person's key (their email) as the roster knows them today.
+    // An email is kept as it is (lower case); a title nobody holds stays as written; anything else is dropped once the roster is known.
+    function personKeyFromValue(value) {
       if (!value) { return ''; }
+      if (value.indexOf('@') >= 0) { return value.toLowerCase(); }
       if (!roster) { return value; }
       var byTitle = rosterRoles().filter(function (role) { return role.title === value; })[0];
-      if (byTitle) { return byTitle.title; }
+      if (byTitle) { return window.Workflow.keyFor(byTitle); }
       var byPerson = rosterRoles().filter(function (role) { return (role.person || '').toLowerCase() === value.toLowerCase(); })[0];
-      return byPerson ? byPerson.title : '';
+      return byPerson ? window.Workflow.keyFor(byPerson) : '';
     }
 
-    // The team lead's role. It is every page's reviewer, and a page cannot choose another.
+    // The team lead's job title. The lead is every page's reviewer, and a page cannot choose another.
     function leadRole() {
       return roster && roster.lead ? roster.lead : '';
     }
@@ -1978,21 +1986,20 @@
       byId('team-name').textContent = state.team || 'No team found';
     }
 
-    function fillRoleSelect(select, emptyLabel, selected) {
+    function fillPersonSelect(select, emptyLabel, selected) {
       select.textContent = '';
       addOption(select, '', emptyLabel);
-      rosterRoles().forEach(function (role) { addOption(select, role.title, roleLabel(role.title)); });
-      // A role that is no longer on the team stays selectable so the page does not silently lose it
-      if (selected && rosterRoles().every(function (role) { return role.title !== selected; })) {
+      choosablePeople(selected).forEach(function (role) { addOption(select, window.Workflow.keyFor(role), roleLabel(window.Workflow.keyFor(role))); });
+      // Someone who is no longer on the team stays selectable so the page does not silently lose them
+      if (selected && !choosablePeople(selected).some(function (role) { return window.Workflow.keyFor(role) === selected; })) {
         addOption(select, selected, roleLabel(selected));
       }
       select.value = selected;
     }
 
     // Only the team lead chooses a page's owner. Anyone else is the owner of what they create: the field is filled in with
-    // their own role and greyed out (a page that already has an owner keeps it). The library says who may choose.
-    // The owner selector is red while the page has no owner to contact: nothing chosen, a role that has left the team,
-    // or a role nobody holds
+    // themselves and greyed out (a page that already has an owner keeps it). The library says who may choose.
+    // The owner selector is red while the page has no owner to contact: nothing chosen, or someone who has left the team
     function markOwnerUnassigned() {
       var none = !state.owner || !personFor(state.owner);
       byId('owner').classList.toggle('is-unassigned', none);
@@ -2000,21 +2007,15 @@
 
     function renderOwner() {
       var lock = window.PageHost && window.PageHost.ownerLock ? window.PageHost.ownerLock() : { locked: false };
-      if (lock.locked && !state.owner && lock.role) { state.owner = lock.role; }
+      if (lock.locked && !state.owner && lock.key) { state.owner = lock.key; }
       var select = byId('owner');
-      fillRoleSelect(select, 'Select an owner role', state.owner);
-      // A person who has been invited but has not accepted cannot own pages yet
-      rosterRoles().forEach(function (role) {
-        if (role.status === 'invited' && role.title !== state.owner) {
-          Array.prototype.forEach.call(select.options, function (option) { if (option.value === role.title) { option.disabled = true; } });
-        }
-      });
+      fillPersonSelect(select, 'Select an owner', state.owner);
       select.disabled = !!lock.locked;
       markOwnerUnassigned();
       var hint = byId('owner-field').querySelector('.field-hint');
       if (hint) {
         if (!hint.hasAttribute('data-default')) { hint.setAttribute('data-default', hint.textContent); }
-        hint.textContent = lock.locked ? 'Only the team lead can change the owner.' : hint.getAttribute('data-default');
+        hint.textContent = lock.locked ? 'Only the team lead can change the owner.' : state.ownerDefault ? 'The team lead has this page as the default owner. Choose a person to reassign it.' : hint.getAttribute('data-default');
       }
     }
 
@@ -2022,8 +2023,9 @@
       var list = byId('roles');
       list.textContent = '';
 
-      state.roles.forEach(function (title) {
-        var person = personFor(title);
+      state.roles.forEach(function (key) {
+        var person = personFor(key);
+        var entry = entryFor(key);
         var item = document.createElement('li');
         item.className = 'role-chip';
 
@@ -2036,20 +2038,20 @@
         text.className = 'role-text';
         var name = document.createElement('span');
         name.className = 'role-person';
-        name.textContent = title;
+        name.textContent = entry ? entry.title : key;
         var holder = document.createElement('span');
         holder.className = 'role-title';
         holder.textContent = person || 'Unassigned';
-        text.appendChild(holder);   // the name first, then the role
+        text.appendChild(holder);   // the name first, then the job title
         text.appendChild(name);
 
         var remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'role-remove';
-        remove.setAttribute('aria-label', 'Unlink ' + title);
+        remove.setAttribute('aria-label', 'Unlink ' + (person || key));
         remove.innerHTML = CLOSE_ICON;
         remove.addEventListener('click', function () {
-          state.roles = state.roles.filter(function (other) { return other !== title; });
+          state.roles = state.roles.filter(function (other) { return other !== key; });
           renderRoles();
           markDirty();
         });
@@ -2062,9 +2064,10 @@
 
       var addSelect = byId('role-add');
       addSelect.textContent = '';
-      addOption(addSelect, '', 'Select a role');
-      rosterRoles().forEach(function (role) {
-        if (state.roles.indexOf(role.title) < 0) { addOption(addSelect, role.title, roleLabel(role.title)); }
+      addOption(addSelect, '', 'Select a person');
+      choosablePeople('').forEach(function (role) {
+        var key = window.Workflow.keyFor(role);
+        if (state.roles.indexOf(key) < 0 && key !== state.owner) { addOption(addSelect, key, roleLabel(key)); }
       });
       byId('role-add-wrap').hidden = addSelect.options.length < 2;
     }
@@ -2167,9 +2170,10 @@
       section('RELATED PAGES', state.related.map(function (page) { return page.id + ' | ' + page.title; }));
       // Everything saved belongs to the current team. The owner is a role, never a person's name.
       section('TEAM', textLines(roster ? roster.name : state.team));
-      section('OWNER ROLE', textLines(state.owner));
+      section('OWNER', textLines(state.owner));
+      if (state.ownerDefault) { section('OWNER DEFAULT', ['yes']); }
       section('WHERE THIS LIVES', textLines(state.location));
-      section('LINKED ROLES', state.roles);
+      section('LINKED PEOPLE', state.roles);
       section('REVIEWER', textLines(leadRole() || state.reviewer));
       section('VISIBILITY', textLines(state.visibility));
       if (state.source) { section('SOURCE FILE', [state.source]); }
@@ -2302,12 +2306,13 @@
       // One location per page. An older draft that listed several, or sample ones, gets the team's first.
       state.location = locationFromValue(list('WHERE THIS LIVES')[0]);
 
-      // Every page belongs to the current team. Linked roles come from LINKED ROLES; older drafts listed
-      // people in LINKED TEAM MEMBERS, which become the roles those people hold today.
+      // Every page belongs to the current team. Linked people come from LINKED PEOPLE (older drafts listed role titles in LINKED ROLES, or
+      // names in LINKED TEAM MEMBERS: each becomes the person it points at today).
       state.team = roster ? roster.name : (body('TEAM') || state.team);
-      state.owner = roleFromValue(body('OWNER ROLE'));
-      state.roles = list('LINKED ROLES').concat(list('LINKED TEAM MEMBERS').map(roleFromValue)).filter(function (title, index, all) {
-        return title && all.indexOf(title) === index;
+      state.owner = personKeyFromValue(body('OWNER') || body('OWNER ROLE'));
+      state.ownerDefault = body('OWNER DEFAULT').toLowerCase() === 'yes' && !!state.owner;
+      state.roles = list('LINKED PEOPLE').concat(list('LINKED ROLES')).concat(list('LINKED TEAM MEMBERS')).map(personKeyFromValue).filter(function (key, index, all) {
+        return key && all.indexOf(key) === index;
       });
       state.reviewer = leadRole();   // always the team lead, whatever an older draft says
       state.related = list('RELATED PAGES').map(function (line) {
@@ -4468,6 +4473,7 @@
     // Sidebar controls
     byId('owner').addEventListener('change', function (event) {
       state.owner = event.target.value;
+      state.ownerDefault = false;   // chosen by the team lead, so no longer the fallback
       markOwnerUnassigned();
       clearBlockError(byId('owner-field'));
       markDirty();
@@ -4520,6 +4526,7 @@
       state.pageType = 'Process Documentation';
       state.location = '';
       state.owner = '';
+      state.ownerDefault = false;
       state.roles = [];
       state.related = [];
       state.keywords = [];
@@ -4551,9 +4558,9 @@
       chosen['KEYWORDS'] = [];
       chosen['PAGE TYPE'] = ['Process Documentation'];
       chosen['TEAM'] = [roster ? roster.name : state.team];
-      chosen['OWNER ROLE'] = options.owner ? [options.owner] : [];
+      chosen['OWNER'] = options.owner ? [options.owner] : [];
       chosen['WHERE THIS LIVES'] = [locationFromValue('')];
-      chosen['LINKED ROLES'] = [];
+      chosen['LINKED PEOPLE'] = [];
       chosen['REVIEWER'] = [leadRole()];
       chosen['VISIBILITY'] = [options.visibility === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only'];
       chosen['SOURCE FILE'] = [options.source || result.source || ''];
@@ -4580,7 +4587,8 @@
       convert: convertFile,
       draftTextFromResult: draftTextFromResult,
       errorMessage: importErrorMessage,
-      roles: function () { return rosterRoles().map(function (role) { return role.title; }); },
+      // The people a page can be given to: [{ key (their email), label ("Name — Job title") }]
+      people: function () { return choosablePeople('').map(function (role) { return { key: window.Workflow.keyFor(role), label: roleLabel(window.Workflow.keyFor(role)) }; }); },
       reset: resetEditor,
       // Fill the editor from a saved version's text (silently, unlike Import)
       load: function (text, readOnly) {

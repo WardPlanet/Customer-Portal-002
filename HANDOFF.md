@@ -1150,3 +1150,33 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
 **Section 7: Confirm shareable (frame 12).** Choosing Client-safe in Page Setup asks first ("Make this page shareable with clients?" / "Clients will be able to
 read this page once it is live. Check that nothing in it is only for staff." / Cancel, Make shareable). Switching back to Internal only does not ask. A draft that is
 opened already marked Client-Safe does not ask either. The two choices keep the text-revision names ("Internal only / Client-safe"), not "Shareable with clients".
+
+## Ownership by person (sign-in email) — replaces ownership by role
+
+**Decision:** a page is owned by a **person**, identified by the email address of their sign-in account. A job title is only a label the team lead writes next
+to the person; it owns nothing. (Earlier sections of this file that say "pages belong to a role" describe the old design.)
+
+- **In the page text:** `[OWNER]` holds the owner's email; `[OWNER DEFAULT]` / `yes` means the team lead has the page as a **fallback** (shown as "(Default)"
+  until someone reassigns it); `[LINKED PEOPLE]` holds linked people (emails). Older pages with `[OWNER ROLE]` / `[LINKED ROLES]` (a job title) still work: the
+  title is looked up to whoever holds it today (`findPerson` / `resolveKey` in `workflow.cjs`). Nothing has to be migrated; a page is rewritten to the new form
+  the first time its owner changes.
+- **The roster** (`teams/*.json`, the `roles` list) is now a list of people, each with a job title and an email. Each person is on it once; the title must be unique.
+  Roles that nobody holds are only empty slots.
+- **When the owner has gone** (not on the team any more, or a title nobody holds), the page shows the team lead as owner, marked **(Default)**, in the library,
+  search results and the contacts card, and it is listed in Team and roles under **Pages waiting for an owner**, where the lead picks a person in bulk.
+  Choosing a person clears the mark.
+- **Giving pages up** (`W.reassignRole(page, from, to, actor, team, now, { asDefault })`, `W.setOwner(..., { asDefault })`, `W.replacePerson`):
+  - **Team and roles → Remove** asks who takes over the person's pages. The team lead (marked Default) is the preselected choice; anyone else is an explicit
+    handover. The roster cannot lose someone who still owns pages (`checkRoster` refuses: hand their pages over first).
+  - **Replace person** puts a different person in the same entry and every page that named the old person follows (one request: `replacePerson`; server route
+    `POST /api/library/roster/replace`).
+  - **Transfer pages** moves one person's pages to another person.
+  - **Admin tools:** moving or removing a person hands their pages in the team they leave to that team's lead as the default, and Undo puts the page owners back
+    too (the snapshot now includes the pages).
+- **Who can do what** is unchanged: only the team lead chooses an owner; anyone else owns what they create (the Owner box is filled with themselves and locked).
+  An actor now carries `emails` (their sign-in accounts); "mine" means the page's owner is one of them (or a title they hold, on an older page).
+- **Page Setup** says "Owner" and "Linked people" (the box lists people, name first, then job title). Batch import chooses an owner per document the same way.
+- **Search** matches a page by its owner's name and job title (`searchEntry(page, audience, team)`; `Search.rank(..., teamOf)`).
+- **Backups** keep working as they are (owners are inside the page text). A backup from before this change restores fine.
+- **Sign-in later:** the email in `[OWNER]` is what Entra ID will match to the signed-in account; no change to the page format is needed then.
+- **Not built:** editing a person's job title in place (add or replace them to change it); a person on two teams (the roster rule is one entry per person per team).

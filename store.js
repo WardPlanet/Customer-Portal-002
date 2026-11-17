@@ -216,8 +216,10 @@
     // Team lead only: who holds each role, how many pages use each, and changes to both
     getRoster: function () { return this.call('GET', '/api/library/roster'); },
     saveRoster: function (roles) { return this.call('PUT', '/api/library/roster', { roles: roles }); },
-    setOwner: function (id, owner) { return this.call('POST', '/api/library/pages/' + id + '/owner', { owner: owner }); },
-    reassign: function (from, to, ids) { return this.call('POST', '/api/library/reassign', { from: from, to: to, ids: ids }); },
+    // The owner is a person's email. opts.asDefault: the team lead has the page as a fallback, marked "(Default)" until it is reassigned.
+    setOwner: function (id, owner, opts) { return this.call('POST', '/api/library/pages/' + id + '/owner', { owner: owner, asDefault: !!(opts && opts.asDefault) }); },
+    reassign: function (from, to, ids, opts) { return this.call('POST', '/api/library/reassign', { from: from, to: to, ids: ids, asDefault: !!(opts && opts.asDefault) }); },
+    replacePerson: function (roleTitle, next) { return this.call('POST', '/api/library/roster/replace', { role: roleTitle, person: next.person, email: next.email }); },
     isMemoryOnly: function () { return false; },
     exportBackup: function () { return this.call('GET', '/api/library/backup'); },
     restoreBackup: function (data) { return this.call('POST', '/api/library/restore', { backup: data }); },
@@ -343,7 +345,7 @@
         var rows = pages.map(W.summary);
         if (q) {
           // Best match first, with where it matched and a snippet (see search.cjs)
-          var ranked = window.Search.rank(W, pages, q, 'staff');
+          var ranked = window.Search.rank(W, pages, q, 'staff', teamOf);
           var byId = {};
           rows.forEach(function (row) { byId[row.id] = row; });
           return { pages: ranked.order.map(function (id) { return Object.assign(byId[id], { search: ranked.info[id] }); }), partial: ranked.partial, suggestion: ranked.suggestion };
@@ -390,7 +392,7 @@
           pages: top.map(function (item) {
             var page = live.filter(function (candidate) { return candidate.id === item.id; })[0];
             var summary = W.summary(page);
-            var entry = W.searchEntry(page, 'staff') || {};
+            var entry = W.searchEntry(page, 'staff', teamOf(page)) || {};
             return { id: summary.id, title: summary.title, description: entry.description || '', visibility: summary.visibility, team: summary.team, updatedAt: summary.updatedAt, views: item.views };
           }),
           searches: SL.topSearches(SL.eligibleSearches(events), hidden, 3)
@@ -399,7 +401,7 @@
       // Live pages that match what is being typed (the search box's dropdown)
       suggest: async function (q) {
         var live = readAll().pages.filter(function (page) { return !!page.liveVersion; });
-        return { suggestions: window.Search.suggestPages(W, live, q, 'staff') };
+        return { suggestions: window.Search.suggestPages(W, live, q, 'staff', undefined, teamOf) };
       },
       create: async function (text, note) {
         var who = actor();
@@ -476,36 +478,48 @@
       getRoster: async function () {
         var who = actor();
         guard(function () { W.requireLeadFor(who, team, 'manage the team'); });
-        return { roles: team.roles, usage: W.roleUsage(teamPages()) };
+        return { roles: team.roles, usage: W.roleUsage(teamPages(), team) };
       },
       saveRoster: async function (roles) {
         var who = actor();
-        var usage = W.roleUsage(teamPages());
+        var usage = W.roleUsage(teamPages(), team);
         var clean = guard(function () { return W.checkRoster(team, roles, usage, who); });
         team.roles = clean;
         try { localStorage.setItem(ROSTER_KEY + '.' + team.slug, JSON.stringify(clean)); } catch (error) { /* kept for this visit only */ }
         return { roles: clean, usage: usage };
       },
-      setOwner: async function (id, owner) {
+      setOwner: async function (id, owner, opts) {
         var data = readAll();
         var page = find(data, id);
         var t = teamOf(page);
         var who = actorIn(t);
-        guard(function () { W.setOwner(page, owner, who, t, now()); });
+        guard(function () { W.setOwner(page, owner, who, t, now(), opts); });
         writeAll(data);
         return detail(page);
       },
-      reassign: async function (from, to, ids) {
+      reassign: async function (from, to, ids, opts) {
         var who = actor();
         guard(function () { W.requireLeadFor(who, team, 'reassign pages'); W.checkReassignRoles(team, from, to); });
         var data = readAll();
         var moved = 0;
         teamPages(data).forEach(function (page) {
           if (ids && ids.indexOf(page.id) < 0) { return; }
-          if (guard(function () { return W.reassignRole(page, from, to, who, team, now()); })) { moved += 1; }
+          if (guard(function () { return W.reassignRole(page, from, to, who, team, now(), opts); })) { moved += 1; }
         });
         writeAll(data);
         return { moved: moved };
+      },
+      // Puts a different person in a roster entry; the pages that named the old person follow (the lead's "Replace person")
+      replacePerson: async function (roleTitle, next) {
+        var who = actor();
+        var data = readAll();
+        var outcome = guard(function () { return W.replacePerson(team, teamPages(data), roleTitle, next, who, now()); });
+        var nextTeam = Object.assign({}, team, { roles: outcome.roles });
+        var clean = guard(function () { return W.checkRoster(team, outcome.roles, W.roleUsage(teamPages(data), nextTeam), who); });
+        team.roles = clean;
+        try { localStorage.setItem(ROSTER_KEY + '.' + team.slug, JSON.stringify(clean)); } catch (error) { /* kept for this visit only */ }
+        writeAll(data);
+        return { roles: clean, moved: outcome.count };
       },
       // Everything, as one object the screen saves to a file
       exportBackup: async function () {
@@ -530,7 +544,7 @@
       },
       publicList: async function (q) {
         var pages = readAll().pages;
-        var entries = pages.map(function (page) { return W.searchEntry(page, 'public'); }).filter(Boolean);
+        var entries = pages.map(function (page) { return W.searchEntry(page, 'public', teamOf(page)); }).filter(Boolean);
         if (!q) { return { pages: entries.map(function (e) { return { id: e.id, title: e.title, description: e.description }; }) }; }
         var answer = window.Search.query(entries, q);
         var byId = {};
@@ -543,7 +557,7 @@
       },
       publicGet: async function (id) {
         var page = readAll().pages.filter(function (p) { return p.id === id; })[0];
-        var entry = page && W.searchEntry(page, 'public');
+        var entry = page && W.searchEntry(page, 'public', teamOf(page));
         if (!entry) { throw fail('no_page', 'That page is not available.'); }
         return { title: entry.title, text: W.publicText(W.liveVersion(page).text) };
       }
@@ -567,7 +581,7 @@
   ];
 
   function demoText(doc, team) {
-    var text = '[TITLE]\n' + doc.title + '\n\n[DESCRIPTION]\n' + doc.description + '\n\n[OWNER ROLE]\n' + doc.owner + '\n\n[WHERE THIS LIVES]\n' + ((team.locations && team.locations[0]) || '') + '\n\n[VISIBILITY]\n' + doc.visibility + '\n\n[KEYWORDS]\n' + doc.keywords.join('\n') + '\n\n';
+    var text = '[TITLE]\n' + doc.title + '\n\n[DESCRIPTION]\n' + doc.description + '\n\n[OWNER]\n' + (window.Workflow.keyFor(window.Workflow.findPerson(team, doc.owner)) || doc.owner) + '\n\n[WHERE THIS LIVES]\n' + ((team.locations && team.locations[0]) || '') + '\n\n[VISIBILITY]\n' + doc.visibility + '\n\n[KEYWORDS]\n' + doc.keywords.join('\n') + '\n\n';
     doc.blocks.forEach(function (block, i) {
       var n = i + 1;
       if (block[0] === 'H') { text += '[BLOCK ' + n + ' HEADER 1]\n' + block[1] + '\n\n'; }
@@ -616,6 +630,25 @@
     try { localStorage.setItem(ROSTER_KEY + '.' + team.slug, JSON.stringify(team.roles)); } catch (error) { /* kept for this visit only */ }
   }
 
+  // When someone leaves a team (moved to another, or removed), the pages they own there go to the team lead as the default ("(Default)" on the
+  // page), to be reassigned later. Must run BEFORE the roster changes, while the person can still be found. Returns how many pages moved.
+  function handOverPagesOf(teamSlug, roleTitle) {
+    var W = window.Workflow;
+    var team = window.TEAMS.filter(function (candidate) { return candidate.slug === teamSlug; })[0];
+    var role = team && team.roles.filter(function (r) { return r.title === roleTitle; })[0];
+    var lead = team && W.leadEntry(team);
+    if (!team || !role || !role.person || !role.email || !lead) { return 0; }
+    var data = readAll();
+    var admin = W.actorFor('Admin', team);
+    var at = new Date().toISOString();
+    var moved = 0;
+    data.pages.forEach(function (page) {
+      if (page.team === teamSlug && W.reassignRole(page, role.email, W.keyFor(lead), admin, team, at, { asDefault: true })) { moved += 1; }
+    });
+    if (moved) { writeAll(data); }
+    return moved;
+  }
+
   var adminApi = {
     // Only for Admin (the Admin choice of the Department dropdown)
     allowed: function () { return !!window.ADMIN_MODE && !!window.AdminCore; },
@@ -644,7 +677,7 @@
         // How many of each team's pages use each of its roles (so a move or removal can say what it affects)
         roleUsage: (function () {
           var usage = {};
-          window.TEAMS.forEach(function (team) { usage[team.slug] = window.Workflow.roleUsage(pages.filter(function (page) { return page.team === team.slug; })); });
+          window.TEAMS.forEach(function (team) { usage[team.slug] = window.Workflow.roleUsage(pages.filter(function (page) { return page.team === team.slug; }), team); });
           return usage;
         })(),
         invitations: directory.invites.map(function (invite) { return Object.assign({}, invite, { state: window.AdminCore.invitationState(invite, new Date().toISOString()) }); }),
@@ -711,7 +744,10 @@
       var self = this;
       return this.wrap(function () {
         var directory = readDirectory();
+        window.AdminCore.movePerson(JSON.parse(JSON.stringify(window.TEAMS)), input);   // refused here, before any page is touched, if it is not allowed
+        var handedOver = handOverPagesOf(input.fromTeam, input.fromRole);
         var result = window.AdminCore.movePerson(window.TEAMS, input);
+        result.handedOver = handedOver;
         window.TEAMS.forEach(function (team) { if (team.slug === input.fromTeam || team.slug === input.toTeam) { saveRosterOf(team); } });
         // An invitation still pending follows the person to their new role
         directory.invites.forEach(function (invite) {
@@ -726,7 +762,10 @@
       var self = this;
       return this.wrap(function () {
         var directory = readDirectory();
+        window.AdminCore.removePerson(JSON.parse(JSON.stringify(window.TEAMS)), teamSlug, role);   // refused here, before any page is touched, if it is not allowed
+        var handedOver = handOverPagesOf(teamSlug, role);
         var result = window.AdminCore.removePerson(window.TEAMS, teamSlug, role);
+        result.handedOver = handedOver;
         var team = window.TEAMS.filter(function (candidate) { return candidate.slug === teamSlug; })[0];
         directory.invites.forEach(function (invite) { if (invite.status === 'pending' && invite.team === teamSlug && invite.role === role) { invite.status = 'cancelled'; } });
         saveRosterOf(team);
@@ -777,7 +816,7 @@
     // A copy of everything the admin tools change, so the last change can be undone
     snapshot: function () {
       this.guard();
-      return JSON.parse(JSON.stringify({ teams: window.TEAMS, directory: readDirectory() }));
+      return JSON.parse(JSON.stringify({ teams: window.TEAMS, directory: readDirectory(), pages: readAll().pages }));
     },
     // Puts a snapshot back: the teams (changed in place, because the rest of the page holds them), their rosters and the directory
     restore: function (snap) {
@@ -791,6 +830,7 @@
       });
       window.TEAMS.forEach(saveRosterOf);
       writeDirectory(snap.directory);
+      if (snap.pages) { var data = readAll(); data.pages = snap.pages; writeAll(data); }   // who owned which pages is part of what Undo puts back
     },
     // People who can be put on a team, matching what was typed (the company directory and everyone already on a team)
     searchPeople: function (query) {

@@ -10,8 +10,8 @@ function searchCount(pages, query, audience) { return Search.rank(W, pages, quer
 const team = {
   name: 'Legwork Web Team', slug: 'legwork-web-team', lead: 'Web Team Manager', locations: ['Websites'],
   roles: [
-    { title: 'Website Editor', person: 'Scott Archer' },
-    { title: 'Web Team Manager', person: 'Micah' }
+    { title: 'Website Editor', person: 'Scott Archer', email: 'scott@x.com' },
+    { title: 'Web Team Manager', person: 'Micah', email: 'micah@x.com' }
   ]
 };
 const scott = W.actorFor('Scott Archer', team);
@@ -48,7 +48,7 @@ test('actions need someone to be acting', () => {
 
 test('submitting needs the required fields', () => {
   const page = W.createPage(team, '[TITLE]\nOnly a title\n', scott, t(1));
-  assert.throws(() => W.submit(page, 1, scott, team, t(2)), (e) => e.code === 'incomplete' && /description/.test(e.message) && /owner role/.test(e.message));
+  assert.throws(() => W.submit(page, 1, scott, team, t(2)), (e) => e.code === 'incomplete' && /description/.test(e.message) && /an owner/.test(e.message));
 });
 
 test('only the team lead can approve, send back or unpublish', () => {
@@ -303,26 +303,43 @@ test('the lead can move a page to another role, in the live and in-progress vers
   assert.equal(W.reassignRole(page, 'Website Editor', 'Web Designer', micah, bigTeam, t(6)), false);
 });
 
-test('moving a page also swaps a linked role without repeating it', () => {
-  const text = W.replaceRoleInText('[OWNER ROLE]\nA\n\n[LINKED ROLES]\nA\nB\n', 'A', 'B');
-  assert.equal(text, '[OWNER ROLE]\nB\n\n[LINKED ROLES]\nB\n');
+test('moving a page also swaps a linked person without repeating them', () => {
+  const people = { slug: 't', lead: 'L', roles: [{ title: 'L', person: 'A', email: 'a@x.com' }, { title: 'M', person: 'B', email: 'b@x.com' }] };
+  const text = W.replacePersonInText('[OWNER]\na@x.com\n\n[LINKED PEOPLE]\na@x.com\nb@x.com\n', people, 'a@x.com', 'b@x.com');
+  const f = W.fields(text);
+  assert.equal(f.owner, 'b@x.com');
+  assert.deepEqual(f.linkedRoles, ['b@x.com']);
+  assert.equal(W.replacePersonInText('[OWNER]\nb@x.com\n', people, 'a@x.com', 'b@x.com'), null);   // not named: nothing to change
+});
+
+test('a page that names a role title still belongs to whoever holds the role today', () => {
+  const people = { slug: 't', lead: 'L', roles: [{ title: 'L', person: 'A', email: 'a@x.com' }, { title: 'Editor', person: 'B', email: 'b@x.com' }] };
+  assert.equal(W.resolveKey(people, 'Editor'), 'b@x.com');
+  assert.equal(W.resolveKey(people, 'B@X.com'), 'b@x.com');
+  assert.equal(W.ownerIsUnassigned(people, 'Editor'), false);
+  const vacant = { slug: 't', lead: 'L', roles: [{ title: 'L', person: 'A', email: 'a@x.com' }, { title: 'Editor', person: '', email: '' }] };
+  assert.equal(W.ownerIsUnassigned(vacant, 'Editor'), true);
+  // when the owner has gone the team lead answers, marked as the default
+  const who = W.effectiveOwner(vacant, { owner: 'Editor', ownerDefault: false });
+  assert.equal(who.entry.person, 'A');
+  assert.equal(who.isDefault, true);
 });
 
 test('role usage counts owner and linked roles on current versions', () => {
   const page = livePage();
-  assert.deepEqual(W.roleUsage([page]), { 'Website Editor': 1 });
+  assert.deepEqual(W.roleUsage([page], team), { 'scott@x.com': 1 });   // the page names the Website Editor title, which Scott holds today
 });
 
 test('the roster is checked: lead stays, unique roles and people, roles in use cannot be removed', () => {
-  const usage = { 'Website Editor': 2 };
-  const ok = [{ title: 'Website Editor', person: 'Sam', email: 'sam@x.com' }, { title: 'Web Team Manager', person: 'Micah', email: 'm@x.com' }, { title: 'SEO Analyst', person: 'Ana', email: 'ana@x.com' }];
+  const usage = { 'scott@x.com': 2 };
+  const ok = [{ title: 'Website Editor', person: 'Scott Archer', email: 'scott@x.com' }, { title: 'Web Team Manager', person: 'Micah', email: 'micah@x.com' }, { title: 'SEO Analyst', person: 'Ana', email: 'ana@x.com' }];
   assert.equal(W.checkRoster(team, ok, usage, micah).length, 3);
   assert.throws(() => W.checkRoster(team, ok, usage, scott), /Only the team lead/);
   assert.throws(() => W.checkRoster(team, ok.slice(0, 1), usage, micah), /cannot be removed/);
-  assert.throws(() => W.checkRoster(team, [ok[1]], usage, micah), /still used by 2 pages/);
+  assert.throws(() => W.checkRoster(team, [ok[1]], usage, micah), /still named on 2 pages/);
   assert.throws(() => W.checkRoster(team, ok.concat([{ title: 'website editor', person: 'X', email: 'x@x.com' }]), usage, micah), /twice/);
-  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: 'Sam', email: 'm@x.com' }], usage, micah), /holds two roles/);
-  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: '', email: 'm@x.com' }], usage, micah), /needs a person/);
+  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: 'Scott Archer', email: 'micah@x.com' }], usage, micah), /on the team twice/);
+  assert.throws(() => W.checkRoster(team, [ok[0], { title: 'Web Team Manager', person: '', email: 'micah@x.com' }], usage, micah), /needs a person/);
 });
 
 test('every role needs a plausible contact email', () => {
@@ -384,7 +401,7 @@ test('the lead can change the owner of one page; linked roles stay; others canno
   const text = draftText('Refunds') + '\n[LINKED ROLES]\nWebsite Editor\n';
   const page = W.createPage(bigTeam, text, scott, t(1));
   assert.throws(() => W.setOwner(page, 'Web Designer', scott, bigTeam, t(2)), /Only the team lead/);
-  assert.throws(() => W.setOwner(page, 'Nobody', micah, bigTeam, t(2)), /Choose a role/);
+  assert.throws(() => W.setOwner(page, 'Nobody', micah, bigTeam, t(2)), /Choose a person/);
   assert.equal(W.setOwner(page, 'Web Designer', micah, bigTeam, t(2)), true);
   assert.equal(page.versions[0].owner, 'Web Designer');
   assert.deepEqual(W.summary(page).linkedRoles, ['Website Editor']);
