@@ -1920,7 +1920,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .suggest-wrap.is-open .landing-search { border-bottom-left-radius: 0; border-bottom-right-radius: 0; box-shadow: 0 -1px 6px rgba(32, 33, 36, 0.18), 0 0 0 transparent; }
 
 /* Search review (preview with sample data) */
-.review-banner { margin: 0 0 16px; padding: 10px 14px; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 10px; color: var(--text); font-size: 14px; }
+.review-banner { margin: 0 0 16px; padding: 10px 14px; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 10px; color: var(--text); font-size: 14px; }
 .review-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
 .review-stat { padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .review-stat-number { font-size: 24px; font-weight: 700; color: var(--text); }
@@ -2328,3 +2328,9 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 /* Search results: who to ask, and how fresh the answer is */
 .search-owner { margin: 6px 0 0; color: var(--text-muted); font-size: 0.85rem; }
 .search-owner .is-overdue { color: var(--danger); font-weight: 600; }
+
+/* Search review: one empty state, and a quiet Clear log row at the bottom */
+.review-empty-state { padding: 22px 24px; background: var(--surface); border: 1px dashed var(--border-strong); border-radius: 12px; }
+.review-empty-title { margin: 0 0 6px; font-size: 1.1rem; }
+.review-empty-text { margin: 0; color: var(--text-muted); }
+.review-clear-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; }

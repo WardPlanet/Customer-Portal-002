@@ -4482,8 +4482,14 @@
       }
     });
     document.querySelectorAll('.segment').forEach(function (segment) {
-      segment.addEventListener('click', function () {
-        state.visibility = segment.getAttribute('data-value');
+      segment.addEventListener('click', async function () {
+        var chosen = segment.getAttribute('data-value');
+        // Making a page readable by clients asks first. Switching back to internal-only does not.
+        if (chosen === 'Client-Safe' && state.visibility !== 'Client-Safe') {
+          var ok = await window.askConfirm('Clients will be able to read this page once it is live. Check that nothing in it is only for staff.', { title: 'Make this page shareable with clients?', ok: 'Make shareable' });
+          if (!ok) { return; }
+        }
+        state.visibility = chosen;
         renderVisibility();
         markDirty();
       });

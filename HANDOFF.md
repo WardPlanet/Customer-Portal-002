@@ -1136,3 +1136,17 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
 - **Search results** say who to ask and how fresh the answer is: "Owner: Lena Brooks — Knowledge Base Editor · Updated 15 days ago" (full date on hover).
   When the owner role has no one in it the line says "Contact:" and names the team lead, as on the page itself. A page past its review date adds a
   red "Needs review". The "Shareable with clients" badge shows here too.
+
+**Section 6: Search review (frames 10 and 11).**
+- **`DECISIONS_APPLY`** (top of `search-review.js`, `false`): while decisions do not change the real search, the screen is a read-only list of what people
+  searched for and could not find. The synonym boxes, Approve, Pin, Save as test, "Needs a new page" and Dismiss buttons, and the "Decisions made"
+  list are hidden (not shown disabled). Set it to `true` when decisions start to change the real search and all of it comes back.
+- The subtitle states the scope: "All libraries · last 30 days: ...". **Open question for product:** should library owners see only the searches that
+  ended in their own library? That needs each log event to be tagged with a library, which the log does not store today.
+- The old warning is an honest read-only banner in the information style (it was warning yellow).
+- **One empty state** ("No searches yet") instead of four stacked ones; the stat cards and the lists appear once there is data.
+- **Clear log** is a quiet row at the bottom ("Clearing the log removes every logged search and every decision on this screen."), still behind the confirmation.
+
+**Section 7: Confirm shareable (frame 12).** Choosing Client-safe in Page Setup asks first ("Make this page shareable with clients?" / "Clients will be able to
+read this page once it is live. Check that nothing in it is only for staff." / Cancel, Make shareable). Switching back to Internal only does not ask. A draft that is
+opened already marked Client-Safe does not ask either. The two choices keep the text-revision names ("Internal only / Client-safe"), not "Shareable with clients".

@@ -5,9 +5,15 @@
 // NOT applied to the real search yet: that is the next step.
 //
 // Team lead only for now (library-ui.js decides who sees it).
+//
+// DECISIONS_APPLY: while decisions do not change the real search, the screen is a read-only list of what people searched for and could not find,
+// and every control that would do nothing (synonym boxes, Approve, Pin, Save as test, the "Decisions made" list) is hidden, not shown disabled.
+// When decisions start to change the real search, set this to true and everything returns.
 
 (function () {
   'use strict';
+
+  var DECISIONS_APPLY = false;
 
   function emptyState() { return { decisions: [], edits: {}, choices: {} }; }
 
@@ -100,6 +106,7 @@
       top.appendChild(el('span', 'review-count', item.count + (item.count === 1 ? ' search' : ' searches')));
       card.appendChild(top);
       card.appendChild(el('p', 'review-note', 'No page matched this search.'));
+      if (!DECISIONS_APPLY) { return card; }
 
       var row = el('div', 'review-row');
       row.appendChild(el('span', 'review-label', 'Pages call it'));
@@ -136,6 +143,7 @@
       card.appendChild(top);
       card.appendChild(el('p', 'review-note', item.landed.length ? 'Then opened: ' + item.landed.map(function (pair) { return pair[0] + ' (' + pair[1] + ')'; }).join(' \u00B7 ') : 'Nothing was opened afterwards.'));
       if (item.shownFirst) { card.appendChild(el('p', 'review-note', 'Shown first: ' + item.shownFirst)); }
+      if (!DECISIONS_APPLY) { return card; }
 
       var chosen = state.choices[item.id] || item.correct;
       var row = el('div', 'review-row');
@@ -161,6 +169,10 @@
       top.appendChild(el('span', 'review-query', '“' + item.query + '”'));
       top.appendChild(el('span', 'review-count', item.count + (item.count === 1 ? ' search' : ' searches')));
       row.appendChild(top);
+      if (!DECISIONS_APPLY) {
+        if (item.page) { row.appendChild(el('p', 'review-note', 'Usually opens: ' + item.page)); }
+        return row;
+      }
       var line = el('div', 'review-row');
       line.appendChild(el('span', 'review-label', 'Pin to the top'));
       var chosen = state.choices[item.id] || item.page;
@@ -200,31 +212,35 @@
       var done = decidedIds();
       var summary = window.SearchLog.summarize(events);
 
+      var hasData = summary.totals.searches > 0;
       var head = el('div', 'lib-head');
       var titles = el('div');
       titles.appendChild(el('h1', 'lib-title', 'Search review'));
-      titles.appendChild(el('p', 'lib-sub', 'Last ' + summary.days + ' days: what people searched for, what found nothing, and what to change'));
+      // The scope is stated: every library's searches are in this log (each event does not yet say which library it ended in)
+      titles.appendChild(el('p', 'lib-sub', 'All libraries \u00B7 last ' + summary.days + ' days: what people searched for and what found nothing'));
       head.appendChild(titles);
-      var headActions = el('div', 'lib-actions');
-      headActions.appendChild(button('Clear log', 'secondary-link', async function () {
-        var ok = await window.askConfirm('Every logged search and every decision on this screen is removed. This cannot be undone.', { title: 'Clear the search log?', ok: 'Clear log' });
-        if (!ok) { return; }
-        try { await backend().clearSearchLog(); } catch (error) { notice(error.message); return; }
-        events = [];
-        state = emptyState();
-        draw();
-      }));
-      head.appendChild(headActions);
       main.appendChild(head);
 
-      var banner = el('p', 'review-banner', 'Searches in the Wiki search box are logged as people use it: the text, how many pages it found and which page was opened. No names are kept. Decisions made here are recorded but do not change the real search yet.');
+      // An honest note in the information style (it is not a warning): what is logged, and that this screen only reads
+      var banner = el('p', 'review-banner', 'Searches in the Wiki search box are logged as people use it: the text, how many pages it found and which page was opened. No names are kept.'
+        + (DECISIONS_APPLY ? '' : ' This screen is read-only for now: use it to spot what people could not find.'));
       banner.setAttribute('role', 'note');
       main.appendChild(banner);
+
+      // One empty state, not a stack of empty sections. The numbers and the lists appear once there is something to show.
+      if (!hasData) {
+        var empty = el('section', 'review-empty-state');
+        empty.appendChild(el('h2', 'review-empty-title', 'No searches yet'));
+        empty.appendChild(el('p', 'review-empty-text', 'Once people start using the Wiki search box, you will see here what they looked for, what found nothing, and what they searched for twice.'));
+        main.appendChild(empty);
+        if (state.decisions.length) { main.appendChild(clearRow()); }
+        return;
+      }
 
       var stats = el('div', 'review-stats');
       [
         [summary.totals.searches, 'searches'],
-        [summary.totals.found + ' (' + (summary.totals.searches ? Math.round(summary.totals.found / summary.totals.searches * 100) : 0) + '%)', 'found a result'],
+        [summary.totals.found + ' (' + Math.round(summary.totals.found / summary.totals.searches * 100) + '%)', 'found a result'],
         [summary.totals.nothing, 'found nothing'],
         [summary.totals.repeated, 'repeated straight away']
       ].forEach(function (pair) {
@@ -235,27 +251,47 @@
       });
       main.appendChild(stats);
 
-      function pending(list, name) { return list.filter(function (item) { return !done[item.id + ':' + name]; }); }
+      function pending(list, name) { return DECISIONS_APPLY ? list.filter(function (item) { return !done[item.id + ':' + name]; }) : list; }
 
       var nothing = pending(summary.nothing, 'nothing');
-      var nothingBox = section('Searches that found nothing', 'Add a synonym when the page exists under another name, or ask for a new page.', nothing.length);
-      if (!nothing.length) { nothingBox.appendChild(el('p', 'review-empty', summary.totals.searches ? 'Nothing here to review.' : 'No searches logged yet.')); }
-      nothing.forEach(function (item) { nothingBox.appendChild(nothingCard(item)); });
-      main.appendChild(nothingBox);
+      if (nothing.length || DECISIONS_APPLY) {
+        var nothingBox = section('Searches that found nothing', DECISIONS_APPLY ? 'Add a synonym when the page exists under another name, or ask for a new page.' : 'Pages might exist under another name, or a new page may be needed.', nothing.length);
+        if (!nothing.length) { nothingBox.appendChild(el('p', 'review-empty', 'Nothing here to review.')); }
+        nothing.forEach(function (item) { nothingBox.appendChild(nothingCard(item)); });
+        main.appendChild(nothingBox);
+      }
 
       var repeated = pending(summary.repeated, 'repeated');
-      var repeatedBox = section('Searches people repeated', 'Results came back, but people searched again. Choose the page they wanted so it can be checked from now on.', repeated.length);
-      if (!repeated.length) { repeatedBox.appendChild(el('p', 'review-empty', summary.totals.searches ? 'Nothing here to review.' : 'No searches logged yet.')); }
-      repeated.forEach(function (item) { repeatedBox.appendChild(repeatedCard(item)); });
-      main.appendChild(repeatedBox);
+      if (repeated.length) {
+        var repeatedBox = section('Searches people repeated', DECISIONS_APPLY ? 'Results came back, but people searched again. Choose the page they wanted so it can be checked from now on.' : 'Results came back, but people searched again straight away.', repeated.length);
+        repeated.forEach(function (item) { repeatedBox.appendChild(repeatedCard(item)); });
+        main.appendChild(repeatedBox);
+      }
 
       var common = pending(summary.common, 'common');
-      var commonBox = section('Most common searches', 'Pin the right page for the ones that matter most.', common.length);
-      if (!common.length) { commonBox.appendChild(el('p', 'review-empty', summary.totals.searches ? 'Nothing here to review.' : 'No searches logged yet.')); }
-      common.forEach(function (item) { commonBox.appendChild(commonRow(item)); });
-      main.appendChild(commonBox);
+      if (common.length) {
+        var commonBox = section('Most common searches', DECISIONS_APPLY ? 'Pin the right page for the ones that matter most.' : 'The searches people make most often.', common.length);
+        common.forEach(function (item) { commonBox.appendChild(commonRow(item)); });
+        main.appendChild(commonBox);
+      }
 
-      main.appendChild(decisionsList());
+      if (DECISIONS_APPLY) { main.appendChild(decisionsList()); }
+      main.appendChild(clearRow());
+    }
+
+    // Clearing the log is a quiet row at the bottom, still behind a confirmation
+    function clearRow() {
+      var row = el('div', 'review-clear-row');
+      row.appendChild(el('span', 'review-clear-text', 'Clearing the log removes every logged search and every decision on this screen.'));
+      row.appendChild(button('Clear log', 'secondary-link', async function () {
+        var ok = await window.askConfirm('Every logged search and every decision on this screen is removed. This cannot be undone.', { title: 'Clear the search log?', ok: 'Clear log' });
+        if (!ok) { return; }
+        try { await backend().clearSearchLog(); } catch (error) { notice(error.message); return; }
+        events = [];
+        state = emptyState();
+        draw();
+      }));
+      return row;
     }
 
     draw();
