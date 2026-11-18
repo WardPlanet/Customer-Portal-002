@@ -1239,4 +1239,4 @@ Every pop-up (`<dialog>`, in the page or drawn later) gets an **X** in its upper
 ## Owner in the library table
 The owner cell reads: **Name**, the job title in smaller text beneath it (with "(Default)" when the team lead has it as the fallback), then the Change link.
 
-The Contacts box on a live page uses the same shape: **Name**, job title in smaller text, then the email and Message on Teams links, one per line, each with a small icon (envelope, speech bubble).
+The Contacts box on a live page reads, for each person: the **JOB TITLE in capitals** (with "(Default)" when the team lead has the page as the fallback), the **name**, the email and Message on Teams on their own lines, each with a small icon (envelope, speech bubble). The old "Page owner / Team lead / Linked" labels are gone; the owner still comes first, then the team lead, then linked people.

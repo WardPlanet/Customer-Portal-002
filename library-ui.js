@@ -2531,26 +2531,25 @@
     var who = W.effectiveOwner(pageOwnerTeam, fieldsOfPage);
     var lead = W.leadEntry(pageOwnerTeam);
     var wanted = [];
-    function add(entry, label) {
+    function add(entry, isDefault) {
       if (!entry) { return; }
       var key = W.keyFor(entry);
       if (wanted.some(function (item) { return item.key === key; })) { return; }
-      wanted.push({ key: key, entry: entry, label: label });
+      wanted.push({ key: key, entry: entry, isDefault: !!isDefault });
     }
     // The owner comes first. When they have left the team, the team lead is the contact instead, marked as the default.
-    add(who.entry, who.isDefault ? (who.entry === lead ? 'Contact (team lead, default)' : 'Page owner (Default)') : 'Page owner');
-    add(lead, 'Team lead');
-    fieldsOfPage.linkedRoles.forEach(function (key) { var entry = W.findPerson(pageOwnerTeam, key); if (entry && entry.person) { add(entry, 'Linked'); } });
+    add(who.entry, who.isDefault);
+    add(lead, false);
+    fieldsOfPage.linkedRoles.forEach(function (key) { var entry = W.findPerson(pageOwnerTeam, key); if (entry && entry.person) { add(entry, false); } });
     if (!wanted.length) { return null; }
     var box = el('section', 'side-card');
     box.appendChild(el('h2', 'side-title', 'Contacts'));
     wanted.forEach(function (item) {
       var role = item.entry;
       var card = el('div', 'preview-contact');
-      card.appendChild(el('span', 'preview-contact-label', item.label));
-      // Name, then the job title in smaller text beneath it, then how to reach them (email and Teams)
+      // The job title, in capitals, then the name, the email and Teams ("(Default)" when the team lead has the page as the fallback)
+      card.appendChild(el('span', 'preview-contact-label', role.title + (item.isDefault ? ' (Default)' : '')));
       card.appendChild(el('strong', 'preview-contact-name', role.person ? fullName(role.person, role.email) : 'Unassigned'));
-      card.appendChild(el('div', 'preview-contact-role', role.title));
       if (role.email) {
         var reach = el('div', 'preview-contact-links');
         var mailLink = link(role.email, 'mailto:' + role.email);
