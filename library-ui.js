@@ -752,7 +752,14 @@
       if (!now.length) { return; }   // nothing ticked: nothing is selected by the choices
       pool.forEach(function (p) { if (now.every(function (d) { return pick[d.key][d.valueOf(p)]; })) { selected[p.id] = true; } });
     }
-    // "Select by" is an accordion under the bar: open it, then open a column to tick what to select by
+    function tick(key, value, on) {
+      pick[key] = pick[key] || {};
+      if (on) { pick[key][value] = true; } else { delete pick[key][value]; }
+      applyPick();
+      libraryFilters.pickOpen = on ? key + ':' + value : '';
+      renderList(box, pages);
+    }
+    // "Select by" is an accordion under the bar: open it for a row of column headings (one open at a time), each listing what to tick
     function buildNarrowBox() {
       var open = libraryFilters.pickExpanded === true;
       var panel = el('div', 'lib-narrow');
@@ -764,46 +771,70 @@
       head.addEventListener('click', function () { libraryFilters.pickExpanded = !open; renderList(box, pages); });
       panel.appendChild(head);
       if (!open) { return panel; }
+      var tabs = el('div', 'lib-pick-tabs');
+      panel.appendChild(tabs);
       pickGroups.forEach(function (g) {
-        var groupOpen = !!(libraryFilters.pickGroups || {})[g.key];
-        var section = el('div', 'lib-pick-group');
+        var groupOpen = libraryFilters.pickGroup === g.key;
         var chosenHere = Object.keys(pick[g.key] || {}).length;
-        var title = el('button', 'lib-pick-title', g.title + (chosenHere ? ' \u00B7 ' + chosenHere : ''));
+        var title = el('button', 'lib-pick-title' + (groupOpen ? ' is-open' : ''), g.title + (chosenHere ? ' \u00B7 ' + chosenHere : ''));
         title.type = 'button';
         title.setAttribute('aria-expanded', String(groupOpen));
         title.appendChild(el('span', 'lib-narrow-arrow', groupOpen ? '\u25B4' : '\u25BE'));
-        title.addEventListener('click', function () {
-          libraryFilters.pickGroups = libraryFilters.pickGroups || {};
-          libraryFilters.pickGroups[g.key] = !groupOpen;
-          renderList(box, pages);
-        });
-        section.appendChild(title);
-        if (groupOpen) {
-          g.values.forEach(function (v) {
-            var line = el('label', 'lib-pick-row');
-            var tickBox = el('input');
-            tickBox.type = 'checkbox';
-            tickBox.checked = !!(pick[g.key] && pick[g.key][v]);
-            tickBox.dataset.pick = g.key + ':' + v;
-            tickBox.addEventListener('change', function () {
-              pick[g.key] = pick[g.key] || {};
-              if (tickBox.checked) { pick[g.key][v] = true; } else { delete pick[g.key][v]; }
-              applyPick();
-              libraryFilters.pickOpen = tickBox.dataset.pick;
-              renderList(box, pages);
-            });
-            line.appendChild(tickBox);
-            line.appendChild(el('span', 'lib-pick-label', v));
-            line.appendChild(el('span', 'lib-pick-count', String(g.counts[v])));
-            section.appendChild(line);
-          });
-        }
-        panel.appendChild(section);
+        title.addEventListener('click', function () { libraryFilters.pickGroup = groupOpen ? '' : g.key; renderList(box, pages); });
+        tabs.appendChild(title);
       });
+      var openGroup = pickGroups.filter(function (g) { return g.key === libraryFilters.pickGroup; })[0];
+      if (openGroup) {
+        var list = el('div', 'lib-pick-list');
+        var values = openGroup.values;
+        if (values.length > 8) {   // a long list (many owners) gets a small search box
+          var finder = el('input', 'lib-pick-find');
+          finder.type = 'search';
+          finder.placeholder = 'Find in ' + openGroup.title.toLowerCase();
+          finder.setAttribute('aria-label', 'Find in ' + openGroup.title);
+          finder.value = libraryFilters.pickFind || '';
+          finder.addEventListener('input', function () {
+            libraryFilters.pickFind = finder.value;
+            var text = finder.value.trim().toLowerCase();
+            Array.prototype.forEach.call(list.querySelectorAll('.lib-pick-row'), function (row) { row.hidden = !!text && row.textContent.toLowerCase().indexOf(text) < 0; });
+          });
+          panel.appendChild(finder);
+        }
+        values.forEach(function (v) {
+          var line = el('label', 'lib-pick-row');
+          var tickBox = el('input');
+          tickBox.type = 'checkbox';
+          tickBox.checked = !!(pick[openGroup.key] && pick[openGroup.key][v]);
+          tickBox.dataset.pick = openGroup.key + ':' + v;
+          tickBox.addEventListener('change', function () { tick(openGroup.key, v, tickBox.checked); });
+          line.appendChild(tickBox);
+          line.appendChild(el('span', 'lib-pick-label', v));
+          line.appendChild(el('span', 'lib-pick-count', String(openGroup.counts[v])));
+          list.appendChild(line);
+        });
+        panel.appendChild(list);
+      }
       return panel;
+    }
+    // What is ticked, as chips above the table that can each be removed, and how many pages are left showing
+    function buildChips() {
+      var row = el('div', 'lib-chips');
+      pickDefs.forEach(function (d) {
+        Object.keys(pick[d.key] || {}).forEach(function (v) {
+          var chip = el('button', 'lib-chip', v + ' \u00D7');
+          chip.type = 'button';
+          chip.setAttribute('aria-label', 'Remove ' + v);
+          chip.addEventListener('click', function () { tick(d.key, v, false); });
+          row.appendChild(chip);
+        });
+      });
+      row.appendChild(el('span', 'lib-chips-count', shown.length + ' of ' + pool.length + (pool.length === 1 ? ' page' : ' pages')));
+      row.appendChild(button('Clear all', 'owner-change', function () { libraryFilters.pick = {}; Object.keys(selected).forEach(function (id) { delete selected[id]; }); renderList(box, pages); }));
+      return row;
     }
     if (canBulk) {
       box.appendChild(buildNarrowBox());
+      if (activeDefs.length) { box.appendChild(buildChips()); }
       if (libraryFilters.pickOpen) {
         setTimeout(function () { var again = box.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
       }
