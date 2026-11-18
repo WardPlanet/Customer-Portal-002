@@ -2537,16 +2537,17 @@
       var role = item.entry;
       var card = el('div', 'preview-contact');
       card.appendChild(el('span', 'preview-contact-label', item.label));
-      card.appendChild(el('strong', '', role.person ? fullName(role.person, role.email) : 'Unassigned'));
-      card.appendChild(document.createTextNode(' · ' + role.title));
+      // Name, then the job title in smaller text beneath it, then how to reach them (email and Teams)
+      card.appendChild(el('strong', 'preview-contact-name', role.person ? fullName(role.person, role.email) : 'Unassigned'));
+      card.appendChild(el('div', 'preview-contact-role', role.title));
       if (role.email) {
-        card.appendChild(document.createTextNode(' · '));
-        card.appendChild(link(role.email, 'mailto:' + role.email));
-        card.appendChild(document.createTextNode(' · '));
+        var reach = el('div', 'preview-contact-links');
+        reach.appendChild(link(role.email, 'mailto:' + role.email));
         var teamsLink = link('Message on Teams', 'https://teams.microsoft.com/l/chat/0/0?users=' + encodeURIComponent(role.email));
         teamsLink.target = '_blank';
         teamsLink.rel = 'noopener noreferrer';
-        card.appendChild(teamsLink);
+        reach.appendChild(teamsLink);
+        card.appendChild(reach);
       }
       box.appendChild(card);
     });

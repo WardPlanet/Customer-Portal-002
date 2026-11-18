@@ -2422,3 +2422,9 @@ dialog { position: fixed; }
 .owner-role { font-size: 0.78rem; line-height: 1.3; color: var(--text-muted, #666); }
 .owner-role.is-default { font-style: italic; }
 .owner-change { margin-top: 2px; }
+
+/* Contacts on a live page: name, the job title smaller beneath it, then the email and Teams links */
+.preview-contact-name { display: block; }
+.preview-contact-role { font-size: 0.78rem; line-height: 1.3; color: var(--text-muted, #666); }
+.preview-contact-links { margin-top: 2px; font-size: 0.88rem; }
+.preview-contact-links a { display: block; }

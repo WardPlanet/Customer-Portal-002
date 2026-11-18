@@ -1238,3 +1238,5 @@ Every pop-up (`<dialog>`, in the page or drawn later) gets an **X** in its upper
 
 ## Owner in the library table
 The owner cell reads: **Name**, the job title in smaller text beneath it (with "(Default)" when the team lead has it as the fallback), then the Change link.
+
+The Contacts box on a live page uses the same shape: **Name**, job title in smaller text, then the email and Message on Teams links, one per line.
