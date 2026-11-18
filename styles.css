@@ -2515,3 +2515,13 @@ dialog { position: fixed; }
 /* The highlighted section (a link to it was followed): the tint is drawn with a shadow, so it never changes the layout. No padding or margin is
    added, so the text, headings and spacing sit exactly where they do without it. The left reach covers the link icon. */
 .section-linked { margin: 0; padding: 0; background: var(--linked-bg); border-radius: 10px; box-shadow: 0 0 0 10px var(--linked-bg), -32px 0 0 10px var(--linked-bg); }
+
+/* Tables in a live page: the same look as the library table — a white card with a hairline border and 12px corners, a muted header row,
+   hairlines between rows and no cell borders or striping */
+.preview-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+.preview-table { border-collapse: collapse; border: 0; }
+.preview-table th, .preview-table td { padding: 12px 14px; border: 0; border-top: 1px solid var(--border); }
+.preview-table thead tr:first-child th { border-top: 0; }
+.preview-table th { background: var(--surface-muted); color: var(--text-muted); font-size: 13px; font-weight: 600; }
+.preview-table tbody tr:nth-child(even) td { background: none; }
+.preview-table td { color: var(--text); }
