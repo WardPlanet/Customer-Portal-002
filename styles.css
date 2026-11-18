@@ -19,6 +19,7 @@
     --warn-icon: #d9640a;
     --linked-bg: #fffde8;
     --success: #1fa65a;
+    --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;   /* page titles and first-level headings in an article */
     --radius-card: 16px;
     --radius-block: 12px;
     --radius-pill: 999px;
@@ -2499,3 +2500,6 @@ dialog { position: fixed; }
 /* A line under the page title and under each first-level heading, so the sections read as separate blocks */
 .preview-title { padding-bottom: 12px; border-bottom: 1px solid var(--border-strong); }
 .preview-h:is(h2) { padding-bottom: 8px; border-bottom: 1px solid var(--border-strong); }
+
+/* The page title and each first-level heading are set in a serif, so they stand apart from the sans text and the app around them */
+.preview-title, .preview-h:is(h2) { font-family: var(--font-serif); font-weight: 700; letter-spacing: -0.005em; }
