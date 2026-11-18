@@ -1229,3 +1229,6 @@ Keep this list current: each line is something built that the critique document 
 - "Shareable with clients" changed to "Public" (the library pill, Select by, change-visibility menus and their confirmations, and the Page Setup confirmation "Make this page public?" / "Make public"). The Page Setup choice itself still reads "Client-safe" as in the text revisions.
 - Public view added to the Testing bar's Department dropdown: the site as a signed-out visitor sees it (live Public pages only, read-only, staff navigation hidden). See "Public view (Testing bar)".
 - Bulk and per-row visibility change for team leads and Admin: a "Change visibility…" menu in the "N selected" bar and a Change link under each row's visibility label, the same pattern as changing the owner.
+
+## Removing a person (Team and roles)
+Remove opens a hand-over window. When the person owns pages, nothing is chosen to begin with and **Remove stays off until someone is picked by hand**; the team lead is one of the choices, marked "(Default)", so the pages can be reassigned later. A person who owns no pages can be removed straight away. (Admin tools' Remove still asks one confirmation and hands the pages to the lead as Default.)

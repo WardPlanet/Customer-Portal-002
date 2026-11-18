@@ -1823,7 +1823,12 @@
         : 'This takes them off the team. No page names them.'));
       var select = el('select', 'acting-select');
       select.setAttribute('aria-label', 'Who takes over their pages');
+      var removeButton = null;
       if (count) {
+        // Nothing is chosen to begin with: Remove stays off until someone is picked by hand (the team lead is one of the choices)
+        var choose = el('option', '', 'Choose a person\u2026');
+        choose.value = '';
+        select.appendChild(choose);
         var def = el('option', '', (lead ? lead.person + ' \u2014 ' + lead.title : 'The team lead') + ' (Default)');
         def.value = '__lead__';
         select.appendChild(def);
@@ -1832,15 +1837,20 @@
           option.value = W.keyFor(other);
           select.appendChild(option);
         });
+        select.value = '';
+        select.addEventListener('change', function () { removeButton.disabled = !select.value; });
         dialog.appendChild(select);
         dialog.appendChild(el('p', 'dialog-hint', 'Pages given to the team lead are marked Default, so you can reassign them later.'));
       }
       var actions = el('div', 'dialog-actions');
       actions.appendChild(button('Cancel', 'secondary-link', function () { dialog.close(); }));
-      actions.appendChild(button('Remove', 'primary-btn', function () {
+      removeButton = button('Remove', 'primary-btn', function () {
+        if (count && !select.value) { return; }
         answer = select.value === '__lead__' || !count ? { to: lead ? W.keyFor(lead) : '', asDefault: true } : { to: select.value, asDefault: false };
         dialog.close();
-      }));
+      });
+      removeButton.disabled = !!count;
+      actions.appendChild(removeButton);
       dialog.appendChild(actions);
       var answer = null;
       dialog.addEventListener('close', function () { dialog.remove(); resolve(answer); });
