@@ -453,7 +453,7 @@
         var data = readAll();
         // Admin's batch import: a draft can start in the owner's department
         var target = (teamSlug && who.admin && teamsBySlug[teamSlug]) || team;
-        var page = guard(function () { return W.createPage(target, text, who, now(), note); });
+        var page = guard(function () { return W.createPage(target, text, target === team ? who : actorIn(target), now(), note); });
         data.pages.push(page);
         writeAll(data);
         return Object.assign(detail(page), { version: page.versions[0].n });
