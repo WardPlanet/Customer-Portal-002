@@ -3813,6 +3813,40 @@
 
     // Claude artifact mode: text, Markdown and PDF. The instructions (guidelines + output format) are
     // built into the page by scripts/build-artifact.mjs as window.IMPORT_INSTRUCTIONS.
+    // How other pages in this wiki are laid out, as outlines only (headings and block types, no body text), so the AI can follow the same
+    // habits when it chooses heading levels. Up to four live pages, this team's first. Kept for five minutes. '' when there are none.
+    var layoutExampleCache = null;
+    async function layoutExamples() {
+      if (layoutExampleCache && Date.now() - layoutExampleCache.at < 5 * 60 * 1000) { return layoutExampleCache.text; }
+      var text = '';
+      try {
+        var store = window.Store && window.Store.backend;
+        var listed = store ? await store.list('', true) : null;
+        var live = ((listed && listed.pages) || []).filter(function (p) { return p.liveVersion; });
+        live.sort(function (x, y) { return (y.team === (roster && roster.slug) ? 1 : 0) - (x.team === (roster && roster.slug) ? 1 : 0); });
+        var outlines = [];
+        for (var i = 0; i < live.length && outlines.length < 4; i += 1) {
+          var version = await store.getVersion(live[i].id, live[i].liveVersion);
+          var sections = window.Workflow.fields(version.text).sections;
+          var lines = [];
+          Object.keys(sections).forEach(function (name) {
+            var m = /^BLOCK (\d+) (HEADER (\d)|STEP|TABLE|CODE|NOTE|WARNING)/.exec(name);
+            if (!m) { return; }
+            var n = Number(m[1]);
+            var label = m[3] ? new Array(Number(m[3])).join('  ') + 'H' + m[3] + ' ' + (sections[name][0] || '') : m[2].toLowerCase();
+            lines.push({ n: n, text: label });
+          });
+          lines.sort(function (x, y) { return x.n - y.n; });
+          if (lines.length) { outlines.push('Page: ' + live[i].title + NL + lines.slice(0, 24).map(function (l) { return '  ' + l.text; }).join(NL)); }
+        }
+        if (outlines.length) {
+          text = '## How other pages in this wiki are laid out' + NL + NL + 'Outlines of existing pages (H1 is the top heading level). Follow their habits when you choose heading levels and structure. Never copy their wording.' + NL + NL + outlines.join(NL + NL);
+        }
+      } catch (error) { text = ''; }
+      layoutExampleCache = { at: Date.now(), text: text };
+      return text;
+    }
+
     async function importViaClaude(file, sample) {
       var isPdf = /\.pdf$/i.test(file.name);
       var isWord = /\.docx$/i.test(file.name);
@@ -3836,7 +3870,8 @@
       }
       if (text.length > 100000) { throw importProblem('That is too long to import in one go. Split it into smaller parts.'); }
 
-      var prompt = window.IMPORT_INSTRUCTIONS + NL + NL + 'The document to convert is "' + file.name + '".' +
+      var examples = await layoutExamples();
+      var prompt = window.IMPORT_INSTRUCTIONS + (examples ? NL + NL + examples : '') + NL + NL + 'The document to convert is "' + file.name + '".' +
         NL + NL + '<document>' + NL + text + NL + '</document>';
       var result = cleanImportResult(await sample.json(prompt, { modelTier: 'default', skipStyleGuide: true }), file.name);
       if (!result.title && !result.blocks.length) {
@@ -4632,6 +4667,7 @@
       extractPdfText: extractPdfText,
       convert: convertFile,
       draftTextFromResult: draftTextFromResult,
+      layoutExamples: layoutExamples,   // outlines of existing pages given to the AI on import
       errorMessage: importErrorMessage,
       // The people a page can be given to: [{ key (their email), label ("Name — Job title") }]
       people: function () { return choosablePeople('').map(function (role) { return { key: window.Workflow.keyFor(role), label: roleLabel(window.Workflow.keyFor(role)) }; }); },

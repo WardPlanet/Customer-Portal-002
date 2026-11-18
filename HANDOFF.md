@@ -1343,3 +1343,6 @@ The owner pickers are now "Choose owner" buttons that open a searchable list. Ad
 - **One file = one document** unless "This file holds several documents" is ticked on the upload step (then the AI scan runs; one file at a time).
 - **Flagged points on a draft:** each point has Approve / Deny; the title shows "N of M reviewed · K to fix". Choices are kept in the browser (localStorage `pageEditor.flagDecisions.v1`, per page and version). They do not yet block publishing, and the Node server does not store them. To discuss: should an unreviewed or denied point block going live?
 - Not tested with the real AI (not available in the preview): the prompt change should be checked with a real import.
+
+## Import: heading hierarchy is judged, not trusted
+The AI no longer assumes the source's headings are right. It reads the whole document, decides the heading levels itself (layout only, never wording) and gets outlines of up to four existing live pages (this team's first; `layoutExamples()` in app.js, cached 5 minutes) so it follows the wiki's habits. It adds one flagged point when its levels differ from the source. The Node server's import (`importer.js`) gets the new guideline text but not the example outlines yet.

@@ -24,8 +24,18 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
 
 ## Layout (formatting only, never wording)
 
-- Headings stay headings, at the level they have in the source (the first one on the page is level 1; if the source
-  skips a level, keep its text as it is and add a flagged point).
+- **Do not assume the source is structured correctly.** Heading styles, heading levels, bold lines, numbering and
+  indentation in the source are only clues, because documents are often set up badly (everything is "Heading 1",
+  headings are just bold text, levels are skipped, or there are no headings at all). Read the document as a whole
+  first, work out how its sections really nest, then choose the heading levels yourself, using judgement and the
+  examples of how other pages in this wiki are laid out (given with the document). Follow those pages' habits:
+  how many levels they use, what gets a heading and what stays a paragraph or a list.
+- You decide the layout, never the words. A heading's text, a paragraph's text and every list item are copied exactly.
+  You may turn a line that is clearly a heading (a short bold line that introduces a section) into a heading, or
+  lower a heading that is really a sub-section, and you may not turn a sentence of body text into a heading.
+- The first heading on the page is level 1 and a heading goes only one level deeper than the one before it.
+- When you chose heading levels that differ from the source (or the source had none), add one flagged point that
+  says so briefly, so a person can check the outline.
 - A numbered list in the source becomes numbered steps. The step's title is the list item's own text, copied
   exactly, and its detail is empty. A list that is not numbered stays a bullet list, every item on its own line
   starting with "- " (a dash, en dash, bullet character or "*" in the source all mean a list item). Do not turn
