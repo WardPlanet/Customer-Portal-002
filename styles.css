@@ -13,7 +13,8 @@
     --text-muted: #52525b;
     --text-faint: #8a8a93;
     --accent: #0a66d8;
-    --accent-soft: #dcebfd;
+    --brand-tint: #d3e6f5;   /* the third brand colour: a pale sky blue */
+    --accent-soft: #d3e6f5;  /* soft fills (selected chips, the Back link, selected rows) use the brand tint */
     --code-bg: #f4f5f9;
     --code-text: #1b1b3a;
     --accent-border: #9cc4f5;
