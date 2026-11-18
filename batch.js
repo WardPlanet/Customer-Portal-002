@@ -560,6 +560,72 @@
     // The team lead has to choose an owner for each document before any drafts are made
     function needsOwner() { return !!(ui.isLead && ui.isLead()); }
 
+    // "Choose owner": a button that opens a list of people with a search box. Admin can choose anyone in any department (each person
+    // shows their department); a team lead chooses from their own team. Returns the element; onPick gets the person's key (email).
+    function ownerPicker(current, onPick, ariaLabel) {
+      var people = ui.owners ? ui.owners() : window.PageEditor.people();
+      var wrap = el('div', 'owner-pick');
+      var button = el('button', 'acting-select owner-pick-button');
+      button.type = 'button';
+      button.setAttribute('aria-haspopup', 'listbox');
+      button.setAttribute('aria-label', ariaLabel);
+      var held = people.filter(function (p) { return p.key === current; })[0];
+      button.textContent = held ? held.label : (needsOwner() ? 'Choose owner\u2026' : 'Choose later');
+      var panel = el('div', 'owner-pick-panel');
+      panel.hidden = true;
+      var search = el('input', 'owner-pick-search');
+      search.type = 'search';
+      search.placeholder = 'Search people';
+      search.setAttribute('aria-label', 'Search people');
+      var list = el('ul', 'owner-pick-list');
+      list.setAttribute('role', 'listbox');
+      panel.appendChild(search);
+      panel.appendChild(list);
+      var several = {};
+      people.forEach(function (p) { several[p.teamName || ''] = true; });
+      var grouped = Object.keys(several).length > 1;
+      function render() {
+        var words = search.value.toLowerCase().split(/\s+/).filter(Boolean);
+        list.textContent = '';
+        var lastTeam = null;
+        var shown = 0;
+        people.forEach(function (p) {
+          var haystack = (p.label + ' ' + (p.teamName || '') + ' ' + p.key).toLowerCase();
+          if (!words.every(function (w) { return haystack.indexOf(w) >= 0; })) { return; }
+          if (grouped && p.teamName !== lastTeam) { lastTeam = p.teamName; list.appendChild(el('li', 'owner-pick-group', p.teamName)); }
+          var row = el('li', 'owner-pick-item', p.label);
+          row.setAttribute('role', 'option');
+          row.tabIndex = -1;
+          row.addEventListener('mousedown', function (event) { event.preventDefault(); close(); onPick(p.key); });
+          list.appendChild(row);
+          shown += 1;
+        });
+        if (!shown) { list.appendChild(el('li', 'owner-pick-none', 'Nobody matches.')); }
+      }
+      function outside(event) { if (!wrap.contains(event.target)) { close(); } }
+      function close() { panel.hidden = true; document.removeEventListener('mousedown', outside); }
+      function open() {
+        search.value = '';
+        render();
+        panel.hidden = false;
+        document.addEventListener('mousedown', outside);
+        search.focus();
+      }
+      button.addEventListener('click', function () { if (panel.hidden) { open(); } else { close(); } });
+      search.addEventListener('input', render);
+      search.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') { event.preventDefault(); close(); button.focus(); }
+        else if (event.key === 'Enter') {
+          event.preventDefault();
+          var first = list.querySelector('.owner-pick-item');
+          if (first) { first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); }
+        }
+      });
+      wrap.appendChild(button);
+      wrap.appendChild(panel);
+      return wrap;
+    }
+
     /* ----- 3. Review the proposed split ----- */
     function review() {
       self.stage = 'review';
@@ -571,20 +637,13 @@
       if (session.imageCount) { root.appendChild(el('p', 'batch-note', session.imageCount + ' image(s) in the file are not imported. Add them back by hand where needed.')); }
 
       var settings = el('section', 'batch-card batch-settings');
-      var ownerLabel = el('label', 'batch-field', 'Set the owner of every document to ');
+      var ownerLabel = el('div', 'batch-field', 'Set the owner of every document to ');
       if (!needsOwner()) { ownerLabel.hidden = true; }   // not the lead: uploads belong to the uploader
-      var owner = el('select', 'acting-select');
-      var none = el('option', '', needsOwner() ? 'Choose a role…' : 'Choose later');
-      none.value = '';
-      owner.appendChild(none);
-      window.PageEditor.people().forEach(function (person) { var o = el('option', '', person.label); o.value = person.key; owner.appendChild(o); });
-      owner.value = '';
-      owner.addEventListener('change', function () {
-        // A shortcut: fills in every document at once. Each one can still be changed below.
-        plan.documents.forEach(function (doc) { doc.owner = owner.value; });
+      // A shortcut: fills in every document at once. Each one can still be changed below.
+      ownerLabel.appendChild(ownerPicker('', function (key) {
+        plan.documents.forEach(function (doc) { doc.owner = key; });
         review();
-      });
-      ownerLabel.appendChild(owner);
+      }, 'Choose the owner of every document'));
       settings.appendChild(ownerLabel);
       var visLabel = el('label', 'batch-field', 'Visibility for all of them ');
       var vis = el('select', 'acting-select');
@@ -593,7 +652,7 @@
       vis.addEventListener('change', function () { session.visibility = vis.value; });
       visLabel.appendChild(vis);
       settings.appendChild(visLabel);
-      settings.appendChild(el('p', 'lib-hint', needsOwner() ? 'Every document needs an owner before the drafts can be created. Choose one for each below, or set them all above.' : 'Pages are created as drafts for you to check. They will be owned by ' + ((ui.myRole && ui.myRole()) || 'you') + ', your role.'));
+      settings.appendChild(el('p', 'lib-hint', needsOwner() ? 'Every document needs an owner before the drafts can be created. Choose an owner for each below, or set them all above.' : 'Pages are created as drafts for you to check. They will be owned by ' + ((ui.myRole && ui.myRole()) || 'you') + ', your role.'));
       root.appendChild(settings);
 
       var list = el('div', 'batch-list');
@@ -651,18 +710,11 @@
       title.addEventListener('input', function () { doc.title = title.value; doc.edited = true; });
       body.appendChild(title);
 
-      var ownerRow = el('label', 'batch-field', 'Owner ');
+      var ownerRow = el('div', 'batch-field', 'Owner ');
       if (!needsOwner()) { ownerRow.hidden = true; }
-      var docOwner = el('select', 'acting-select');
-      docOwner.setAttribute('aria-label', 'Owner of ' + doc.title);
-      var blank = el('option', '', needsOwner() ? 'Choose a role…' : 'Choose later');
-      blank.value = '';
-      docOwner.appendChild(blank);
-      window.PageEditor.people().forEach(function (person) { var o = el('option', '', person.label); o.value = person.key; docOwner.appendChild(o); });
-      docOwner.value = doc.owner || '';
-      docOwner.addEventListener('change', function () { doc.owner = docOwner.value; review(); });
+      var docOwner = ownerPicker(doc.owner || '', function (key) { doc.owner = key; review(); }, 'Owner of ' + doc.title);
       // Red only after the person has tried to create (validation on submit, not on load)
-      if (needsOwner() && session.triedCreate && doc.include !== false && !doc.owner) { docOwner.classList.add('has-error'); }
+      if (needsOwner() && session.triedCreate && doc.include !== false && !doc.owner) { docOwner.firstChild.classList.add('has-error'); }
       ownerRow.appendChild(docOwner);
       body.appendChild(ownerRow);
 
@@ -786,7 +838,8 @@
       result.source = source;
       var aiTitle = String(result.title || '').trim();
       if (doc.edited && String(doc.title).trim()) { result.title = String(doc.title).trim(); }   // a title you typed wins
-      var text = window.PageEditor.draftTextFromResult(result, { owner: ownerFor(doc), visibility: session.visibility, source: source });
+      var ownerTeam = ui.teamOfOwner ? ui.teamOfOwner(ownerFor(doc)) : null;   // admin: the draft belongs to its owner's department
+      var text = window.PageEditor.draftTextFromResult(result, { owner: ownerFor(doc), visibility: session.visibility, source: source, teamName: ownerTeam ? ownerTeam.name : '' });
       var notes = [];
       // The AI's own edits are disclosed: if its title differs from the one shown in the review step, say so and show both
       if (!doc.edited && aiTitle && aiTitle.toLowerCase() !== String(doc.title).trim().toLowerCase()) {
@@ -795,7 +848,7 @@
       notes = notes.concat(result.review_notes);
       if (session.imageCount) { notes.push('Images in the original file were not imported.'); }
       var note = ('Imported from ' + source + '.' + (notes.length ? ' Check: ' + notes.join(' • ') : '')).slice(0, 2000);
-      var created = await ui.backend().create(text, note);
+      var created = await ui.backend().create(text, note, ownerTeam ? ownerTeam.slug : '');
       return { id: created.page.id, title: result.title, notes: notes };
     }
 

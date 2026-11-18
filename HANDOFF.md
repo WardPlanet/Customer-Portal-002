@@ -1333,3 +1333,6 @@ On this page highlights (light blue, a ring so nothing shifts) the heading the p
 Suggestions are articles: one row per page, shown by its title (a keyword or heading match stands for its page). Clicking one, or arrowing to it and pressing Enter, opens the article. Enter in the box, or the search button at its right end, runs the full search. Applies to the landing box, the sticky bar and the left column of a live page. In the left column only the body scrolls; the logo and search stay clear so the focus ring and the list are never cut off.
 
 Staff live pages: contacts stay in the byline under the title; visibility and "Updated N days ago" moved to the left of the fixed bottom bar. A visitor (Public) sees neither.
+
+## Batch import: Choose owner
+The owner pickers are now "Choose owner" buttons that open a searchable list. Admin sees everyone in every department (grouped by department); a team lead sees their own team. When Admin gives a document to someone in another department, the draft is created in that department (store.js local create takes a team slug; the Node server does not have this yet).

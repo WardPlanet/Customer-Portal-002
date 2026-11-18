@@ -365,6 +365,23 @@
     if (node) { banner.appendChild(node); }
   }
 
+  // The people a batch import can give a document to. Admin: everyone in every department (shown by department); a team lead: their own team.
+  function batchOwners() {
+    var departments = actingAsAdmin() ? window.Store.teams() : [team];
+    var out = [];
+    departments.forEach(function (department) {
+      givablePeople(department).forEach(function (role) {
+        out.push({ key: W.keyFor(role), label: roleOptionText(role), team: department.slug, teamName: department.name });
+      });
+    });
+    return out;
+  }
+  // Admin only: the department an owner belongs to, when it is not the one the import is working as ('' otherwise)
+  function batchTeamOfOwner(key) {
+    if (!actingAsAdmin() || !key) { return null; }
+    var found = batchOwners().filter(function (p) { return p.key === key; })[0];
+    return found && found.team !== team.slug ? { slug: found.team, name: found.teamName } : null;
+  }
   // Where imported drafts will land: this department's places, then its name ("Support Center · Support"). Admin has no single
   // destination yet (there is no picker), so it gets a general line.
   function batchDestination() {
@@ -3694,7 +3711,7 @@
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
     else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true, parts[2]); }
-    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return (actor().emails || [])[0] || ''; }, destination: batchDestination }); }
+    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return (actor().emails || [])[0] || ''; }, destination: batchDestination, owners: batchOwners, teamOfOwner: batchTeamOfOwner }); }
     else if (screen === 'admin' && window.Store.isAdminMode && window.Store.isAdminMode()) {
       showScreen('library', false);
       document.getElementById('nav-library').classList.remove('is-current');

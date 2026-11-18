@@ -4603,7 +4603,7 @@
       });
       chosen['KEYWORDS'] = [];
       chosen['PAGE TYPE'] = ['Process Documentation'];
-      chosen['TEAM'] = [roster ? roster.name : state.team];
+      chosen['TEAM'] = [options.teamName || (roster ? roster.name : state.team)];
       chosen['OWNER'] = options.owner ? [options.owner] : [];
       chosen['WHERE THIS LIVES'] = [locationFromValue('')];
       chosen['LINKED PEOPLE'] = [];
