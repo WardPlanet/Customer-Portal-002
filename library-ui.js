@@ -1687,12 +1687,14 @@
       var name = textField('For example Customer Success');
       var places = textField('For example Help Center, Playbooks');
       var leadTitle = textField('For example Customer Success Manager');
+      var newIcon = window.TeamIcons.picker('document');
       var go;
       var leadPicker = directoryPicker('Search the company directory, or type a name', 'Lead', function () { problem.hidden = true; });
       var leadEmail = textField('Their email address');
       leadEmail.type = 'email';
       d.appendChild(adminField('Team name', name));
       d.appendChild(adminField('Places its pages live (separate with commas)', places));
+      d.appendChild(adminField('Icon', newIcon));
       d.appendChild(adminField('Lead job title', leadTitle));
       var leadWrap = adminField('Lead', leadPicker.input);
       d.appendChild(leadWrap);
@@ -1708,7 +1710,7 @@
         if (leadPicker.chosen && !leadEmail.value) { leadEmail.value = leadPicker.chosen.email || ''; }
         var made;
         try {
-          made = window.Store.admin.createTeam({ name: name.value, locations: places.value, icon: 'document', directPublish: 'lead', leadTitle: leadTitle.value, leadPerson: leadPicker.input.value, leadEmail: leadEmail.value });
+          made = window.Store.admin.createTeam({ name: name.value, locations: places.value, icon: newIcon.value, directPublish: 'lead', leadTitle: leadTitle.value, leadPerson: leadPicker.input.value, leadEmail: leadEmail.value });
         } catch (error) {
           problem.textContent = error && error.message ? error.message : 'That did not work.';
           problem.hidden = false;
