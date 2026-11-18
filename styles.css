@@ -2684,4 +2684,5 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .side-accordion .side-list-item > a { overflow-wrap: anywhere; }
 
 /* On this page: the heading the page is scrolled to has a light blue highlight (a ring, so nothing moves) */
-.toc-row a.is-current { background: var(--brand-tint); box-shadow: 0 0 0 3px var(--brand-tint); border-radius: 4px; }
+.toc-row a { padding: 3px 8px; margin: -3px -8px; border-radius: 6px; }   /* room around the highlight; the negative margin keeps every line where it was */
+.toc-row a.is-current { background: var(--brand-tint); }
