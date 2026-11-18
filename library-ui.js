@@ -3333,7 +3333,7 @@
       layout.textContent = '';
       // Three columns: a sticky rail on the left (search, then On this page), the article, then the details on the right
       var rail = el('aside', 'preview-rail');
-      rail.setAttribute('aria-label', 'Search and on this page');
+      rail.setAttribute('aria-label', 'Back and search');
       layout.appendChild(rail);
       var article = renderPreview(asPublic ? W.publicText(data.text) : data.text, (fromLibrary ? '#/preview/' : '#/public/') + id);
       layout.appendChild(article);
@@ -3348,38 +3348,47 @@
         pageTitle.parentNode.insertBefore(eyebrow, pageTitle);
       }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
-      var side = el('aside', 'preview-side');
-      side.setAttribute('aria-label', asPublic ? 'Support and related pages' : 'Contacts and related pages');
-      // The owner (contacts, or the support link in the public view) comes first and scrolls away with the page
+      // Under the title: one line with the visibility, when it was last updated and who owns it (staff); a visitor sees only "Updated ..."
+      if (pageTitle) {
+        var meta = el('p', 'preview-meta');
+        if (!asPublic) { meta.appendChild(visibilityPill(detail.page.visibility)); }
+        if (detail.page.updatedAt) {
+          var updatedText = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
+          updatedText.title = formatDate(detail.page.updatedAt);
+          meta.appendChild(updatedText);
+        }
+        if (!asPublic) {
+          var shownOwner = ownerShown(detail.page, ownerTeam);
+          if (shownOwner.entry) { meta.appendChild(el('span', 'preview-updated', 'Owner: ' + shownOwner.name)); }
+        }
+        if (meta.children.length) { pageTitle.parentNode.insertBefore(meta, pageTitle.nextSibling); }
+      }
+      // Below the article, side by side: Contacts (the owner and the team lead) and Related pages (a visitor sees Need help? instead)
+      var after = el('div', 'preview-after');
       if (asPublic) {
         var support = el('section', 'side-card');
         support.appendChild(el('h2', 'side-title', 'Need help?'));
         if (team.supportUrl) { support.appendChild(link('Contact support', team.supportUrl)); }
         else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
-        side.appendChild(support);
+        after.appendChild(support);
       } else {
-        // Visibility and when it was last updated, above Contacts: the same light line as it was above the title, now in the column
-        var details = el('div', 'side-details');
-        details.appendChild(visibilityPill(detail.page.visibility));
-        if (detail.page.updatedAt) {
-          var updatedText = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
-          updatedText.title = formatDate(detail.page.updatedAt);
-          details.appendChild(updatedText);
-        }
-        side.appendChild(details);
-        renderContacts(W.fields(data.text), teamFor(detail.page.team) || team).forEach(function (card) { side.appendChild(card); });
+        renderContacts(W.fields(data.text), ownerTeam).forEach(function (card) { after.appendChild(card); });
       }
-      // Related pages come next, also scrolling away with the page
       var related = await relatedPages(id, W.fields(data.text), asPublic);
       if (mine !== routing) { return; }
-      if (related) { side.appendChild(related); }
-      // The search box and "On this page" are in the left rail, which stays on screen while the page scrolls (it scrolls inside itself if
-      // it is taller than the window)
-      rail.appendChild(backRow);   // the way back (to the library, the search page or the batch import) is the first thing in the rail
+      if (related) { after.appendChild(related); }
+      if (after.children.length) { article.appendChild(after); }
+      // Left rail (stays on screen while the page scrolls): the way back, then the search box
+      rail.appendChild(backRow);
       rail.appendChild(buildDocSearchBar());
+      // Right rail: only "On this page", as a plain list that follows you down
       var toc = renderOnThisPage(article);
-      if (toc) { rail.appendChild(toc); }
-      layout.appendChild(side);
+      if (toc) {
+        var outline = el('aside', 'preview-outline');
+        outline.setAttribute('aria-label', 'On this page');
+        outline.appendChild(toc);
+        layout.appendChild(outline);
+      }
     }
 
     // The fixed bar along the bottom: Edit (the team lead and the page's owner), Export PDF and Copy link

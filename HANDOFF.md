@@ -1303,3 +1303,6 @@ Contacts is one card again: the owner and linked people, then the team lead belo
 Live pages: the search box moved out of the Wiki bar into the left rail with On this page.
 
 Live pages: the staff/public view toggle ("View as the public") is gone, and the back button (Back to library, Back to search or Back to batch import, whichever way you came) moved into the top of the left rail; the Wiki bar keeps its Library link.
+
+## Live page layout (docs layout)
+Left rail (200px, sticky): the back button, then the search box. Centre: the article. Right rail (200px, sticky): only On this page, as a plain list with no card. Under the title, one line: the visibility pill, "Updated N days ago" and "Owner: Name" (a visitor sees only Updated). Below the article, with a rule above, Contacts (with the team lead) and Related pages side by side (a visitor sees Need help? instead). Below 1100px the two rails stack above the article.
