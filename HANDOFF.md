@@ -1222,3 +1222,7 @@ Visibility is changed the same way as owner: a "Change visibility…" dropdown i
 
 ## Support demo data
 Support now has 16 people (`teams/support.json`: the original five plus Billing Specialist, Escalations Lead, Quality Analyst, Chat Support Agent, Onboarding Specialist, Technical Writer, Weekend Support Lead, Community Moderator, Product Liaison, Workforce Planner, Compliance Reviewer) and 23 demo pages (`SUPPORT_DEMO` in `store.js`, ages from 2 to 330 days so several are due for review). The artifact remembers which demo titles it has made (`pageEditor.seededSupport.v1` is a list of titles), so pages added later appear once and a deleted demo page stays deleted. A copy whose Support team list was saved earlier in the browser keeps that saved list: clear the site data to see the new people.
+
+## Adjustments for the designer (changes that expand or contradict the UX review)
+Keep this list current: each line is something built that the critique document does not ask for, or does differently.
+- "Select By" section created for Team Lead and Admin document sorting (Library: accordion under the "N selected" bar; see "Select by (library)").
