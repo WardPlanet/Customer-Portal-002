@@ -1240,3 +1240,5 @@ Every pop-up (`<dialog>`, in the page or drawn later) gets an **X** in its upper
 The owner cell reads: **Name**, the job title in smaller text beneath it (with "(Default)" when the team lead has it as the fallback), then the Change link.
 
 The live page's side column has a **Contacts** box (the owner first, then the linked people; the owner is the team lead marked "(Default)" when the real owner has left) and, always below it, a separate **Team Lead** box with the same heading style. Each person reads: **name** (bold), **JOB TITLE** in capitals beneath it, then the email and Message on Teams on their own lines, each with a small icon (envelope, speech bubble).
+
+Related pages show the page's department icon before each title (the same icons as the landing page cards).

@@ -2436,3 +2436,11 @@ dialog { position: fixed; }
 /* On this page: with nothing to expand or fold there is no bottom bar, so the card needs its own bottom padding (the last row already has 3px of its own) */
 .toc-card:has(> .toc-actions[hidden]) { padding-bottom: 11px; }
 .outline .toc-card:has(> .toc-actions[hidden]) { padding-bottom: 0; }
+
+/* Related pages: the department's icon before each title */
+.side-list-item .team-icon { width: 18px; height: 18px; }
+.side-list-item .team-icon svg { width: 18px; height: 18px; }
+.side-list-item { flex-wrap: nowrap; align-items: flex-start; gap: 8px; }
+.side-list-item .team-icon { margin-top: 1px; }
+.side-list-item > a { flex: 1; min-width: 0; }
+.side-list-item > .pill { flex: none; margin-top: 1px; }

@@ -2615,7 +2615,9 @@
     box.appendChild(el('h2', 'side-title', 'Related pages'));
     var list = el('ul', 'side-list');
     matches.forEach(function (p) {
-      var item = el('li');
+      var item = el('li', 'side-list-item');
+      var pageIcon = teamIcon(p);   // the department's icon
+      if (pageIcon) { item.appendChild(pageIcon); }
       item.appendChild(link(p.title, '#/public/' + p.id));
       if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { item.appendChild(visibilityPill(p.visibility)); }
       list.appendChild(item);
