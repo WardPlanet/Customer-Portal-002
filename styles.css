@@ -2428,3 +2428,7 @@ dialog { position: fixed; }
 .preview-contact-role { font-size: 0.78rem; line-height: 1.3; color: var(--text-muted, #666); }
 .preview-contact-links { margin-top: 2px; font-size: 0.88rem; }
 .preview-contact-links a { display: block; }
+
+.preview-contact-links a { display: flex; align-items: center; gap: 6px; }
+.contact-icon { display: inline-flex; flex: none; color: var(--text-muted, #666); }
+.preview-contact-links a:hover .contact-icon { color: var(--accent, #0b6bdc); }

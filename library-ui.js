@@ -2515,6 +2515,17 @@
     return cap(match[1]) + ' ' + cap(match[2]);
   }
 
+  // Small line icons beside the contact links (fixed markup, no page text): an envelope for email, a speech bubble for Teams
+  var CONTACT_ICONS = {
+    mail: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><rect x="1.5" y="3" width="13" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 4.5l6 4.5 6-4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    chat: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M2.5 3h11a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1H8l-3 2.5v-2.5H2.5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>'
+  };
+  function contactIcon(markup) {
+    var icon = el('span', 'contact-icon');
+    icon.innerHTML = markup;
+    return icon;
+  }
+
   function renderContacts(fieldsOfPage, pageTeam) {
     var pageOwnerTeam = pageTeam;   // the contacts are the page's own department's, not the one showing
     var who = W.effectiveOwner(pageOwnerTeam, fieldsOfPage);
@@ -2542,10 +2553,13 @@
       card.appendChild(el('div', 'preview-contact-role', role.title));
       if (role.email) {
         var reach = el('div', 'preview-contact-links');
-        reach.appendChild(link(role.email, 'mailto:' + role.email));
+        var mailLink = link(role.email, 'mailto:' + role.email);
+        mailLink.insertBefore(contactIcon(CONTACT_ICONS.mail), mailLink.firstChild);
+        reach.appendChild(mailLink);
         var teamsLink = link('Message on Teams', 'https://teams.microsoft.com/l/chat/0/0?users=' + encodeURIComponent(role.email));
         teamsLink.target = '_blank';
         teamsLink.rel = 'noopener noreferrer';
+        teamsLink.insertBefore(contactIcon(CONTACT_ICONS.chat), teamsLink.firstChild);
         reach.appendChild(teamsLink);
         card.appendChild(reach);
       }
