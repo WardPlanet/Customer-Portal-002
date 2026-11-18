@@ -1321,3 +1321,6 @@ Spacing is on a 4px scale (4, 8, 12, 16, 24, 32, 48, plus 2px hairlines): 361 pa
 Shadows are two tokens: `--shadow-popover` (menus, popovers, suggestion lists, dragged blocks, toasts, the admin drawer) and `--shadow-lift` (a card lifting on hover, the sticky action bar), each with a stronger dark-mode value; cards have none. Sixteen different shadow strings were replaced. Left as they were: the landing search glow and landing bar (on the dark picture), the pressed segment, the folded-outline fade and the section highlight.
 
 Colours: hard-coded hex values outside the tokens were replaced with tokens (83 values; 174 uses of 74 colours before). New tokens: `--navy`, `--white`, `--blue-bright`, `--live-*`, `--warn-ink`, `--danger-ink`, `--mark-bg`. The landing page's dark base colour and its search text now use `--navy` (the starfield picture itself is untouched). Left as hex on purpose: the print and PDF styles, the Testing bar, and the tile text and link colours. A fallback inside `var(--x, #hex)` was dropped where the variable exists.
+
+## Live page layout (Wikipedia style)
+On this page and Related pages (an accordion, closed to begin with, with a count) sit in a sticky left rail; the right column is gone. Below 1000px the rail stacks above the article.

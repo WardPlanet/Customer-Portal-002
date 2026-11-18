@@ -3120,15 +3120,19 @@
     }
     matches = matches.slice(0, limit);
     if (!matches.length) { return null; }
-    var box = el('section', 'side-card');
-    box.appendChild(el('h2', 'side-title', 'Related pages'));
+    // An accordion in the left rail: closed to begin with, the heading says how many there are
+    var box = el('details', 'rail-accordion');
+    var summary = el('summary', 'rail-accordion-summary');
+    summary.appendChild(el('span', 'side-title', 'Related pages'));
+    summary.appendChild(el('span', 'rail-accordion-count', String(matches.length)));
+    box.appendChild(summary);
     var list = el('ul', 'side-list');
     matches.forEach(function (p) {
       var item = el('li', 'side-list-item');
       var pageIcon = teamIcon(p);   // the department's icon
       if (pageIcon) { item.appendChild(pageIcon); }
       item.appendChild(link(p.title, '#/public/' + p.id));
-      if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { item.appendChild(visibilityPill(p.visibility)); }
+      item.title = p.visibility === 'Client-Safe' ? 'Public' : 'Internal';
       list.appendChild(item);
     });
     box.appendChild(list);
@@ -3378,6 +3382,7 @@
     }
     var isClientSafe = detail.page.visibility === 'Client-Safe';
     var layout = el('div', 'preview-layout');
+    main.classList.add('has-rail');
     main.appendChild(layout);
     setBanner(null);
 
@@ -3421,32 +3426,23 @@
         pageTitle.parentNode.insertBefore(byline, bylineAt);   // a byline under the title
       }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
-      var side = el('aside', 'preview-side');
-      side.setAttribute('aria-label', asPublic ? 'Support, related pages and on this page' : 'Contacts, related pages and on this page');
-      // The owner (contacts, or the support link in the public view) comes first and scrolls away with the page
+      // The left rail, as on Wikipedia: On this page, then Related pages as an accordion. It stays on screen while the page scrolls
+      // (it scrolls inside itself if it is taller than the window).
+      var rail = el('aside', 'preview-rail');
+      rail.setAttribute('aria-label', 'On this page and related pages');
+      var toc = renderOnThisPage(article);
+      if (toc) { rail.appendChild(toc); }
+      var related = await relatedPages(id, W.fields(data.text), asPublic);
+      if (mine !== routing) { return; }
+      if (related) { rail.appendChild(related); }
       if (asPublic) {
-        var support = el('section', 'side-card');
+        var support = el('section', 'rail-support');
         support.appendChild(el('h2', 'side-title', 'Need help?'));
         if (team.supportUrl) { support.appendChild(link('Contact support', team.supportUrl)); }
         else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
-        side.appendChild(support);
+        rail.appendChild(support);
       }
-      // Related pages come next, also scrolling away with the page
-      var related = await relatedPages(id, W.fields(data.text), asPublic);
-      if (mine !== routing) { return; }
-      if (related) { side.appendChild(related); }
-      // "On this page" is last and follows you down the page. If it is taller than the window it scrolls inside its own
-      // box, so none of it is ever cut off.
-      var followBox = null;
-      var toc = renderOnThisPage(article);
-      if (toc) {
-        var follow = el('div', 'preview-follow');
-        follow.appendChild(toc);
-        side.appendChild(follow);
-        followBox = follow;
-      }
-      layout.appendChild(side);
-      if (followBox) { keepOnScreen(followBox); }   // once it is on the page, so its position can be measured
+      if (rail.children.length) { layout.insertBefore(rail, article); }
     }
 
     // The fixed bar along the bottom: Edit (the team lead and the page's owner), Export PDF and Copy link
@@ -3578,6 +3574,7 @@
     refreshNotifications();   // the lead's bell (counts what is waiting)
     main.classList.remove('has-preview-footer');   // only a page's preview has the fixed bottom bar
     main.classList.remove('is-landing');           // only the landing search page runs edge to edge
+    main.classList.remove('has-rail');
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
     // The public view is the site a signed-out visitor sees: the search page and the Client-Safe pages, nothing else

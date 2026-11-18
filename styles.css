@@ -2656,3 +2656,21 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 /* The heading link icon takes up no net width (22px wide, 8px gap, -30px offset), so the heading text lines up with the body text */
 .preview-anchor { margin: 0 8px 0 -30px; }
 @media (max-width: 860px) { .preview-anchor { margin-left: 0; } }
+
+/* Wikipedia-style layout: the rail on the left holds On this page and Related pages (an accordion); the article takes the rest */
+.lib-main.has-rail { max-width: 1160px; }
+.preview-layout { gap: 40px; }
+.preview-layout > .preview { flex: 1 1 auto; max-width: 780px; }
+.preview-rail { flex: 0 0 240px; position: sticky; top: 16px; align-self: flex-start; max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 16px; padding: 2px; margin: -2px; }
+.preview-rail .toc-card { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+.preview-rail .toc-actions { background: var(--bg); }
+.rail-accordion { border-top: 1px solid var(--border-strong); padding-top: 12px; }
+.rail-accordion-summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+.rail-accordion-summary::-webkit-details-marker { display: none; }
+.rail-accordion-summary::after { content: "\25BE"; margin-left: auto; color: var(--text-muted); font-size: 12px; }
+.rail-accordion[open] > .rail-accordion-summary::after { content: "\25B4"; }
+.rail-accordion-summary .side-title { margin: 0; }
+.rail-accordion-count { padding: 0 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); background: var(--surface-muted); border: 1px solid var(--border); border-radius: 999px; }
+.rail-accordion .side-list { margin-top: 12px; }
+.rail-support { border-top: 1px solid var(--border-strong); padding-top: 12px; }
+@media (max-width: 1000px) { .preview-layout { flex-wrap: wrap; } .preview-rail { flex: 1 1 100%; position: static; max-height: none; order: -1; } }
