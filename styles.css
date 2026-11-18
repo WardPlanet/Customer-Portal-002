@@ -2606,3 +2606,7 @@ body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 .byline-link:hover .contact-icon { color: var(--icon-blue); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .byline-link .contact-icon { color: var(--text); } }
 :root[data-theme="dark"] .byline-link .contact-icon { color: var(--text); }
+
+/* A rule under the contacts, like the one under the title; their icons are the same size as the icons beside the related pages (18px) */
+.contact-byline { padding-bottom: 14px; margin-bottom: 8px; border-bottom: 1px solid var(--border-strong); }
+.byline-link .contact-icon svg { width: 18px; height: 18px; }

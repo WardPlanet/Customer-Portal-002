@@ -1305,3 +1305,5 @@ Live pages are back to two columns (the article, and a right column with the det
 Contacts moved under the title: a strip of small blocks side by side (Owner, any linked people, then Team lead), each with the name, role, email and Teams, between the title's rule and the description. The right column now holds the details line, Related pages and On this page. A visitor still sees the support link in the column.
 
 The contacts are a one-line byline under the title: Priya Nair Tier 2 Specialist (email icon) (Teams icon) · Dana Whitfield Support Manager (icons) (no Owner or Team lead labels; they are in the name's tooltip) The icons are the same dark blue as the icons beside the related pages (light blue on hover); the address is in the icon's tooltip.
+
+The contacts byline has a rule beneath it (like the title's), and its email and Teams icons are 18px, the same as the icons beside the related pages.
