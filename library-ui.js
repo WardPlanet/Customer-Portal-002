@@ -660,18 +660,30 @@
 
   function renderList(box, pages) {
     box.textContent = '';
-    var shown = pages.filter(function (p) {
+    var pool = pages.filter(function (p) {
       if (libraryFilters.status === 'needs-review') {   // live pages past their review date
         var due = p.liveVersion ? W.reviewStatus(p.updatedAt) : null;
         return !!(due && due.overdue);
       }
       return !libraryFilters.status || STATE_LABELS[p.state][1] === libraryFilters.status;
     });
-    if (!shown.length) {
+    var canBulk = actorIsLead();   // the team lead can tick pages for a bulk action
+    // Select by: what each column offers to pick on, and which pages the ticks leave showing (ticks in one column add up, ticks in
+    // different columns narrow each other)
+    var pick = libraryFilters.pick = libraryFilters.pick || {};
+    var pickDefs = [
+      { key: 'visibility', title: 'Visibility', valueOf: function (p) { return p.visibility === 'Client-Safe' ? 'Shareable with clients' : 'Internal only'; } },
+      { key: 'status', title: 'Status', valueOf: function (p) { return STATE_LABELS[p.state][0]; } },
+      { key: 'owner', title: 'Owner', valueOf: function (p) { return ownerShown(p, teamFor(p.team) || team).label; } }
+    ];
+    if (actingAsAdmin()) { pickDefs.push({ key: 'department', title: 'Department', valueOf: function (p) { return (teamFor(p.team) || team).name || ''; } }); }
+    pickDefs.push({ key: 'review', title: 'Review', valueOf: function (p) { var r = p.liveVersion ? W.reviewStatus(p.updatedAt) : null; return r && r.overdue ? 'Needs review' : ''; } });
+    var activeDefs = canBulk ? pickDefs.filter(function (d) { return Object.keys(pick[d.key] || {}).length; }) : [];
+    var shown = pool.filter(function (p) { return activeDefs.every(function (d) { return pick[d.key][d.valueOf(p)]; }); });
+    if (!pool.length) {
       box.appendChild(el('p', 'lib-empty', pages.length ? 'No pages match that filter.' : 'No pages yet. Choose New page to write the first one.'));
       return;
     }
-    var canBulk = actorIsLead();   // the team lead can tick pages for a bulk action
     var selected = libraryFilters.selected;
     Object.keys(selected).forEach(function (id) { if (!pages.some(function (p) { return p.id === id; })) { delete selected[id]; } });
     var selectAll = null;
@@ -725,71 +737,78 @@
     // Admin) and pages due for review. Ticks inside one group add up (Internal or Client-Safe); different groups narrow each other
     // (Internal AND live). Only the pages shown, after any filter, are considered.
     var pickGroups = [];
-    var pick = libraryFilters.pick = libraryFilters.pick || {};
     if (canBulk) {
-      var visibilityOf = function (p) { return p.visibility === 'Client-Safe' ? 'Shareable with clients' : 'Internal only'; };
-      var dueOf = function (p) { var r = p.liveVersion ? W.reviewStatus(p.updatedAt) : null; return r && r.overdue ? 'Needs review' : ''; };
-      var addPickGroup = function (key, title, valueOf) {
+      pickDefs.forEach(function (def) {
         var counts = {};
         var order = [];
-        shown.forEach(function (p) { var v = valueOf(p); if (!v) { return; } if (!(v in counts)) { counts[v] = 0; order.push(v); } counts[v] += 1; });
-        if (order.length) { pickGroups.push({ key: key, title: title, valueOf: valueOf, values: order.sort(), counts: counts }); }
-      };
-      addPickGroup('visibility', 'Visibility', visibilityOf);
-      addPickGroup('status', 'Status', function (p) { return STATE_LABELS[p.state][0]; });
-      addPickGroup('owner', 'Owner', function (p) { return ownerShown(p, teamFor(p.team) || team).label; });
-      if (actingAsAdmin()) { addPickGroup('department', 'Department', function (p) { return (teamFor(p.team) || team).name || ''; }); }
-      addPickGroup('review', 'Review', dueOf);
+        pool.forEach(function (p) { var v = def.valueOf(p); if (!v) { return; } if (!(v in counts)) { counts[v] = 0; order.push(v); } counts[v] += 1; });
+        if (order.length) { pickGroups.push({ key: def.key, title: def.title, values: order.sort(), counts: counts }); }
+      });
     }
+    // Every tick changes what the table lists and selects: the pages the ticks do not apply to drop out, and the rest are selected
     function applyPick() {
-      var active = pickGroups.filter(function (g) { return Object.keys(pick[g.key] || {}).length; });
       Object.keys(selected).forEach(function (id) { delete selected[id]; });
-      if (!active.length) { shown.forEach(function (p) { selected[p.id] = true; }); return; }   // nothing ticked: everything shown, as the header box does
-      shown.forEach(function (p) {
-        if (active.every(function (g) { return pick[g.key][g.valueOf(p)]; })) { selected[p.id] = true; }
-      });
+      var now = pickDefs.filter(function (d) { return Object.keys(pick[d.key] || {}).length; });
+      if (!now.length) { return; }   // nothing ticked: nothing is selected by the choices
+      pool.forEach(function (p) { if (now.every(function (d) { return pick[d.key][d.valueOf(p)]; })) { selected[p.id] = true; } });
     }
-    // Under the "N selected" bar: tick boxes laid out by the table's columns that narrow what is selected. With nothing ticked the
-    // selection is whatever was chosen by hand (or everything shown); ticking narrows it to the pages that match.
+    // "Select by" is an accordion under the bar: open it, then open a column to tick what to select by
     function buildNarrowBox() {
+      var open = libraryFilters.pickExpanded === true;
       var panel = el('div', 'lib-narrow');
-      panel.setAttribute('role', 'group');
-      panel.setAttribute('aria-label', 'Select by');
-      panel.appendChild(el('p', 'lib-narrow-hint', 'Select by:'));
-      var columns = el('div', 'lib-narrow-columns');
+      var ticked = pickDefs.reduce(function (n, d) { return n + Object.keys(pick[d.key] || {}).length; }, 0);
+      var head = el('button', 'lib-narrow-head', 'Select by' + (ticked ? ' \u00B7 ' + ticked + ' chosen' : ''));
+      head.type = 'button';
+      head.setAttribute('aria-expanded', String(open));
+      head.appendChild(el('span', 'lib-narrow-arrow', open ? '\u25B4' : '\u25BE'));
+      head.addEventListener('click', function () { libraryFilters.pickExpanded = !open; renderList(box, pages); });
+      panel.appendChild(head);
+      if (!open) { return panel; }
       pickGroups.forEach(function (g) {
+        var groupOpen = !!(libraryFilters.pickGroups || {})[g.key];
         var section = el('div', 'lib-pick-group');
-        section.appendChild(el('p', 'lib-pick-title', g.title));
-        g.values.forEach(function (v) {
-          var line = el('label', 'lib-pick-row');
-          var tickBox = el('input');
-          tickBox.type = 'checkbox';
-          tickBox.checked = !!(pick[g.key] && pick[g.key][v]);
-          tickBox.dataset.pick = g.key + ':' + v;
-          tickBox.addEventListener('change', function () {
-            pick[g.key] = pick[g.key] || {};
-            if (tickBox.checked) { pick[g.key][v] = true; } else { delete pick[g.key][v]; }
-            applyPick();
-            libraryFilters.pickOpen = tickBox.dataset.pick;
-            renderList(box, pages);
-          });
-          line.appendChild(tickBox);
-          line.appendChild(el('span', 'lib-pick-label', v));
-          line.appendChild(el('span', 'lib-pick-count', String(g.counts[v])));
-          section.appendChild(line);
+        var chosenHere = Object.keys(pick[g.key] || {}).length;
+        var title = el('button', 'lib-pick-title', g.title + (chosenHere ? ' \u00B7 ' + chosenHere : ''));
+        title.type = 'button';
+        title.setAttribute('aria-expanded', String(groupOpen));
+        title.appendChild(el('span', 'lib-narrow-arrow', groupOpen ? '\u25B4' : '\u25BE'));
+        title.addEventListener('click', function () {
+          libraryFilters.pickGroups = libraryFilters.pickGroups || {};
+          libraryFilters.pickGroups[g.key] = !groupOpen;
+          renderList(box, pages);
         });
-        columns.appendChild(section);
+        section.appendChild(title);
+        if (groupOpen) {
+          g.values.forEach(function (v) {
+            var line = el('label', 'lib-pick-row');
+            var tickBox = el('input');
+            tickBox.type = 'checkbox';
+            tickBox.checked = !!(pick[g.key] && pick[g.key][v]);
+            tickBox.dataset.pick = g.key + ':' + v;
+            tickBox.addEventListener('change', function () {
+              pick[g.key] = pick[g.key] || {};
+              if (tickBox.checked) { pick[g.key][v] = true; } else { delete pick[g.key][v]; }
+              applyPick();
+              libraryFilters.pickOpen = tickBox.dataset.pick;
+              renderList(box, pages);
+            });
+            line.appendChild(tickBox);
+            line.appendChild(el('span', 'lib-pick-label', v));
+            line.appendChild(el('span', 'lib-pick-count', String(g.counts[v])));
+            section.appendChild(line);
+          });
+        }
+        panel.appendChild(section);
       });
-      panel.appendChild(columns);
       return panel;
     }
-    // "Select by:" sits right under the bar, once something is selected
-    if (canBulk && (chosenPages().length || Object.keys(pick).some(function (k) { return Object.keys(pick[k]).length; }))) {
+    if (canBulk) {
       box.appendChild(buildNarrowBox());
       if (libraryFilters.pickOpen) {
         setTimeout(function () { var again = box.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
       }
     }
+    if (!shown.length) { box.appendChild(el('p', 'lib-empty', 'No pages match those choices.')); return; }
     var table = el('table', 'lib-table');
     var headRow = el('tr');
     if (canBulk) {
@@ -799,7 +818,6 @@
       selectAll.setAttribute('aria-label', 'Select all pages shown');
       selectAll.setAttribute('aria-label', 'Select all pages shown');
       selectAll.addEventListener('change', function () {
-        Object.keys(pick).forEach(function (k) { delete pick[k]; });   // ticking everything (or nothing) starts the specific choices over
         shown.forEach(function (p) { if (selectAll.checked) { selected[p.id] = true; } else { delete selected[p.id]; } });
         renderList(box, pages);
       });

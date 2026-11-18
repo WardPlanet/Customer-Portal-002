@@ -2359,3 +2359,13 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .lib-pick-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; font-size: 0.9rem; color: var(--text, #111); }
 .lib-pick-label { flex: 1; }
 .lib-pick-count { color: var(--text-faint, #888); font-size: 0.8rem; }
+
+/* Select by, as an accordion */
+.lib-narrow { padding: 0; overflow: hidden; }
+.lib-narrow-head, .lib-pick-group > .lib-pick-title { display: flex; justify-content: space-between; align-items: center; width: 100%; background: none; border: 0; cursor: pointer; font: inherit; text-align: left; }
+.lib-narrow-head { padding: 10px 14px; font-weight: 700; font-size: 0.9rem; color: var(--text, #111); }
+.lib-pick-group { min-width: 0; border-top: 1px solid var(--border, #e5e5e5); padding: 0 14px; }
+.lib-pick-group > .lib-pick-title { margin: 0; padding: 9px 0; }
+.lib-pick-group .lib-pick-row { padding: 4px 0 4px 4px; }
+.lib-pick-group .lib-pick-row:last-child { margin-bottom: 8px; }
+.lib-narrow-arrow { margin-left: 8px; color: var(--text-muted, #666); }
