@@ -2369,3 +2369,6 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .lib-pick-group .lib-pick-row { padding: 4px 0 4px 4px; }
 .lib-pick-group .lib-pick-row:last-child { margin-bottom: 8px; }
 .lib-narrow-arrow { margin-left: 8px; color: var(--text-muted, #666); }
+.lib-narrow-head, .lib-pick-group > .lib-pick-title { justify-content: flex-start; width: auto; }
+.lib-pick-group > .lib-pick-title { display: flex; }
+.lib-narrow-arrow { margin-left: 6px; }
