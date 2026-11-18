@@ -231,6 +231,23 @@
     return team;
   }
 
+  // Invites someone new to lead a team. They get a new role (input.leadTitle) and become the lead once they accept; until then the current lead
+  // stays. A person who is already on a team is chosen from the people on it instead (editTeam). Returns { invitation }.
+  function inviteLead(teams, slug, input, now) {
+    var team = findTeam(teams, slug);
+    var title = clean(input.leadTitle);
+    if (!title) { throw AdminError('The new lead needs a job title (for example "' + team.lead + '").'); }
+    noBrackets(title, 'A role title');
+    if (team.roles.some(function (candidate) { return same(candidate.title, title); })) { throw AdminError('The role "' + title + '" already exists in ' + team.name + '. Choose another title.'); }
+    var who = checkPerson(input.person, input.email);
+    var taken = personExists(teams, who.person, who.email, null);
+    if (taken) { throw AdminError(taken); }
+    var role = { title: title, person: who.person, email: who.email, status: 'invited' };
+    team.roles.push(role);
+    team.pendingLead = title;
+    return { invitation: newInvitation(team, role, who.person, who.email, now) };
+  }
+
   // A team can be retired when none of its pages are left
   function canRetire(team, pageCount) {
     if (pageCount > 0) { return team.name + ' still has ' + pageCount + (pageCount === 1 ? ' page' : ' pages') + '. Move or delete them first.'; }
@@ -311,6 +328,9 @@
     if (!same(role.person, invitation.person)) { throw AdminError('That invitation is no longer current.'); }
     role.status = '';
     invitation.status = 'accepted';
+    // Someone invited to lead takes over the lead once they accept
+    if (team.pendingLead && team.pendingLead === role.title) { team.lead = role.title; delete team.pendingLead; return { becameLead: true }; }
+    return { becameLead: false };
   }
 
   // Cancelling an invitation also empties the role it was for, because nobody has taken it up
@@ -319,6 +339,7 @@
     var role = team.roles.filter(function (candidate) { return candidate.title === invitation.role; })[0];
     if (role && same(role.person, invitation.person) && role.status === 'invited') {
       if (role.title === team.lead) { throw AdminError('This invitation is for the lead of ' + team.name + '. Retire the team or invite another lead first.'); }
+      if (team.pendingLead === role.title) { delete team.pendingLead; }
       role.person = '';
       role.email = '';
       role.status = '';
@@ -341,6 +362,7 @@
     COMPANY_PEOPLE: COMPANY_PEOPLE,
     createTeam: createTeam,
     editTeam: editTeam,
+    inviteLead: inviteLead,
     canRetire: canRetire,
     addPerson: addPerson,
     movePerson: movePerson,

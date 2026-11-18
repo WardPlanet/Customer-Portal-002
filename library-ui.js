@@ -1614,6 +1614,20 @@
       var preview = el('span', 'team-icon manage-icon-preview');
       var leadSelect = el('select', 'acting-select');
       leadSelect.setAttribute('aria-label', 'Team lead');
+      var invite = el('div', 'manage-invite');
+      invite.hidden = true;
+      var inviteTitle = textField('Their job title, for example Customer Success Manager');
+      var inviteName = directoryPicker('Search the company directory, or type a name', 'New lead', function (picker) { if (picker.chosen) { inviteEmail.value = picker.chosen.email || ''; } });
+      var inviteEmail = textField('Their email address');
+      inviteEmail.type = 'email';
+      invite.appendChild(adminField('Job title', inviteTitle));
+      invite.appendChild(adminField('Name', inviteName.input));
+      invite.appendChild(inviteName.list);
+      invite.appendChild(inviteName.note);
+      invite.appendChild(adminField('Email', inviteEmail));
+      var waiting = el('p', 'dialog-hint');
+      waiting.hidden = true;
+      leadSelect.addEventListener('change', function () { invite.hidden = leadSelect.value !== '__invite__'; problem.hidden = true; });
       var iconRow = el('div', 'manage-icon-row');
       iconRow.appendChild(iconSelect);
       iconRow.appendChild(preview);
@@ -1629,7 +1643,14 @@
           o.value = r.title;
           leadSelect.appendChild(o);
         });
+        var newLead = el('option', '', 'Invite someone new to lead\u2026');
+        newLead.value = '__invite__';
+        leadSelect.appendChild(newLead);
         leadSelect.value = t.lead;
+        invite.hidden = true;
+        var pending = t.pendingLead ? t.roles.filter(function (r) { return r.title === t.pendingLead; })[0] : null;
+        waiting.hidden = !pending;
+        waiting.textContent = pending ? 'Waiting for ' + pending.person + ' (' + pending.title + ') to accept the invitation to lead. Until then ' + (t.roles.filter(function (r) { return r.title === t.lead; })[0] || {}).person + ' stays the lead.' : '';
         problem.hidden = true;
       }
       function showIcon() { preview.innerHTML = (TEAM_ICONS[iconSelect.value] || TEAM_ICONS.document).svg; }   // fixed markup, no page text
@@ -1639,21 +1660,28 @@
       d.appendChild(adminField('Team name', name));
       d.appendChild(adminField('Icon', iconRow));
       d.appendChild(adminField('Team lead', leadSelect));
-      d.appendChild(el('p', 'dialog-hint', 'Only someone who has accepted their invitation can lead. The new lead gets the lead\u2019s tools; the old lead stays on the team.'));
+      d.appendChild(invite);
+      d.appendChild(waiting);
+      d.appendChild(el('p', 'dialog-hint', 'Choose someone on the team who has accepted their invitation, or invite someone new: they lead once they accept. The old lead stays on the team.'));
       d.appendChild(problem);
       var actions = el('div', 'dialog-actions');
       actions.appendChild(button('Cancel', 'secondary-link', function () { d.close(); }));
       actions.appendChild(button('Save changes', 'primary-btn', function () {
         var t = current();
+        var inviting = leadSelect.value === '__invite__';
+        var invited = null;
         try {
-          window.Store.admin.editTeam(t.slug, { name: name.value, icon: iconSelect.value, lead: leadSelect.value });
+          window.Store.admin.editTeam(t.slug, { name: name.value, icon: iconSelect.value, lead: inviting ? t.lead : leadSelect.value });
+          if (inviting) {
+            invited = window.Store.admin.inviteLead(t.slug, { leadTitle: inviteTitle.value, person: inviteName.input.value, email: inviteEmail.value }).invitation;
+          }
         } catch (error) {
           problem.textContent = error && error.message ? error.message : 'That did not work.';
           problem.hidden = false;
           return;
         }
         d.close();
-        notice('Saved the changes to ' + t.name + '.');
+        notice('Saved the changes to ' + t.name + '.' + (invited ? ' An invitation was written for ' + invited.person + '; they lead once they accept.' : ''));
         mountActing();
         showTeam(box, dialog);
       }));
@@ -1811,6 +1839,34 @@
       toTeam.focus();
     }
 
+    /* ----- Search the people in the table (name, department, job title or email) ----- */
+    function addPeopleSearch(table) {
+      var field = el('input', 'lib-search team-search');
+      field.type = 'search';
+      field.placeholder = 'Search people by name, job title, email or department';
+      field.setAttribute('aria-label', 'Search people');
+      field.value = teamSearchText;
+      var none = el('p', 'lib-empty team-search-none', 'Nobody matches that search.');
+      none.hidden = true;
+      function apply() {
+        teamSearchText = field.value;
+        var words = field.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        var shown = 0;
+        Array.prototype.forEach.call(table.querySelectorAll('tbody tr'), function (row) {
+          var text = row.textContent.toLowerCase();
+          var hit = words.every(function (word) { return text.indexOf(word) >= 0; });
+          row.hidden = !hit;
+          if (hit) { shown += 1; }
+        });
+        none.hidden = shown > 0;
+      }
+      field.addEventListener('input', apply);
+      box.appendChild(field);
+      box.appendChild(table);
+      box.appendChild(none);
+      apply();
+    }
+
     /* ----- Admin: everyone on every team, A to Z, sortable ----- */
     function renderAllPeople() {
       var usage = {};
@@ -1875,7 +1931,7 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      box.appendChild(table);
+      addPeopleSearch(table);
     }
 
     function openReplaceDialog(role, count) {
@@ -1984,7 +2040,7 @@
       tbody.appendChild(row);
     });
     table.appendChild(tbody);
-    box.appendChild(table);
+    addPeopleSearch(table);
 
     /* ----- Pages with no owner: assign several at once ----- */
     var everything = await attempt(backend().list(''));
@@ -2211,11 +2267,13 @@
   }
 
   // Admin opens Team and roles on everyone ("All departments"), A to Z; choosing one department shows that team
+  var teamSearchText = '';   // what is typed in the people search (kept while the window redraws)
   var teamAllView = true;
   var teamAllSort = { key: 'person', down: false };
 
   function openTeamDialog(specificTeam) {
     teamAllView = !specificTeam;
+    teamSearchText = '';
     var dialog = el('dialog', 'draft-dialog team-dialog');
     dialog.setAttribute('aria-label', 'Team and roles');
     var box = el('div');

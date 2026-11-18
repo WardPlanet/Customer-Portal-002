@@ -808,6 +808,21 @@
         return team;
       });
     },
+    // Invite someone new to lead a team: they take over once they accept (until then the current lead stays)
+    inviteLead: function (slug, input) {
+      var self = this;
+      return this.wrap(function () {
+        var directory = readDirectory();
+        var made = window.AdminCore.inviteLead(window.TEAMS, slug, input, new Date().toISOString());
+        var team = window.TEAMS.filter(function (candidate) { return candidate.slug === slug; })[0];
+        directory.edits[slug] = Object.assign({}, directory.edits[slug] || { name: team.name, locations: team.locations, icon: team.icon, directPublish: team.directPublish, lead: team.lead }, { pendingLead: team.pendingLead });
+        directory.invites.unshift(made.invitation);
+        self.log(directory, 'Invited ' + made.invitation.person + ' to lead ' + team.name + ' as ' + made.invitation.role + '.');
+        saveRosterOf(team);
+        writeDirectory(directory);
+        return made;
+      });
+    },
     retireTeam: function (slug) {
       var self = this;
       return this.wrap(function () {
@@ -887,8 +902,14 @@
         var directory = readDirectory();
         var invite = directory.invites.filter(function (candidate) { return candidate.id === id; })[0];
         if (!invite) { throw window.AdminCore.AdminError('That invitation does not exist.'); }
-        window.AdminCore.acceptInvitation(window.TEAMS, invite);
-        saveRosterOf(window.TEAMS.filter(function (candidate) { return candidate.slug === invite.team; })[0]);
+        var accepted = window.AdminCore.acceptInvitation(window.TEAMS, invite);
+        var invitedTeam = window.TEAMS.filter(function (candidate) { return candidate.slug === invite.team; })[0];
+        if (accepted && accepted.becameLead) {
+          // The new lead is remembered (the pending invitation to lead is over)
+          directory.edits[invite.team] = Object.assign({}, directory.edits[invite.team] || {}, { lead: invitedTeam.lead });
+          delete directory.edits[invite.team].pendingLead;
+        }
+        saveRosterOf(invitedTeam);
         self.log(directory, invite.person + ' accepted the invitation (' + invite.teamName + ', ' + invite.role + ').');
         writeDirectory(directory);
         return invite;

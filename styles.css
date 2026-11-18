@@ -2476,3 +2476,7 @@ dialog { position: fixed; }
 
 .manage-icon-row { display: flex; align-items: center; gap: 10px; }
 .manage-icon-preview { color: var(--accent); }
+
+.team-search { width: 100%; max-width: 420px; margin: 4px 0 12px; }
+.manage-invite { margin: 0 0 8px; }
+.team-dialog tbody tr[hidden] { display: none; }

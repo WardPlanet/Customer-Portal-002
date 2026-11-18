@@ -1259,3 +1259,8 @@ The window is up to 1120px wide, buttons wrap under each other and long emails b
 
 ## Admin: Manage team
 Next to Create team in Team and roles (Admin mode): **Manage team** opens a window to pick a team and change its **name**, its **icon** (Team, Support or Web Team, with a preview) and its **team lead** (chosen from the people already on the team who have accepted their invitation; the old lead stays on the team). Uses `Store.admin.editTeam`; the Department list and the All departments view update at once. The server has no equivalent yet (Admin tools are artifact only).
+
+Manage team can also **invite someone new to lead**: choose "Invite someone new to lead…" in the Team lead list, give a job title, a name (the directory search fills the email) and an email. The invitation is written (not sent, as with all invitations here) and the person gets a new role; the current lead stays the lead (`team.pendingLead`) until the invitation is accepted, then the new person becomes the lead (`AdminCore.inviteLead`, and `acceptInvitation` hands over the lead). Cancelling the invitation clears the pending lead. The dialog says who the team is waiting for.
+
+## Search in Team and roles
+A search box above the people table (in every view of the window) filters the rows as you type by name, job title, email or department (all words must match); a line says when nobody matches. It is kept while the window redraws and cleared each time the window is opened.
