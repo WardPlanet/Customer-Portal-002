@@ -741,8 +741,17 @@
       pickDefs.forEach(function (def) {
         var counts = {};
         var order = [];
-        pool.forEach(function (p) { var v = def.valueOf(p); if (!v) { return; } if (!(v in counts)) { counts[v] = 0; order.push(v); } counts[v] += 1; });
-        if (order.length) { pickGroups.push({ key: def.key, title: def.title, values: order.sort(), counts: counts }); }
+        // The counts follow the other ticks: with Internal only ticked, each owner shows how many internal pages they own, and an owner
+        // with none is not offered. (This column's own ticks are left out, so choices in one column can still be added together.)
+        var others = activeDefs.filter(function (d) { return d.key !== def.key; });
+        pool.forEach(function (p) {
+          if (!others.every(function (d) { return pick[d.key][d.valueOf(p)]; })) { return; }
+          var v = def.valueOf(p);
+          if (!v) { return; }
+          if (!(v in counts)) { counts[v] = 0; order.push(v); }
+          counts[v] += 1;
+        });
+        if (order.length || Object.keys(pick[def.key] || {}).length) { pickGroups.push({ key: def.key, title: def.title, values: order.sort(), counts: counts }); }
       });
     }
     // Every tick changes what the table lists and selects: the pages the ticks do not apply to drop out, and the rest are selected
