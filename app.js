@@ -41,6 +41,52 @@
 
     function byId(id) { return document.getElementById(id); }
 
+    /* ---------- An X in the upper right corner of every pop-up ----------
+       Each <dialog> (the ones in the page and the ones drawn later) gets a close button. It does what Cancel does when the
+       pop-up has a Cancel button (so a question resolves as "no"), and simply closes the pop-up otherwise. */
+    function addCloseButton(dialog) {
+      if (!dialog || dialog.querySelector(':scope > .dialog-x')) { return; }
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'dialog-x';
+      close.setAttribute('aria-label', 'Close');
+      close.title = 'Close';
+      close.textContent = '\u00D7';
+      function closeIt() {
+        var cancel = Array.prototype.filter.call(dialog.querySelectorAll('button'), function (candidate) { return candidate !== close && /^cancel/i.test(candidate.textContent.trim()); })[0];
+        if (cancel) { cancel.click(); }
+        if (dialog.open) { dialog.close(); }   // a Cancel that is not wired up at the moment does not leave the pop-up stuck open
+      }
+      close.addEventListener('click', closeIt);
+      dialog.insertBefore(close, dialog.firstChild);
+      // Clicking outside the pop-up (on the dimmed page behind it) closes it too. The press and the release must both be outside,
+      // so selecting text and letting go beyond the edge does not close it, and a pop-up with something typed in it stays open
+      // (the X still closes it) so that writing is not lost by a stray click.
+      function outside(event) {
+        var box = dialog.getBoundingClientRect();
+        return event.target === dialog && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom);
+      }
+      var pressedOutside = false;
+      dialog.addEventListener('mousedown', function (event) { pressedOutside = outside(event); });
+      dialog.addEventListener('click', function (event) {
+        var wasOutside = pressedOutside && outside(event);
+        pressedOutside = false;
+        if (!wasOutside) { return; }
+        var typed = Array.prototype.some.call(dialog.querySelectorAll('textarea, input[type="text"], input[type="search"], input:not([type])'), function (field) { return !!field.value; });
+        if (!typed) { closeIt(); }
+      });
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('dialog'), addCloseButton);
+    new MutationObserver(function (changes) {
+      changes.forEach(function (change) {
+        Array.prototype.forEach.call(change.addedNodes, function (node) {
+          if (node.nodeType !== 1) { return; }
+          if (node.tagName === 'DIALOG') { addCloseButton(node); }
+          else if (node.querySelectorAll) { Array.prototype.forEach.call(node.querySelectorAll('dialog'), addCloseButton); }
+        });
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+
     /* ---------- Asking "are you sure?" ----------
        window.confirm() does nothing inside a sandboxed frame such as a Claude artifact (it returns false
        without showing anything), so a button that relied on it would silently do nothing. This draws the

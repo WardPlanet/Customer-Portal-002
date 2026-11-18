@@ -1232,3 +1232,6 @@ Keep this list current: each line is something built that the critique document 
 
 ## Removing a person (Team and roles)
 Remove opens a hand-over window. When the person owns pages, nothing is chosen to begin with and **Remove stays off until someone is picked by hand**; the team lead is one of the choices, marked "(Default)", so the pages can be reassigned later. A person who owns no pages can be removed straight away. (Admin tools' Remove still asks one confirmation and hands the pages to the lead as Default.)
+
+## Pop-ups close
+Every pop-up (`<dialog>`, in the page or drawn later) gets an **X** in its upper right corner (`addCloseButton` in `app.js`, a MutationObserver adds it to new ones). The X does what Cancel does when there is a Cancel button (so a question answers "no"), otherwise it just closes. Clicking outside the pop-up on the dimmed page also closes it (press and release both outside); a pop-up with something typed in it ignores the outside click so writing is not lost, and the X still closes it.
