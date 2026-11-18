@@ -2771,7 +2771,7 @@
       savedSearch = null;
       search.value = saved.q;
       if (saved.filters) { filters = Object.assign({ team: '', location: '', visibility: '', updated: '', sort: 'best' }, saved.filters); updateFilterUi(); }
-      refresh({ restoring: true }).then(function () {
+      refresh({ restoring: !saved.fresh }).then(function () {
         if (mine !== routing) { return; }
         window.scrollTo(0, saved.y);
         updateBar();
@@ -2779,6 +2779,64 @@
     } else {
       refresh();
     }
+  }
+
+  // The sticky search box at the top of a live page. Typing shows page-title suggestions; Enter or a suggestion opens the search page with
+  // that search already run (and counted as a new search).
+  var DOC_SEARCH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+  function buildDocSearchBar() {
+    var bar = el('div', 'doc-search');
+    var wrap = el('div', 'suggest-wrap doc-search-wrap');
+    var input = el('input', 'lib-search doc-search-input');
+    input.type = 'search';
+    input.placeholder = 'Search by title or keyword';
+    input.setAttribute('aria-label', 'Search the wiki');
+    input.setAttribute('autocomplete', 'off');
+    var list = el('ul', 'suggest-list');
+    list.setAttribute('role', 'listbox');
+    list.hidden = true;
+    var token = 0;
+    function close() { token += 1; list.hidden = true; list.textContent = ''; }
+    function go(text) {
+      var q = String(text || '').trim();
+      if (!q) { return; }
+      savedSearch = { q: q, y: 0, filters: {}, fresh: true };
+      close();
+      location.hash = '#/public';
+    }
+    var timer = null;
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      if (!input.value.trim()) { close(); return; }
+      timer = setTimeout(function () {
+        var ticket = ++token;
+        Promise.resolve(backend().suggest(input.value)).then(function (answer) {
+          if (ticket !== token || document.activeElement !== input) { return; }
+          list.textContent = '';
+          var items = ((answer && answer.suggestions) || []).slice(0, 6);
+          items.forEach(function (item) {
+            var row = el('li', 'suggest-item');
+            row.setAttribute('role', 'option');
+            var icon = el('span', 'suggest-icon');
+            icon.innerHTML = DOC_SEARCH_ICON;   // fixed markup above
+            row.appendChild(icon);
+            row.appendChild(el('span', 'suggest-text', item.text));
+            row.addEventListener('mousedown', function (event) { event.preventDefault(); go(item.text); });
+            list.appendChild(row);
+          });
+          list.hidden = !items.length;
+        }).catch(close);
+      }, 100);
+    });
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') { event.preventDefault(); go(input.value); }
+      else if (event.key === 'Escape') { close(); }
+    });
+    input.addEventListener('blur', close);
+    wrap.appendChild(input);
+    wrap.appendChild(list);
+    bar.appendChild(wrap);
+    return bar;
   }
 
   // Inline formatting in preview text: **bold**, `code` and [label](https://link). Built as nodes, never as HTML.
@@ -3053,7 +3111,7 @@
         window.removeEventListener('resize', schedule);
         return;
       }
-      var top = Math.max(box.getBoundingClientRect().top, 16);
+      var top = Math.max(box.getBoundingClientRect().top, 76);   // below the sticky search box
       var footer = document.querySelector('.preview-footer');   // the fixed bottom bar must not cover the box
       var reserved = (footer ? footer.offsetHeight : 0) + 16;
       box.style.maxHeight = Math.max(180, window.innerHeight - top - reserved) + 'px';
@@ -3229,6 +3287,7 @@
     showScreen('library', true);
     main.textContent = '';
     // The back link follows where you came from: the batch import's results, the library, or the search page
+    main.appendChild(buildDocSearchBar());   // the search box stays at the top of every live page while it scrolls
     var backRow = el('div', 'back-row');
     var cameFromBatch = fromLibrary && /^#\/batch/.test(routeHistory.previous);
     backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));

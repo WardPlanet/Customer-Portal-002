@@ -1790,7 +1790,7 @@
 .preview-layout { align-items: stretch; }
 .preview-side { position: static; display: flex; flex-direction: column; gap: 16px; flex: 0 0 280px; max-height: none; overflow: visible; }
 .preview-side.is-tall { position: static; }
-.preview-follow { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 2px; margin: -2px; overscroll-behavior: contain; }
+.preview-follow { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 2px; margin: -2px; overscroll-behavior: contain; }
 @media (max-width: 860px) { .preview-follow { position: static; max-height: none; overflow: visible; } }
 .toc-more { margin: 2px 0 0 22px; font-size: 13px; color: var(--text-faint); }
 .toc-more[hidden], .toc-tree li[hidden] { display: none; }
@@ -2550,3 +2550,9 @@ dialog { position: fixed; }
 .preview-anchor { opacity: 1; }
 .preview-anchor:hover, .preview-anchor:focus-visible { color: #fff; background: var(--icon-blue); }
 .landing-tile-top .team-icon { color: var(--tile-icon); }
+
+/* The search box at the top of a live page: it sticks to the top of the screen while the page scrolls */
+.doc-search { position: sticky; top: 0; z-index: 7; margin: 0 0 4px; padding: 10px 0; background: var(--bg); }
+.doc-search-wrap { max-width: none; }
+.doc-search-input { width: 100%; }
+.preview-h, .section-linked { scroll-margin-top: 84px; }   /* a heading scrolled to is not hidden under the sticky search box */
