@@ -1242,3 +1242,8 @@ The owner cell reads: **Name**, the job title in smaller text beneath it (with "
 The live page's side column has a **Contacts** box (the owner first, then the linked people; the owner is the team lead marked "(Default)" when the real owner has left) and, always below it, a separate **Team Lead** box with the same heading style. Each person reads: **name** (bold), **JOB TITLE** in capitals beneath it, then the email and Message on Teams on their own lines, each with a small icon (envelope, speech bubble).
 
 Related pages show the page's department icon before each title (the same icons as the landing page cards).
+
+## Type scale (applied) and the style guide
+Every `font-size` in `styles.css` is now one of nine steps: 12, 13, 14, 16, 18, 22, 26, 40, 56px (print and PDF stay in pt). There is one uppercase style, the **label** (12px, 700, +0.06em), used for group labels such as Contacts, Team Lead, Related pages and On this page; headings and buttons are sentence case. Weight 800 is gone (Inter is loaded at 400 to 700). Article headings now set their size by level (h2 22, h3 18, h4 16, h5 and h6 14). The scales, the rules and the still-to-do list (corner radius, spacing, shadows, hard-coded colours) are in the style guide: https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (private; share it from its Share menu). New work must use these steps. Measured on six screens: 22 sizes became 9, and 32 size-and-weight pairs became 18.
+
+For the designer (contradicts or goes beyond the critique): the type scale moved text by at most a pixel or two, and the contact role under a name is now bold capitals (the label style) because all uppercase labels share one style.
