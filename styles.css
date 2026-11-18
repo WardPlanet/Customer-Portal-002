@@ -2767,3 +2767,7 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .expiry-line.is-expired, .notify-sub.is-expired { color: var(--danger); font-weight: 700; }
 
 .lib-expiry-bar.is-expired { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+
+/* The main button of a row that needs a look: filled blue */
+.row-btn.row-btn-main { background: var(--icon-blue); border-color: var(--icon-blue); color: #fff; font-weight: 600; }
+.row-btn.row-btn-main:hover { background: var(--navy); border-color: var(--navy); }

@@ -1136,6 +1136,15 @@
           if (result) { location.hash = '#/edit/' + p.id + '/' + result.version; }
         });
         editButton.setAttribute('aria-label', 'Edit ' + p.title);
+        // Review is the main button for an expired page, and for a page just submitted (the team lead's to approve or send back)
+        var submittedForLead = lead && p.workingVersion && p.workingVersion.status === 'submitted';
+        if (submittedForLead || (expiry && expiry.expired)) {
+          var reviewButton = button('Review', 'row-btn row-btn-main', function () {
+            location.hash = submittedForLead ? '#/view/' + p.id + '/' + p.workingVersion.n : previewUrl(p.id);
+          });
+          reviewButton.setAttribute('aria-label', 'Review ' + p.title);
+          deleteCell.appendChild(reviewButton);
+        }
         // Someone who is not the team lead sends their own draft to the lead from here (the lead has Publish)
         if (!lead && !actingAsAdmin() && p.workingVersion && (p.workingVersion.status === 'draft' || p.workingVersion.status === 'sent_back')) {
           var submitButton = button('Submit', 'row-btn row-btn-publish', async function () {

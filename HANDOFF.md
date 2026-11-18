@@ -1367,3 +1367,5 @@ Import flags lines at the top that give the document's own date, version, owner 
 Expired pages (past the 180 days): the same warning triangle as the page builder, in red, with "Expired N days ago" in red and a light red row; the bell shows them in red too. Pages still to expire stay yellow.
 
 Expiry, who sees what: **expired** (red) is separate from **expiring soon** (yellow), each with its own bar under the search ("N pages expire within 15 days" / "N pages have expired") and its own status filter. Expired shows to everyone who sees the page (the team lead sees the team's). Expiring soon is the owner's business: it shows (row, bar, bell) only to the page's owner, and to the team lead only for pages the lead owns or holds by default. Admin owns none, so sees only expired.
+
+Library rows: "Review" is the main (filled blue) button, ahead of Edit, for an expired page (opens the page) and, for the team lead, a page just submitted (opens its review view to approve or send back). Reviewing an expired page does not by itself restart its 180 days: editing and publishing does.
