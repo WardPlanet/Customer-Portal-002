@@ -58,6 +58,14 @@
 
   <main class="workspace">
 
+    <!-- On this page: the left column, set up like the live page -->
+    <aside class="outline" aria-label="On this page">
+      <div class="outline-sticky">
+        <div id="outline-box"></div>
+        <p class="outline-meta" id="outline-meta">No steps yet. Add a Step block to list steps here.</p>
+      </div>
+    </aside>
+
     <!-- Editor -->
     <section class="editor" aria-label="Page editor">
 
@@ -135,14 +143,6 @@
           </div>
         </article>
 
-        <!-- On this page -->
-        <aside class="outline" aria-label="On this page">
-          <div class="outline-sticky">
-            <div id="outline-box"></div>
-            <p class="outline-meta" id="outline-meta">No steps yet. Add a Step block to list steps here.</p>
-          </div>
-        </aside>
-
       </div>
     </section>
 
@@ -162,7 +162,7 @@
         <button type="button" class="link-btn" id="version-link" aria-haspopup="dialog"></button>
       </div>
 
-      <div>
+      <div id="location-field" hidden>   <!-- "Where this lives": not needed for now (see HANDOFF) -->
         <span class="field-label">Library</span>
         <div class="chips" id="chips"></div>
       </div>

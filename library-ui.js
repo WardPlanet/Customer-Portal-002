@@ -1152,7 +1152,9 @@
         var submittedForLead = lead && p.workingVersion && isWaitingForReview(p);
         if (submittedForLead || (expiry && expiry.expired)) {
           var reviewButton = button('Review', 'row-btn row-btn-main', function () {
-            location.hash = submittedForLead ? '#/view/' + p.id + '/' + p.workingVersion.n : previewUrl(p.id);
+            // Always the review view (the page as it was submitted, with the review actions), for a submitted page and an expired live one alike
+            var reviewNumber = submittedForLead ? p.workingVersion.n : (p.liveVersion && p.liveVersion.n ? p.liveVersion.n : p.liveVersion);
+            location.hash = '#/view/' + p.id + '/' + reviewNumber;
           });
           reviewButton.setAttribute('aria-label', 'Review ' + p.title);
           deleteCell.appendChild(reviewButton);
@@ -1534,7 +1536,7 @@
     box.appendChild(el('p', '', 'Reading ' + (hist && hist.release ? name : 'a draft') + ' — ' + describe(data.version.status) + '.'));
     if (hist && hist.decisionComment) { box.appendChild(el('p', '', 'Review note: \u201c' + hist.decisionComment + '\u201d')); }
     var row = el('div', 'banner-actions');
-    row.appendChild(versionsButton(id));
+    // (version history: hidden for now, see HANDOFF)
     versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
     if (row.childNodes.length) { box.appendChild(row); }
     setBanner(box);
@@ -3457,47 +3459,12 @@
         level: Number(heading.getAttribute('data-level')),
         text: heading.textContent,
         href: '#' + heading.getAttribute('data-section'),
+        target: heading,
         go: function () { heading.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       };
     });
     var box = window.OnThisPage.build(items);
     if (!box) { return box; }
-    // Light blue highlight on the heading the page is scrolled to. A heading folded out of sight lends it to the one above it.
-    var headings = Array.prototype.slice.call(article.querySelectorAll('[data-section]'));
-    var links = {};
-    Array.prototype.forEach.call(box.querySelectorAll('.toc-row a'), function (a) { links[a.getAttribute('href')] = a; });
-    var waiting = false;
-    function mark() {
-      waiting = false;
-      if (!document.body.contains(box)) {
-        window.removeEventListener('scroll', schedule, true);
-        window.removeEventListener('resize', schedule);
-        return;
-      }
-      var at = -1;
-      // A heading counts once it passes a line that starts a third of the way down the window and slides to the window's bottom edge
-      // as you reach the end of the page. That way short sections at the end each get their turn instead of being skipped.
-      var root = document.documentElement;
-      var room = root.scrollHeight - window.innerHeight;
-      var progress = room > 0 ? Math.min(1, Math.max(0, window.scrollY / room)) : 0;
-      var line = Math.max(120, window.innerHeight * 0.33) + (window.innerHeight - Math.max(120, window.innerHeight * 0.33)) * progress;
-      headings.forEach(function (h, i) { if (h.getBoundingClientRect().top <= line) { at = i; } });
-      var shown = null;
-      while (at >= 0 && !shown) {
-        var a = links['#' + headings[at].getAttribute('data-section')];
-        if (a && a.offsetParent !== null && !a.closest('.toc-fade-1, .toc-fade-2')) { shown = a; break; }
-        var level = Number(headings[at].getAttribute('data-level'));
-        var up = at - 1;
-        while (up >= 0 && Number(headings[up].getAttribute('data-level')) >= level) { up -= 1; }
-        at = up;
-      }
-      Object.keys(links).forEach(function (k) { links[k].classList.toggle('is-current', links[k] === shown); });
-    }
-    function schedule() { if (!waiting) { waiting = true; window.requestAnimationFrame(mark); } }
-    window.addEventListener('scroll', schedule, true);
-    window.addEventListener('resize', schedule);
-    box.addEventListener('click', schedule);
-    window.requestAnimationFrame(mark);
     return box;
   }
 

@@ -86,6 +86,7 @@
           row.appendChild(el('span', 'toc-spacer'));
         }
         var a = el('a', '', node.text);
+        a._item = node.item;
         a.href = node.item.href || '#';
         a.addEventListener('click', function (event) {
           event.preventDefault();
@@ -148,7 +149,50 @@
     // Opening one heading by its own arrow changes what the all-button should say
     groups.forEach(function (group) { group.toggle.addEventListener('click', refresh); });
     refresh();
+    watchScroll(box, items);
     return box;
+  }
+
+  // The heading the page is scrolled to is highlighted (light blue) in the outline. Items need a `target` (the heading's element). A heading
+  // folded out of sight lends the highlight to the visible one above it. The line a heading must pass starts a third of the way down the
+  // window and slides to the window's bottom edge as the end of the page is reached, so short sections at the end each get their turn.
+  function watchScroll(box, items) {
+    var tracked = items.filter(function (item) { return item.target; });
+    if (!tracked.length) { return; }
+    var links = [];
+    Array.prototype.forEach.call(box.querySelectorAll('.toc-row a'), function (a) { if (a._item) { links.push(a); } });
+    var waiting = false;
+    function linkOf(item) { return links.filter(function (a) { return a._item === item; })[0]; }
+    function mark() {
+      waiting = false;
+      if (!document.body.contains(box)) {
+        window.removeEventListener('scroll', schedule, true);
+        window.removeEventListener('resize', schedule);
+        return;
+      }
+      var root = document.documentElement;
+      var room = root.scrollHeight - window.innerHeight;
+      var progress = room > 0 ? Math.min(1, Math.max(0, window.scrollY / room)) : 0;
+      var start = Math.max(120, window.innerHeight * 0.33);
+      var line = start + (window.innerHeight - start) * progress;
+      var at = -1;
+      tracked.forEach(function (item, i) { if (item.target.getBoundingClientRect().top <= line) { at = i; } });
+      var shown = null;
+      while (at >= 0 && !shown) {
+        var a = linkOf(tracked[at]);
+        if (a && a.offsetParent !== null && !a.closest('.toc-fade-1, .toc-fade-2')) { shown = a; break; }
+        var level = tracked[at].level;
+        var up = at - 1;
+        while (up >= 0 && tracked[up].level >= level) { up -= 1; }
+        at = up;
+      }
+      links.forEach(function (a) { a.classList.toggle('is-current', a === shown); });
+    }
+    function schedule() { if (!waiting) { waiting = true; window.requestAnimationFrame(mark); } }
+    window.addEventListener('scroll', schedule, true);
+    window.addEventListener('resize', schedule);
+    box.addEventListener('click', schedule);
+    window.requestAnimationFrame(mark);
   }
 
   window.OnThisPage = { build: build };

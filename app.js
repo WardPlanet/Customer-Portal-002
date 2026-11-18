@@ -1791,7 +1791,7 @@
         } else if (block.type === 'header') {
           allText.push(block.text);
           var target = elements[index];
-          items.push({ level: block.level || 2, text: block.text || 'Untitled header', go: function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+          items.push({ level: block.level || 2, text: block.text || 'Untitled header', target: target, go: function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
         } else {
           allText.push(block.text);
           if (block.type === 'warning') { warningCount += 1; }
@@ -1814,8 +1814,11 @@
           var empty = document.createElement('p');
           empty.className = 'outline-empty';
           empty.textContent = 'Headers you add will be listed here.';
-          box.appendChild(heading);
-          box.appendChild(empty);
+          var emptyCard = document.createElement('div');
+          emptyCard.className = 'side-card toc-card';
+          emptyCard.appendChild(heading);
+          emptyCard.appendChild(empty);
+          box.appendChild(emptyCard);
         }
       }
 

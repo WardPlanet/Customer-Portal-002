@@ -1375,3 +1375,9 @@ Library rows: "Review" is the main (filled blue) button, ahead of Edit, for an e
 - **Anyone else:** their own drafts still stick to the top in grey. After **Submit** the row is locked: no Edit or Submit, a "In Review" lock label instead, and "Withdraw from review" in the "..." menu until the lead approves it or sends it back.
 
 Pages waiting for the lead's review also get a light green row (red/yellow expiry colours win when both apply). The lead's Review button shows for any page in review (also pages whose state is in_review or a live page with an edit in review).
+
+## Review view and editor layout (to revisit)
+- **Review always opens the review view** (`#/view/<page>/<version>`, the page read-only with its review actions in the banner): for a submitted page and for an expired live page (its live version) alike.
+- **The review view and the New page / Edit screen now have "On this page" in a left column**, like the live page: the same card, a sticky column, and the light-blue highlight on the heading in view (the scroll-spy now lives in `outline.js`, shared by the live page and the editor). Page setup stays on the right; the toolbar and page are in the middle.
+- **Hidden for now, to come back to later:** "Where this lives" (the Library chips in Page setup, `#location-field`; the value is still saved, with the first place of the team) and version history (the Version link in Page setup, `#version-field`, and the Versions button in the review view). Their code is still there; only hidden.
+- The design of these two screens beyond the left column is still to be done (the user does not like the current design).
