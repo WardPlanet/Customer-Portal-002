@@ -2457,3 +2457,12 @@ dialog { position: fixed; }
 .move-pages-row input { margin-top: 3px; }
 .transfer-dialog .admin-label { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; }
 .transfer-dialog .admin-label select { align-self: flex-start; }
+
+/* Team and roles: no sideways scrolling. The buttons wrap under each other and long emails break instead of widening the window. */
+.team-dialog { width: min(1120px, calc(100vw - 32px)); overflow-x: hidden; }
+.team-dialog .lib-table { width: 100%; }
+.team-actions { white-space: normal; }
+.team-buttons { flex-wrap: wrap; justify-content: flex-start; }
+.team-email { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+.team-dialog .lib-table td:first-child, .team-dialog .lib-table th { white-space: normal; }
+.team-dialog .lib-table th .sort-btn { white-space: nowrap; }

@@ -390,7 +390,7 @@
     head.appendChild(titles);
     var headActions = el('div', 'lib-actions');
     headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
-    if (actorIsLead()) { headActions.appendChild(button('Team and roles', 'secondary-link', openTeamDialog)); }
+    if (actorIsLead()) { headActions.appendChild(button('Team and roles', 'secondary-link', function () { openTeamDialog(); })); }
     // Backups cover the whole team's pages, so only the team lead sees them. They live in a "More" menu so they do not compete with
     // New page; the menu also says when the last backup was made.
     if (actorIsLead()) {
@@ -1428,22 +1428,24 @@
       var switcher = el('label', 'team-switcher', 'Department ');
       var switchSelect = el('select', 'acting-select');
       switchSelect.setAttribute('aria-label', 'Department to manage');
+      var allOption = el('option', '', 'All departments');
+      allOption.value = 'all';
+      switchSelect.appendChild(allOption);
       window.Store.teams().forEach(function (department) {
         var option = el('option', '', department.name);
         option.value = department.slug;
         switchSelect.appendChild(option);
       });
-      switchSelect.value = team.slug;
+      switchSelect.value = teamAllView ? 'all' : team.slug;
       switchSelect.addEventListener('change', function () {
-        if (window.Store.setDepartment(switchSelect.value, true)) {
-          try { sessionStorage.setItem('pageEditor.reopenTeam', '1'); } catch (error) { /* the window is simply not reopened */ }
-          location.reload();
-        }
+        if (switchSelect.value === 'all') { teamAllView = true; showTeam(box, dialog); return; }
+        reopenAs(switchSelect.value);
       });
       switcher.appendChild(switchSelect);
       switcher.appendChild(button('Create team', 'secondary-link', openCreateTeamDialog));
       box.appendChild(switcher);
     }
+    if (actingAsAdmin() && teamAllView && window.Store.teams().length > 1) { renderAllPeople(); return; }
     if (!actorIsLead()) {
       box.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
       return;
@@ -1641,7 +1643,8 @@
 
     // Moving a person to another team always asks what happens to their pages first: they go with the person, or someone on the
     // team they are leaving takes them (the team lead, marked Default, or a person chosen by hand).
-    function openMoveDialog(role, count) {
+    function openMoveDialog(role, count, fromTeam) {
+      var from = fromTeam || team;
       var who = role.person || role.title;
       var d = adminDialog('Move ' + who + ' to another team', count ? who + ' owns ' + count + (count === 1 ? ' page' : ' pages') + '. Choose what happens to ' + (count === 1 ? 'it' : 'them') + ' first.' : 'They own no pages.');
       var problem = el('p', 'dialog-hint is-error');
@@ -1657,7 +1660,7 @@
       var pick = el('option', '', 'Choose a team\u2026');
       pick.value = '';
       toTeam.appendChild(pick);
-      window.Store.teams().filter(function (other) { return other.slug !== team.slug; }).forEach(function (other) {
+      window.Store.teams().filter(function (other) { return other.slug !== from.slug; }).forEach(function (other) {
         var option = el('option', '', other.name);
         option.value = other.slug;
         toTeam.appendChild(option);
@@ -1677,14 +1680,14 @@
         var handSelect = el('select', 'acting-select');
         handSelect.setAttribute('aria-label', 'Who takes their pages');
         handSelect.disabled = true;
-        var leadEntry = W.leadEntry(team);
+        var leadEntry = W.leadEntry(from);
         var handChoose = el('option', '', 'Choose a person\u2026');
         handChoose.value = '';
         handSelect.appendChild(handChoose);
         var handLead = el('option', '', (leadEntry ? leadEntry.person + ' \u2014 ' + leadEntry.title : 'The team lead') + ' (Default)');
         handLead.value = '__lead__';
         handSelect.appendChild(handLead);
-        givablePeople().filter(function (other) { return W.keyFor(other) !== W.keyFor(role) && (!leadEntry || W.keyFor(other) !== W.keyFor(leadEntry)); }).forEach(function (other) {
+        givablePeople(from).filter(function (other) { return W.keyFor(other) !== W.keyFor(role) && (!leadEntry || W.keyFor(other) !== W.keyFor(leadEntry)); }).forEach(function (other) {
           var option = el('option', '', other.person + ' \u2014 ' + other.title);
           option.value = W.keyFor(other);
           handSelect.appendChild(option);
@@ -1707,7 +1710,7 @@
           return line;
         }
         group.appendChild(radio('keep', 'They keep their pages: the pages move to the new team with them'));
-        group.appendChild(radio('hand', 'Hand their pages to someone on ' + team.name + ' first'));
+        group.appendChild(radio('hand', 'Hand their pages to someone on ' + from.name + ' first'));
         group.appendChild(handSelect);
         d.appendChild(group);
       }
@@ -1718,7 +1721,7 @@
         var result;
         try {
           result = window.Store.admin.movePerson({
-            fromTeam: team.slug, fromRole: role.title, toTeam: toTeam.value, newRole: roleTitle.value,
+            fromTeam: from.slug, fromRole: role.title, toTeam: toTeam.value, newRole: roleTitle.value,
             pages: choice.value === 'keep' ? 'keep' : 'hand', handTo: handTo.value && handTo.value !== '__lead__' ? handTo.value : ''
           });
         } catch (error) {
@@ -1727,7 +1730,7 @@
           return;
         }
         d.close();
-        var pagesLine = result.kept ? ' Their ' + result.kept + (result.kept === 1 ? ' page' : ' pages') + ' moved with them.' : result.handedOver ? ' Their ' + result.handedOver + (result.handedOver === 1 ? ' page' : ' pages') + ' stayed with ' + team.name + '.' : '';
+        var pagesLine = result.kept ? ' Their ' + result.kept + (result.kept === 1 ? ' page' : ' pages') + ' moved with them.' : result.handedOver ? ' Their ' + result.handedOver + (result.handedOver === 1 ? ' page' : ' pages') + ' stayed with ' + from.name + '.' : '';
         notice('Moved ' + result.moved + ' to ' + result.toTeam + ' (' + result.toRole + ').' + pagesLine);
         showTeam(box, dialog);
       });
@@ -1737,6 +1740,73 @@
       document.body.appendChild(d);
       d.showModal();
       toTeam.focus();
+    }
+
+    /* ----- Admin: everyone on every team, A to Z, sortable ----- */
+    function renderAllPeople() {
+      var usage = {};
+      try { usage = window.Store.admin.load().roleUsage; } catch (error) { usage = {}; }
+      var rows = [];
+      window.Store.teams().forEach(function (t) {
+        t.roles.forEach(function (r) {
+          if (!r.person) { return; }
+          rows.push({ person: r.person, department: t.name, title: r.title, email: r.email || '', pages: (usage[t.slug] || {})[W.keyFor(r)] || 0, team: t, role: r });
+        });
+      });
+      var sort = teamAllSort;
+      function compare(x, y) {
+        var a = x[sort.key];
+        var b = y[sort.key];
+        var order = typeof a === 'number' ? a - b : String(a).toLowerCase().localeCompare(String(b).toLowerCase());
+        if (!order) { order = x.person.toLowerCase().localeCompare(y.person.toLowerCase()); }
+        return sort.down ? -order : order;
+      }
+      rows.sort(compare);
+      box.appendChild(el('p', 'dialog-hint', rows.length + (rows.length === 1 ? ' person' : ' people') + ' across ' + window.Store.teams().length + ' teams. Choose Manage to work with a person\u2019s team.'));
+      var table = el('table', 'lib-table');
+      var head = el('tr');
+      [['person', 'Person'], ['department', 'Department'], ['title', 'Job title'], ['email', 'Email'], ['pages', 'Pages owned']].forEach(function (pair) {
+        var th = el('th');
+        var active = sort.key === pair[0];
+        th.setAttribute('aria-sort', active ? (sort.down ? 'descending' : 'ascending') : 'none');
+        var sorter = el('button', 'sort-btn' + (active ? ' is-active' : ''), pair[1] + (active ? (sort.down ? ' \u25BE' : ' \u25B4') : ''));
+        sorter.type = 'button';
+        sorter.setAttribute('aria-label', 'Sort by ' + pair[1].toLowerCase());
+        sorter.addEventListener('click', function () {
+          if (teamAllSort.key === pair[0]) { teamAllSort.down = !teamAllSort.down; } else { teamAllSort = { key: pair[0], down: pair[0] === 'pages' }; }
+          showTeam(box, dialog);
+        });
+        th.appendChild(sorter);
+        head.appendChild(th);
+      });
+      head.appendChild(el('th'));
+      var thead = el('thead');
+      thead.appendChild(head);
+      table.appendChild(thead);
+      var tbody = el('tbody');
+      rows.forEach(function (row) {
+        var tr = el('tr', 'lib-row');
+        tr.appendChild(el('td', '', row.person));
+        tr.appendChild(el('td', '', row.department));
+        tr.appendChild(el('td', '', row.title + (row.title === row.team.lead ? ' (team lead)' : '')));
+        tr.appendChild(el('td', 'team-email', row.email || 'No email'));
+        tr.appendChild(el('td', '', String(row.pages)));
+        var actions = el('td', 'team-actions');
+        var buttons = el('div', 'team-buttons');
+        var manage = button('Manage', 'row-btn', function () { reopenAs(row.team.slug); });
+        manage.setAttribute('aria-label', 'Manage ' + row.person + ' in ' + row.department);
+        buttons.appendChild(manage);
+        if (row.title !== row.team.lead && window.Store.teams().length > 1) {
+          buttons.appendChild(menuButton('\u22EF', 'row-btn', 'More actions for ' + row.person, [
+            { label: 'Move to another team\u2026', onClick: function () { openMoveDialog(row.role, row.pages, row.team); } }
+          ]));
+        }
+        actions.appendChild(buttons);
+        tr.appendChild(actions);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      box.appendChild(table);
     }
 
     function openReplaceDialog(role, count) {
@@ -2071,7 +2141,12 @@
     });
   }
 
-  function openTeamDialog() {
+  // Admin opens Team and roles on everyone ("All departments"), A to Z; choosing one department shows that team
+  var teamAllView = true;
+  var teamAllSort = { key: 'person', down: false };
+
+  function openTeamDialog(specificTeam) {
+    teamAllView = !specificTeam;
     var dialog = el('dialog', 'draft-dialog team-dialog');
     dialog.setAttribute('aria-label', 'Team and roles');
     var box = el('div');
@@ -3307,6 +3382,6 @@
     mountActing();
     route();
     // Admin switched department inside Team and roles: that window opens again on the new department
-    try { if (sessionStorage.getItem('pageEditor.reopenTeam')) { sessionStorage.removeItem('pageEditor.reopenTeam'); if (actingAsAdmin()) { openTeamDialog(); } } } catch (error) { /* not reopened */ }
+    try { if (sessionStorage.getItem('pageEditor.reopenTeam')) { sessionStorage.removeItem('pageEditor.reopenTeam'); if (actingAsAdmin()) { openTeamDialog(true); } } } catch (error) { /* not reopened */ }
   });
 })();
