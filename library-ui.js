@@ -294,6 +294,16 @@
      review it. (Email notifications come later, once the company's mail account is set up; the server already writes each
      one to an "outbox" folder so the text is ready.) */
   var notifyTimer = null;
+  // The expiry to show for a page, or null. An expired page (red) shows for everyone who sees it. A page that is only close to expiring
+  // (yellow) is the owner's business, so it shows only to its owner (the team lead when the lead owns it, or has it by default).
+  function expiryOf(p) {
+    var e = p.liveVersion ? W.expiryStatus(p.updatedAt) : null;
+    if (!e || !e.soon) { return null; }
+    if (e.expired) { return e; }
+    var me = actor();
+    var mine = !!(p.owner && W.ownsKey(me, p.owner)) || !!(p.ownerDefault && actorIsLead());
+    return mine ? e : null;
+  }
   // A yellow caution triangle, for a page that is close to expiring
   var CAUTION_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
   // expired: the same triangle (it is the page builder's warning symbol) in red
@@ -334,9 +344,9 @@
       pop.appendChild(item);
     });
     if (expiring.length) {
-      pop.appendChild(el('h2', 'notify-title', 'Expiring soon'));
+      pop.appendChild(el('h2', 'notify-title', expiring.every(function (p) { return expiryOf(p).expired; }) ? 'Expired' : 'Expiring or expired'));
       expiring.forEach(function (p) {
-        var info = W.expiryStatus(p.updatedAt);
+        var info = expiryOf(p);
         var item = link('', previewUrl(p.id), 'notify-item');
         var line = el('strong', '');
         line.appendChild(cautionIcon(info.expired));
@@ -367,7 +377,7 @@
     var waiting = (actorIsLead() ? result.pages : []).filter(function (p) { return p.workingVersion && p.workingVersion.status === 'submitted'; })
       .sort(function (a, b) { return String(a.workingVersion.submittedAt).localeCompare(String(b.workingVersion.submittedAt)); });
     // The owner is told when a live page is within 15 days of expiring (the library lists a person's own pages; the team lead sees the team's)
-    var expiring = result.pages.filter(function (p) { var e = p.liveVersion ? W.expiryStatus(p.updatedAt) : null; return e && e.soon; })
+    var expiring = result.pages.filter(function (p) { return !!expiryOf(p); })
       .sort(function (a, b) { return String(a.updatedAt).localeCompare(String(b.updatedAt)); });
     slots.forEach(function (slot) { renderBell(slot, waiting, expiring); });
   }
@@ -459,7 +469,7 @@
     search.value = libraryFilters.q;
     var status = el('select', 'lib-status');
     status.setAttribute('aria-label', 'Filter by status');
-    [['', 'All statuses'], ['live', 'Live'], ['expiring', 'Expiring soon'], ['draft', 'Draft'], ['review', 'In review'], ['sent-back', 'Sent back'], ['unpublished', 'Unpublished']].forEach(function (pair) {
+    [['', 'All statuses'], ['live', 'Live'], ['expiring', 'Expiring soon'], ['expired', 'Expired'], ['draft', 'Draft'], ['review', 'In review'], ['sent-back', 'Sent back'], ['unpublished', 'Unpublished']].forEach(function (pair) {
       var option = el('option', '', pair[1]);
       option.value = pair[0];
       status.appendChild(option);
@@ -471,24 +481,31 @@
     // The search tips used to sit inside the box as its placeholder; they now have their own line underneath
     main.appendChild(el('p', 'lib-hint search-tip', 'Use quotes for an exact phrase (\u201Cpassword reset\u201D), a minus sign to exclude a word (-billing), or title: to search titles only (title: escalation).'));
 
-    // A bar under the search that says how many pages are about to expire; "Show them" lists just those
-    var expiryBar = el('div', 'lib-expiry-bar');
-    expiryBar.hidden = true;
-    main.appendChild(expiryBar);
-    function renderExpiryBar(pages) {
-      var soon = pages.filter(function (p) { var e = p.liveVersion ? W.expiryStatus(p.updatedAt) : null; return e && e.soon; });
-      expiryBar.textContent = '';
-      expiryBar.hidden = !soon.length;
-      if (!soon.length) { return; }
-      expiryBar.appendChild(cautionIcon());
-      var expired = soon.filter(function (p) { return W.expiryStatus(p.updatedAt).expired; }).length;
-      expiryBar.appendChild(el('span', 'lib-expiry-text', soon.length + (soon.length === 1 ? ' page expires' : ' pages expire') + ' within ' + W.EXPIRY_WARNING_DAYS + ' days' + (expired ? ' (' + expired + ' already expired)' : '') + '.'));
-      var filtering = libraryFilters.status === 'expiring';
-      expiryBar.appendChild(button(filtering ? 'Show all pages' : 'Show them', 'row-btn', function () {
-        libraryFilters.status = filtering ? '' : 'expiring';
+    // Two bars under the search: yellow for pages about to expire (the owner's), red for pages that have expired. "Show them" lists just those.
+    var soonBar = el('div', 'lib-expiry-bar');
+    var expiredBar = el('div', 'lib-expiry-bar is-expired');
+    soonBar.hidden = true;
+    expiredBar.hidden = true;
+    main.appendChild(soonBar);
+    main.appendChild(expiredBar);
+    function fillBar(bar, pages, kind, text) {
+      bar.textContent = '';
+      bar.hidden = !pages.length;
+      if (!pages.length) { return; }
+      bar.appendChild(cautionIcon(kind === 'expired'));
+      bar.appendChild(el('span', 'lib-expiry-text', text));
+      var filtering = libraryFilters.status === kind;
+      bar.appendChild(button(filtering ? 'Show all pages' : 'Show them', 'row-btn', function () {
+        libraryFilters.status = filtering ? '' : kind;
         status.value = libraryFilters.status;
         refresh();
       }));
+    }
+    function renderExpiryBar(pages) {
+      var soon = pages.filter(function (p) { var e = expiryOf(p); return e && !e.expired; });
+      var gone = pages.filter(function (p) { var e = expiryOf(p); return e && e.expired; });
+      fillBar(soonBar, soon, 'expiring', soon.length + (soon.length === 1 ? ' page expires' : ' pages expire') + ' within ' + W.EXPIRY_WARNING_DAYS + ' days.');
+      fillBar(expiredBar, gone, 'expired', gone.length + (gone.length === 1 ? ' page has expired.' : ' pages have expired.'));
     }
 
     var listBox = el('div', 'lib-list');
@@ -738,9 +755,9 @@
   function renderList(box, pages) {
     box.textContent = '';
     var pool = pages.filter(function (p) {
-      if (libraryFilters.status === 'expiring') {   // live pages within 15 days of expiring, or past it
-        var due = p.liveVersion ? W.expiryStatus(p.updatedAt) : null;
-        return !!(due && due.soon);
+      if (libraryFilters.status === 'expiring' || libraryFilters.status === 'expired') {
+        var due = expiryOf(p);
+        return !!(due && due.expired === (libraryFilters.status === 'expired'));
       }
       return !libraryFilters.status || STATE_LABELS[p.state][1] === libraryFilters.status;
     });
@@ -754,7 +771,7 @@
       { key: 'owner', title: 'Owner', valueOf: function (p) { return ownerShown(p, teamFor(p.team) || team).label; } }
     ];
     if (actingAsAdmin()) { pickDefs.push({ key: 'department', title: 'Department', valueOf: function (p) { return (teamFor(p.team) || team).name || ''; } }); }
-    pickDefs.push({ key: 'review', title: 'Expiry', valueOf: function (p) { var r = p.liveVersion ? W.expiryStatus(p.updatedAt) : null; return r && r.soon ? 'Expiring soon' : ''; } });
+    pickDefs.push({ key: 'review', title: 'Expiry', valueOf: function (p) { var r = expiryOf(p); return r ? (r.expired ? 'Expired' : 'Expiring soon') : ''; } });
     var activeDefs = canBulk ? pickDefs.filter(function (d) { return Object.keys(pick[d.key] || {}).length; }) : [];
     var shown = pool.filter(function (p) { return activeDefs.every(function (d) { return pick[d.key][d.valueOf(p)]; }); });
     if (!pool.length) {
@@ -985,7 +1002,7 @@
     var body = el('tbody');
     sortRows(shown).forEach(function (p) {
       var row = el('tr', 'lib-row');
-      var expiry = p.liveVersion ? W.expiryStatus(p.updatedAt) : null;
+      var expiry = expiryOf(p);
       if (draftsStickToTop() && isOwnDraft(p)) { row.classList.add('is-draft'); }   // light grey
       if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // light yellow; red once expired
       if (canBulk) {
@@ -2715,8 +2732,8 @@
         var updated = el('span', '', (window.Store.isPublicMode && window.Store.isPublicMode() ? 'Updated ' : ' \u00B7 Updated ') + W.relativeTime(p.updatedAt));
         updated.title = formatDate(p.updatedAt);
         meta.appendChild(updated);
-        var expiry = W.expiryStatus(p.updatedAt);
-        if (expiry && expiry.soon && !(window.Store.isPublicMode && window.Store.isPublicMode())) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(cautionIcon(expiry.expired)); meta.appendChild(el('span', 'is-overdue', expiry.text)); }
+        var expiry = expiryOf(p);
+        if (expiry && !(window.Store.isPublicMode && window.Store.isPublicMode())) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(cautionIcon(expiry.expired)); meta.appendChild(el('span', 'is-overdue', expiry.text)); }
         body.appendChild(meta);
         card.appendChild(body);
         listBox.appendChild(card);

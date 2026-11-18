@@ -2765,3 +2765,5 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .lib-row.is-expired td { background: var(--danger-soft); }
 .caution-icon.is-expired { color: var(--danger); }
 .expiry-line.is-expired, .notify-sub.is-expired { color: var(--danger); font-weight: 700; }
+
+.lib-expiry-bar.is-expired { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
