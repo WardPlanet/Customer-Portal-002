@@ -1282,4 +1282,4 @@ First-level headings are 28px (serif, 600); second-level headings and below are 
 The highlighted section (after following a link to it) is tinted with a box-shadow and adds no padding or margin, so nothing on the page moves when it appears (checked: every heading and paragraph keeps the same position with and without it).
 
 ## Tables in a live page
-They now match the library table: a white card with a 1px hairline border and 12px corners, a muted header row (13px, 600, muted text), hairlines between rows, no cell borders and no striping; light and dark. (`.preview-table-wrap` and `.preview-table` in `styles.css`.) The editor's table and the PDF export are not restyled.
+They now match the library table: a white card with a 1px hairline border and 12px corners, a header row (14px, 700), hairlines between rows and between columns, and alternating row colours; light and dark. (`.preview-table-wrap` and `.preview-table` in `styles.css`.) The editor's table and the PDF export are not restyled.

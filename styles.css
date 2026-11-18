@@ -3,6 +3,8 @@
     --bg: #f6f6f6;
     --surface: #ffffff;
     --surface-muted: #fafafa;
+    --table-head: #eeeef2;   /* header row of a table in a page */
+    --table-alt: #f1f1f5;    /* every second row */
     --border: #e4e4e7;
     --border-strong: #d4d4d8;
     --text: #18181b;
@@ -32,6 +34,8 @@
       --bg: #101113;
       --surface: #18191c;
       --surface-muted: #1e2024;
+      --table-head: #26282e;
+      --table-alt: #1e2024;
       --border: #2d2f35;
       --border-strong: #3d4048;
       --text: #f2f2f4;
@@ -54,6 +58,8 @@
     --bg: #101113;
     --surface: #18191c;
     --surface-muted: #1e2024;
+    --table-head: #26282e;
+    --table-alt: #1e2024;
     --border: #2d2f35;
     --border-strong: #3d4048;
     --text: #f2f2f4;
@@ -1717,7 +1723,7 @@
 .preview-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .preview-table th, .preview-table td { padding: 8px 12px; border: 1px solid var(--border-strong); text-align: left; vertical-align: top; }
 .preview-table th { background: var(--surface-muted); font-weight: 700; }
-.preview-table tbody tr:nth-child(even) td { background: var(--surface-muted); }
+.preview-table tbody tr:nth-child(even) td { background: var(--table-alt); }
 @media print { .print-table { width: 100%; border-collapse: collapse; margin: 0 0 12pt; } .print-table th, .print-table td { border: 0.5pt solid #999; padding: 3pt 6pt; text-align: left; } .print-table th { background: #eee; } }
 
 /* Page Setup: version link and related pages */
@@ -2516,12 +2522,13 @@ dialog { position: fixed; }
    added, so the text, headings and spacing sit exactly where they do without it. The left reach covers the link icon. */
 .section-linked { margin: 0; padding: 0; background: var(--linked-bg); border-radius: 10px; box-shadow: 0 0 0 10px var(--linked-bg), -32px 0 0 10px var(--linked-bg); }
 
-/* Tables in a live page: the same look as the library table — a white card with a hairline border and 12px corners, a muted header row,
-   hairlines between rows and no cell borders or striping */
+/* Tables in a live page: the library table's card (white, hairline border, 12px corners) with a header row, hairlines between rows and
+   between columns, and alternating row colours */
 .preview-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
 .preview-table { border-collapse: collapse; border: 0; }
-.preview-table th, .preview-table td { padding: 12px 14px; border: 0; border-top: 1px solid var(--border); }
+.preview-table th, .preview-table td { padding: 12px 14px; border: 0; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+.preview-table th:first-child, .preview-table td:first-child { border-left: 0; }
 .preview-table thead tr:first-child th { border-top: 0; }
-.preview-table th { background: var(--surface-muted); color: var(--text-muted); font-size: 13px; font-weight: 600; }
-.preview-table tbody tr:nth-child(even) td { background: none; }
+.preview-table th { background: var(--table-head); color: var(--text); font-size: 14px; font-weight: 700; }
 .preview-table td { color: var(--text); }
+.preview-table tbody tr:nth-child(even) td { background: var(--surface-muted); }
