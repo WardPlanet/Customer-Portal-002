@@ -1276,3 +1276,5 @@ On a live page, staff see a light line at the top of the side column, above Cont
 The page title and every first-level heading (H1) in an article are set in **Source Serif 4** (500 and 600 loaded from Google Fonts, fallback Georgia), medium: weight 500 for the title and 600 for first-level headings, the brand navy like the other headings, and sized so each level is clearly bigger than the next (title 40px, first-level headings 26px, second-level 18px); everything else stays Inter. `--font-serif` in `styles.css`. Not yet done: the PDF export still uses its own fonts, and the editor's title field is still sans. For the designer: this adds a second typeface to what was one (the style guide is updated).
 
 Spacing around a first-level heading: 48px above it (each section stands apart) and 16px below its rule, including when a second-level heading follows straight away (`.preview-h:is(h2)` in `styles.css`).
+
+First-level headings are 28px (serif, 600); second-level headings and below are 600 (were 700), at 18, 16, 14 and 14px.

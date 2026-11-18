@@ -2504,9 +2504,11 @@ dialog { position: fixed; }
 /* The page title and each first-level heading are set in a medium serif: 500 for the title and 600 for headings, the text colour, a step smaller than the sans sizes (a serif sets larger) */
 .preview-title, .preview-h:is(h2) { font-family: var(--font-serif); letter-spacing: 0; }   /* the colour is the brand navy set with the other headings (the text colour in dark mode) */
 .preview-title { font-size: 40px; line-height: 1.2; font-weight: 500; }
-.preview-h:is(h2) { font-size: 26px; line-height: 1.25; font-weight: 600; }
+.preview-h:is(h2) { font-size: 28px; line-height: 1.25; font-weight: 600; }
 
 /* Spacing around a first-level heading: a generous gap before it, so each section stands apart, and a short gap after its rule, including when
    a second-level heading follows straight away */
 .preview-h:is(h2) { margin-top: 48px; margin-bottom: 16px; }
 .preview-h:is(h2) + .preview-h:not(:is(h2)) { margin-top: 16px; }
+/* Second-level headings and below: 600, a step lighter than before */
+.preview-h:is(h3, h4, h5, h6) { font-weight: 600; }
