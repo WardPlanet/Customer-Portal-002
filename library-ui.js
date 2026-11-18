@@ -1441,6 +1441,7 @@
         }
       });
       switcher.appendChild(switchSelect);
+      switcher.appendChild(button('Create team', 'secondary-link', openCreateTeamDialog));
       box.appendChild(switcher);
     }
     if (!actorIsLead()) {
@@ -1563,6 +1564,181 @@
     /* ----- Replace person: one step instead of add, transfer and remove ----- */
     // The role keeps its title and all of its pages; only the person and email on it change. The new person is picked from the
     // directory, and Replace stays disabled until a match is picked.
+    /* ----- Admin: create a team, and move a person to another team ----- */
+    function adminDialog(title, hint) {
+      var d = el('dialog', 'draft-dialog transfer-dialog');
+      d.setAttribute('aria-label', title);
+      d.appendChild(el('h2', 'dialog-title', title));
+      if (hint) { d.appendChild(el('p', 'dialog-hint', hint)); }
+      d.addEventListener('close', function () { d.remove(); });
+      return d;
+    }
+    function adminField(labelText, control) {
+      var wrap = el('label', 'admin-label');
+      wrap.appendChild(el('span', '', labelText));
+      wrap.appendChild(control);
+      return wrap;
+    }
+    function textField(placeholder) {
+      var input = el('input', 'lib-search');
+      input.type = 'text';
+      input.placeholder = placeholder || '';
+      input.maxLength = 80;
+      return input;
+    }
+    function reopenAs(slug) {
+      if (window.Store.setDepartment(slug, true)) {
+        try { sessionStorage.setItem('pageEditor.reopenTeam', '1'); } catch (error) { /* the window is simply not reopened */ }
+        location.reload();
+      }
+    }
+
+    function openCreateTeamDialog() {
+      var d = adminDialog('Create a team', 'A team has its own people, pages and library. Its lead is invited and becomes the lead once they accept.');
+      var problem = el('p', 'dialog-hint is-error');
+      problem.setAttribute('role', 'alert');
+      problem.hidden = true;
+      var name = textField('For example Customer Success');
+      var places = textField('For example Help Center, Playbooks');
+      var leadTitle = textField('For example Customer Success Manager');
+      var go;
+      var leadPicker = directoryPicker('Search the company directory, or type a name', 'Lead', function () { problem.hidden = true; });
+      var leadEmail = textField('Their email address');
+      leadEmail.type = 'email';
+      d.appendChild(adminField('Team name', name));
+      d.appendChild(adminField('Places its pages live (separate with commas)', places));
+      d.appendChild(adminField('Lead job title', leadTitle));
+      var leadWrap = adminField('Lead', leadPicker.input);
+      d.appendChild(leadWrap);
+      d.appendChild(leadPicker.list);
+      d.appendChild(leadPicker.note);
+      d.appendChild(adminField('Lead email (filled in when you pick someone)', leadEmail));
+      d.appendChild(problem);
+      leadPicker.input.addEventListener('input', function () { if (leadPicker.chosen) { leadEmail.value = leadPicker.chosen.email || ''; } });
+      leadPicker.input.addEventListener('change', function () { if (leadPicker.chosen) { leadEmail.value = leadPicker.chosen.email || ''; } });
+      var actions = el('div', 'dialog-actions');
+      actions.appendChild(button('Cancel', 'secondary-link', function () { d.close(); }));
+      go = button('Create team', 'primary-btn', function () {
+        if (leadPicker.chosen && !leadEmail.value) { leadEmail.value = leadPicker.chosen.email || ''; }
+        var made;
+        try {
+          made = window.Store.admin.createTeam({ name: name.value, locations: places.value, icon: 'document', directPublish: 'lead', leadTitle: leadTitle.value, leadPerson: leadPicker.input.value, leadEmail: leadEmail.value });
+        } catch (error) {
+          problem.textContent = error && error.message ? error.message : 'That did not work.';
+          problem.hidden = false;
+          return;
+        }
+        d.close();
+        notice('Created ' + made.team.name + '. An invitation was written for ' + made.invitation.person + '.');
+        reopenAs(made.team.slug);
+      });
+      actions.appendChild(go);
+      d.appendChild(actions);
+      document.body.appendChild(d);
+      d.showModal();
+      name.focus();
+    }
+
+    // Moving a person to another team always asks what happens to their pages first: they go with the person, or someone on the
+    // team they are leaving takes them (the team lead, marked Default, or a person chosen by hand).
+    function openMoveDialog(role, count) {
+      var who = role.person || role.title;
+      var d = adminDialog('Move ' + who + ' to another team', count ? who + ' owns ' + count + (count === 1 ? ' page' : ' pages') + '. Choose what happens to ' + (count === 1 ? 'it' : 'them') + ' first.' : 'They own no pages.');
+      var problem = el('p', 'dialog-hint is-error');
+      problem.setAttribute('role', 'alert');
+      problem.hidden = true;
+      var go;
+      function ready() {
+        var pagesAnswered = !count || choice.value === 'keep' || (choice.value === 'hand' && handTo.value !== '');
+        go.disabled = !(toTeam.value && roleTitle.value.trim() && pagesAnswered);
+        problem.hidden = true;
+      }
+      var toTeam = el('select', 'acting-select');
+      var pick = el('option', '', 'Choose a team\u2026');
+      pick.value = '';
+      toTeam.appendChild(pick);
+      window.Store.teams().filter(function (other) { return other.slug !== team.slug; }).forEach(function (other) {
+        var option = el('option', '', other.name);
+        option.value = other.slug;
+        toTeam.appendChild(option);
+      });
+      toTeam.addEventListener('change', ready);
+      var roleTitle = textField('Their job title there');
+      roleTitle.value = role.title;
+      roleTitle.addEventListener('input', ready);
+      d.appendChild(adminField('Move to', toTeam));
+      d.appendChild(adminField('Job title in the new team', roleTitle));
+      var choice = { value: '' };
+      var handTo = { value: '' };
+      if (count) {
+        var group = el('div', 'move-pages');
+        group.setAttribute('role', 'radiogroup');
+        group.setAttribute('aria-label', 'Their pages');
+        var handSelect = el('select', 'acting-select');
+        handSelect.setAttribute('aria-label', 'Who takes their pages');
+        handSelect.disabled = true;
+        var leadEntry = W.leadEntry(team);
+        var handChoose = el('option', '', 'Choose a person\u2026');
+        handChoose.value = '';
+        handSelect.appendChild(handChoose);
+        var handLead = el('option', '', (leadEntry ? leadEntry.person + ' \u2014 ' + leadEntry.title : 'The team lead') + ' (Default)');
+        handLead.value = '__lead__';
+        handSelect.appendChild(handLead);
+        givablePeople().filter(function (other) { return W.keyFor(other) !== W.keyFor(role) && (!leadEntry || W.keyFor(other) !== W.keyFor(leadEntry)); }).forEach(function (other) {
+          var option = el('option', '', other.person + ' \u2014 ' + other.title);
+          option.value = W.keyFor(other);
+          handSelect.appendChild(option);
+        });
+        handSelect.addEventListener('change', function () { handTo.value = handSelect.value; ready(); });
+        function radio(value, text) {
+          var line = el('label', 'move-pages-row');
+          var input = el('input');
+          input.type = 'radio';
+          input.name = 'move-pages';
+          input.value = value;
+          input.addEventListener('change', function () {
+            choice.value = value;
+            handSelect.disabled = value !== 'hand';
+            if (value !== 'hand') { handSelect.value = ''; handTo.value = ''; }
+            ready();
+          });
+          line.appendChild(input);
+          line.appendChild(el('span', '', text));
+          return line;
+        }
+        group.appendChild(radio('keep', 'They keep their pages: the pages move to the new team with them'));
+        group.appendChild(radio('hand', 'Hand their pages to someone on ' + team.name + ' first'));
+        group.appendChild(handSelect);
+        d.appendChild(group);
+      }
+      d.appendChild(problem);
+      var actions = el('div', 'dialog-actions');
+      actions.appendChild(button('Cancel', 'secondary-link', function () { d.close(); }));
+      go = button('Move person', 'primary-btn', function () {
+        var result;
+        try {
+          result = window.Store.admin.movePerson({
+            fromTeam: team.slug, fromRole: role.title, toTeam: toTeam.value, newRole: roleTitle.value,
+            pages: choice.value === 'keep' ? 'keep' : 'hand', handTo: handTo.value && handTo.value !== '__lead__' ? handTo.value : ''
+          });
+        } catch (error) {
+          problem.textContent = error && error.message ? error.message : 'That did not work.';
+          problem.hidden = false;
+          return;
+        }
+        d.close();
+        var pagesLine = result.kept ? ' Their ' + result.kept + (result.kept === 1 ? ' page' : ' pages') + ' moved with them.' : result.handedOver ? ' Their ' + result.handedOver + (result.handedOver === 1 ? ' page' : ' pages') + ' stayed with ' + team.name + '.' : '';
+        notice('Moved ' + result.moved + ' to ' + result.toTeam + ' (' + result.toRole + ').' + pagesLine);
+        showTeam(box, dialog);
+      });
+      go.disabled = true;
+      actions.appendChild(go);
+      d.appendChild(actions);
+      document.body.appendChild(d);
+      d.showModal();
+      toTeam.focus();
+    }
+
     function openReplaceDialog(role, count) {
       var replaceDialog = el('dialog', 'draft-dialog replace-dialog');
       var heading = role.person ? 'Replace ' + role.person + ' as ' + role.title : 'Choose a person for ' + role.title;
@@ -1658,6 +1834,12 @@
       remove.title = role.title === team.lead ? 'Team leads can’t be removed. Assign a new team lead first.' : '';
       remove.setAttribute('aria-label', 'Remove ' + (role.person || role.title));
       buttons.appendChild(withTip(remove));
+      // Admin: a "..." menu with Move to another team (not for the team lead: make someone else the lead first)
+      if (actingAsAdmin() && window.Store.teams().length > 1 && role.person && role.title !== team.lead) {
+        buttons.appendChild(menuButton('\u22EF', 'row-btn', 'More actions for ' + role.person, [
+          { label: 'Move to another team\u2026', onClick: function () { openMoveDialog(role, count); } }
+        ]));
+      }
       actions.appendChild(buttons);
       row.appendChild(actions);
       tbody.appendChild(row);

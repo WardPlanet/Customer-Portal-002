@@ -98,3 +98,15 @@ test('only the team lead changes a page\'s visibility, on its live and in-progre
   assert.equal(W.setVisibility(page, 'Client-Safe', lou, team, t(3)), false);   // already so: nothing changes
   assert.throws(() => W.setVisibility(page, 'Everyone', lou, team, t(3)), (e) => e.code === 'bad_visibility');
 });
+
+test('only Admin moves a page to another team, which keeps its owner and takes the new team\'s place', () => {
+  const other = { name: 'Other', slug: 'other', lead: 'Boss', locations: ['Help Center'], roles: [{ title: 'Boss', person: 'Bo', email: 'bo@x.com' }] };
+  const page = W.createPage(team, draft('wanda@x.com'), wanda, t(1));
+  const admin = W.actorFor('Admin', team);
+  assert.throws(() => W.moveToTeam(page, other, lou, t(2)), (e) => e.code === 'not_admin');
+  assert.equal(W.moveToTeam(page, other, admin, t(2)), true);
+  assert.equal(page.team, 'other');
+  const f = W.fields(page.versions[0].text);
+  assert.equal(f.location, 'Help Center');
+  assert.equal(f.owner, 'wanda@x.com');
+});

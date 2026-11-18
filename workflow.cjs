@@ -936,6 +936,25 @@
     return changed;
   }
 
+  // Moves a page (its live and in-progress versions) to another team: it is now that team's page, and "where this lives" is that team's
+  // first place unless the page already names one of the new team's places. The owner stays the same person.
+  function moveToTeam(page, toTeam, actor, now) {
+    if (!actor || !actor.admin) { throw new WorkflowError('not_admin', 'Only Admin can move a page to another team.', 403); }
+    var places = (toTeam && toTeam.locations) || [];
+    currentVersions(page).forEach(function (version) {
+      var f = fields(version.text);
+      if (places.length && places.indexOf(f.location) < 0) {
+        version.text = removeSections(version.text, ['WHERE THIS LIVES']).replace(/\s*$/, '\n') + '\n[WHERE THIS LIVES]\n' + places[0] + '\n';
+      }
+      copyFields(version);
+      version.updatedAt = now;
+      version.updatedBy = actor.name;
+    });
+    page.team = toTeam.slug;
+    page.updatedAt = now;
+    return true;
+  }
+
   // Puts a different person in a roster entry (same job title). Every page that named the old person (as owner or linked) names the new one, so
   // pages follow. Returns { roles: the new list of people, pages: the pages that changed }; the caller saves both. Team lead only.
   function replacePerson(team, pages, roleTitle, next, actor, now) {
@@ -1163,6 +1182,7 @@
     replacePerson: replacePerson,
     setOwner: setOwner,
     setVisibility: setVisibility,
+    moveToTeam: moveToTeam,
     setVisibilityInText: setVisibilityInText,
     setOwnerInText: setOwnerInText,
     replacePersonInText: replacePersonInText,

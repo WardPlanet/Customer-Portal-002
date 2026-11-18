@@ -2450,3 +2450,10 @@ dialog { position: fixed; }
 .side-list-item > .pill { flex: none; margin-top: 1px; }
 
 .team-switcher { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+
+.team-switcher { flex-wrap: wrap; }
+.move-pages { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.move-pages-row { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; cursor: pointer; }
+.move-pages-row input { margin-top: 3px; }
+.transfer-dialog .admin-label { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; }
+.transfer-dialog .admin-label select { align-self: flex-start; }

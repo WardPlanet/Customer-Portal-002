@@ -709,7 +709,8 @@
 
   // When someone leaves a team (moved to another, or removed), the pages they own there go to the team lead as the default ("(Default)" on the
   // page), to be reassigned later. Must run BEFORE the roster changes, while the person can still be found. Returns how many pages moved.
-  function handOverPagesOf(teamSlug, roleTitle) {
+  // target (optional): the key of the person who takes them instead of the team lead; chosen by hand, so they are not marked Default.
+  function handOverPagesOf(teamSlug, roleTitle, target) {
     var W = window.Workflow;
     var team = window.TEAMS.filter(function (candidate) { return candidate.slug === teamSlug; })[0];
     var role = team && team.roles.filter(function (r) { return r.title === roleTitle; })[0];
@@ -719,8 +720,30 @@
     var admin = W.actorFor('Admin', team);
     var at = new Date().toISOString();
     var moved = 0;
+    var to = target || W.keyFor(lead);
     data.pages.forEach(function (page) {
-      if (page.team === teamSlug && W.reassignRole(page, role.email, W.keyFor(lead), admin, team, at, { asDefault: true })) { moved += 1; }
+      if (page.team === teamSlug && W.reassignRole(page, role.email, to, admin, team, at, { asDefault: !target })) { moved += 1; }
+    });
+    if (moved) { writeAll(data); }
+    return moved;
+  }
+
+  // The pages a person owns go with them to another team (the person is moving; the pages follow). Run BEFORE the roster changes. Returns how many.
+  function movePagesWithPerson(fromSlug, roleTitle, toSlug) {
+    var W = window.Workflow;
+    var from = window.TEAMS.filter(function (candidate) { return candidate.slug === fromSlug; })[0];
+    var to = window.TEAMS.filter(function (candidate) { return candidate.slug === toSlug; })[0];
+    var role = from && from.roles.filter(function (r) { return r.title === roleTitle; })[0];
+    if (!from || !to || !role || !role.email) { return 0; }
+    var key = W.resolveKey(from, W.keyFor(role));
+    var data = readAll();
+    var admin = W.actorFor('Admin', to);
+    var at = new Date().toISOString();
+    var moved = 0;
+    data.pages.forEach(function (page) {
+      if (page.team !== fromSlug) { return; }
+      var f = W.fields(page.versions[page.versions.length - 1].text);
+      if (f.owner && W.resolveKey(from, f.owner) === key && W.moveToTeam(page, to, admin, at)) { moved += 1; }
     });
     if (moved) { writeAll(data); }
     return moved;
@@ -822,9 +845,15 @@
       return this.wrap(function () {
         var directory = readDirectory();
         window.AdminCore.movePerson(JSON.parse(JSON.stringify(window.TEAMS)), input);   // refused here, before any page is touched, if it is not allowed
-        var handedOver = handOverPagesOf(input.fromTeam, input.fromRole);
+        // Their pages: either they go with them to the new team, or someone on the team they are leaving takes them first
+        // (the team lead, marked Default, when nobody is named)
+        var handedOver = 0;
+        var kept = 0;
+        if (input.pages === 'keep') { kept = movePagesWithPerson(input.fromTeam, input.fromRole, input.toTeam); }
+        else { handedOver = handOverPagesOf(input.fromTeam, input.fromRole, input.handTo || ''); }
         var result = window.AdminCore.movePerson(window.TEAMS, input);
         result.handedOver = handedOver;
+        result.kept = kept;
         window.TEAMS.forEach(function (team) { if (team.slug === input.fromTeam || team.slug === input.toTeam) { saveRosterOf(team); } });
         // An invitation still pending follows the person to their new role
         directory.invites.forEach(function (invite) {
