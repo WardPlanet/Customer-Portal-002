@@ -283,9 +283,7 @@
     };
     view.popular = async function () {
       var ids = await publicIds();
-      var found = await inner.popular();
-      found.pages = (found.pages || []).filter(function (item) { return ids[item.id]; });
-      return found;
+      return inner.popular(ids);
     };
     view.get = async function (id) { await requireOpen(id); return inner.get(id); };
     view.getVersion = async function (id, n) { await requireOpen(id); return inner.getVersion(id, n); };
@@ -424,8 +422,10 @@
       // How many times each page was opened in the last 30 days, for sorting results by "most opened"
       viewCounts: async function () { return { views: window.SearchLog.viewCounts(readJson(SEARCH_LOG_KEY, [])) }; },
       // The three most opened live pages for the landing page (newest ones when nothing has been opened yet)
-      popular: async function () {
-        var live = readAll().pages.filter(function (page) { return !!page.liveVersion; });
+      // only (optional): the ids of the pages that may be shown (the public view passes the Client-Safe ones, so the top three
+      // are the top three of those, not the top three overall with the internal ones then taken out)
+      popular: async function (only) {
+        var live = readAll().pages.filter(function (page) { return !!page.liveVersion && (!only || only[page.id]); });
         var events = readJson(SEARCH_LOG_KEY, []);
         var SL = window.SearchLog;
         var top = SL.topPages(events, live.map(function (page) { return { id: page.id, updatedAt: page.updatedAt }; }), { limit: 3 });
