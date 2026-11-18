@@ -3364,7 +3364,14 @@
       var ownerTeam = teamFor(detail.page.team) || team;
       var pageTitle = article.querySelector('.preview-title');
       if (pageTitle && ownerTeam && ownerTeam.name) {
-        var eyebrow = el('p', 'preview-eyebrow');
+        // A link: it opens the search page listing every document of this department
+        var eyebrow = link('', '#/public', 'preview-eyebrow');
+        eyebrow.title = 'All of ' + ownerTeam.name + '\u2019s pages';
+        eyebrow.addEventListener('click', function (event) {
+          event.preventDefault();
+          savedSearch = { q: '', y: 0, filters: { team: ownerTeam.slug }, fresh: true };
+          location.hash = '#/public';
+        });
         var eyebrowIcon = teamIcon({ team: ownerTeam.slug });
         if (eyebrowIcon) { eyebrow.appendChild(eyebrowIcon); }
         eyebrow.appendChild(el('span', '', ownerTeam.name));

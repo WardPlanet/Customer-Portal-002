@@ -2618,3 +2618,7 @@ body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 .byline-person { gap: 0 5px; }
 .byline-link { padding: 0 1px; }
 .byline-details { gap: 8px; }
+
+a.preview-eyebrow { text-decoration: none; color: var(--text-muted); width: fit-content; }
+a.preview-eyebrow:hover { color: var(--icon-blue); }
+a.preview-eyebrow:hover span:last-child { text-decoration: underline; }

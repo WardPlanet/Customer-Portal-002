@@ -1309,3 +1309,5 @@ The contacts are a one-line byline under the title: Priya Nair Tier 2 Specialist
 The contacts byline has a rule beneath it (like the title's), and its email and Teams icons are 18px, the same as the icons beside the related pages.
 
 One rule under the title block: the title's own rule is dropped when the contacts line follows, and the rule under that line stays. The visibility pill and "Updated N days ago" moved from the right column to the right end of the contacts line, so the right column holds only Related pages and On this page.
+
+The department name above a live page's title (the eyebrow) is a link: it opens the search page with the Team filter set to that department, listing all of its documents.
