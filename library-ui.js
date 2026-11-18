@@ -2784,27 +2784,16 @@
   // The sticky search box at the top of a live page. Typing shows page-title suggestions; Enter or a suggestion opens the search page with
   // that search already run (and counted as a new search).
   var DOC_SEARCH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
-  // The search box lives in the Wiki bar on a live page (between the links and the New page button) and the bar sticks to the top of
-  // the screen; every other screen has the bar as before.
+  // A live page's search box and "On this page" sit in a sticky column on the left. Nothing is left in the bar from an earlier page.
   function removeTopSearch() {
-    var old = document.querySelector('.lib-top .top-search');
-    if (old) { old.remove(); }
-    document.body.classList.remove('has-top-search');
-  }
-  function mountTopSearch() {
-    removeTopSearch();
-    var header = document.querySelector('.lib-top');
-    var right = header && header.querySelector('.top-right');
-    if (!header || !right) { return; }
-    header.insertBefore(buildDocSearchBar(), right);
-    document.body.classList.add('has-top-search');
+    main.classList.remove('has-rail');
   }
   function buildDocSearchBar() {
-    var bar = el('div', 'top-search');
+    var bar = el('div', 'rail-search');
     var wrap = el('div', 'suggest-wrap doc-search-wrap');
     var input = el('input', 'lib-search doc-search-input');
     input.type = 'search';
-    input.placeholder = 'Search by title or keyword';
+    input.placeholder = 'Search the wiki';
     input.setAttribute('aria-label', 'Search the wiki');
     input.setAttribute('autocomplete', 'off');
     var list = el('ul', 'suggest-list');
@@ -2848,7 +2837,7 @@
       else if (event.key === 'Escape') { close(); }
     });
     input.addEventListener('blur', close);
-    var magnifier = el('span', 'top-search-icon');
+    var magnifier = el('span', 'rail-search-icon');
     magnifier.innerHTML = DOC_SEARCH_ICON;   // fixed markup above
     wrap.appendChild(magnifier);
     wrap.appendChild(input);
@@ -3306,7 +3295,7 @@
     showScreen('library', true);
     main.textContent = '';
     // The back link follows where you came from: the batch import's results, the library, or the search page
-    mountTopSearch();   // the search box sits in the Wiki bar at the top of every live page, and the bar stays while the page scrolls
+    main.classList.add('has-rail');   // a live page has three columns: search and On this page, the article, then the details
     var backRow = el('div', 'back-row');
     var cameFromBatch = fromLibrary && /^#\/batch/.test(routeHistory.previous);
     backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));
@@ -3343,6 +3332,10 @@
     // "supportUrl"; until it is set the card says so). "View as the public" shows exactly that.
     async function draw(asPublic) {
       layout.textContent = '';
+      // Three columns: a sticky rail on the left (search, then On this page), the article, then the details on the right
+      var rail = el('aside', 'preview-rail');
+      rail.setAttribute('aria-label', 'Search and on this page');
+      layout.appendChild(rail);
       var article = renderPreview(asPublic ? W.publicText(data.text) : data.text, (fromLibrary ? '#/preview/' : '#/public/') + id);
       layout.appendChild(article);
       // An eyebrow above the title: the department's icon and name
@@ -3357,7 +3350,7 @@
       }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
-      side.setAttribute('aria-label', asPublic ? 'Support, related pages and on this page' : 'Contacts, related pages and on this page');
+      side.setAttribute('aria-label', asPublic ? 'Support and related pages' : 'Contacts and related pages');
       // The owner (contacts, or the support link in the public view) comes first and scrolls away with the page
       if (asPublic) {
         var support = el('section', 'side-card');
@@ -3381,18 +3374,12 @@
       var related = await relatedPages(id, W.fields(data.text), asPublic);
       if (mine !== routing) { return; }
       if (related) { side.appendChild(related); }
-      // "On this page" is last and follows you down the page. If it is taller than the window it scrolls inside its own
-      // box, so none of it is ever cut off.
-      var followBox = null;
+      // The search box and "On this page" are in the left rail, which stays on screen while the page scrolls (it scrolls inside itself if
+      // it is taller than the window)
+      rail.appendChild(buildDocSearchBar());
       var toc = renderOnThisPage(article);
-      if (toc) {
-        var follow = el('div', 'preview-follow');
-        follow.appendChild(toc);
-        side.appendChild(follow);
-        followBox = follow;
-      }
+      if (toc) { rail.appendChild(toc); }
       layout.appendChild(side);
-      if (followBox) { keepOnScreen(followBox); }   // once it is on the page, so its position can be measured
     }
 
     // The fixed bar along the bottom: Edit (the team lead and the page's owner), Export PDF and Copy link

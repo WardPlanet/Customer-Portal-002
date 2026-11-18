@@ -1288,7 +1288,7 @@ The text in a live page's table cells is the logo's dark blue (#000F60) in light
 
 Every icon (department icons, contact icons, the icon picker, the heading link icon, toolbar and bell, outline chevrons) uses `--icon-blue`: the light blue of the logo bars (#0069DC; a lighter blue in dark mode). Note and warning icons keep their orange and red because they carry meaning. The live-page table header is now the logo's dark blue (#000F60) with white text (a slightly lighter navy in dark mode).
 
-Every live page has its search box in the Wiki bar at the top (right-aligned, before the New page button; a magnifier in the logo blue inside the box, and the box widens from 320 to 460px when you click into it), and the bar sticks to the top of the screen there as the page scrolls (`mountTopSearch`, `buildDocSearchBar`). Typing shows up to six suggestions; Enter or choosing one opens the search page with that search already run and logged as a new search.
+A live page has three columns: a sticky left rail (the search box, then On this page), the article, and the details on the right (visibility and updated, Contacts with the team lead, Related pages). The rail stays on screen as the page scrolls (`.preview-rail`; the search is `buildDocSearchBar`). Below 1100px the rail sits above the article, and below 860px the right column drops under it. Typing shows up to six suggestions; Enter or choosing one opens the search page with that search already run and logged as a new search.
 
 Links and logo colours: plain links (related pages, contacts, links inside a page) are the light blue of the logo (`--icon-blue`); the link icon beside a heading is a quiet grey until the heading is hovered or the section is linked to; the icons beside those links (the department icon before a related page, the envelope and speech bubble in Contacts) are the logo's dark blue. The "Wiki" mark in the bar is back to how it was.
 
@@ -1299,3 +1299,5 @@ The pale sky blue (#D3E6F5) is also the landing tile background (hover #C7DDF1) 
 A live page has an eyebrow above its title: the department's icon and name in the label style (for example the support icon and SUPPORT). It follows the department's name and icon, so Manage team changes show there.
 
 Contacts is one card again: the owner and linked people, then the team lead below a divider with a small TEAM LEAD label (this replaces the separate Team Lead box). The role under each name is regular weight, grey, in sentence case.
+
+Live pages: the search box moved out of the Wiki bar into the left rail with On this page.
