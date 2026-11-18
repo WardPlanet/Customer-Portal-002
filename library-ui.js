@@ -3344,6 +3344,16 @@
       layout.textContent = '';
       var article = renderPreview(asPublic ? W.publicText(data.text) : data.text, (fromLibrary ? '#/preview/' : '#/public/') + id);
       layout.appendChild(article);
+      // An eyebrow above the title: the department's icon and name
+      var ownerTeam = teamFor(detail.page.team) || team;
+      var pageTitle = article.querySelector('.preview-title');
+      if (pageTitle && ownerTeam && ownerTeam.name) {
+        var eyebrow = el('p', 'preview-eyebrow');
+        var eyebrowIcon = teamIcon({ team: ownerTeam.slug });
+        if (eyebrowIcon) { eyebrow.appendChild(eyebrowIcon); }
+        eyebrow.appendChild(el('span', '', ownerTeam.name));
+        pageTitle.parentNode.insertBefore(eyebrow, pageTitle);
+      }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
       side.setAttribute('aria-label', asPublic ? 'Support, related pages and on this page' : 'Contacts, related pages and on this page');

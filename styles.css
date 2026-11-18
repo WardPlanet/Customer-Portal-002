@@ -2576,3 +2576,8 @@ body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 .side-list-item .team-icon, .contact-icon { color: #000F60; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .side-list-item .team-icon, :root:not([data-theme="light"]) .contact-icon { color: var(--text); } }
 :root[data-theme="dark"] .side-list-item .team-icon, :root[data-theme="dark"] .contact-icon { color: var(--text); }
+
+/* Above the page title: the department's icon and name, in the label style */
+.preview-eyebrow { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.preview-eyebrow .team-icon { width: 18px; height: 18px; }
+.preview-eyebrow .team-icon svg { width: 18px; height: 18px; }

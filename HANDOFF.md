@@ -1295,3 +1295,5 @@ Links and logo colours: plain links (related pages, contacts, links inside a pag
 Third brand colour: the pale sky blue #D3E6F5 (`--brand-tint`). It is now the soft blue fill (`--accent-soft`): selected chips, the Back link, selected rows. Dark mode is unchanged. Other places it could go if wanted: the highlighted-section tint, landing tiles, banners.
 
 The pale sky blue (#D3E6F5) is also the landing tile background (hover #C7DDF1) and, through `--accent-soft`, the info banners. The highlighted section keeps its original pale yellow.
+
+A live page has an eyebrow above its title: the department's icon and name in the label style (for example the support icon and SUPPORT). It follows the department's name and icon, so Manage team changes show there.
