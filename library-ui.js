@@ -3026,18 +3026,19 @@
       }
       return card;
     }
+    // One Contacts card: the owner and the linked people, then the team lead (marked "Team lead") below a divider
     var boxes = [];
-    if (wanted.length) {
+    if (wanted.length || (lead && lead.person)) {
       var box = el('section', 'side-card');
       box.appendChild(el('h2', 'side-title', 'Contacts'));
       wanted.forEach(function (item) { box.appendChild(contactCard(item.entry, item.isDefault)); });
+      if (lead && lead.person) {
+        var leadCard = contactCard(lead, false);
+        leadCard.classList.add('is-lead');
+        leadCard.insertBefore(el('span', 'preview-contact-kicker', 'Team lead'), leadCard.firstChild);
+        box.appendChild(leadCard);
+      }
       boxes.push(box);
-    }
-    if (lead && lead.person) {
-      var leadBox = el('section', 'side-card');
-      leadBox.appendChild(el('h2', 'side-title', 'Team Lead'));
-      leadBox.appendChild(contactCard(lead, false));
-      boxes.push(leadBox);
     }
     return boxes;
   }

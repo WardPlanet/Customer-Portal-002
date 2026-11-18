@@ -1297,3 +1297,5 @@ Third brand colour: the pale sky blue #D3E6F5 (`--brand-tint`). It is now the so
 The pale sky blue (#D3E6F5) is also the landing tile background (hover #C7DDF1) and, through `--accent-soft`, the info banners. The highlighted section keeps its original pale yellow.
 
 A live page has an eyebrow above its title: the department's icon and name in the label style (for example the support icon and SUPPORT). It follows the department's name and icon, so Manage team changes show there.
+
+Contacts is one card again: the owner and linked people, then the team lead below a divider with a small TEAM LEAD label (this replaces the separate Team Lead box). The role under each name is regular weight, grey, in sentence case.
