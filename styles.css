@@ -2781,3 +2781,6 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 
 .lib-expiry-bar.is-review { background: var(--live-bg); border-color: var(--live-border); color: var(--live-ink); }
 .lib-expiry-bar.is-review .caution-icon { color: var(--live-ink); }
+
+.lib-row.is-waiting:not(.is-expired):not(.is-expiring) td { background: var(--live-bg); }
+.lib-row.is-selected td { background: var(--accent-soft); }

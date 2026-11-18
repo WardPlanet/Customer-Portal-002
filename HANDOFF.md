@@ -1373,3 +1373,5 @@ Library rows: "Review" is the main (filled blue) button, ahead of Edit, for an e
 ## Review flow in the library
 - **Team lead / Admin:** no sticky list. A green bar under the search says "N pages are waiting for your review" with "Show them" (status filter "Waiting for review"), like the yellow (expiring soon) and red (expired) bars. It replaces the old blue "Waiting for your approval" panel (`renderQueue` is no longer called). The row's main button is a green **Review** before **Edit**; **Publish** now lives in the "..." menu.
 - **Anyone else:** their own drafts still stick to the top in grey. After **Submit** the row is locked: no Edit or Submit, a "In Review" lock label instead, and "Withdraw from review" in the "..." menu until the lead approves it or sends it back.
+
+Pages waiting for the lead's review also get a light green row (red/yellow expiry colours win when both apply). The lead's Review button shows for any page in review (also pages whose state is in_review or a live page with an edit in review).

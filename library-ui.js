@@ -684,7 +684,7 @@
   // A person who is not the team lead or Admin sees their own drafts first, until they search or choose a column to sort by
   function draftsStickToTop() { return !actorIsLead() && !actingAsAdmin() && !libraryFilters.q && !libraryFilters.sortChosen; }
   function isOwnDraft(p) { return p.state === 'draft' || p.state === 'sent_back'; }
-  function isWaitingForReview(p) { return !!(p.workingVersion && p.workingVersion.status === 'submitted'); }
+  function isWaitingForReview(p) { return !!(p.workingVersion && p.workingVersion.status === 'submitted') || p.state === 'in_review' || p.state === 'live_edit_in_review'; }
   function sortRows(rows) {
     var sorted = sortRowsBy(rows);
     if (!draftsStickToTop()) { return sorted; }
@@ -1015,6 +1015,7 @@
       var row = el('tr', 'lib-row');
       var expiry = expiryOf(p);
       if (draftsStickToTop() && isOwnDraft(p)) { row.classList.add('is-draft'); }   // light grey
+      if (reviewsFirstBar() && isWaitingForReview(p)) { row.classList.add('is-waiting'); }   // light green, for the lead
       if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // light yellow; red once expired
       if (canBulk) {
         var tickCell = el('td', 'lib-select-cell');
@@ -1148,7 +1149,7 @@
         });
         editButton.setAttribute('aria-label', 'Edit ' + p.title);
         // Review is the main button for an expired page, and for a page just submitted (the team lead's to approve or send back)
-        var submittedForLead = lead && p.workingVersion && p.workingVersion.status === 'submitted';
+        var submittedForLead = lead && p.workingVersion && isWaitingForReview(p);
         if (submittedForLead || (expiry && expiry.expired)) {
           var reviewButton = button('Review', 'row-btn row-btn-main', function () {
             location.hash = submittedForLead ? '#/view/' + p.id + '/' + p.workingVersion.n : previewUrl(p.id);
