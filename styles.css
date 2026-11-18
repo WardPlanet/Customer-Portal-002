@@ -2588,8 +2588,5 @@ dialog { position: fixed; }
 .preview-contact-kicker { display: block; margin: 0 0 2px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
 .preview-contact.is-lead { border-top: 1px solid var(--border); }
 
-/* On a live page the Library link lives at the top of the left rail, not in the bar */
-body.has-doc-rail #nav-library { display: none; }
-.rail-library { display: flex; align-items: center; gap: 8px; padding: 2px 4px; font-weight: 600; font-size: 14px; text-decoration: none; color: var(--text); }
-.rail-library:hover { color: var(--icon-blue); }
-.rail-library-icon { display: inline-grid; color: var(--icon-blue); }
+.preview-rail .back-row { margin: 0; }
+.preview-rail .back-link { margin-bottom: 0; }

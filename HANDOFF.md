@@ -1302,4 +1302,4 @@ Contacts is one card again: the owner and linked people, then the team lead belo
 
 Live pages: the search box moved out of the Wiki bar into the left rail with On this page.
 
-Live pages: the staff/public view toggle ("View as the public") is gone, and the Library link moved from the Wiki bar into the top of the left rail (staff only; the bar keeps Search review and Admin tools).
+Live pages: the staff/public view toggle ("View as the public") is gone, and the back button (Back to library, Back to search or Back to batch import, whichever way you came) moved into the top of the left rail; the Wiki bar keeps its Library link.
