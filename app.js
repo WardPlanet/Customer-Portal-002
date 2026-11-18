@@ -3765,7 +3765,7 @@
           {
             convertImage: window.mammoth.images.imgElement(function () { return Promise.resolve({ src: 'image' }); }),
             // Word's "Title" style is the document's own title. Without this it comes through as plain text and the first heading is taken as the title.
-            styleMap: ["p[style-name='Title'] => h1:fresh"]
+            styleMap: ["p[style-name='Title'] => h1.doc-title:fresh"]
           }
         );
       } catch (error) {

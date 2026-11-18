@@ -54,7 +54,7 @@ async function wordToHtml(buffer) {
     {
       convertImage: mammoth.images.imgElement(function () { return Promise.resolve({ src: 'image' }); }),
       // Word's "Title" style is the document's own title, not body text
-      styleMap: ["p[style-name='Title'] => h1:fresh"]
+      styleMap: ["p[style-name='Title'] => h1.doc-title:fresh"]
     }
   );
   var imageCount = 0;

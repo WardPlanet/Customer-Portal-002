@@ -35,9 +35,67 @@
         : node.textContent.replace(/\s+/g, ' ').trim();
       if (!text) { return; }
       var tag = /^H[1-6]$/.test(name) ? name : (name === 'UL' || name === 'OL') ? 'LIST' : name === 'TABLE' ? 'TABLE' : 'P';
-      segments.push({ tag: tag, text: text, html: node.outerHTML });
+      var segment = { tag: tag, text: text, html: node.outerHTML };
+      if (node.classList && node.classList.contains('doc-title')) { segment.isTitle = true; }   // Word's Title style
+      segments.push(segment);
     });
     return segments;
+  }
+
+  // The same text with **bold** and [links](address) marked, which is how a page writes them
+  function inlineMarkup(node) {
+    var out = '';
+    Array.prototype.forEach.call(node.childNodes, function (child) {
+      if (child.nodeType === 3) { out += child.nodeValue.replace(/[*_`\\[\]<>]/g, function (ch) { return '\\' + ch; }); return; }
+      if (child.nodeType !== 1) { return; }
+      var name = child.nodeName;
+      if (name === 'UL' || name === 'OL') { return; }   // a list inside a list item is a line of its own
+      if (name === 'BR') { out += ' '; return; }
+      var inner = inlineMarkup(child);
+      if (!inner.trim()) { out += inner; return; }
+      if (name === 'STRONG' || name === 'B') { out += '**' + inner.trim() + '**' + (/\s$/.test(inner) ? ' ' : ''); }
+      else if (name === 'A' && /^https?:\/\//i.test(child.getAttribute('href') || '')) { out += '[' + inner.replace(/[\[\]]/g, '') + '](' + child.getAttribute('href') + ')'; }
+      else { out += inner; }
+    });
+    return out;
+  }
+
+  // Segments -> lines for laying a document out (see BatchCore). One line per heading, paragraph, list item (nested ones included) or table.
+  function linesFromSegments(segments) {
+    var lines = [];
+    function add(tag, node, depth) {
+      var text = node.textContent.replace(/\s+/g, ' ').trim();
+      if (!text) { return; }
+      var md = inlineMarkup(node).replace(/\s+/g, ' ').trim();
+      var strong = Array.prototype.every.call(node.childNodes, function (child) {
+        return child.nodeType === 3 ? !child.nodeValue.trim() : (child.nodeType === 1 && (/^(STRONG|B)$/.test(child.nodeName) || child.nodeName === 'UL' || child.nodeName === 'OL' || !child.textContent.trim()));
+      });
+      lines.push({ tag: tag, text: text, md: md, bold: strong && tag === 'P', depth: depth || 0 });
+    }
+    function walkList(list, depth) {
+      var ordered = list.nodeName === 'OL';
+      Array.prototype.forEach.call(list.children, function (item) {
+        if (item.nodeName !== 'LI') { return; }
+        add(ordered ? 'OLI' : 'LI', item, depth);
+        Array.prototype.forEach.call(item.children, function (inner) { if (inner.nodeName === 'UL' || inner.nodeName === 'OL') { walkList(inner, depth + 1); } });
+      });
+    }
+    segments.forEach(function (segment) {
+      var holder = new DOMParser().parseFromString('<div>' + segment.html + '</div>', 'text/html').body.firstChild;
+      var node = holder.firstElementChild;
+      if (!node) { return; }
+      var name = node.nodeName;
+      if (name === 'UL' || name === 'OL') { walkList(node, 0); }
+      else if (name === 'TABLE') {
+        var rows = Array.prototype.map.call(node.querySelectorAll('tr'), function (tr) {
+          return Array.prototype.map.call(tr.children, function (cell) { return cell.textContent.replace(/\s+/g, ' ').trim(); });
+        }).filter(function (row) { return row.length; });
+        lines.push({ tag: 'TABLE', text: segment.text, md: segment.text, bold: false, depth: 0, rows: rows });
+      } else if (segment.isTitle) { add('TITLE', node, 0); }
+      else if (/^H[1-6]$/.test(name)) { add(name, node, 0); }
+      else { add('P', node, 0); }
+    });
+    return lines;
   }
 
   // Plain text or Markdown -> pieces: "# Heading" lines, blank-line-separated paragraphs, "- " and "1. " lists
@@ -504,8 +562,11 @@
           if (!read.segments.length) { throw plainError(files[i].name + ' has no text.'); }
           var first = segments.length + 1;
           read.segments.forEach(function (piece) { segments.push(piece); });
-          var heading = read.segments.filter(function (piece) { return /^H[1-6]$/.test(piece.tag); })[0];
-          documents.push({ title: (heading ? heading.text : files[i].name.replace(/\.[^.]+$/, '')).slice(0, 150), first: first, last: segments.length, fileName: files[i].name });
+          // The title is the document's own: found from the whole file (Word's Title style, else a first line that reads like a title), else the file name
+          var fileLines = linesFromSegments(read.segments);
+          var fileLabels = Core.labelByRules(fileLines);
+          var titleLine = fileLines.filter(function (line, n) { return fileLabels[n].role === 'title'; })[0];
+          documents.push({ title: (titleLine ? titleLine.text : files[i].name.replace(/\.[^.]+$/, '')).slice(0, 150), first: first, last: segments.length, fileName: files[i].name });
           images += read.images;
           setMark(marks[i], 'done');
         } catch (error) {
@@ -518,7 +579,7 @@
       if (!documents.length) { stepChoose('None of those files could be read. ' + notes.join(' ')); return; }
       session = { fileName: files.length === 1 ? files[0].name : files.length + ' files', segments: segments, imageCount: images, plan: { documents: documents, skipped: [], problems: [] }, notes: [files.length === 1 ? 'This file is imported as one document.' : 'Each file is treated as one separate document.'].concat(notes), multiFile: true, edited: {} };
       session.aiOk = await window.PageEditor.aiAvailable();
-      if (!session.aiOk) { session.notes.push('The AI is not available, so the drafts cannot be created here.'); }
+      if (!session.aiOk) { session.notes.push('The AI is not available, so the layout is worked out by rules alone.'); }
       var pages = await ui.backend().list('').catch(function () { return { pages: [] }; });
       existingTitles = {};
       pages.pages.forEach(function (p) { existingTitles[p.title.toLowerCase()] = true; });
@@ -689,8 +750,7 @@
         }
         create_();
       });
-      if (!count || !session.aiOk) { create.disabled = true; }
-      if (!session.aiOk) { create.title = 'Creating pages needs the AI, which is not available here'; }
+      if (!count) { create.disabled = true; }
       bar.appendChild(create);
       if (!session.multiFile) { bar.appendChild(ui.button('Check for documents again', 'secondary-link', scan)); }
       bar.appendChild(ui.button('Start over with another file', 'quiet-link', function () { session = null; stepChoose(); }));
@@ -698,7 +758,7 @@
         var problem = el('span', 'batch-problem', missingText);
         problem.setAttribute('role', 'alert');
         bar.appendChild(problem);
-      } else if (count) { bar.appendChild(el('span', 'lib-hint', 'Uses about ' + count + ' AI request' + (count === 1 ? '' : 's') + ' and takes a minute or so each.')); }
+      } else if (count) { bar.appendChild(el('span', 'lib-hint', 'Uses ' + count + ' short AI request' + (count === 1 ? '' : 's') + ' to read the layout. The text is copied, never rewritten.')); }
       root.appendChild(bar);
     }
 
@@ -830,29 +890,28 @@
     // Converts one document and saves it as a draft. One retry if the AI says it is busy.
     async function createOne(job) {
       var doc = job.doc;
-      var html = Core.joinHtml(session.segments, doc.first, doc.last);
-      var origin = doc.fileName || session.fileName;
-      var base = (origin.replace(/\.[^.]+$/, '') || 'file') + (doc.fileName ? '' : ' part ' + job.number);
-      var file = new File([html], base + '.html', { type: 'text/html' });
-      var result;
-      try {
-        result = await window.PageEditor.convert(file);
-      } catch (error) {
-        if (error && error.code === 'rate_limited') {
-          await new Promise(function (resolve) { setTimeout(resolve, 8000); });
-          result = await window.PageEditor.convert(file);
-        } else { throw error; }
+      // The AI labels the lines (title, headings and their levels, lists, notes); this code builds the page by copying each line's own text.
+      // Nothing is reworded, and with no AI the same labels come from rules that read the whole document.
+      var lines = linesFromSegments(session.segments.slice(doc.first - 1, doc.last));
+      var labels = Core.labelByRules(lines);
+      var aiNote = '';
+      if (session.aiOk) {
+        try {
+          var raw = await window.PageEditor.aiJson(Core.buildLabelPrompt(lines));
+          labels = Core.mergeLabels(labels, Core.normalizeLabels(raw, lines.length), lines);
+        } catch (error) {
+          aiNote = 'The AI could not read the layout (' + window.PageEditor.errorMessage(error) + '), so rules were used.';
+        }
       }
+      var result = Core.buildPage(lines, labels, { title: doc.edited ? doc.title : (doc.title || '') });
+      if (aiNote) { result.review_notes.push(aiNote); }
       var source = doc.fileName ? doc.fileName : session.fileName + ' (document ' + job.number + ' of ' + job.of + ')';
       result.source = source;
-      // The title is the document's own (its first heading, or the file name, or what you typed). The AI never gets to change it.
-      if (String(doc.title || '').trim()) { result.title = String(doc.title).trim(); }
+      if (!String(result.title || '').trim()) { result.title = String(doc.title || '').trim(); }
       var ownerTeam = ui.teamOfOwner ? ui.teamOfOwner(ownerFor(doc)) : null;   // admin: the draft belongs to its owner's department
       var text = window.PageEditor.draftTextFromResult(result, { owner: ownerFor(doc), visibility: session.visibility, source: source, teamName: ownerTeam ? ownerTeam.name : '' });
       var notes = [];
       notes = notes.concat(result.review_notes);
-      // A check on the AI: any text on the page that cannot be found in the source is flagged, so a changed word never goes unseen
-      notes = notes.concat(Core.changedWording(result, session.segments.slice(doc.first - 1, doc.last)));
       if (session.imageCount) { notes.push('Images in the original file were not imported.'); }
       var note = ('Imported from ' + source + '.' + (notes.length ? ' Check: ' + notes.join(' • ') : '')).slice(0, 2000);
       var created = await ui.backend().create(text, note, ownerTeam ? ownerTeam.slug : '');

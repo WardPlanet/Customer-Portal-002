@@ -105,3 +105,46 @@ test('changedWording flags text that is not in the source and ignores formatting
   const reworded = { blocks: [{ type: 'header', text: 'Simplicity of use today' }, { type: 'paragraph', text: 'Please contact your manager before anything else.' }] };
   assert.equal(B.changedWording(reworded, segments).length, 2);
 });
+
+// Laying a document out: labels in, page out, every word copied from the lines
+const L = (tag, text, extra) => Object.assign({ tag, text, md: text, bold: false, depth: 0 }, extra || {});
+
+test('rules: a bold first line is the title, bold short lines are headings, hand-typed bullets become a list, skipped levels are closed up', () => {
+  const lines = [
+    L('P', 'Domain Policy', { bold: true }),
+    L('H2', 'Purpose'), L('P', 'This policy explains how domains are managed for every client we have.'),
+    L('H4', 'Domain Ownership'), L('P', '• Clients buy their own domain.'), L('P', '• We never sell domains.'),
+    L('P', 'Renewal', { bold: true }), L('P', 'Domains renew every year.')
+  ];
+  const labels = B.labelByRules(lines);
+  const page = B.buildPage(lines, labels, {});
+  assert.equal(page.title, 'Domain Policy');
+  assert.deepEqual(page.blocks.filter((b) => b.type === 'header').map((b) => [b.level, b.text]), [[1, 'Purpose'], [2, 'Domain Ownership'], [3, 'Renewal']]);
+  assert.deepEqual(page.blocks.filter((b) => b.type === 'paragraph').map((b) => b.text)[1], '- Clients buy their own domain.\n- We never sell domains.');
+  assert.ok(page.review_notes.some((n) => /typed by hand/.test(n)));
+  assert.ok(page.review_notes.some((n) => /looked like headings/.test(n)));
+});
+
+test('rules: hand-typed numbers keep their number, numbered items become steps, nested items go into the step', () => {
+  const lines = [
+    L('TITLE', 'How to'), L('P', '3) Open the page.'), L('P', '4) Select **Save**.', { md: '4) Select **Save**.' }),
+    L('OLI', 'Ask the client.'), L('LI', 'Gmail only.', { depth: 1 })
+  ];
+  const page = B.buildPage(lines, B.labelByRules(lines), {});
+  const steps = page.blocks.filter((b) => b.type === 'step');
+  assert.deepEqual(steps.map((s) => s.number), [3, 4, 5]);
+  assert.equal(steps[0].title, 'Open the page.');
+  assert.equal(steps[2].text, '- Gmail only.');
+});
+
+test('AI labels: only valid ones are used, tables and Word titles are protected, and no text is ever the AI\'s', () => {
+  const lines = [L('TITLE', 'Real title'), L('P', 'Intro line here that is long enough to be a sentence.'), L('TABLE', 'a b', { rows: [['a', 'b']] }), L('H1', 'Part')];
+  const rules = B.labelByRules(lines);
+  const ai = B.normalizeLabels({ labels: [{ n: 1, role: 'paragraph' }, { n: 3, role: 'heading', level: 1 }, { n: 4, role: 'heading', level: 3 }, { n: 99, role: 'heading' }, { n: 2, role: 'nonsense' }] }, lines.length);
+  const merged = B.mergeLabels(rules, ai, lines);
+  assert.equal(merged[0].role, 'title');
+  assert.equal(merged[2].role, 'table');
+  const page = B.buildPage(lines, merged, {});
+  assert.equal(page.title, 'Real title');
+  assert.equal(page.blocks.find((b) => b.type === 'header').level, 1);
+});
