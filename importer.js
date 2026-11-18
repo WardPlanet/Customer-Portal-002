@@ -51,7 +51,11 @@ function extensionOf(filename) {
 async function wordToHtml(buffer) {
   var result = await mammoth.convertToHtml(
     { buffer: buffer },
-    { convertImage: mammoth.images.imgElement(function () { return Promise.resolve({ src: 'image' }); }) }
+    {
+      convertImage: mammoth.images.imgElement(function () { return Promise.resolve({ src: 'image' }); }),
+      // Word's "Title" style is the document's own title, not body text
+      styleMap: ["p[style-name='Title'] => h1:fresh"]
+    }
   );
   var imageCount = 0;
   var html = result.value.replace(/<img[^>]*>/g, function () {

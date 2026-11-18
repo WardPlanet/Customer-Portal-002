@@ -1346,3 +1346,5 @@ The owner pickers are now "Choose owner" buttons that open a searchable list. Ad
 
 ## Import: heading hierarchy is judged, not trusted
 The AI no longer assumes the source's headings are right. It reads the whole document, decides the heading levels itself (layout only, never wording) and gets outlines of up to four existing live pages (this team's first; `layoutExamples()` in app.js, cached 5 minutes) so it follows the wiki's habits. It adds one flagged point when its levels differ from the source. The Node server's import (`importer.js`) gets the new guideline text but not the example outlines yet.
+
+Word "Title" style paragraphs now import as the document title (mammoth styleMap in app.js and importer.js). Before, the Title line came through as plain text and the first heading ("Search Functionality") became the page title.

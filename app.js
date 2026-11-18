@@ -3762,7 +3762,11 @@
       try {
         result = await window.mammoth.convertToHtml(
           { arrayBuffer: await file.arrayBuffer() },
-          { convertImage: window.mammoth.images.imgElement(function () { return Promise.resolve({ src: 'image' }); }) }
+          {
+            convertImage: window.mammoth.images.imgElement(function () { return Promise.resolve({ src: 'image' }); }),
+            // Word's "Title" style is the document's own title. Without this it comes through as plain text and the first heading is taken as the title.
+            styleMap: ["p[style-name='Title'] => h1:fresh"]
+          }
         );
       } catch (error) {
         throw importProblem('That Word file could not be read. Is it a real .docx?');
