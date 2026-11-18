@@ -2740,3 +2740,23 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .preview-flag-choices .row-btn[aria-pressed="true"]:first-child { background: var(--icon-blue); }
 .preview-flag.is-denied { border-color: var(--danger, #B42318); background: var(--surface-muted); }
 .preview-flag-choices .row-btn[aria-pressed="true"]:last-child { background: var(--danger, #B42318); }
+
+/* Library rows: a person's own drafts are light grey and stay on top; a page close to expiring is light yellow with a caution triangle */
+.lib-row.is-draft td { background: var(--draft-tint); }
+.lib-row.is-expiring td { background: var(--caution-tint); }
+.lib-row.is-selected td { background: var(--accent-soft); }
+.caution-icon { display: inline-grid; place-items: center; margin-right: 6px; color: var(--caution); vertical-align: -3px; }
+.lib-when { display: flex; align-items: center; }
+.expiry-line { color: var(--warn-ink); font-weight: 600; }
+.lib-expiry-bar { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; padding: 8px 16px; background: var(--caution-tint); border: 1px solid var(--warn-border); border-radius: 8px; color: var(--warn-ink); font-size: 14px; font-weight: 600; }
+.lib-expiry-bar[hidden] { display: none; }
+.lib-expiry-text { flex: 1; }
+.notify-item .caution-icon { margin-right: 6px; }
+
+:root { --caution-tint: #FFF4CC; --caution: #E0A800; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --caution-tint: #2f2a10; --caution: #f2c230; } }
+:root[data-theme="dark"] { --caution-tint: #2f2a10; --caution: #f2c230; }
+
+:root { --draft-tint: #ECEDF0; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --draft-tint: #2b2d34; } }
+:root[data-theme="dark"] { --draft-tint: #2b2d34; }

@@ -282,6 +282,20 @@
     return { overdue: true, days: -left, text: 'Needs review \u00B7 ' + plural(-left, 'day') + ' overdue' };
   }
 
+  // When a live page runs out: REVIEW_DAYS after it was last updated. From EXPIRY_WARNING_DAYS before that day the page is "expiring soon".
+  // { soon, expired, days, text } or null when there is no date.   "Expires in 12 days" / "Expires today" / "Expired 3 days ago"
+  var EXPIRY_WARNING_DAYS = 15;
+  function expiryStatus(iso, now) {
+    var then = Date.parse(iso);
+    if (isNaN(then)) { return null; }
+    var age = Math.floor(((now === undefined ? Date.now() : now) - then) / DAY_MS);
+    var left = REVIEW_DAYS - age;
+    var soon = left <= EXPIRY_WARNING_DAYS;
+    if (left > 0) { return { soon: soon, expired: false, days: left, text: 'Expires in ' + plural(left, 'day') }; }
+    if (left === 0) { return { soon: true, expired: false, days: 0, text: 'Expires today' }; }
+    return { soon: true, expired: true, days: -left, text: 'Expired ' + plural(-left, 'day') + ' ago' };
+  }
+
   /* ---------- People ---------- */
 
   // The roles a person holds today, from the team roster
@@ -1186,6 +1200,8 @@
     relativeTime: relativeTime,
     daysAgo: daysAgo,
     reviewStatus: reviewStatus,
+    expiryStatus: expiryStatus,
+    EXPIRY_WARNING_DAYS: EXPIRY_WARNING_DAYS,
     PHOTO_SIZES: PHOTO_SIZES,
     photoFromSections: photoFromSections,
     photoToSections: photoToSections,

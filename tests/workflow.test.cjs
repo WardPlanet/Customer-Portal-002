@@ -496,3 +496,18 @@ test('a role whose person has not accepted an invitation cannot be given pages, 
   assert.equal(kept[1].status, 'invited');
   assert.equal(kept[0].status, undefined);
 });
+
+test('expiryStatus: warns from 15 days before a live page runs out and says how long is left', () => {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.parse('2026-06-01T12:00:00Z');
+  const at = (age) => new Date(now - age * day).toISOString();
+  assert.deepEqual(W.expiryStatus(at(100), now).soon, false);
+  const near = W.expiryStatus(at(180 - 12), now);
+  assert.equal(near.soon, true);
+  assert.equal(near.text, 'Expires in 12 days');
+  assert.equal(W.expiryStatus(at(180), now).text, 'Expires today');
+  const gone = W.expiryStatus(at(183), now);
+  assert.equal(gone.expired, true);
+  assert.equal(gone.text, 'Expired 3 days ago');
+  assert.equal(W.expiryStatus('not a date', now), null);
+});

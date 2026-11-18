@@ -294,6 +294,15 @@
      review it. (Email notifications come later, once the company's mail account is set up; the server already writes each
      one to an "outbox" folder so the text is ready.) */
   var notifyTimer = null;
+  // A yellow caution triangle, for a page that is close to expiring
+  var CAUTION_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
+  function cautionIcon() {
+    var icon = el('span', 'caution-icon');
+    icon.setAttribute('role', 'img');
+    icon.setAttribute('aria-label', 'Expiring soon');
+    icon.innerHTML = CAUTION_SVG;   // fixed markup above
+    return icon;
+  }
   var BELL_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>';
 
   function closeNotifyPops() {
@@ -301,19 +310,21 @@
     Array.prototype.forEach.call(document.querySelectorAll('.bell'), function (b) { b.setAttribute('aria-expanded', 'false'); });
   }
 
-  function renderBell(slot, waiting) {
+  function renderBell(slot, waiting, expiring) {
+    expiring = expiring || [];
+    var total = waiting.length + expiring.length;
     slot.textContent = '';
     var bell = el('button', 'bell');
     bell.type = 'button';
     bell.setAttribute('aria-haspopup', 'true');
     bell.setAttribute('aria-expanded', 'false');
-    bell.setAttribute('aria-label', waiting.length ? waiting.length + (waiting.length === 1 ? ' page is' : ' pages are') + ' waiting for your approval' : 'Notifications: nothing is waiting');
+    bell.setAttribute('aria-label', total ? total + (total === 1 ? ' notification' : ' notifications') : 'Notifications: nothing is waiting');
     bell.innerHTML = BELL_ICON;   // fixed markup above
-    if (waiting.length) { bell.appendChild(el('span', 'bell-badge', String(waiting.length))); }
+    if (total) { bell.appendChild(el('span', 'bell-badge', String(total))); }
     var pop = el('div', 'notify-pop');
     pop.hidden = true;
-    pop.appendChild(el('h2', 'notify-title', 'Waiting for your approval'));
-    if (!waiting.length) { pop.appendChild(el('p', 'notify-empty', 'Nothing is waiting for you.')); }
+    if (!total) { pop.appendChild(el('p', 'notify-empty', 'Nothing is waiting for you.')); }
+    if (waiting.length) { pop.appendChild(el('h2', 'notify-title', 'Waiting for your approval')); }
     waiting.forEach(function (p) {
       var item = link('', '#/view/' + p.id + '/' + p.workingVersion.n, 'notify-item');
       item.appendChild(el('strong', '', p.title));
@@ -321,6 +332,20 @@
       item.addEventListener('click', closeNotifyPops);
       pop.appendChild(item);
     });
+    if (expiring.length) {
+      pop.appendChild(el('h2', 'notify-title', 'Expiring soon'));
+      expiring.forEach(function (p) {
+        var info = W.expiryStatus(p.updatedAt);
+        var item = link('', previewUrl(p.id), 'notify-item');
+        var line = el('strong', '');
+        line.appendChild(cautionIcon());
+        line.appendChild(document.createTextNode(p.title));
+        item.appendChild(line);
+        item.appendChild(el('span', 'notify-sub', info.text + ' \u00b7 last updated ' + W.daysAgo(p.updatedAt)));
+        item.addEventListener('click', closeNotifyPops);
+        pop.appendChild(item);
+      });
+    }
     bell.addEventListener('click', function (event) {
       event.stopPropagation();
       var open = pop.hidden;
@@ -334,13 +359,16 @@
 
   async function refreshNotifications() {
     var slots = ['notify-slot-library', 'notify-slot-editor'].map(function (id) { return document.getElementById(id); });
-    if (!team || !actorIsLead() || !backend()) { slots.forEach(function (slot) { slot.textContent = ''; }); return; }
+    if (!team || !backend() || (window.Store.isPublicMode && window.Store.isPublicMode())) { slots.forEach(function (slot) { slot.textContent = ''; }); return; }
     var result = null;
     try { result = await backend().list(''); } catch (error) { result = null; }
     if (!result) { return; }
-    var waiting = result.pages.filter(function (p) { return p.workingVersion && p.workingVersion.status === 'submitted'; })
+    var waiting = (actorIsLead() ? result.pages : []).filter(function (p) { return p.workingVersion && p.workingVersion.status === 'submitted'; })
       .sort(function (a, b) { return String(a.workingVersion.submittedAt).localeCompare(String(b.workingVersion.submittedAt)); });
-    slots.forEach(function (slot) { renderBell(slot, waiting); });
+    // The owner is told when a live page is within 15 days of expiring (the library lists a person's own pages; the team lead sees the team's)
+    var expiring = result.pages.filter(function (p) { var e = p.liveVersion ? W.expiryStatus(p.updatedAt) : null; return e && e.soon; })
+      .sort(function (a, b) { return String(a.updatedAt).localeCompare(String(b.updatedAt)); });
+    slots.forEach(function (slot) { renderBell(slot, waiting, expiring); });
   }
 
   document.addEventListener('click', function (event) { if (!event.target.closest || !event.target.closest('.notify-slot')) { closeNotifyPops(); } });
@@ -430,7 +458,7 @@
     search.value = libraryFilters.q;
     var status = el('select', 'lib-status');
     status.setAttribute('aria-label', 'Filter by status');
-    [['', 'All statuses'], ['live', 'Live'], ['needs-review', 'Needs review'], ['draft', 'Draft'], ['review', 'In review'], ['sent-back', 'Sent back'], ['unpublished', 'Unpublished']].forEach(function (pair) {
+    [['', 'All statuses'], ['live', 'Live'], ['expiring', 'Expiring soon'], ['draft', 'Draft'], ['review', 'In review'], ['sent-back', 'Sent back'], ['unpublished', 'Unpublished']].forEach(function (pair) {
       var option = el('option', '', pair[1]);
       option.value = pair[0];
       status.appendChild(option);
@@ -442,6 +470,26 @@
     // The search tips used to sit inside the box as its placeholder; they now have their own line underneath
     main.appendChild(el('p', 'lib-hint search-tip', 'Use quotes for an exact phrase (\u201Cpassword reset\u201D), a minus sign to exclude a word (-billing), or title: to search titles only (title: escalation).'));
 
+    // A bar under the search that says how many pages are about to expire; "Show them" lists just those
+    var expiryBar = el('div', 'lib-expiry-bar');
+    expiryBar.hidden = true;
+    main.appendChild(expiryBar);
+    function renderExpiryBar(pages) {
+      var soon = pages.filter(function (p) { var e = p.liveVersion ? W.expiryStatus(p.updatedAt) : null; return e && e.soon; });
+      expiryBar.textContent = '';
+      expiryBar.hidden = !soon.length;
+      if (!soon.length) { return; }
+      expiryBar.appendChild(cautionIcon());
+      var expired = soon.filter(function (p) { return W.expiryStatus(p.updatedAt).expired; }).length;
+      expiryBar.appendChild(el('span', 'lib-expiry-text', soon.length + (soon.length === 1 ? ' page expires' : ' pages expire') + ' within ' + W.EXPIRY_WARNING_DAYS + ' days' + (expired ? ' (' + expired + ' already expired)' : '') + '.'));
+      var filtering = libraryFilters.status === 'expiring';
+      expiryBar.appendChild(button(filtering ? 'Show all pages' : 'Show them', 'row-btn', function () {
+        libraryFilters.status = filtering ? '' : 'expiring';
+        status.value = libraryFilters.status;
+        refresh();
+      }));
+    }
+
     var listBox = el('div', 'lib-list');
     main.appendChild(listBox);
 
@@ -449,6 +497,7 @@
       var result = await attempt(backend().list(libraryFilters.q));
       if (!result || mine !== routing) { return; }
       renderBackupLine(backupLine, result.pages);
+      renderExpiryBar(result.pages);
       renderQueue(queue, result.pages);
       renderList(listBox, result.pages);
       var note = libraryFilters.q ? searchNote(result, function (word) { search.value = word; libraryFilters.q = word; refresh(); }) : null;
@@ -605,7 +654,15 @@
   }
 
   // Sorts a copy of the rows by the chosen heading. Ties keep the newest page first.
+  // A person who is not the team lead or Admin sees their own drafts first, until they search or choose a sort
+  function draftsStickToTop() { return !actorIsLead() && !actingAsAdmin() && !libraryFilters.q && !libraryFilters.sortChosen; }
+  function isOwnDraft(p) { return p.state === 'draft' || p.state === 'sent_back'; }
   function sortRows(rows) {
+    var sorted = sortRowsBy(rows);
+    if (!draftsStickToTop()) { return sorted; }
+    return sorted.filter(isOwnDraft).concat(sorted.filter(function (p) { return !isOwnDraft(p); }));
+  }
+  function sortRowsBy(rows) {
     if (libraryFilters.q && !libraryFilters.sortChosen) { return rows.slice(); }   // a search: best match first, as the search returned them
     var value = {
       title: function (p) { return p.title.toLowerCase(); },
@@ -680,9 +737,9 @@
   function renderList(box, pages) {
     box.textContent = '';
     var pool = pages.filter(function (p) {
-      if (libraryFilters.status === 'needs-review') {   // live pages past their review date
-        var due = p.liveVersion ? W.reviewStatus(p.updatedAt) : null;
-        return !!(due && due.overdue);
+      if (libraryFilters.status === 'expiring') {   // live pages within 15 days of expiring, or past it
+        var due = p.liveVersion ? W.expiryStatus(p.updatedAt) : null;
+        return !!(due && due.soon);
       }
       return !libraryFilters.status || STATE_LABELS[p.state][1] === libraryFilters.status;
     });
@@ -696,7 +753,7 @@
       { key: 'owner', title: 'Owner', valueOf: function (p) { return ownerShown(p, teamFor(p.team) || team).label; } }
     ];
     if (actingAsAdmin()) { pickDefs.push({ key: 'department', title: 'Department', valueOf: function (p) { return (teamFor(p.team) || team).name || ''; } }); }
-    pickDefs.push({ key: 'review', title: 'Review', valueOf: function (p) { var r = p.liveVersion ? W.reviewStatus(p.updatedAt) : null; return r && r.overdue ? 'Needs review' : ''; } });
+    pickDefs.push({ key: 'review', title: 'Expiry', valueOf: function (p) { var r = p.liveVersion ? W.expiryStatus(p.updatedAt) : null; return r && r.soon ? 'Expiring soon' : ''; } });
     var activeDefs = canBulk ? pickDefs.filter(function (d) { return Object.keys(pick[d.key] || {}).length; }) : [];
     var shown = pool.filter(function (p) { return activeDefs.every(function (d) { return pick[d.key][d.valueOf(p)]; }); });
     if (!pool.length) {
@@ -927,6 +984,9 @@
     var body = el('tbody');
     sortRows(shown).forEach(function (p) {
       var row = el('tr', 'lib-row');
+      var expiry = p.liveVersion ? W.expiryStatus(p.updatedAt) : null;
+      if (draftsStickToTop() && isOwnDraft(p)) { row.classList.add('is-draft'); }   // light grey
+      if (expiry && expiry.soon) { row.classList.add('is-expiring'); }   // light yellow
       if (canBulk) {
         var tickCell = el('td', 'lib-select-cell');
         var tick = el('input');
@@ -1042,11 +1102,12 @@
       showVisibility();
       row.appendChild(visCell);
       var updatedCell = el('td', 'lib-date');
-      var when = el('div', '', W.relativeTime(p.updatedAt));
+      var when = el('div', 'lib-when');
+      if (expiry && expiry.soon) { when.appendChild(cautionIcon()); }
+      when.appendChild(document.createTextNode(W.daysAgo(p.updatedAt)));
       when.title = formatDate(p.updatedAt);   // the full date, on hover
       updatedCell.appendChild(when);
-      var review = p.liveVersion ? W.reviewStatus(p.updatedAt) : null;
-      if (review) { updatedCell.appendChild(el('div', 'lib-row-sub review-line' + (review.overdue ? ' is-overdue' : ''), review.text)); }
+      if (expiry && expiry.soon) { updatedCell.appendChild(el('div', 'lib-row-sub expiry-line', expiry.text)); }
       row.appendChild(updatedCell);
       if (canDelete) {
         var deleteCell = el('td', 'lib-row-actions');
@@ -1057,6 +1118,17 @@
           if (result) { location.hash = '#/edit/' + p.id + '/' + result.version; }
         });
         editButton.setAttribute('aria-label', 'Edit ' + p.title);
+        // Someone who is not the team lead sends their own draft to the lead from here (the lead has Publish)
+        if (!lead && !actingAsAdmin() && p.workingVersion && (p.workingVersion.status === 'draft' || p.workingVersion.status === 'sent_back')) {
+          var submitButton = button('Submit', 'row-btn row-btn-publish', async function () {
+            if (await attempt(backend().act(p.id, p.workingVersion.n, 'submit'))) {
+              notice('Sent \u201c' + p.title + '\u201d to ' + (personFor(team.lead) || 'the team lead') + ' for review.');
+              route();
+            }
+          });
+          submitButton.setAttribute('aria-label', 'Submit ' + p.title + ' to the team lead');
+          deleteCell.appendChild(submitButton);
+        }
         deleteCell.appendChild(editButton);
         // Testing shortcut for the team lead: publish the draft (or version in review) without opening it. In the
         // finished system the lead reviews the draft and publishes from there. Remove this button then.
@@ -2642,8 +2714,8 @@
         var updated = el('span', '', (window.Store.isPublicMode && window.Store.isPublicMode() ? 'Updated ' : ' \u00B7 Updated ') + W.relativeTime(p.updatedAt));
         updated.title = formatDate(p.updatedAt);
         meta.appendChild(updated);
-        var review = W.reviewStatus(p.updatedAt);
-        if (review && review.overdue && !(window.Store.isPublicMode && window.Store.isPublicMode())) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(el('span', 'is-overdue', 'Needs review')); }
+        var expiry = W.expiryStatus(p.updatedAt);
+        if (expiry && expiry.soon && !(window.Store.isPublicMode && window.Store.isPublicMode())) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(cautionIcon()); meta.appendChild(el('span', 'is-overdue', expiry.text)); }
         body.appendChild(meta);
         card.appendChild(body);
         listBox.appendChild(card);
