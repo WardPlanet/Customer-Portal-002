@@ -3,9 +3,9 @@
     --bg: #f6f6f6;
     --surface: #ffffff;
     --surface-muted: #fafafa;
-    --table-head: #dcebfd;   /* header row of a table in a page: the main blue, pale */
-    --table-alt: #f1f7fe;    /* every second row: a lighter shade of it */
-    --table-line: #cfe2f6;   /* the lines between rows and columns */
+    --table-head: #0a66d8;   /* header row of a table in a page: the main blue, with white text */
+    --table-alt: #f1f1f5;    /* every second row: grey */
+    --table-line: #e0e0e6;   /* the lines between rows and columns */
     --border: #e4e4e7;
     --border-strong: #d4d4d8;
     --text: #18181b;
@@ -35,9 +35,9 @@
       --bg: #101113;
       --surface: #18191c;
       --surface-muted: #1e2024;
-      --table-head: #14304f;
-      --table-alt: #101d2e;
-      --table-line: #24415f;
+      --table-head: #1d5fb8;
+      --table-alt: #1e2024;
+      --table-line: #34363d;
       --border: #2d2f35;
       --border-strong: #3d4048;
       --text: #f2f2f4;
@@ -60,9 +60,9 @@
     --bg: #101113;
     --surface: #18191c;
     --surface-muted: #1e2024;
-    --table-head: #14304f;
-    --table-alt: #101d2e;
-    --table-line: #24415f;
+    --table-head: #1d5fb8;
+    --table-alt: #1e2024;
+    --table-line: #34363d;
     --border: #2d2f35;
     --border-strong: #3d4048;
     --text: #f2f2f4;
@@ -2532,6 +2532,7 @@ dialog { position: fixed; }
 .preview-table th, .preview-table td { padding: 12px 14px; border: 0; border-top: 1px solid var(--table-line); border-left: 1px solid var(--table-line); }
 .preview-table th:first-child, .preview-table td:first-child { border-left: 0; }
 .preview-table thead tr:first-child th { border-top: 0; }
-.preview-table th { background: var(--table-head); color: var(--text); font-size: 14px; font-weight: 700; }
+.preview-table th { background: var(--table-head); color: #fff; font-size: 14px; font-weight: 700; }
+.preview-table th + th { border-left-color: rgba(255, 255, 255, 0.3); }
 .preview-table td { color: var(--text); }
 .preview-table tbody tr:nth-child(even) td { background: var(--table-alt); }
