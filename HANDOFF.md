@@ -1214,3 +1214,6 @@ Department dropdown now has **Public**: the artifact shows the site as a signed-
 
 ## Related pages hierarchy
 "Related pages" on a page fills in this order, up to five (more only if the author chose more): 1) the author's own picks, 2) pages that match this page's keywords and title the way a search would, best match first, 3) only to fill what is left, pages with the same owner or linked person. Public view only ever lists Client-Safe pages.
+
+## Select by (library)
+Next to the table, leads and Admin get a "Select…" menu: all shown, one visibility, one status, one owner (one department for Admin) or Needs review. It replaces the ticks and only considers the pages shown after any filter. The public view no longer labels related links "Shareable with clients".

@@ -704,6 +704,49 @@
       }));
       box.appendChild(bulkBar);
     }
+    if (canBulk) {
+      // Select by what the table shows: one visibility, one status, one owner (one department, for Admin) or the pages due for
+      // review. It replaces what was ticked, and only the pages shown (after any filter) are considered.
+      var pickBy = el('select', 'acting-select lib-select-by');
+      pickBy.setAttribute('aria-label', 'Select pages by');
+      var pickPrompt = el('option', '', 'Select\u2026');
+      pickPrompt.value = '';
+      pickBy.appendChild(pickPrompt);
+      var groups = [];
+      function addGroup(label, entries) {
+        if (!entries.length) { return; }
+        var group = el('optgroup');
+        group.label = label;
+        entries.forEach(function (entry) { var option = el('option', '', entry.label + ' (' + entry.test.count + ')'); option.value = groups.length + ':' + entry.key; group.appendChild(option); groups.push(entry); });
+        pickBy.appendChild(group);
+      }
+      function distinct(label, valueOf) {
+        var seen = {};
+        var order = [];
+        shown.forEach(function (p) { var v = valueOf(p); if (!(v in seen)) { seen[v] = 0; order.push(v); } seen[v] += 1; });
+        return order.sort().map(function (v) { return { key: v, label: v, test: { count: seen[v], matches: function (p) { return valueOf(p) === v; } } }; });
+      }
+      var pickGroups = [
+        ['Everything shown', [{ key: 'all', label: 'All pages', test: { count: shown.length, matches: function () { return true; } } }]],
+        ['Visibility', distinct('Visibility', function (p) { return p.visibility === 'Client-Safe' ? 'Shareable with clients' : 'Internal only'; })],
+        ['Status', distinct('Status', function (p) { return STATE_LABELS[p.state][0]; })],
+        ['Owner', distinct('Owner', function (p) { return ownerShown(p, teamFor(p.team) || team).label; })]
+      ];
+      if (actingAsAdmin()) { pickGroups.push(['Department', distinct('Department', function (p) { return (teamFor(p.team) || team).name || ''; })]); }
+      var dueCount = shown.filter(function (p) { var r = p.liveVersion ? W.reviewStatus(p.updatedAt) : null; return r && r.overdue; }).length;
+      if (dueCount) { pickGroups.push(['Review', [{ key: 'due', label: 'Needs review', test: { count: dueCount, matches: function (p) { var r = p.liveVersion ? W.reviewStatus(p.updatedAt) : null; return !!(r && r.overdue); } } }]]); }
+      pickGroups.forEach(function (pair) { addGroup(pair[0], pair[1]); });
+      pickBy.addEventListener('change', function () {
+        var chosen = groups[parseInt(pickBy.value, 10)];
+        if (!chosen) { return; }
+        Object.keys(selected).forEach(function (id) { delete selected[id]; });
+        shown.forEach(function (p) { if (chosen.test.matches(p)) { selected[p.id] = true; } });
+        renderList(box, pages);
+      });
+      var pickRow = el('div', 'lib-select-by-row');
+      pickRow.appendChild(pickBy);
+      box.appendChild(pickRow);
+    }
     var table = el('table', 'lib-table');
     var headRow = el('tr');
     if (canBulk) {
@@ -2383,7 +2426,7 @@
     matches.forEach(function (p) {
       var item = el('li');
       item.appendChild(link(p.title, '#/public/' + p.id));
-      item.appendChild(visibilityPill(p.visibility));
+      if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { item.appendChild(visibilityPill(p.visibility)); }
       list.appendChild(item);
     });
     box.appendChild(list);

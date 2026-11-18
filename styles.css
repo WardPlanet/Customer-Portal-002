@@ -2346,3 +2346,5 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .public-mode .notify-slot { display: none !important; }
 
 .toc-flat .toc-spacer { display: none; }
+
+.lib-select-by-row { margin: 0 0 8px; }
