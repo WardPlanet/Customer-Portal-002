@@ -1423,6 +1423,26 @@
     box.appendChild(el('h2', 'dialog-title', 'Team and roles'));
     box.appendChild(el('p', 'dialog-hint', 'Pages belong to a person, not a job title. To replace someone, choose Replace person on their row: the new person takes over their pages. Remove hands a person’s pages to someone you choose, or to the team lead (marked Default).'));
 
+    // Admin has every team and every role: a department picker switches this window to another team's people and pages
+    if (actingAsAdmin() && window.Store.teams().length > 1) {
+      var switcher = el('label', 'team-switcher', 'Department ');
+      var switchSelect = el('select', 'acting-select');
+      switchSelect.setAttribute('aria-label', 'Department to manage');
+      window.Store.teams().forEach(function (department) {
+        var option = el('option', '', department.name);
+        option.value = department.slug;
+        switchSelect.appendChild(option);
+      });
+      switchSelect.value = team.slug;
+      switchSelect.addEventListener('change', function () {
+        if (window.Store.setDepartment(switchSelect.value, true)) {
+          try { sessionStorage.setItem('pageEditor.reopenTeam', '1'); } catch (error) { /* the window is simply not reopened */ }
+          location.reload();
+        }
+      });
+      switcher.appendChild(switchSelect);
+      box.appendChild(switcher);
+    }
     if (!actorIsLead()) {
       box.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
       return;
@@ -3104,5 +3124,7 @@
     }
     mountActing();
     route();
+    // Admin switched department inside Team and roles: that window opens again on the new department
+    try { if (sessionStorage.getItem('pageEditor.reopenTeam')) { sessionStorage.removeItem('pageEditor.reopenTeam'); if (actingAsAdmin()) { openTeamDialog(); } } } catch (error) { /* not reopened */ }
   });
 })();

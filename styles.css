@@ -2448,3 +2448,5 @@ dialog { position: fixed; }
 .side-list-item .team-icon { margin-top: 1px; }
 .side-list-item > a { flex: 1; min-width: 0; }
 .side-list-item > .pill { flex: none; margin-top: 1px; }
+
+.team-switcher { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 13px; font-weight: 600; }
