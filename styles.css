@@ -2663,3 +2663,4 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .side-accordion[open] > .side-accordion-summary::after { content: "\25B4"; }
 .side-accordion-summary .side-title { margin: 0; }
 .side-accordion .side-list { margin-top: 12px; }
+.preview-side { flex-basis: 220px; width: 220px; }   /* narrower left column */
