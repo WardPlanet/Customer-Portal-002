@@ -1648,7 +1648,11 @@
     /* ----- Pages with no owner: assign several at once ----- */
     var everything = await attempt(backend().list(''));
     // Waiting for an owner: the person who owned them has left the team, so the team lead has them as the default
-    var ownerless = everything ? everything.pages.filter(function (p) { return W.ownerIsUnassigned(team, p.owner) || p.ownerDefault; }) : [];
+    // Only this department's own pages count. (Admin sees every department's pages in the library, but this window is about the team on
+    // screen: another department's pages are checked against another team's list of people, so they would all look ownerless.)
+    var ownerless = everything ? everything.pages.filter(function (p) {
+      return (!p.team || p.team === team.slug) && (W.ownerIsUnassigned(team, p.owner) || p.ownerDefault);
+    }) : [];
     // Calm when there is nothing to do; the alert look is only for when pages really have no owner
     var orphans = el('section', 'team-orphans ' + (ownerless.length ? 'is-alert' : 'is-calm'));
     if (!ownerless.length) {
