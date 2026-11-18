@@ -2552,8 +2552,12 @@ dialog { position: fixed; }
 .landing-tile-top .team-icon { color: var(--tile-icon); }
 
 /* The search box in the Wiki bar on a live page; the bar sticks to the top of the screen there */
-.top-search { flex: 1; min-width: 0; max-width: 460px; margin: 0 auto 0 8px; }
-.top-search .doc-search-wrap { max-width: none; }
-.top-search .doc-search-input { width: 100%; height: 38px; padding: 0 16px; }
+.top-search { flex: 0 1 auto; width: 320px; min-width: 0; margin: 0 8px 0 auto; transition: width 0.2s ease; }
+.top-search:focus-within { width: 460px; }
+.top-search .doc-search-wrap { position: relative; max-width: none; }
+.top-search .doc-search-input { width: 100%; height: 38px; padding: 0 16px 0 38px; }
+.top-search-icon { position: absolute; z-index: 1; left: 13px; top: 50%; transform: translateY(-50%); display: inline-grid; color: var(--icon-blue); pointer-events: none; }
+@media (max-width: 900px) { .top-search { width: 200px; } .top-search:focus-within { width: 260px; } }
+@media (prefers-reduced-motion: reduce) { .top-search { transition: none; } }
 body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 .preview-h, .section-linked { scroll-margin-top: 90px; }   /* a heading scrolled to is not hidden under the sticky Wiki bar */

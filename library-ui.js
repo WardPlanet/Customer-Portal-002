@@ -2848,6 +2848,9 @@
       else if (event.key === 'Escape') { close(); }
     });
     input.addEventListener('blur', close);
+    var magnifier = el('span', 'top-search-icon');
+    magnifier.innerHTML = DOC_SEARCH_ICON;   // fixed markup above
+    wrap.appendChild(magnifier);
     wrap.appendChild(input);
     wrap.appendChild(list);
     bar.appendChild(wrap);
