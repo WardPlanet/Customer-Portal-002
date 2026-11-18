@@ -2503,5 +2503,5 @@ dialog { position: fixed; }
 
 /* The page title and each first-level heading are set in a light serif: 400 for the title and 500 for headings, the text colour, a step smaller than the sans sizes (a serif sets larger) */
 .preview-title, .preview-h:is(h2) { font-family: var(--font-serif); letter-spacing: 0; color: var(--text); }
-.preview-title { font-size: 36px; line-height: 1.2; font-weight: 400; }
-.preview-h:is(h2) { font-size: 20px; font-weight: 500; }
+.preview-title { font-size: 40px; line-height: 1.2; font-weight: 400; }
+.preview-h:is(h2) { font-size: 26px; line-height: 1.25; font-weight: 500; }
