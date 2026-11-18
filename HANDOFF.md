@@ -1307,3 +1307,5 @@ Contacts moved under the title: a strip of small blocks side by side (Owner, any
 The contacts are a one-line byline under the title: Priya Nair Tier 2 Specialist (email icon) (Teams icon) · Dana Whitfield Support Manager (icons) (no Owner or Team lead labels; they are in the name's tooltip) The icons are the same dark blue as the icons beside the related pages (light blue on hover); the address is in the icon's tooltip.
 
 The contacts byline has a rule beneath it (like the title's), and its email and Teams icons are 18px, the same as the icons beside the related pages.
+
+One rule under the title block: the title's own rule is dropped when the contacts line follows, and the rule under that line stays. The visibility pill and "Updated N days ago" moved from the right column to the right end of the contacts line, so the right column holds only Related pages and On this page.

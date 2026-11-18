@@ -2610,3 +2610,11 @@ body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 /* A rule under the contacts, like the one under the title; their icons are the same size as the icons beside the related pages (18px) */
 .contact-byline { padding-bottom: 14px; margin-bottom: 8px; border-bottom: 1px solid var(--border-strong); }
 .byline-link .contact-icon svg { width: 18px; height: 18px; }
+
+/* One rule under the title block (the contacts line), not two: the title's own rule goes when the byline follows it */
+.preview-title:has(+ .contact-byline) { border-bottom: 0; padding-bottom: 0; }
+.byline-details { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; font-size: 13px; color: var(--text-muted); }
+.contact-byline { gap: 4px 16px; }
+.byline-person { gap: 0 5px; }
+.byline-link { padding: 0 1px; }
+.byline-details { gap: 8px; }

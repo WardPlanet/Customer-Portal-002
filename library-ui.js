@@ -3373,7 +3373,18 @@
       // Who to ask, as a quiet byline under the title (staff; a visitor sees the support link in the column instead)
       if (pageTitle && !asPublic) {
         var bylineAt = pageTitle.nextSibling;
-        renderContacts(W.fields(data.text), ownerTeam).forEach(function (line) { pageTitle.parentNode.insertBefore(line, bylineAt); });   // a byline under the title
+        var lines = renderContacts(W.fields(data.text), ownerTeam);
+        var byline = lines[0] || el('p', 'contact-byline');
+        // The visibility and when it was last updated close the same line, at its right end
+        var details = el('span', 'byline-details');
+        details.appendChild(visibilityPill(detail.page.visibility));
+        if (detail.page.updatedAt) {
+          var updatedText = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
+          updatedText.title = formatDate(detail.page.updatedAt);
+          details.appendChild(updatedText);
+        }
+        byline.appendChild(details);
+        pageTitle.parentNode.insertBefore(byline, bylineAt);   // a byline under the title
       }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
@@ -3385,16 +3396,6 @@
         if (team.supportUrl) { support.appendChild(link('Contact support', team.supportUrl)); }
         else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
         side.appendChild(support);
-      } else {
-        // Visibility and when it was last updated, above Contacts: the same light line as it was above the title, now in the column
-        var details = el('div', 'side-details');
-        details.appendChild(visibilityPill(detail.page.visibility));
-        if (detail.page.updatedAt) {
-          var updatedText = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
-          updatedText.title = formatDate(detail.page.updatedAt);
-          details.appendChild(updatedText);
-        }
-        side.appendChild(details);
       }
       // Related pages come next, also scrolling away with the page
       var related = await relatedPages(id, W.fields(data.text), asPublic);
