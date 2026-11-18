@@ -2004,7 +2004,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 .landing-search::placeholder { color: #8A8EA8; }
 .landing-results { width: 100%; max-width: 1080px; margin: 0 auto; padding: 32px 28px 28px; box-sizing: border-box; }
 .landing-top-title { margin: 0 0 16px; font-size: 20px; font-weight: 700; color: var(--text); }
-.landing-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.landing-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
 /* The tiles follow the theme: pale blue in light mode (as before), dark surfaces in dark mode. The description shows up to three lines and
    ends with an ellipsis; the tile grows to fit, with a "View page" line at the bottom. */
 .landing-tile {
@@ -2387,3 +2387,12 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .lib-pick-tabs .lib-pick-title { border: 0; box-shadow: none; background: none; cursor: pointer; }
 .lib-pick-tabs .lib-pick-title:hover, .lib-pick-tabs .lib-pick-title.is-open { background: var(--border, #e5e5e5); }
 .lib-pick-tabs { padding-top: 8px; }
+
+/* Select by: the open column's choices in an even grid (label left, count right, every cell the same width) */
+.lib-pick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2px 20px; padding: 4px 14px 14px; }
+.lib-pick-list .lib-pick-row { min-width: 0; display: grid; grid-template-columns: 18px 1fr auto; align-items: center; column-gap: 10px; margin: 0; padding: 7px 10px; border-radius: 8px; }
+.lib-pick-list .lib-pick-row:hover { background: var(--border, #eee); }
+.lib-pick-list .lib-pick-row input { margin: 0; width: 16px; height: 16px; }
+.lib-pick-list .lib-pick-label { min-width: 0; overflow-wrap: anywhere; }
+.lib-pick-list .lib-pick-count { min-width: 1.5em; text-align: right; }
+.lib-pick-list .lib-pick-row[hidden] { display: none; }
