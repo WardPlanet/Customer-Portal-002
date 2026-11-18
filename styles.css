@@ -2407,3 +2407,7 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .lib-pick-list .lib-pick-pill .lib-pick-count { min-width: 1.6em; padding: 1px 7px; text-align: center; font-size: 0.78rem; border-radius: 999px; background: var(--border, #eee); color: var(--text-muted, #555); }
 .lib-pick-list .lib-pick-pill:has(input:checked) { background: var(--accent, #0b6bdc); border-color: var(--accent, #0b6bdc); color: #fff; }
 .lib-pick-list .lib-pick-pill:has(input:checked) .lib-pick-count { background: rgba(255,255,255,.25); color: #fff; }
+
+.lib-pick-list.is-one-row { max-height: 44px; overflow: hidden; padding-bottom: 0; }
+.lib-pick-more { margin: 0 14px 12px; }
+.lib-pick-find { display: block; margin: 4px 14px 6px; padding: 8px 12px; width: calc(100% - 28px); box-sizing: border-box; font: inherit; font-size: 0.9rem; border: 1px solid var(--border-strong, #cfcfcf); border-radius: 999px; background: var(--surface, #fff); color: var(--text, #111); }

@@ -752,6 +752,7 @@
       if (!now.length) { return; }   // nothing ticked: nothing is selected by the choices
       pool.forEach(function (p) { if (now.every(function (d) { return pick[d.key][d.valueOf(p)]; })) { selected[p.id] = true; } });
     }
+    var PICK_LONG = 10;   // a column with more choices than this gets a find box and shows one row until expanded
     // An owner reads "Name — Job title"; the choices show just the name (the whole line is the tooltip)
     function shortChoice(value) { return String(value).split(' \u2014 ')[0]; }
     function tick(key, value, on) {
@@ -782,14 +783,16 @@
         title.type = 'button';
         title.setAttribute('aria-expanded', String(groupOpen));
         title.appendChild(el('span', 'lib-narrow-arrow', groupOpen ? '\u25B4' : '\u25BE'));
-        title.addEventListener('click', function () { libraryFilters.pickGroup = groupOpen ? '' : g.key; renderList(box, pages); });
+        title.addEventListener('click', function () { libraryFilters.pickGroup = groupOpen ? '' : g.key; libraryFilters.pickFind = ''; renderList(box, pages); });
         tabs.appendChild(title);
       });
       var openGroup = pickGroups.filter(function (g) { return g.key === libraryFilters.pickGroup; })[0];
       if (openGroup) {
         var list = el('div', 'lib-pick-list');
         var values = openGroup.values;
-        if (values.length > 8) {   // a long list (many owners) gets a small search box
+        var isLong = values.length > PICK_LONG;
+        var expanded = !isLong || libraryFilters.pickAll === openGroup.key;
+        if (isLong) {   // a long list (many owners): a search box, and one row of choices until "Show all"
           var finder = el('input', 'lib-pick-find');
           finder.type = 'search';
           finder.placeholder = 'Find in ' + openGroup.title.toLowerCase();
@@ -797,10 +800,14 @@
           finder.value = libraryFilters.pickFind || '';
           finder.addEventListener('input', function () {
             libraryFilters.pickFind = finder.value;
-            var text = finder.value.trim().toLowerCase();
-            Array.prototype.forEach.call(list.querySelectorAll('.lib-pick-row'), function (row) { row.hidden = !!text && row.textContent.toLowerCase().indexOf(text) < 0; });
+            applyFind();
           });
           panel.appendChild(finder);
+        }
+        function applyFind() {
+          var text = (libraryFilters.pickFind || '').trim().toLowerCase();
+          Array.prototype.forEach.call(list.querySelectorAll('.lib-pick-row'), function (row) { row.hidden = !!text && (row.title + ' ' + row.textContent).toLowerCase().indexOf(text) < 0; });
+          list.classList.toggle('is-one-row', isLong && !expanded && !text);   // searching shows every match
         }
         values.forEach(function (v) {
           var line = el('label', 'lib-pick-row lib-pick-pill');
@@ -816,6 +823,11 @@
           list.appendChild(line);
         });
         panel.appendChild(list);
+        applyFind();
+        if (isLong) {
+          var more = button(expanded ? 'Show fewer' : 'Show all ' + values.length, 'owner-change lib-pick-more', function () { libraryFilters.pickAll = expanded ? '' : openGroup.key; renderList(box, pages); });
+          panel.appendChild(more);
+        }
       }
       return panel;
     }
