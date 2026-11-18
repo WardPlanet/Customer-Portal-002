@@ -2666,7 +2666,7 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .preview-side { flex-basis: 220px; width: 220px; }   /* narrower left column */
 
 /* Left column: logo and search on top, the whole column sticky and a little wider */
-.preview-side { flex-basis: 240px; width: 240px; position: sticky; top: 16px; overflow-y: auto; align-self: flex-start; }
+.preview-side { flex-basis: 240px; width: 240px; position: sticky; top: 16px; align-self: flex-start; }
 .preview-side .preview-follow { position: static; max-height: none !important; overflow: visible; order: -1; }
 .side-head { order: -2; display: flex; flex-direction: column; gap: 12px; }
 .side-logo { font-size: 18px; font-weight: 700; color: var(--icon-blue); text-decoration: none; letter-spacing: -0.01em; }
@@ -2686,3 +2686,26 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 /* On this page: the heading the page is scrolled to has a light blue highlight (a ring, so nothing moves) */
 .toc-row a { padding: 3px 8px; margin: -3px -8px; border-radius: 6px; }   /* room around the highlight; the negative margin keeps every line where it was */
 .toc-row a.is-current { background: var(--brand-tint); }
+
+/* Search button at the right end of a search box: same as pressing Enter */
+.search-go { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); width: 40px; height: 40px; display: inline-grid; place-items: center; padding: 0; background: none; border: 0; border-radius: 50%; color: var(--icon-blue); cursor: pointer; }
+.search-go:hover { background: var(--brand-tint); }
+.search-go:focus-visible { outline: 2px solid var(--icon-blue); outline-offset: 0; }
+.landing-search-wrap .landing-search { padding-right: 64px; }
+.landing-bar .search-go { width: 32px; height: 32px; }
+.landing-bar .landing-search { padding-right: 52px; }
+.top-search-icon { display: none; }
+.top-search .doc-search-input { padding: 0 44px 0 16px; }
+.side-head .search-go { width: 30px; height: 30px; right: 4px; }
+.side-head .search-go svg { width: 16px; height: 16px; }
+
+/* Left column: the head (logo, search) sits clear of any clipping so the focus ring and the suggestion list show in full; only the body scrolls */
+.preview-side { overflow: visible; }
+.side-head { position: relative; z-index: 5; }
+.side-body { display: flex; flex-direction: column; gap: 16px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 2px; margin: -2px; }
+.side-head .suggest-list { z-index: 40; border-radius: 12px; top: calc(100% + 4px); padding: 4px 0; }
+.side-head .suggest-list::before { display: none; }
+.side-head .suggest-item { padding: 0 12px; gap: 8px; min-height: 36px; }
+.side-head .suggest-text { font-size: 14px; }
+.side-head .doc-search-input::-webkit-search-cancel-button { display: none; }
+.side-head .suggest-text { white-space: normal; padding: 6px 0; }

@@ -1328,3 +1328,6 @@ The side column (On this page, then Related pages as an accordion, closed to beg
 Live page left column: logo + search box on top, then On this page and Related pages; the whole column is sticky, 240px wide. The search box is no longer in the Wiki bar on live pages.
 
 On this page highlights (light blue, a ring so nothing shifts) the heading the page is scrolled to; a heading folded out of sight lends it to the one above.
+
+## Search behaviour (like Wikipedia)
+Suggestions are articles: one row per page, shown by its title (a keyword or heading match stands for its page). Clicking one, or arrowing to it and pressing Enter, opens the article. Enter in the box, or the search button at its right end, runs the full search. Applies to the landing box, the sticky bar and the left column of a live page. In the left column only the body scrolls; the logo and search stay clear so the focus ring and the list are never cut off.

@@ -2643,6 +2643,15 @@
     search.setAttribute('aria-autocomplete', 'list');
     search.setAttribute('aria-expanded', 'false');
     search.setAttribute('aria-controls', 'search-suggestions');
+    // The search button at the right end of the box does what Enter does
+    var goButton = el('button', 'search-go');
+    goButton.type = 'button';
+    goButton.setAttribute('aria-label', 'Search');
+    goButton.title = 'Search';
+    goButton.innerHTML = SEARCH_ICON_GO;   // fixed markup, no page text
+    goButton.addEventListener('mousedown', function (event) { event.preventDefault(); });
+    goButton.addEventListener('click', function () { cancelSuggestions(); runSearch(); });
+    searchWrap.appendChild(goButton);
 
     function closeSuggestions() {
       searchWrap.classList.remove('is-open');
@@ -2662,11 +2671,13 @@
       });
       if (index < 0) { search.removeAttribute('aria-activedescendant'); }
     }
-    // Choosing a suggestion fills the search box with it and searches for it (a page title is not opened directly)
+    // Choosing a suggestion opens that article. Coming back brings the search that was typed back, at the same place.
     function chooseSuggestion(item) {
+      var typed = typedBeforeArrows !== null ? typedBeforeArrows : search.value;
       cancelSuggestions();
-      search.value = item.text;
-      runSearch();
+      savedSearch = { q: typed, y: window.scrollY, filters: Object.assign({}, filters) };
+      if (typed.trim()) { logClick(typed, { id: item.id, title: item.title }, 0); }
+      location.hash = '#/public/' + item.id;
     }
     // Stops the list: closes it and throws away any answer still on its way, so it cannot pop open again after a search
     function cancelSuggestions() {
@@ -2708,6 +2719,8 @@
     }
     function showSuggestions(list) {
       closeSuggestions();
+      if (!list.length) { return; }
+      list = articleSuggestions(list);
       if (!list.length) { return; }
       suggestions = list;
       var typed = search.value;
@@ -2766,6 +2779,8 @@
     search.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         event.preventDefault();
+        // An article picked with the arrow keys opens; otherwise Enter runs the search
+        if (active >= 0 && suggestions[active]) { chooseSuggestion(suggestions[active]); return; }
         cancelSuggestions();
         runSearch();
         return;
@@ -2808,6 +2823,20 @@
     }
   }
 
+  var SEARCH_ICON_GO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+  // Suggestions work like Wikipedia's: they are articles. A keyword or heading match stands for the page it belongs to, so every row
+  // is one page, shown by its title, and choosing it opens that page. (Enter, or the search button, runs the full search instead.)
+  function articleSuggestions(list) {
+    var seen = {};
+    var out = [];
+    (list || []).forEach(function (item) {
+      if (!item || !item.id || seen[item.id]) { return; }
+      seen[item.id] = true;
+      out.push(item.kind === 'page' ? item : { kind: 'page', id: item.id, text: item.title || item.text, title: item.title || item.text, parts: null });
+    });
+    return out;
+  }
+
   // The sticky search box at the top of a live page. Typing shows page-title suggestions; Enter or a suggestion opens the search page with
   // that search already run (and counted as a new search).
   var DOC_SEARCH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
@@ -2846,6 +2875,16 @@
       close();
       location.hash = '#/public';
     }
+    function open(item) {
+      close();
+      location.hash = '#/public/' + item.id;
+    }
+    var items = [];
+    var active = -1;
+    function mark(i) {
+      active = i;
+      Array.prototype.forEach.call(list.children, function (row, n) { row.classList.toggle('is-active', n === i); });
+    }
     var timer = null;
     input.addEventListener('input', function () {
       clearTimeout(timer);
@@ -2855,7 +2894,8 @@
         Promise.resolve(backend().suggest(input.value)).then(function (answer) {
           if (ticket !== token || document.activeElement !== input) { return; }
           list.textContent = '';
-          var items = ((answer && answer.suggestions) || []).slice(0, 6);
+          active = -1;
+          items = articleSuggestions((answer && answer.suggestions) || []).slice(0, 6);
           items.forEach(function (item) {
             var row = el('li', 'suggest-item');
             row.setAttribute('role', 'option');
@@ -2863,7 +2903,7 @@
             icon.innerHTML = DOC_SEARCH_ICON;   // fixed markup above
             row.appendChild(icon);
             row.appendChild(el('span', 'suggest-text', item.text));
-            row.addEventListener('mousedown', function (event) { event.preventDefault(); go(item.text); });
+            row.addEventListener('mousedown', function (event) { event.preventDefault(); open(item); });
             list.appendChild(row);
           });
           list.hidden = !items.length;
@@ -2871,7 +2911,11 @@
       }, 100);
     });
     input.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter') { event.preventDefault(); go(input.value); }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (active >= 0 && items[active]) { open(items[active]); } else { go(input.value); }
+      } else if (event.key === 'ArrowDown' && !list.hidden) { event.preventDefault(); mark((active + 1) % items.length); }
+      else if (event.key === 'ArrowUp' && !list.hidden) { event.preventDefault(); mark(active <= 0 ? items.length - 1 : active - 1); }
       else if (event.key === 'Escape') { close(); }
     });
     input.addEventListener('blur', close);
@@ -2879,6 +2923,14 @@
     magnifier.innerHTML = DOC_SEARCH_ICON;   // fixed markup above
     wrap.appendChild(magnifier);
     wrap.appendChild(input);
+    var searchButton = el('button', 'search-go');
+    searchButton.type = 'button';
+    searchButton.setAttribute('aria-label', 'Search');
+    searchButton.title = 'Search';
+    searchButton.innerHTML = SEARCH_ICON_GO;   // fixed markup above
+    searchButton.addEventListener('mousedown', function (event) { event.preventDefault(); });
+    searchButton.addEventListener('click', function () { go(input.value); });
+    wrap.appendChild(searchButton);
     wrap.appendChild(list);
     bar.appendChild(wrap);
     return bar;
@@ -3477,12 +3529,14 @@
       sideHead.appendChild(logo);
       sideHead.appendChild(buildDocSearchBar());
       side.appendChild(sideHead);
+      var sideBody = el('div', 'side-body');   // what scrolls inside the column; the head stays clear so the suggestion list is never cut off
+      side.appendChild(sideBody);
       side.setAttribute('aria-label', asPublic ? 'Support, related pages and on this page' : 'Contacts, related pages and on this page');
       // The owner (contacts, or the support link in the public view) comes first and scrolls away with the page
       // Related pages come next, also scrolling away with the page
       var related = await relatedPages(id, W.fields(data.text), asPublic);
       if (mine !== routing) { return; }
-      if (related) { side.appendChild(related); }
+      if (related) { sideBody.appendChild(related); }
       // "On this page" is last and follows you down the page. If it is taller than the window it scrolls inside its own
       // box, so none of it is ever cut off.
       var followBox = null;
@@ -3490,11 +3544,11 @@
       if (toc) {
         var follow = el('div', 'preview-follow');
         follow.appendChild(toc);
-        side.appendChild(follow);
+        sideBody.appendChild(follow);
         followBox = follow;
       }
       layout.insertBefore(side, article);   // the column sits on the left, as on Wikipedia
-      keepOnScreen(side);   // the whole column is sticky; if it is taller than the window it scrolls inside itself
+      keepOnScreen(sideBody);   // the whole column is sticky; if it is taller than the window it scrolls inside itself
     }
 
     // The fixed bar along the bottom: Edit (the team lead and the page's owner), Export PDF and Copy link
