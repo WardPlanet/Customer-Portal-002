@@ -1278,3 +1278,5 @@ The page title and every first-level heading (H1) in an article are set in **Sou
 Spacing around a first-level heading: 48px above it (each section stands apart) and 16px below its rule, including when a second-level heading follows straight away (`.preview-h:is(h2)` in `styles.css`).
 
 First-level headings are 28px (serif, 600); second-level headings and below are 600 (were 700), at 18, 16, 14 and 14px.
+
+The highlighted section (after following a link to it) is tinted with a box-shadow and adds no padding or margin, so nothing on the page moves when it appears (checked: every heading and paragraph keeps the same position with and without it).

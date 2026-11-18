@@ -1700,7 +1700,6 @@
 .preview-list { margin: 0 0 12px; padding-left: 1.4em; }
 .preview-list li { margin: 3px 0; }
 .section-linked { background: var(--linked-bg); border-radius: 10px; padding: 2px 14px 6px; margin: 0 -14px 12px; }
-.section-linked > .preview-h:first-child { margin-top: 10px; }
 .preview-anchor { display: inline-grid; place-items: center; width: 26px; height: 26px; margin: 0 8px 0 -34px; vertical-align: middle; color: var(--accent); background: var(--accent-soft); border-radius: 8px; text-decoration: none; }
 .preview-anchor:hover, .preview-anchor:focus-visible { color: #fff; background: var(--accent); }
 @media (max-width: 860px) { .preview-anchor { margin-left: 0; } }
@@ -2512,3 +2511,7 @@ dialog { position: fixed; }
 .preview-h:is(h2) + .preview-h:not(:is(h2)) { margin-top: 16px; }
 /* Second-level headings and below: 600, a step lighter than before */
 .preview-h:is(h3, h4, h5, h6) { font-weight: 600; }
+
+/* The highlighted section (a link to it was followed): the tint is drawn with a shadow, so it never changes the layout. No padding or margin is
+   added, so the text, headings and spacing sit exactly where they do without it. The left reach covers the link icon. */
+.section-linked { margin: 0; padding: 0; background: var(--linked-bg); border-radius: 10px; box-shadow: 0 0 0 10px var(--linked-bg), -32px 0 0 10px var(--linked-bg); }
