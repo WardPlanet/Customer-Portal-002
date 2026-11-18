@@ -2537,19 +2537,15 @@
       if (wanted.some(function (item) { return item.key === key; })) { return; }
       wanted.push({ key: key, entry: entry, isDefault: !!isDefault });
     }
-    // The owner comes first. When they have left the team, the team lead is the contact instead, marked as the default.
+    // Contacts: the owner first, then the linked people. When the owner has left the team the team lead is the owner (marked Default).
+    // The team lead is always in a box of their own below, so the person to escalate to is always in the same place.
     add(who.entry, who.isDefault);
-    add(lead, false);
     fieldsOfPage.linkedRoles.forEach(function (key) { var entry = W.findPerson(pageOwnerTeam, key); if (entry && entry.person) { add(entry, false); } });
-    if (!wanted.length) { return null; }
-    var box = el('section', 'side-card');
-    box.appendChild(el('h2', 'side-title', 'Contacts'));
-    wanted.forEach(function (item) {
-      var role = item.entry;
+    // One person: their name (bold), their job title in capitals beneath it, then the email and Teams, each with a small icon
+    function contactCard(role, isDefault) {
       var card = el('div', 'preview-contact');
-      // The job title, in capitals, then the name, the email and Teams ("(Default)" when the team lead has the page as the fallback)
-      card.appendChild(el('span', 'preview-contact-label', role.title + (item.isDefault ? ' (Default)' : '')));
       card.appendChild(el('strong', 'preview-contact-name', role.person ? fullName(role.person, role.email) : 'Unassigned'));
+      card.appendChild(el('span', 'preview-contact-label', role.title + (isDefault ? ' (Default)' : '')));
       if (role.email) {
         var reach = el('div', 'preview-contact-links');
         var mailLink = link(role.email, 'mailto:' + role.email);
@@ -2562,9 +2558,22 @@
         reach.appendChild(teamsLink);
         card.appendChild(reach);
       }
-      box.appendChild(card);
-    });
-    return box;
+      return card;
+    }
+    var boxes = [];
+    if (wanted.length) {
+      var box = el('section', 'side-card');
+      box.appendChild(el('h2', 'side-title', 'Contacts'));
+      wanted.forEach(function (item) { box.appendChild(contactCard(item.entry, item.isDefault)); });
+      boxes.push(box);
+    }
+    if (lead && lead.person) {
+      var leadBox = el('section', 'side-card');
+      leadBox.appendChild(el('h2', 'side-title', 'Team Lead'));
+      leadBox.appendChild(contactCard(lead, false));
+      boxes.push(leadBox);
+    }
+    return boxes;
   }
 
   // The related pages for a live page: the ones the author chose come first, in the order they chose, then other live
@@ -2878,8 +2887,7 @@
         else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
         side.appendChild(support);
       } else {
-        var contacts = renderContacts(W.fields(data.text), teamFor(detail.page.team) || team);
-        if (contacts) { side.appendChild(contacts); }
+        renderContacts(W.fields(data.text), teamFor(detail.page.team) || team).forEach(function (card) { side.appendChild(card); });
       }
       // Related pages come next, also scrolling away with the page
       var related = await relatedPages(id, W.fields(data.text), asPublic);
