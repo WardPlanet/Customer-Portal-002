@@ -1301,3 +1301,5 @@ A live page has an eyebrow above its title: the department's icon and name in th
 Contacts is one card again: the owner and linked people, then the team lead below a divider with a small TEAM LEAD label (this replaces the separate Team Lead box). The role under each name is regular weight, grey, in sentence case.
 
 Live pages: the search box moved out of the Wiki bar into the left rail with On this page.
+
+Live pages: the staff/public view toggle ("View as the public") is gone, and the Library link moved from the Wiki bar into the top of the left rail (staff only; the bar keeps Search review and Admin tools).

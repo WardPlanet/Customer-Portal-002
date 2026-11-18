@@ -2787,6 +2787,7 @@
   // A live page's search box and "On this page" sit in a sticky column on the left. Nothing is left in the bar from an earlier page.
   function removeTopSearch() {
     main.classList.remove('has-rail');
+    document.body.classList.remove('has-doc-rail');
   }
   function buildDocSearchBar() {
     var bar = el('div', 'rail-search');
@@ -3295,7 +3296,8 @@
     showScreen('library', true);
     main.textContent = '';
     // The back link follows where you came from: the batch import's results, the library, or the search page
-    main.classList.add('has-rail');   // a live page has three columns: search and On this page, the article, then the details
+    main.classList.add('has-rail');
+    document.body.classList.add('has-doc-rail');   // the Library link moves from the bar into the rail   // a live page has three columns: search and On this page, the article, then the details
     var backRow = el('div', 'back-row');
     var cameFromBatch = fromLibrary && /^#\/batch/.test(routeHistory.previous);
     backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));
@@ -3376,6 +3378,14 @@
       if (related) { side.appendChild(related); }
       // The search box and "On this page" are in the left rail, which stays on screen while the page scrolls (it scrolls inside itself if
       // it is taller than the window)
+      if (!(window.Store.isPublicMode && window.Store.isPublicMode())) {
+        var libraryLink = link('', '#/', 'rail-library');
+        var libraryIcon = el('span', 'rail-library-icon');
+        libraryIcon.innerHTML = window.TeamIcons.map.book.svg;   // fixed markup, no page text
+        libraryLink.appendChild(libraryIcon);
+        libraryLink.appendChild(el('span', '', 'Library'));
+        rail.appendChild(libraryLink);
+      }
       rail.appendChild(buildDocSearchBar());
       var toc = renderOnThisPage(article);
       if (toc) { rail.appendChild(toc); }
@@ -3437,17 +3447,6 @@
     });
     footerActions.appendChild(copyButton);
 
-    if (isClientSafe && !(window.Store.isPublicMode && window.Store.isPublicMode())) {
-      var viewing = false;
-      var toggle = button('View as the public', 'secondary-link', async function () {
-        viewing = !viewing;
-        asPublicNow = viewing;
-        toggle.textContent = viewing ? 'Back to staff view' : 'View as the public';
-        bar.classList.toggle('is-public-view', viewing);
-        await draw(viewing);
-      });
-      bar.appendChild(toggle);
-    }
     await draw(asPublicNow);
   }
 
