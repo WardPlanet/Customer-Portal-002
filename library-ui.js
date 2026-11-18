@@ -3268,7 +3268,39 @@
         go: function () { heading.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       };
     });
-    return window.OnThisPage.build(items);
+    var box = window.OnThisPage.build(items);
+    if (!box) { return box; }
+    // Light blue highlight on the heading the page is scrolled to. A heading folded out of sight lends it to the one above it.
+    var headings = Array.prototype.slice.call(article.querySelectorAll('[data-section]'));
+    var links = {};
+    Array.prototype.forEach.call(box.querySelectorAll('.toc-row a'), function (a) { links[a.getAttribute('href')] = a; });
+    var waiting = false;
+    function mark() {
+      waiting = false;
+      if (!document.body.contains(box)) {
+        window.removeEventListener('scroll', schedule, true);
+        window.removeEventListener('resize', schedule);
+        return;
+      }
+      var at = -1;
+      headings.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) { at = i; } });
+      var shown = null;
+      while (at >= 0 && !shown) {
+        var a = links['#' + headings[at].getAttribute('data-section')];
+        if (a && a.offsetParent !== null && !a.closest('.toc-fade-1, .toc-fade-2')) { shown = a; break; }
+        var level = Number(headings[at].getAttribute('data-level'));
+        var up = at - 1;
+        while (up >= 0 && Number(headings[up].getAttribute('data-level')) >= level) { up -= 1; }
+        at = up;
+      }
+      Object.keys(links).forEach(function (k) { links[k].classList.toggle('is-current', links[k] === shown); });
+    }
+    function schedule() { if (!waiting) { waiting = true; window.requestAnimationFrame(mark); } }
+    window.addEventListener('scroll', schedule, true);
+    window.addEventListener('resize', schedule);
+    box.addEventListener('click', schedule);
+    window.requestAnimationFrame(mark);
+    return box;
   }
 
   // Draws a page the way a reader sees it: title, description, then the blocks in order. No editor.

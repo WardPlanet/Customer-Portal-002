@@ -2682,3 +2682,6 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .preview-side { overflow-x: hidden; }
 .side-accordion, .side-accordion .side-list { min-width: 0; }
 .side-accordion .side-list-item > a { overflow-wrap: anywhere; }
+
+/* On this page: the heading the page is scrolled to has a light blue highlight (a ring, so nothing moves) */
+.toc-row a.is-current { background: var(--brand-tint); box-shadow: 0 0 0 3px var(--brand-tint); border-radius: 4px; }

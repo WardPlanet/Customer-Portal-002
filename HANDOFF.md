@@ -1326,3 +1326,5 @@ Colours: hard-coded hex values outside the tokens were replaced with tokens (83 
 The side column (On this page, then Related pages as an accordion, closed to begin with) now sits on the LEFT of the article, same card styling as before.
 
 Live page left column: logo + search box on top, then On this page and Related pages; the whole column is sticky, 240px wide. The search box is no longer in the Wiki bar on live pages.
+
+On this page highlights (light blue, a ring so nothing shifts) the heading the page is scrolled to; a heading folded out of sight lends it to the one above.
