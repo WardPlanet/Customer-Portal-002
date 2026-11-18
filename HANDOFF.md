@@ -1264,3 +1264,6 @@ Manage team can also **invite someone new to lead**: choose "Invite someone new 
 
 ## Search in Team and roles
 A search box above the people table (in every view of the window) filters the rows as you type by name, job title, email or department (all words must match); a line says when nobody matches. It is kept while the window redraws and cleared each time the window is opened.
+
+## Department icons
+The icon for a department is chosen from a dropdown of 15 standard icons (`window.TeamIcons` in `brand.js`; the same names are in `AdminCore.ICONS`): Team, Support, Web Team, Knowledge, Marketing, Analytics, Security, Engineering, Finance, People, Operations, Training, Development, Legal, Customer success. The button shows the chosen icon and its name; the grid opens beneath it (hover for names). Used in Manage team, and in the Admin tools create and edit team forms. Add an icon by adding it in both places.

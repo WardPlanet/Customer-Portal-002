@@ -2,6 +2,76 @@
 // the supplied logo (vector) and the colours taken from it.
 (function () {
   'use strict';
+  // The standard department icons (fixed markup, no page text), and a dropdown to choose one. The names are the ones AdminCore.ICONS accepts.
+  var ICON_LIST = [
+    { key: 'document', label: 'Team', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>' },
+    { key: 'support', label: 'Support', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="11.5" r="2.8"/><path d="M6.5 21c.4-3 2.6-4.6 5.5-4.6s5.1 1.6 5.5 4.6"/><path d="M5 11.5a7 7 0 0 1 14 0"/><path d="M5 11v2.5M19 11v2.5"/><path d="M19 13.5v1c0 1-.8 1.8-1.8 1.8H15"/></svg>' },
+    { key: 'website', label: 'Web Team', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="M2.5 9h19M6 6.8h.01M8.8 6.8h.01"/></svg>' },
+    { key: 'book', label: 'Knowledge', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' },
+    { key: 'megaphone', label: 'Marketing', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg>' },
+    { key: 'chart', label: 'Analytics', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>' },
+    { key: 'shield', label: 'Security', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>' },
+    { key: 'wrench', label: 'Engineering', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>' },
+    { key: 'dollar', label: 'Finance', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"/><path d="M17 6.5C16 5 14.3 4.5 12 4.5c-2.5 0-4.5 1.3-4.5 3.2 0 4.8 9 2.2 9 6.8 0 2-2 3.5-4.5 3.5-2.4 0-4.2-.8-5-2.5"/></svg>' },
+    { key: 'people', label: 'People', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5a5.5 5.5 0 0 1 4.5 5.5"/></svg>' },
+    { key: 'truck', label: 'Operations', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h11v10H2z"/><path d="M13 9h4l4 4v3h-8"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>' },
+    { key: 'graduation', label: 'Training', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5"/></svg>' },
+    { key: 'code', label: 'Development', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/><path d="M14 4l-4 16"/></svg>' },
+    { key: 'scale', label: 'Legal', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3 7a3.5 3.5 0 0 0 6 0z"/><path d="M19 7l-3 7a3.5 3.5 0 0 0 6 0z"/><path d="M8 21h8"/></svg>' },
+    { key: 'heart', label: 'Customer success', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7.5-4.6-9.2-9.3A5 5 0 0 1 12 6.5a5 5 0 0 1 9.2 4.2C19.5 15.4 12 20 12 20z"/></svg>' }
+  ];
+  var ICON_MAP = {};
+  ICON_LIST.forEach(function (icon) { ICON_MAP[icon.key] = icon; });
+
+  // A dropdown button showing the chosen icon and its name; opening it shows every icon in a grid (hover for the name). The returned
+  // element has a .value (the icon's key) to read and set, and calls onChange(key) when a person picks one.
+  function iconPicker(value, onChange) {
+    var wrap = document.createElement('div');
+    wrap.className = 'icon-picker';
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'icon-picker-button';
+    button.setAttribute('aria-haspopup', 'listbox');
+    button.setAttribute('aria-expanded', 'false');
+    var grid = document.createElement('div');
+    grid.className = 'icon-picker-grid';
+    grid.setAttribute('role', 'listbox');
+    grid.hidden = true;
+    var current = ICON_MAP[value] ? value : 'document';
+    function draw() {
+      var icon = ICON_MAP[current];
+      button.innerHTML = '<span class="icon-picker-icon">' + icon.svg + '</span><span class="icon-picker-name"></span><span class="icon-picker-arrow" aria-hidden="true">\u25BE</span>';
+      button.querySelector('.icon-picker-name').textContent = icon.label;
+      button.setAttribute('aria-label', 'Icon: ' + icon.label);
+      Array.prototype.forEach.call(grid.children, function (cell) { cell.setAttribute('aria-selected', String(cell.dataset.key === current)); cell.classList.toggle('is-selected', cell.dataset.key === current); });
+    }
+    function close() { grid.hidden = true; button.setAttribute('aria-expanded', 'false'); document.removeEventListener('mousedown', outside, true); }
+    function outside(event) { if (!wrap.contains(event.target)) { close(); } }
+    ICON_LIST.forEach(function (icon) {
+      var cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'icon-picker-cell';
+      cell.dataset.key = icon.key;
+      cell.title = icon.label;
+      cell.setAttribute('role', 'option');
+      cell.setAttribute('aria-label', icon.label);
+      cell.innerHTML = icon.svg;
+      cell.addEventListener('click', function () { current = icon.key; draw(); close(); button.focus(); if (onChange) { onChange(current); } });
+      grid.appendChild(cell);
+    });
+    button.addEventListener('click', function () {
+      if (grid.hidden) { grid.hidden = false; button.setAttribute('aria-expanded', 'true'); document.addEventListener('mousedown', outside, true); }
+      else { close(); }
+    });
+    wrap.addEventListener('keydown', function (event) { if (event.key === 'Escape' && !grid.hidden) { event.stopPropagation(); close(); button.focus(); } });
+    Object.defineProperty(wrap, 'value', { get: function () { return current; }, set: function (key) { current = ICON_MAP[key] ? key : 'document'; draw(); } });
+    wrap.appendChild(button);
+    wrap.appendChild(grid);
+    draw();
+    return wrap;
+  }
+
+  window.TeamIcons = { list: ICON_LIST, map: ICON_MAP, picker: iconPicker };
   window.Brand = {
     navy: '#000F60',    // headings and the wordmark
     blue: '#0069DC',    // accents, links, buttons: the logo bars

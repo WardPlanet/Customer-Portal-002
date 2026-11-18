@@ -13,7 +13,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var ICONS = ['website', 'support', 'document'];   // "document" is for a new team that has not been given a picture
+  var ICONS = ['document', 'support', 'website', 'book', 'megaphone', 'chart', 'shield', 'wrench', 'dollar', 'people', 'truck', 'graduation', 'code', 'scale', 'heart'];   // the standard icons (brand.js draws them); "document" is for a new team that has not been given a picture
   var MAX_TEXT = 80;
 
   function AdminError(message) {

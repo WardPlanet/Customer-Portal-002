@@ -104,11 +104,7 @@
 
   // A small picture beside a search result showing which team made the page. The Web Team's pages get a
   // website (browser window) icon. The picture is named in the team file ("icon": "website").
-  var TEAM_ICONS = {
-    document: { label: 'Team', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>' },
-    support: { label: 'Support', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="11.5" r="2.8"/><path d="M6.5 21c.4-3 2.6-4.6 5.5-4.6s5.1 1.6 5.5 4.6"/><path d="M5 11.5a7 7 0 0 1 14 0"/><path d="M5 11v2.5M19 11v2.5"/><path d="M19 13.5v1c0 1-.8 1.8-1.8 1.8H15"/></svg>' },
-    website: { label: 'Web Team', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2"/><path d="M2.5 9h19M6 6.8h.01M8.8 6.8h.01"/></svg>' }
-  };
+  var TEAM_ICONS = window.TeamIcons.map;   // the standard icons live in brand.js
 
   // A department by its slug (the Claude artifact carries several; the pages of every department appear in search)
   function teamFor(slug) {
@@ -1608,10 +1604,7 @@
       teams.forEach(function (t) { var o = el('option', '', t.name); o.value = t.slug; which.appendChild(o); });
       which.value = team.slug;
       var name = textField('Team name');
-      var iconSelect = el('select', 'acting-select');
-      iconSelect.setAttribute('aria-label', 'Icon');
-      Object.keys(TEAM_ICONS).forEach(function (key) { var o = el('option', '', TEAM_ICONS[key].label); o.value = key; iconSelect.appendChild(o); });
-      var preview = el('span', 'team-icon manage-icon-preview');
+      var iconSelect = window.TeamIcons.picker('document');
       var leadSelect = el('select', 'acting-select');
       leadSelect.setAttribute('aria-label', 'Team lead');
       var invite = el('div', 'manage-invite');
@@ -1628,15 +1621,11 @@
       var waiting = el('p', 'dialog-hint');
       waiting.hidden = true;
       leadSelect.addEventListener('change', function () { invite.hidden = leadSelect.value !== '__invite__'; problem.hidden = true; });
-      var iconRow = el('div', 'manage-icon-row');
-      iconRow.appendChild(iconSelect);
-      iconRow.appendChild(preview);
       function current() { return teams.filter(function (t) { return t.slug === which.value; })[0]; }
       function fill() {
         var t = current();
         name.value = t.name;
         iconSelect.value = TEAM_ICONS[t.icon] ? t.icon : 'document';
-        showIcon();
         leadSelect.textContent = '';
         t.roles.filter(function (r) { return r.person && r.status !== 'invited'; }).forEach(function (r) {
           var o = el('option', '', r.person + ' \u2014 ' + r.title);
@@ -1653,12 +1642,10 @@
         waiting.textContent = pending ? 'Waiting for ' + pending.person + ' (' + pending.title + ') to accept the invitation to lead. Until then ' + (t.roles.filter(function (r) { return r.title === t.lead; })[0] || {}).person + ' stays the lead.' : '';
         problem.hidden = true;
       }
-      function showIcon() { preview.innerHTML = (TEAM_ICONS[iconSelect.value] || TEAM_ICONS.document).svg; }   // fixed markup, no page text
       which.addEventListener('change', fill);
-      iconSelect.addEventListener('change', showIcon);
       d.appendChild(adminField('Team', which));
       d.appendChild(adminField('Team name', name));
-      d.appendChild(adminField('Icon', iconRow));
+      d.appendChild(adminField('Icon', iconSelect));
       d.appendChild(adminField('Team lead', leadSelect));
       d.appendChild(invite);
       d.appendChild(waiting);

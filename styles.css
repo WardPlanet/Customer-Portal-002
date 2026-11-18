@@ -2480,3 +2480,15 @@ dialog { position: fixed; }
 .team-search { width: 100%; max-width: 420px; margin: 4px 0 12px; }
 .manage-invite { margin: 0 0 8px; }
 .team-dialog tbody tr[hidden] { display: none; }
+
+/* Department icon dropdown: the chosen icon and its name; the grid of standard icons opens beneath it */
+.icon-picker { position: relative; display: inline-block; }
+.icon-picker-button { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; font: inherit; font-size: 14px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; cursor: pointer; }
+.icon-picker-button:hover { background: var(--surface-muted); }
+.icon-picker-icon { display: inline-grid; color: var(--accent); }
+.icon-picker-arrow { color: var(--text-muted); font-size: 12px; }
+.icon-picker-grid { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; display: grid; grid-template-columns: repeat(5, 40px); gap: 4px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16); }
+.icon-picker-grid[hidden] { display: none; }
+.icon-picker-cell { display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; color: var(--text-muted); background: none; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
+.icon-picker-cell:hover { background: var(--surface-muted); color: var(--accent); }
+.icon-picker-cell.is-selected { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }

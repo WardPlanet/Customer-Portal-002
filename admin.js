@@ -15,7 +15,6 @@
   'use strict';
 
   var TABS = [['teams', 'Teams'], ['people', 'People'], ['invitations', 'Invitations'], ['history', 'History']];
-  var ICON_NAMES = { website: 'Website', support: 'Support (headset)', document: 'Document' };
   var UNDO_MS = 9000;
   var cleanup = null;
 
@@ -436,7 +435,7 @@
         var step1 = el('div', 'admin-form admin-form-stack');
         var name = textInput('', 'For example Customer Success');
         var places = textInput('', 'For example Help Center, Playbooks');
-        var icon = select(Object.keys(ICON_NAMES).map(function (key) { return [key, ICON_NAMES[key]]; }), 'document');
+        var icon = window.TeamIcons.picker('document');
         var publish = select([['lead', 'Only the team lead'], ['anyone', 'Anyone on the team']], 'lead');
         step1.appendChild(field('Team name', name));
         step1.appendChild(field('Places its pages live', places, 'Separate with commas.'));
@@ -501,7 +500,7 @@
       var form = el('div', 'admin-form admin-form-stack');
       var name = textInput(team.name);
       var places = textInput(team.locations.join(', '));
-      var icon = select(Object.keys(ICON_NAMES).map(function (key) { return [key, ICON_NAMES[key]]; }), team.icon);
+      var icon = window.TeamIcons.picker(team.icon);
       var publish = select([['lead', 'Only the team lead'], ['anyone', 'Anyone on the team']], team.directPublish);
       var leads = team.roles.filter(function (role) { return role.person && role.status !== 'invited'; }).map(function (role) { return [role.title, role.person + ' — ' + role.title]; });
       var lead = select(leads, team.lead);
