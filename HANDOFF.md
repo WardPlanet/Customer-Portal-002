@@ -1288,4 +1288,4 @@ The text in a live page's table cells is the logo's dark blue (#000F60) in light
 
 Every icon (department icons, contact icons, the icon picker, the heading link icon, toolbar and bell, outline chevrons) uses `--icon-blue`: the light blue of the logo bars (#0069DC; a lighter blue in dark mode). Note and warning icons keep their orange and red because they carry meaning. The live-page table header is now the logo's dark blue (#000F60) with white text (a slightly lighter navy in dark mode).
 
-Every live page has a search box at the top that sticks to the top of the screen as the page scrolls (`buildDocSearchBar`). Typing shows up to six suggestions; Enter or choosing one opens the search page with that search already run and logged as a new search.
+Every live page has its search box in the Wiki bar at the top (between the links and the New page button), and the bar sticks to the top of the screen there as the page scrolls (`mountTopSearch`, `buildDocSearchBar`). Typing shows up to six suggestions; Enter or choosing one opens the search page with that search already run and logged as a new search.

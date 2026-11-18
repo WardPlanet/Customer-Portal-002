@@ -2784,8 +2784,23 @@
   // The sticky search box at the top of a live page. Typing shows page-title suggestions; Enter or a suggestion opens the search page with
   // that search already run (and counted as a new search).
   var DOC_SEARCH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+  // The search box lives in the Wiki bar on a live page (between the links and the New page button) and the bar sticks to the top of
+  // the screen; every other screen has the bar as before.
+  function removeTopSearch() {
+    var old = document.querySelector('.lib-top .top-search');
+    if (old) { old.remove(); }
+    document.body.classList.remove('has-top-search');
+  }
+  function mountTopSearch() {
+    removeTopSearch();
+    var header = document.querySelector('.lib-top');
+    var right = header && header.querySelector('.top-right');
+    if (!header || !right) { return; }
+    header.insertBefore(buildDocSearchBar(), right);
+    document.body.classList.add('has-top-search');
+  }
   function buildDocSearchBar() {
-    var bar = el('div', 'doc-search');
+    var bar = el('div', 'top-search');
     var wrap = el('div', 'suggest-wrap doc-search-wrap');
     var input = el('input', 'lib-search doc-search-input');
     input.type = 'search';
@@ -3111,7 +3126,7 @@
         window.removeEventListener('resize', schedule);
         return;
       }
-      var top = Math.max(box.getBoundingClientRect().top, 76);   // below the sticky search box
+      var top = Math.max(box.getBoundingClientRect().top, 82);   // below the sticky Wiki bar
       var footer = document.querySelector('.preview-footer');   // the fixed bottom bar must not cover the box
       var reserved = (footer ? footer.offsetHeight : 0) + 16;
       box.style.maxHeight = Math.max(180, window.innerHeight - top - reserved) + 'px';
@@ -3287,7 +3302,7 @@
     showScreen('library', true);
     main.textContent = '';
     // The back link follows where you came from: the batch import's results, the library, or the search page
-    main.appendChild(buildDocSearchBar());   // the search box stays at the top of every live page while it scrolls
+    mountTopSearch();   // the search box sits in the Wiki bar at the top of every live page, and the bar stays while the page scrolls
     var backRow = el('div', 'back-row');
     var cameFromBatch = fromLibrary && /^#\/batch/.test(routeHistory.previous);
     backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));
@@ -3511,6 +3526,7 @@
     // The public view is the site a signed-out visitor sees: the search page and the Client-Safe pages, nothing else
     if ((window.Store.isPublicMode && window.Store.isPublicMode()) && screen !== 'public') { screen = 'public'; parts = ['public']; if (location.hash !== '#/public') { history.replaceState(null, '', '#/public'); } }
     setBanner(null);
+    removeTopSearch();   // only a live page has the search box in the Wiki bar
     if (screen !== 'admin' && window.Admin) { window.Admin.leave(); }   // the Admin tools page lets go of its listeners
     if (screen === 'new') { openNewPage(); }
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
