@@ -3032,8 +3032,10 @@
     byline.setAttribute('aria-label', 'Contacts');
     function person(role, kicker, isDefault) {
       var part = el('span', 'byline-person');
-      part.appendChild(el('span', 'byline-kicker', kicker));
-      part.appendChild(el('span', 'byline-name', role.person ? fullName(role.person, role.email) : 'Unassigned'));
+      // No "Owner" or "Team lead" label: the job title says it, and the label is in the tooltip
+      var name = el('span', 'byline-name', role.person ? fullName(role.person, role.email) : 'Unassigned');
+      name.title = kicker === 'Also' ? 'Linked contact' : kicker;
+      part.appendChild(name);
       part.appendChild(el('span', 'byline-role', role.title + (isDefault ? ' (Default)' : '')));
       if (role.email) {
         var mail = link('', 'mailto:' + role.email, 'byline-link');
