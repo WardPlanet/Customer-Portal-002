@@ -1311,3 +1311,5 @@ The contacts byline has a rule beneath it (like the title's), and its email and 
 One rule under the title block: the title's own rule is dropped when the contacts line follows, and the rule under that line stays. The visibility pill and "Updated N days ago" moved from the right column to the right end of the contacts line, so the right column holds only Related pages and On this page.
 
 The department name above a live page's title (the eyebrow) is a link: it opens the search page with the Team filter set to that department, listing all of its documents.
+
+Clicking the department above a page's title opens the search page already scrolled to that department's list, with a heading (icon, name, page count) and an Order choice (Newest, A to Z, Most opened); the cards leave out the department icon while one department is chosen.

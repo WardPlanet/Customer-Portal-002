@@ -2560,8 +2560,28 @@
       if (mine !== routing || q !== search.value.trim()) { return; }
       live = window.Search.sortPages(live, order, views);
       listBox.textContent = '';
-      if (filtering) {
-        var count = el('p', 'landing-count', live.length + (live.length === 1 ? ' page' : ' pages'));
+      var countText = live.length + (live.length === 1 ? ' page' : ' pages');
+      var oneTeam = filters.team ? teamFor(filters.team) : null;
+      if (filtering && oneTeam && !q) {
+        // A department's pages: a heading (the department's icon and name, how many pages) with the order to list them in
+        var heading = el('div', 'landing-team-head');
+        var headIcon = teamIcon({ team: oneTeam.slug });
+        if (headIcon) { heading.appendChild(headIcon); }
+        heading.appendChild(el('h2', 'landing-team-name', oneTeam.name));
+        heading.appendChild(el('span', 'landing-team-count', countText));
+        var orderSelect = el('select', 'acting-select landing-team-order');
+        orderSelect.setAttribute('aria-label', 'Order');
+        [['newest', 'Newest'], ['az', 'A to Z'], ['opened', 'Most opened']].forEach(function (pair) {
+          var option = el('option', '', pair[1]);
+          option.value = pair[0];
+          orderSelect.appendChild(option);
+        });
+        orderSelect.value = filters.sort === 'best' ? 'newest' : filters.sort;
+        orderSelect.addEventListener('change', function () { filters.sort = orderSelect.value; filtersChanged(); });
+        heading.appendChild(orderSelect);
+        listBox.appendChild(heading);
+      } else if (filtering) {
+        var count = el('p', 'landing-count', countText);
         listBox.appendChild(count);
       }
       var note = q ? searchNote({ pages: live, partial: result.partial, suggestion: result.suggestion }, function (word) { search.value = word; refresh(); }) : null;
@@ -2578,7 +2598,7 @@
       if (note) { listBox.appendChild(note); }
       live.forEach(function (p, position) {
         var card = el('div', 'public-card');
-        var icon = teamIcon(p);
+        var icon = filters.team ? null : teamIcon(p);   // with one department chosen the icon says nothing new
         if (icon) { card.appendChild(icon); }
         var body = el('div', 'public-card-body');
         var titleRow = el('div', 'public-card-title');
@@ -2773,7 +2793,14 @@
       if (saved.filters) { filters = Object.assign({ team: '', location: '', visibility: '', updated: '', sort: 'best' }, saved.filters); updateFilterUi(); }
       refresh({ restoring: !saved.fresh }).then(function () {
         if (mine !== routing) { return; }
-        window.scrollTo(0, saved.y);
+        if (saved.toResults) {
+          // Straight to the list. The scroll is made again once the page has settled (the search box moving into the bar can
+          // otherwise pull the page back up).
+          var toList = function () { window.scrollTo({ top: Math.max(0, listBox.getBoundingClientRect().top + window.scrollY - barHeight - 16), behavior: 'instant' }); };
+          toList();
+          window.requestAnimationFrame(function () { window.requestAnimationFrame(toList); });
+        }
+        else { window.scrollTo(0, saved.y); }
         updateBar();
       });
     } else {
@@ -3369,7 +3396,7 @@
         eyebrow.title = 'All of ' + ownerTeam.name + '\u2019s pages';
         eyebrow.addEventListener('click', function (event) {
           event.preventDefault();
-          savedSearch = { q: '', y: 0, filters: { team: ownerTeam.slug }, fresh: true };
+          savedSearch = { q: '', y: 0, filters: { team: ownerTeam.slug }, fresh: true, toResults: true };
           location.hash = '#/public';
         });
         var eyebrowIcon = teamIcon({ team: ownerTeam.slug });
