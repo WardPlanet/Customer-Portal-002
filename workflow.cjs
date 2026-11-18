@@ -259,6 +259,17 @@
     return plural(Math.floor(days / 365), 'year') + ' ago';
   }
 
+  // When something was last updated, always in days: "today", "yesterday", "2 days ago", "45 days ago" (calendar days, in the viewer's time zone)
+  function daysAgo(iso, now) {
+    var then = new Date(Date.parse(iso));
+    if (isNaN(then.getTime())) { return ''; }
+    var current = new Date(now === undefined ? Date.now() : now);
+    var days = Math.round((new Date(current.getFullYear(), current.getMonth(), current.getDate()) - new Date(then.getFullYear(), then.getMonth(), then.getDate())) / DAY_MS);
+    if (days <= 0) { return 'today'; }
+    if (days === 1) { return 'yesterday'; }
+    return days + ' days ago';
+  }
+
   // { overdue, days, text } for a page last updated at `iso`, or null when there is no date.
   //   "Review due in 172 days"  /  "Review due today"  /  "Needs review \u00B7 30 days overdue"
   function reviewStatus(iso, now) {
@@ -1173,6 +1184,7 @@
     tableWidthsToLines: tableWidthsToLines,
     REVIEW_DAYS: REVIEW_DAYS,
     relativeTime: relativeTime,
+    daysAgo: daysAgo,
     reviewStatus: reviewStatus,
     PHOTO_SIZES: PHOTO_SIZES,
     photoFromSections: photoFromSections,

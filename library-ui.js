@@ -3234,15 +3234,14 @@
     backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));
     main.appendChild(backRow);
     var bar = el('div', 'preview-bar');
-    if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { bar.appendChild(visibilityPill(detail.page.visibility)); }
+    var publicMode = !!(window.Store.isPublicMode && window.Store.isPublicMode());
     if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet')); }
-    // How fresh the page is: "Updated 2 days ago" (the full date on hover), and on a live page when it is due for review
-    if (detail.page.updatedAt) {
-      var fresh = el('span', 'preview-updated', 'Updated ' + W.relativeTime(detail.page.updatedAt));
+    // Staff see the visibility and when the page was last updated in the side column, above Contacts. A signed-out visitor
+    // (the Public view) has only "Updated ..." here. When it was updated is always in days: today, yesterday, 2 days ago.
+    if (publicMode && detail.page.updatedAt) {
+      var fresh = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
       fresh.title = formatDate(detail.page.updatedAt);
       bar.appendChild(fresh);
-      var due = detail.page.liveVersion ? W.reviewStatus(detail.page.updatedAt) : null;
-      if (due && !(window.Store.isPublicMode && window.Store.isPublicMode())) { bar.appendChild(el('span', 'preview-updated review-line' + (due.overdue ? ' is-overdue' : ''), due.text)); }
     }
     main.appendChild(bar);
     // Points the AI flagged when the document was imported are shown ON the draft, while it is not live (they are in its version note)
@@ -3279,6 +3278,21 @@
         else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
         side.appendChild(support);
       } else {
+        // Visibility and when it was last updated, above Contacts
+        var details = el('section', 'side-card side-details');
+        var visRow = el('div', 'side-detail');
+        visRow.appendChild(el('span', 'side-detail-label', 'Visibility'));
+        visRow.appendChild(visibilityPill(detail.page.visibility));
+        details.appendChild(visRow);
+        if (detail.page.updatedAt) {
+          var updatedRow = el('div', 'side-detail');
+          updatedRow.appendChild(el('span', 'side-detail-label', 'Last updated'));
+          var updatedText = el('span', 'side-detail-value', W.daysAgo(detail.page.updatedAt));
+          updatedText.title = formatDate(detail.page.updatedAt);
+          updatedRow.appendChild(updatedText);
+          details.appendChild(updatedRow);
+        }
+        side.appendChild(details);
         renderContacts(W.fields(data.text), teamFor(detail.page.team) || team).forEach(function (card) { side.appendChild(card); });
       }
       // Related pages come next, also scrolling away with the page

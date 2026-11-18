@@ -2492,3 +2492,9 @@ dialog { position: fixed; }
 .icon-picker-cell { display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; color: var(--text-muted); background: none; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
 .icon-picker-cell:hover { background: var(--surface-muted); color: var(--accent); }
 .icon-picker-cell.is-selected { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }
+
+/* Visibility and last updated, above Contacts */
+.side-details { display: flex; flex-direction: column; gap: 8px; }
+.side-detail { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; }
+.side-detail-label { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.side-detail-value { color: var(--text); }

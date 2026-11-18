@@ -1268,3 +1268,6 @@ A search box above the people table (in every view of the window) filters the ro
 
 ## Department icons
 The icon for a department is chosen from a dropdown of 15 standard icons (`window.TeamIcons` in `brand.js`; the same names are in `AdminCore.ICONS`): Team, Support, Web Team, Knowledge, Marketing, Analytics, Security, Engineering, Finance, People, Operations, Training, Development, Legal, Customer success. The button shows the chosen icon and its name; the grid opens beneath it (hover for names). Used in Create team and Manage team (Team and roles), and in the Admin tools create and edit team forms. Add an icon by adding it in both places.
+
+## Live page: details above Contacts
+On a live page, staff see a small box above Contacts with **Visibility** (Internal or Public) and **Last updated**, in days only: today, yesterday, 2 days ago, 45 days ago (`Workflow.daysAgo`). The old pill and "Updated ..." line above the page, and the "Review due in N days" line, are gone from the page view (the review line still shows in the library table). A signed-out visitor (Public view) sees only "Updated ..." above the page. Elsewhere (the library table, search results) the time still reads "2 months ago" etc.; say if those should be in days too.

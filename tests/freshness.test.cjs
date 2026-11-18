@@ -65,3 +65,14 @@ test('a page that is not live shows its last save', () => {
   const page = W.createPage(team, draft('Refunds'), wanda, '2026-01-01T10:00:00.000Z');
   assert.equal(W.summary(page).updatedAt, page.updatedAt);
 });
+
+test('when a page was updated reads in days only: today, yesterday, N days ago', () => {
+  const W = require('../workflow.cjs');
+  const now = new Date(2026, 5, 15, 14, 0, 0).getTime();
+  const at = (daysBack, hour) => new Date(2026, 5, 15 - daysBack, hour, 0, 0).toISOString();
+  assert.equal(W.daysAgo(at(0, 1), now), 'today');
+  assert.equal(W.daysAgo(at(1, 23), now), 'yesterday');
+  assert.equal(W.daysAgo(at(2, 9), now), '2 days ago');
+  assert.equal(W.daysAgo(at(45, 9), now), '45 days ago');
+  assert.equal(W.daysAgo('not a date', now), '');
+});
