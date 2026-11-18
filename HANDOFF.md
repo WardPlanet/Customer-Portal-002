@@ -1294,4 +1294,4 @@ Links and logo colours: plain links (related pages, contacts, links inside a pag
 
 Third brand colour: the pale sky blue #D3E6F5 (`--brand-tint`). It is now the soft blue fill (`--accent-soft`): selected chips, the Back link, selected rows. Dark mode is unchanged. Other places it could go if wanted: the highlighted-section tint, landing tiles, banners.
 
-The pale sky blue (#D3E6F5) is also the highlighted-section tint (was yellow), the landing tile background (hover #C7DDF1) and, through `--accent-soft`, the info banners. Dark mode uses a deep blue (#14304f) for the highlight.
+The pale sky blue (#D3E6F5) is also the landing tile background (hover #C7DDF1) and, through `--accent-soft`, the info banners. The highlighted section keeps its original pale yellow.

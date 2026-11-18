@@ -22,7 +22,7 @@
     --warn-bg: #fffaeb;
     --warn-border: #f5d77a;
     --warn-icon: #d9640a;
-    --linked-bg: #d3e6f5;   /* the highlighted section: the brand tint */
+    --linked-bg: #fffde8;
     --success: #1fa65a;
     --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;   /* page titles and first-level headings in an article */
     --radius-card: 16px;
@@ -55,7 +55,7 @@
       --warn-bg: #2a2410;
       --warn-border: #6b5a1c;
       --warn-icon: #f09a4a;
-      --linked-bg: #14304f;
+      --linked-bg: #2a2812;
       color-scheme: dark;
     }
   }
@@ -81,7 +81,7 @@
     --warn-bg: #2a2410;
     --warn-border: #6b5a1c;
     --warn-icon: #f09a4a;
-    --linked-bg: #14304f;
+    --linked-bg: #2a2812;
     color-scheme: dark;
   }
 
