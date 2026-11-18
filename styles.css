@@ -3,7 +3,8 @@
     --bg: #f6f6f6;
     --surface: #ffffff;
     --surface-muted: #fafafa;
-    --table-head: #0a66d8;   /* header row of a table in a page: the main blue, with white text */
+    --icon-blue: #0069DC;    /* every icon: the light blue of the logo bars */
+    --table-head: #000F60;   /* header row of a table in a page: the logo's dark blue, with white text */
     --table-alt: #f1f1f5;    /* every second row: grey */
     --table-line: #e0e0e6;   /* the lines between rows and columns */
     --border: #e4e4e7;
@@ -35,7 +36,8 @@
       --bg: #101113;
       --surface: #18191c;
       --surface-muted: #1e2024;
-      --table-head: #1d5fb8;
+      --icon-blue: #4d94f0;
+      --table-head: #1b2a78;
       --table-alt: #1e2024;
       --table-line: #34363d;
       --border: #2d2f35;
@@ -60,7 +62,8 @@
     --bg: #101113;
     --surface: #18191c;
     --surface-muted: #1e2024;
-    --table-head: #1d5fb8;
+    --icon-blue: #4d94f0;
+    --table-head: #1b2a78;
     --table-alt: #1e2024;
     --table-line: #34363d;
     --border: #2d2f35;
@@ -2538,3 +2541,12 @@ dialog { position: fixed; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .preview-table td { color: var(--text); } }
 :root[data-theme="dark"] .preview-table td { color: var(--text); }
 .preview-table tbody tr:nth-child(even) td { background: var(--table-alt); }
+
+/* Every icon is the light blue of the logo (the status icons for notes and warnings keep their own colours) */
+.team-icon, .contact-icon, .icon-picker-icon, .icon-picker-cell, .suggest-icon, .bell, .icon-btn, .preview-anchor,
+.toc-chevron, .toc-toggle, .outline-list svg, .menu-summary svg { color: var(--icon-blue); }
+.icon-picker-cell:hover, .icon-btn:hover, .bell:hover { color: var(--icon-blue); }
+.icon-picker-cell.is-selected { color: var(--icon-blue); }
+.preview-anchor { opacity: 1; }
+.preview-anchor:hover, .preview-anchor:focus-visible { color: #fff; background: var(--icon-blue); }
+.landing-tile-top .team-icon { color: var(--tile-icon); }
