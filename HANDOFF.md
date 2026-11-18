@@ -1211,3 +1211,6 @@ Department dropdown now has **Public**: the artifact shows the site as a signed-
 - Staff navigation (Library, Search review, Admin tools, New page, bell) and "Acting as" are hidden; every route other than `#/public…` redirects to the search page.
 - No visibility filter or pill, no owner line, no review warning, no Edit button or "View as the public" toggle; page view always reads as the public sees it (support link, no contacts).
 - Local to the artifact. On the real server this is simply the signed-out routes; the server's public routes still need to serve images (see open items).
+
+## Related pages hierarchy
+"Related pages" on a page fills in this order, up to five (more only if the author chose more): 1) the author's own picks, 2) pages with the same owner or linked person, 3) pages that match this page's keywords and title the way a search would, best match first. Public view only ever lists Client-Safe pages.

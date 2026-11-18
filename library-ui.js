@@ -2354,11 +2354,27 @@
       return all.pages.filter(function (p) { return p.id === relatedId; })[0];
     }).filter(function (p) { return p && allowed(p); });
     // Five are shown. If the author chose more than five, all of theirs are shown (and nothing is added to them).
+    // The order is a hierarchy: the author's own choices, then pages with the same owner or linked person, then pages that
+    // match this page's keywords and title the way a search would (best match first).
     var limit = Math.max(5, chosen.length);
-    var matches = chosen.concat(all.pages.filter(function (p) {
+    var sameOwner = all.pages.filter(function (p) {
       if (!allowed(p) || chosen.indexOf(p) >= 0) { return false; }
       return people.indexOf(W.resolveKey(team, p.owner)) >= 0 || (p.linkedRoles || []).some(function (key) { return people.indexOf(W.resolveKey(team, key)) >= 0; });
-    })).slice(0, limit);
+    });
+    var matches = chosen.concat(sameOwner);
+    if (matches.length < limit) {
+      var terms = (pageFields.keywords || []).concat(pageFields.title ? [pageFields.title] : []).filter(Boolean).slice(0, 8);
+      var scores = {};
+      for (var t = 0; t < terms.length; t += 1) {
+        var found = await attempt(backend().list(terms[t], true));
+        if (!found) { continue; }
+        found.pages.forEach(function (p, place) { scores[p.id] = (scores[p.id] || 0) + (found.pages.length - place); });
+      }
+      var similar = all.pages.filter(function (p) { return allowed(p) && matches.indexOf(p) < 0 && scores[p.id]; });
+      similar.sort(function (x, y) { return scores[y.id] - scores[x.id]; });
+      matches = matches.concat(similar);
+    }
+    matches = matches.slice(0, limit);
     if (!matches.length) { return null; }
     var box = el('section', 'side-card');
     box.appendChild(el('h2', 'side-title', 'Related pages'));
