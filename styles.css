@@ -2348,21 +2348,14 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .toc-flat .toc-spacer { display: none; }
 
 
-/* Select by: the panel under the header checkbox */
-.lib-select-head { position: relative; }
-.lib-pick-panel {
-  position: absolute; left: 0; top: calc(100% + 4px); z-index: 20; width: 280px; max-height: 70vh; overflow: auto;
-  padding: 8px 12px 12px; text-align: left; font-weight: 400; background: var(--surface, #fff);
-  border: 1px solid var(--border-strong, #ccc); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.14);
-}
-.lib-pick-group { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border, #e5e5e5); }
+
+
+/* Select by: under the "N selected" bar */
+.lib-narrow { margin: 0 0 12px; padding: 10px 14px 12px; background: var(--surface, #fff); border: 1px solid var(--border, #e5e5e5); border-radius: 12px; }
+.lib-narrow-hint { margin: 0 0 6px; font-size: 0.85rem; font-weight: 700; color: var(--text, #111); }
+.lib-narrow-columns { display: flex; flex-wrap: wrap; gap: 4px 32px; }
+.lib-pick-group { min-width: 170px; }
 .lib-pick-title { margin: 0 0 2px; font-size: 0.72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted, #666); }
-.lib-pick-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; font-size: 0.9rem; color: var(--text, #111); }
+.lib-pick-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; font-size: 0.9rem; color: var(--text, #111); }
 .lib-pick-label { flex: 1; }
 .lib-pick-count { color: var(--text-faint, #888); font-size: 0.8rem; }
-.lib-pick-done { margin-top: 10px; }
-
-.lib-select-caret { margin-left: 2px; padding: 0 4px; background: none; border: 0; border-radius: 4px; font-size: 0.8rem; line-height: 1; color: var(--text-muted, #666); cursor: pointer; }
-.lib-select-caret:hover, .lib-select-caret[aria-expanded="true"] { background: var(--border, #e5e5e5); color: var(--text, #111); }
-.lib-select-head { white-space: nowrap; }
-.lib-select-head input[type="checkbox"], .lib-select-caret { vertical-align: middle; }

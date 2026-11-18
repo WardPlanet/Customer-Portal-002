@@ -383,6 +383,14 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json(detail(page, ctx));
   }));
 
+  // Team lead only: makes one page Internal-Only or Client-Safe (public)
+  app.post('/api/library/pages/:id/visibility', staff(async function (req, res, ctx) {
+    var page = await open(req, ctx);
+    Workflow.setVisibility(page, req.body && req.body.visibility, ctx.actor, ctx.team, ctx.now);
+    await savePage(draftsDir, ctx.team, page);
+    res.json(detail(page, ctx));
+  }));
+
   // Photos: any staff member adds one (the raw picture bytes in the body); anyone on the team can read one. Pages only
   // ever point at a picture by id, so there is no way to ask for another file through these routes.
   app.post('/api/images', express.raw({ type: function () { return true; }, limit: IMAGE_MAX_BYTES }), staff(async function (req, res, ctx) {

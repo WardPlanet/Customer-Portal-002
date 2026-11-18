@@ -650,6 +650,14 @@
     await runBulk(list, function (p) { return backend().setOwner(p.id, role); }, 'Changed the owner of', 'could not be changed');
   }
 
+  async function bulkSetVisibility(list, visibility) {
+    var pub = visibility === 'Client-Safe';
+    var many = list.length + (list.length === 1 ? ' page' : ' pages');
+    var question = pub ? 'Make ' + many + ' shareable with clients? Any that are live will appear on the public site.' : 'Make ' + many + ' internal only? Any that are live will disappear from the public site.';
+    if (!(await window.askConfirm(question, { title: pub ? 'Share with clients?' : 'Make internal only?', ok: pub ? 'Share with clients' : 'Make internal' }))) { return; }
+    await runBulk(list, function (p) { return backend().setVisibility(p.id, visibility); }, 'Changed the visibility of', 'could not be changed');
+  }
+
   function renderList(box, pages) {
     box.textContent = '';
     var shown = pages.filter(function (p) {
@@ -697,6 +705,15 @@
       givablePeople().forEach(function (role) { var option = el('option', '', roleOptionText(role)); option.value = W.keyFor(role); ownerPick.appendChild(option); });
       ownerPick.addEventListener('change', async function () { var role = ownerPick.value; ownerPick.value = ''; if (role) { await bulkSetOwner(chosenPages(), role); } });
       bulkBar.appendChild(ownerPick);
+      var visibilityPick = el('select', 'acting-select');
+      visibilityPick.setAttribute('aria-label', 'Change the visibility of the selected pages');
+      [['', 'Change visibility\u2026'], ['Internal-Only', 'Internal only'], ['Client-Safe', 'Shareable with clients']].forEach(function (pair) {
+        var option = el('option', '', pair[1]);
+        option.value = pair[0];
+        visibilityPick.appendChild(option);
+      });
+      visibilityPick.addEventListener('change', async function () { var chosenValue = visibilityPick.value; visibilityPick.value = ''; if (chosenValue) { await bulkSetVisibility(chosenPages(), chosenValue); } });
+      bulkBar.appendChild(visibilityPick);
       bulkBar.appendChild(button('Delete', 'row-btn row-btn-danger', function () { bulkDelete(chosenPages()); }));
       bulkBar.appendChild(button('Clear', 'row-btn', function () {
         libraryFilters.selected = {}; libraryFilters.pick = {}; libraryFilters.pickOpen = '';
@@ -704,7 +721,7 @@
       }));
       box.appendChild(bulkBar);
     }
-    // The header checkbox opens a panel of tick boxes to select by what the table shows: visibility, status, owner (department, for
+    // The tick boxes below the bar select by what the table shows of tick boxes to select by what the table shows: visibility, status, owner (department, for
     // Admin) and pages due for review. Ticks inside one group add up (Internal or Client-Safe); different groups narrow each other
     // (Internal AND live). Only the pages shown, after any filter, are considered.
     var pickGroups = [];
@@ -727,51 +744,51 @@
     function applyPick() {
       var active = pickGroups.filter(function (g) { return Object.keys(pick[g.key] || {}).length; });
       Object.keys(selected).forEach(function (id) { delete selected[id]; });
-      if (!active.length) { return; }
+      if (!active.length) { shown.forEach(function (p) { selected[p.id] = true; }); return; }   // nothing ticked: everything shown, as the header box does
       shown.forEach(function (p) {
         if (active.every(function (g) { return pick[g.key][g.valueOf(p)]; })) { selected[p.id] = true; }
       });
     }
-    function buildPickPanel(anchor) {
-      var panel = el('div', 'lib-pick-panel');
+    // Under the "N selected" bar: tick boxes laid out by the table's columns that narrow what is selected. With nothing ticked the
+    // selection is whatever was chosen by hand (or everything shown); ticking narrows it to the pages that match.
+    function buildNarrowBox() {
+      var panel = el('div', 'lib-narrow');
       panel.setAttribute('role', 'group');
-      panel.setAttribute('aria-label', 'Select pages by');
-      function row(label, count, checked, indeterminate, onChange, id) {
-        var line = el('label', 'lib-pick-row');
-        var box = el('input');
-        box.type = 'checkbox';
-        box.checked = checked;
-        box.indeterminate = !!indeterminate;
-        box.dataset.pick = id;
-        box.addEventListener('change', function () { onChange(box.checked); libraryFilters.pickOpen = id; renderList(anchor.box, anchor.pages); });
-        line.appendChild(box);
-        line.appendChild(el('span', 'lib-pick-label', label));
-        line.appendChild(el('span', 'lib-pick-count', String(count)));
-        return line;
-      }
-      var everyShown = shown.length > 0 && shown.every(function (p) { return selected[p.id]; });
-      var someShown = shown.some(function (p) { return selected[p.id]; });
-      panel.appendChild(row('All pages shown', shown.length, everyShown, someShown && !everyShown, function (on) {
-        Object.keys(pick).forEach(function (k) { delete pick[k]; });
-        Object.keys(selected).forEach(function (id) { delete selected[id]; });
-        if (on) { shown.forEach(function (p) { selected[p.id] = true; }); }
-      }, 'all'));
+      panel.setAttribute('aria-label', 'Select by');
+      panel.appendChild(el('p', 'lib-narrow-hint', 'Select by:'));
+      var columns = el('div', 'lib-narrow-columns');
       pickGroups.forEach(function (g) {
         var section = el('div', 'lib-pick-group');
         section.appendChild(el('p', 'lib-pick-title', g.title));
         g.values.forEach(function (v) {
-          section.appendChild(row(v, g.counts[v], !!(pick[g.key] && pick[g.key][v]), false, function (on) {
+          var line = el('label', 'lib-pick-row');
+          var tickBox = el('input');
+          tickBox.type = 'checkbox';
+          tickBox.checked = !!(pick[g.key] && pick[g.key][v]);
+          tickBox.dataset.pick = g.key + ':' + v;
+          tickBox.addEventListener('change', function () {
             pick[g.key] = pick[g.key] || {};
-            if (on) { pick[g.key][v] = true; } else { delete pick[g.key][v]; }
+            if (tickBox.checked) { pick[g.key][v] = true; } else { delete pick[g.key][v]; }
             applyPick();
-          }, g.key + ':' + v));
+            libraryFilters.pickOpen = tickBox.dataset.pick;
+            renderList(box, pages);
+          });
+          line.appendChild(tickBox);
+          line.appendChild(el('span', 'lib-pick-label', v));
+          line.appendChild(el('span', 'lib-pick-count', String(g.counts[v])));
+          section.appendChild(line);
         });
-        panel.appendChild(section);
+        columns.appendChild(section);
       });
-      var done = button('Done', 'row-btn', function () { libraryFilters.pickOpen = ''; renderList(anchor.box, anchor.pages); });
-      done.classList.add('lib-pick-done');
-      panel.appendChild(done);
+      panel.appendChild(columns);
       return panel;
+    }
+    // "Select by:" sits right under the bar, once something is selected
+    if (canBulk && (chosenPages().length || Object.keys(pick).some(function (k) { return Object.keys(pick[k]).length; }))) {
+      box.appendChild(buildNarrowBox());
+      if (libraryFilters.pickOpen) {
+        setTimeout(function () { var again = box.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
+      }
     }
     var table = el('table', 'lib-table');
     var headRow = el('tr');
@@ -786,19 +803,7 @@
         shown.forEach(function (p) { if (selectAll.checked) { selected[p.id] = true; } else { delete selected[p.id]; } });
         renderList(box, pages);
       });
-      selectHead.classList.add('lib-select-head');
       selectHead.appendChild(selectAll);
-      // A small arrow beside the checkbox opens the choices for selecting by specifics
-      var caret = el('button', 'lib-select-caret', '\u25BE');
-      caret.type = 'button';
-      caret.setAttribute('aria-label', 'Select by visibility, status, owner or review');
-      caret.setAttribute('aria-expanded', String(!!libraryFilters.pickOpen));
-      caret.addEventListener('click', function () { libraryFilters.pickOpen = libraryFilters.pickOpen ? '' : 'all'; renderList(box, pages); });
-      selectHead.appendChild(caret);
-      if (libraryFilters.pickOpen) {
-        selectHead.appendChild(buildPickPanel({ box: box, pages: pages }));
-        setTimeout(function () { var again = selectHead.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
-      }
       headRow.appendChild(selectHead);
     }
     var canDelete = true;   // every row has a delete-type button; which one depends on who is asking and whether the page is live
@@ -908,7 +913,40 @@
       }
       row.appendChild(ownerCell);
       var visCell = el('td');
-      visCell.appendChild(visibilityPill(p.visibility));
+      var showVisibility = function () {
+        visCell.textContent = '';
+        visCell.appendChild(visibilityPill(p.visibility));
+        if (actorIsLead()) {
+          var changeVisibility = el('button', 'owner-change', 'Change');
+          changeVisibility.type = 'button';
+          changeVisibility.setAttribute('aria-label', 'Change the visibility of ' + p.title);
+          changeVisibility.addEventListener('click', editVisibility);
+          visCell.appendChild(el('div')).appendChild(changeVisibility);
+        }
+      };
+      var editVisibility = function () {
+        visCell.textContent = '';
+        var visibilitySelect = el('select', 'acting-select owner-select');
+        visibilitySelect.setAttribute('aria-label', 'Visibility of ' + p.title);
+        [['Internal-Only', 'Internal only'], ['Client-Safe', 'Shareable with clients']].forEach(function (pair) {
+          var option = el('option', '', pair[1]);
+          option.value = pair[0];
+          visibilitySelect.appendChild(option);
+        });
+        visibilitySelect.value = p.visibility;
+        var savingVisibility = false;
+        visibilitySelect.addEventListener('change', async function () {
+          if (visibilitySelect.value === p.visibility) { showVisibility(); return; }
+          savingVisibility = true;
+          if (await attempt(backend().setVisibility(p.id, visibilitySelect.value))) { notice('\u201c' + p.title + '\u201d is now ' + (visibilitySelect.value === 'Client-Safe' ? 'shareable with clients' : 'internal only') + '.'); route(); }
+          else { savingVisibility = false; showVisibility(); }
+        });
+        visibilitySelect.addEventListener('blur', function () { if (!savingVisibility) { showVisibility(); } });
+        visibilitySelect.addEventListener('keydown', function (event) { if (event.key === 'Escape') { event.stopPropagation(); showVisibility(); } });
+        visCell.appendChild(visibilitySelect);
+        visibilitySelect.focus();
+      };
+      showVisibility();
       row.appendChild(visCell);
       var updatedCell = el('td', 'lib-date');
       var when = el('div', '', W.relativeTime(p.updatedAt));

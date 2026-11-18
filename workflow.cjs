@@ -821,6 +821,12 @@
     return body + '\n[OWNER]\n' + key + '\n' + (isDefault ? '\n[OWNER DEFAULT]\nyes\n' : '');
   }
 
+  // Sets who may see a version: "Client-Safe" (the public) or "Internal-Only" (staff)
+  function setVisibilityInText(text, visibility) {
+    var body = removeSections(text, ['VISIBILITY']).replace(/\s*$/, '\n');
+    return body + '\n[VISIBILITY]\n' + (visibility === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only') + '\n';
+  }
+
   // Rewrites the people a version names: where `from` is the owner or a linked person it becomes `to` (a repeat of a person already linked is dropped).
   // Returns the new text, or null when `from` is not named at all. Keys are compared as people, so a role title and an email for the same person match.
   function replacePersonInText(text, team, fromKey, toKey) {
@@ -904,6 +910,23 @@
       var f = fields(version.text);
       if (f.owner && resolveKey(team, f.owner) === key && f.ownerDefault === asDefault) { return; }
       version.text = setOwnerInText(version.text, key, asDefault);
+      copyFields(version);
+      version.updatedAt = now;
+      version.updatedBy = actor.name;
+      changed = true;
+    });
+    if (changed) { page.updatedAt = now; }
+    return changed;
+  }
+
+  // Changes who may see one page (team lead only), on its live and in-progress versions. Client-Safe pages are public.
+  function setVisibility(page, to, actor, team, now) {
+    requireLead(actor, team, 'change a page\'s visibility');
+    if (to !== 'Client-Safe' && to !== 'Internal-Only') { throw new WorkflowError('bad_visibility', 'Choose Internal-Only or Client-Safe.', 400); }
+    var changed = false;
+    currentVersions(page).forEach(function (version) {
+      if (fields(version.text).visibility === to) { return; }
+      version.text = setVisibilityInText(version.text, to);
       copyFields(version);
       version.updatedAt = now;
       version.updatedBy = actor.name;
@@ -1139,6 +1162,8 @@
     reassignRole: reassignRole,
     replacePerson: replacePerson,
     setOwner: setOwner,
+    setVisibility: setVisibility,
+    setVisibilityInText: setVisibilityInText,
     setOwnerInText: setOwnerInText,
     replacePersonInText: replacePersonInText,
     checkReassignRoles: checkReassignRoles,

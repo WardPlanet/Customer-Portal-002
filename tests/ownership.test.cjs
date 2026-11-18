@@ -88,3 +88,13 @@ test('a vacant job title can be filled and the pages that named it follow', () =
   assert.equal(W.summary(legacy).owner, 'eve@x.com');
   assert.equal(outcome.roles[1].person, 'Eve');
 });
+
+test('only the team lead changes a page\'s visibility, on its live and in-progress versions', () => {
+  const page = W.createPage(team, draft('wanda@x.com'), wanda, t(1));
+  assert.throws(() => W.setVisibility(page, 'Client-Safe', wanda, team, t(2)), (e) => e.code === 'not_lead');
+  assert.equal(W.setVisibility(page, 'Client-Safe', lou, team, t(2)), true);
+  assert.equal(W.fields(page.versions[0].text).visibility, 'Client-Safe');
+  assert.equal(page.versions[0].visibility, 'Client-Safe');
+  assert.equal(W.setVisibility(page, 'Client-Safe', lou, team, t(3)), false);   // already so: nothing changes
+  assert.throws(() => W.setVisibility(page, 'Everyone', lou, team, t(3)), (e) => e.code === 'bad_visibility');
+});
