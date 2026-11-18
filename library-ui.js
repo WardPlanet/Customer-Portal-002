@@ -3026,21 +3026,34 @@
       }
       return card;
     }
-    // A strip of small blocks for under the title: the owner (and linked people), then the team lead, side by side. Each block marks who the
-    // person is (Owner, Team lead) in the small label style, then the name, the role, the email and Teams.
-    var strip = el('section', 'contact-strip');
-    strip.setAttribute('aria-label', 'Contacts');
-    wanted.forEach(function (item, index) {
-      var card = contactCard(item.entry, item.isDefault);
-      card.insertBefore(el('span', 'preview-contact-kicker', index === 0 ? 'Owner' : 'Also'), card.firstChild);
-      strip.appendChild(card);
-    });
-    if (lead && lead.person && !wanted.some(function (item) { return item.key === W.keyFor(lead); })) {
-      var leadCard = contactCard(lead, false);
-      leadCard.insertBefore(el('span', 'preview-contact-kicker', 'Team lead'), leadCard.firstChild);
-      strip.appendChild(leadCard);
+    // A byline under the title, quiet like the line under a news headline: "Owner Priya Nair, Tier 2 Specialist (email) (Teams) · Team lead
+    // Dana Whitfield, Support Manager (email) (Teams)". The email and Teams are small icons (the address is in the tooltip).
+    var byline = el('p', 'contact-byline');
+    byline.setAttribute('aria-label', 'Contacts');
+    function person(role, kicker, isDefault) {
+      var part = el('span', 'byline-person');
+      part.appendChild(el('span', 'byline-kicker', kicker));
+      part.appendChild(el('span', 'byline-name', role.person ? fullName(role.person, role.email) : 'Unassigned'));
+      part.appendChild(el('span', 'byline-role', role.title + (isDefault ? ' (Default)' : '')));
+      if (role.email) {
+        var mail = link('', 'mailto:' + role.email, 'byline-link');
+        mail.title = role.email;
+        mail.setAttribute('aria-label', 'Email ' + (role.person || role.title));
+        mail.appendChild(contactIcon(CONTACT_ICONS.mail));
+        part.appendChild(mail);
+        var chat = link('', 'https://teams.microsoft.com/l/chat/0/0?users=' + encodeURIComponent(role.email), 'byline-link');
+        chat.target = '_blank';
+        chat.rel = 'noopener noreferrer';
+        chat.title = 'Message ' + (role.person || role.title) + ' on Teams';
+        chat.setAttribute('aria-label', 'Message ' + (role.person || role.title) + ' on Teams');
+        chat.appendChild(contactIcon(CONTACT_ICONS.chat));
+        part.appendChild(chat);
+      }
+      return part;
     }
-    return strip.children.length ? [strip] : [];
+    wanted.forEach(function (item, index) { byline.appendChild(person(item.entry, index === 0 ? 'Owner' : 'Also', item.isDefault)); });
+    if (lead && lead.person && !wanted.some(function (item) { return item.key === W.keyFor(lead); })) { byline.appendChild(person(lead, 'Team lead', false)); }
+    return byline.children.length ? [byline] : [];
   }
 
   // The related pages for a live page: the ones the author chose come first, in the order they chose, then other live
@@ -3355,9 +3368,10 @@
         eyebrow.appendChild(el('span', '', ownerTeam.name));
         pageTitle.parentNode.insertBefore(eyebrow, pageTitle);
       }
-      // Who to ask, directly below the eyebrow and above the title (staff; a visitor sees the support link in the column instead)
+      // Who to ask, as a quiet byline under the title (staff; a visitor sees the support link in the column instead)
       if (pageTitle && !asPublic) {
-        renderContacts(W.fields(data.text), ownerTeam).forEach(function (strip) { pageTitle.parentNode.insertBefore(strip, pageTitle); });   // below the eyebrow, above the title
+        var bylineAt = pageTitle.nextSibling;
+        renderContacts(W.fields(data.text), ownerTeam).forEach(function (line) { pageTitle.parentNode.insertBefore(line, bylineAt); });   // a byline under the title
       }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
