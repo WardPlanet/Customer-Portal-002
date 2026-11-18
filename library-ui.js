@@ -777,81 +777,80 @@
       libraryFilters.pickOpen = on ? key + ':' + value : '';
       renderList(box, pages);
     }
-    // "Select by" is an accordion under the bar: open it for a row of column headings (one open at a time), each listing what to tick
+    // "Select by" opens under the bar, built from the library's own parts: a pill button like "More", a segmented control (as in Page
+    // Setup) to pick the column, and toggle chips (as the keyword chips) for the values. A ✓ shows what is ticked.
     function buildNarrowBox() {
       var open = libraryFilters.pickExpanded === true;
-      var panel = el('div', 'lib-narrow');
+      var wrap = el('div', 'lib-select-by');
       var ticked = pickDefs.reduce(function (n, d) { return n + Object.keys(pick[d.key] || {}).length; }, 0);
-      var head = el('button', 'lib-narrow-head', 'Select by' + (ticked ? ' \u00B7 ' + ticked + ' chosen' : ''));
+      var head = el('button', 'secondary-link lib-select-by-btn', 'Select by' + (ticked ? ' \u00B7 ' + ticked : '') + (open ? ' \u25B4' : ' \u25BE'));
       head.type = 'button';
       head.setAttribute('aria-expanded', String(open));
-      head.appendChild(el('span', 'lib-narrow-arrow', open ? '\u25B4' : '\u25BE'));
       head.addEventListener('click', function () { libraryFilters.pickExpanded = !open; renderList(box, pages); });
-      panel.appendChild(head);
-      if (!open) { return panel; }
-      var tabs = el('div', 'lib-pick-tabs');
-      panel.appendChild(tabs);
+      wrap.appendChild(head);
+      if (!open) { return wrap; }
+      var panel = el('div', 'lib-select-by-panel');
+      var tabs = el('div', 'segmented lib-select-tabs');
+      tabs.setAttribute('role', 'group');
+      tabs.setAttribute('aria-label', 'Select by');
+      tabs.style.gridTemplateColumns = 'repeat(' + pickGroups.length + ', auto)';
       pickGroups.forEach(function (g) {
         var groupOpen = libraryFilters.pickGroup === g.key;
         var chosenHere = Object.keys(pick[g.key] || {}).length;
-        var title = el('button', 'lib-pick-title' + (groupOpen ? ' is-open' : ''), g.title + (chosenHere ? ' \u00B7 ' + chosenHere : ''));
-        title.type = 'button';
-        title.setAttribute('aria-expanded', String(groupOpen));
-        title.appendChild(el('span', 'lib-narrow-arrow', groupOpen ? '\u25B4' : '\u25BE'));
-        title.addEventListener('click', function () { libraryFilters.pickGroup = groupOpen ? '' : g.key; libraryFilters.pickFind = ''; renderList(box, pages); });
-        tabs.appendChild(title);
+        var tab = el('button', 'segment', g.title + (chosenHere ? ' (' + chosenHere + ')' : ''));
+        tab.type = 'button';
+        tab.setAttribute('aria-pressed', String(groupOpen));
+        tab.addEventListener('click', function () { libraryFilters.pickGroup = groupOpen ? '' : g.key; libraryFilters.pickFind = ''; renderList(box, pages); });
+        tabs.appendChild(tab);
       });
+      panel.appendChild(tabs);
       var openGroup = pickGroups.filter(function (g) { return g.key === libraryFilters.pickGroup; })[0];
       if (openGroup) {
-        var list = el('div', 'lib-pick-list');
+        var list = el('div', 'lib-select-list');
         var values = openGroup.values;
         var isLong = values.length > PICK_LONG;
         var expanded = !isLong || libraryFilters.pickAll === openGroup.key;
         if (isLong) {   // a long list (many owners): a search box, and one row of choices until "Show all"
-          var finder = el('input', 'lib-pick-find');
+          var finder = el('input', 'lib-search lib-select-find');
           finder.type = 'search';
           finder.placeholder = 'Find in ' + openGroup.title.toLowerCase();
           finder.setAttribute('aria-label', 'Find in ' + openGroup.title);
           finder.value = libraryFilters.pickFind || '';
-          finder.addEventListener('input', function () {
-            libraryFilters.pickFind = finder.value;
-            applyFind();
-          });
+          finder.addEventListener('input', function () { libraryFilters.pickFind = finder.value; applyFind(); });
           panel.appendChild(finder);
         }
         function applyFind() {
           var text = (libraryFilters.pickFind || '').trim().toLowerCase();
-          Array.prototype.forEach.call(list.querySelectorAll('.lib-pick-row'), function (row) { row.hidden = !!text && (row.title + ' ' + row.textContent).toLowerCase().indexOf(text) < 0; });
+          Array.prototype.forEach.call(list.querySelectorAll('.chip'), function (row) { row.hidden = !!text && (row.title + ' ' + row.textContent).toLowerCase().indexOf(text) < 0; });
           list.classList.toggle('is-one-row', isLong && !expanded && !text);   // searching shows every match
         }
         values.forEach(function (v) {
-          var line = el('label', 'lib-pick-row lib-pick-pill');
-          line.title = v + ' \u2014 ' + openGroup.counts[v] + (openGroup.counts[v] === 1 ? ' page' : ' pages');
-          var tickBox = el('input');
-          tickBox.type = 'checkbox';
-          tickBox.checked = !!(pick[openGroup.key] && pick[openGroup.key][v]);
-          tickBox.dataset.pick = openGroup.key + ':' + v;
-          tickBox.addEventListener('change', function () { tick(openGroup.key, v, tickBox.checked); });
-          line.appendChild(tickBox);
-          line.appendChild(el('span', 'lib-pick-label', shortChoice(v)));
-          line.appendChild(el('span', 'lib-pick-count', String(openGroup.counts[v])));
-          list.appendChild(line);
+          var on = !!(pick[openGroup.key] && pick[openGroup.key][v]);
+          var chip = el('button', 'chip', (on ? '\u2713 ' : '') + shortChoice(v));
+          chip.type = 'button';
+          chip.title = v + ' \u2014 ' + openGroup.counts[v] + (openGroup.counts[v] === 1 ? ' page' : ' pages');
+          chip.setAttribute('aria-pressed', String(on));
+          chip.dataset.pick = openGroup.key + ':' + v;
+          chip.appendChild(el('span', 'lib-select-count', ' ' + openGroup.counts[v]));
+          chip.addEventListener('click', function () { tick(openGroup.key, v, !on); });
+          list.appendChild(chip);
         });
         panel.appendChild(list);
         applyFind();
         if (isLong) {
-          var more = button(expanded ? 'Show fewer' : 'Show all ' + values.length, 'owner-change lib-pick-more', function () { libraryFilters.pickAll = expanded ? '' : openGroup.key; renderList(box, pages); });
-          panel.appendChild(more);
+          panel.appendChild(button(expanded ? 'Show fewer' : 'Show all ' + values.length, 'owner-change', function () { libraryFilters.pickAll = expanded ? '' : openGroup.key; renderList(box, pages); }));
         }
       }
-      return panel;
+      wrap.appendChild(panel);
+      return wrap;
     }
     // What is ticked, as chips above the table that can each be removed, and how many pages are left showing
     function buildChips() {
-      var row = el('div', 'lib-chips');
+      var row = el('div', 'lib-select-chips');
       pickDefs.forEach(function (d) {
         Object.keys(pick[d.key] || {}).forEach(function (v) {
-          var chip = el('button', 'lib-chip', shortChoice(v) + ' \u00D7');
+          var chip = el('button', 'chip', '\u2713 ' + shortChoice(v) + ' \u00D7');
+          chip.setAttribute('aria-pressed', 'true');
           chip.title = v;
           chip.type = 'button';
           chip.setAttribute('aria-label', 'Remove ' + v);
@@ -859,7 +858,7 @@
           row.appendChild(chip);
         });
       });
-      row.appendChild(el('span', 'lib-chips-count', shown.length + ' of ' + pool.length + (pool.length === 1 ? ' page' : ' pages')));
+      row.appendChild(el('span', 'lib-select-chips-count', shown.length + ' of ' + pool.length + (pool.length === 1 ? ' page' : ' pages')));
       row.appendChild(button('Clear all', 'owner-change', function () { libraryFilters.pick = {}; Object.keys(selected).forEach(function (id) { delete selected[id]; }); renderList(box, pages); }));
       return row;
     }
