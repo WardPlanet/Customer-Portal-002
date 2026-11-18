@@ -3,8 +3,9 @@
     --bg: #f6f6f6;
     --surface: #ffffff;
     --surface-muted: #fafafa;
-    --table-head: #eeeef2;   /* header row of a table in a page */
-    --table-alt: #f1f1f5;    /* every second row */
+    --table-head: #dcebfd;   /* header row of a table in a page: the main blue, pale */
+    --table-alt: #f1f7fe;    /* every second row: a lighter shade of it */
+    --table-line: #cfe2f6;   /* the lines between rows and columns */
     --border: #e4e4e7;
     --border-strong: #d4d4d8;
     --text: #18181b;
@@ -34,8 +35,9 @@
       --bg: #101113;
       --surface: #18191c;
       --surface-muted: #1e2024;
-      --table-head: #26282e;
-      --table-alt: #1e2024;
+      --table-head: #14304f;
+      --table-alt: #101d2e;
+      --table-line: #24415f;
       --border: #2d2f35;
       --border-strong: #3d4048;
       --text: #f2f2f4;
@@ -58,8 +60,9 @@
     --bg: #101113;
     --surface: #18191c;
     --surface-muted: #1e2024;
-    --table-head: #26282e;
-    --table-alt: #1e2024;
+    --table-head: #14304f;
+    --table-alt: #101d2e;
+    --table-line: #24415f;
     --border: #2d2f35;
     --border-strong: #3d4048;
     --text: #f2f2f4;
@@ -2524,11 +2527,11 @@ dialog { position: fixed; }
 
 /* Tables in a live page: the library table's card (white, hairline border, 12px corners) with a header row, hairlines between rows and
    between columns, and alternating row colours */
-.preview-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+.preview-table-wrap { background: var(--surface); border: 1px solid var(--table-line); border-radius: 12px; overflow-x: auto; }
 .preview-table { border-collapse: collapse; border: 0; }
-.preview-table th, .preview-table td { padding: 12px 14px; border: 0; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+.preview-table th, .preview-table td { padding: 12px 14px; border: 0; border-top: 1px solid var(--table-line); border-left: 1px solid var(--table-line); }
 .preview-table th:first-child, .preview-table td:first-child { border-left: 0; }
 .preview-table thead tr:first-child th { border-top: 0; }
 .preview-table th { background: var(--table-head); color: var(--text); font-size: 14px; font-weight: 700; }
 .preview-table td { color: var(--text); }
-.preview-table tbody tr:nth-child(even) td { background: var(--surface-muted); }
+.preview-table tbody tr:nth-child(even) td { background: var(--table-alt); }
