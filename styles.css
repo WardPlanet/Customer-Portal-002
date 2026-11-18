@@ -22,7 +22,7 @@
     --warn-bg: #fffaeb;
     --warn-border: #f5d77a;
     --warn-icon: #d9640a;
-    --linked-bg: #fffde8;
+    --linked-bg: #d3e6f5;   /* the highlighted section: the brand tint */
     --success: #1fa65a;
     --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;   /* page titles and first-level headings in an article */
     --radius-card: 16px;
@@ -55,7 +55,7 @@
       --warn-bg: #2a2410;
       --warn-border: #6b5a1c;
       --warn-icon: #f09a4a;
-      --linked-bg: #2a2812;
+      --linked-bg: #14304f;
       color-scheme: dark;
     }
   }
@@ -81,7 +81,7 @@
     --warn-bg: #2a2410;
     --warn-border: #6b5a1c;
     --warn-icon: #f09a4a;
-    --linked-bg: #2a2812;
+    --linked-bg: #14304f;
     color-scheme: dark;
   }
 
@@ -2025,7 +2025,7 @@ mark.search-hit { background: #fff1a8; color: inherit; border-radius: 3px; paddi
 /* The tiles follow the theme: pale blue in light mode (as before), dark surfaces in dark mode. The description shows up to three lines and
    ends with an ellipsis; the tile grows to fit, with a "View page" line at the bottom. */
 .landing-tile {
-  --tile-bg: #EAF3FC; --tile-hover: #E0EDFB; --tile-border: #CFE2F6; --tile-title: #000F60; --tile-text: #2A3F6B; --tile-link: #0A5BC4; --tile-icon: #0069DC;
+  --tile-bg: #D3E6F5; --tile-hover: #C7DDF1; --tile-border: #B3CFE8; --tile-title: #000F60; --tile-text: #2A3F6B; --tile-link: #0A5BC4; --tile-icon: #0069DC;
   display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; min-height: 200px; padding: 22px 24px; box-sizing: border-box;
   background: var(--tile-bg); border: 1px solid var(--tile-border); border-radius: 12px; color: var(--tile-title); text-decoration: none;
 }

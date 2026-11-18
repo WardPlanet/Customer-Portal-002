@@ -1293,3 +1293,5 @@ Every live page has its search box in the Wiki bar at the top (right-aligned, be
 Links and logo colours: plain links (related pages, contacts, links inside a page) are the light blue of the logo (`--icon-blue`); the link icon beside a heading is a quiet grey until the heading is hovered or the section is linked to; the icons beside those links (the department icon before a related page, the envelope and speech bubble in Contacts) are the logo's dark blue. The "Wiki" mark in the bar is back to how it was.
 
 Third brand colour: the pale sky blue #D3E6F5 (`--brand-tint`). It is now the soft blue fill (`--accent-soft`): selected chips, the Back link, selected rows. Dark mode is unchanged. Other places it could go if wanted: the highlighted-section tint, landing tiles, banners.
+
+The pale sky blue (#D3E6F5) is also the highlighted-section tint (was yellow), the landing tile background (hover #C7DDF1) and, through `--accent-soft`, the info banners. Dark mode uses a deep blue (#14304f) for the highlight.
