@@ -780,15 +780,21 @@
       selectAll = el('input');
       selectAll.type = 'checkbox';
       selectAll.setAttribute('aria-label', 'Select all pages shown');
-      selectAll.setAttribute('aria-haspopup', 'true');
-      selectAll.setAttribute('aria-label', 'Select pages: choose which');
-      selectAll.addEventListener('click', function (event) {
-        event.preventDefault();   // the checkbox opens the choices; the ticks inside them do the selecting
-        libraryFilters.pickOpen = libraryFilters.pickOpen ? '' : 'all';
+      selectAll.setAttribute('aria-label', 'Select all pages shown');
+      selectAll.addEventListener('change', function () {
+        Object.keys(pick).forEach(function (k) { delete pick[k]; });   // ticking everything (or nothing) starts the specific choices over
+        shown.forEach(function (p) { if (selectAll.checked) { selected[p.id] = true; } else { delete selected[p.id]; } });
         renderList(box, pages);
       });
       selectHead.classList.add('lib-select-head');
       selectHead.appendChild(selectAll);
+      // A small arrow beside the checkbox opens the choices for selecting by specifics
+      var caret = el('button', 'lib-select-caret', '\u25BE');
+      caret.type = 'button';
+      caret.setAttribute('aria-label', 'Select by visibility, status, owner or review');
+      caret.setAttribute('aria-expanded', String(!!libraryFilters.pickOpen));
+      caret.addEventListener('click', function () { libraryFilters.pickOpen = libraryFilters.pickOpen ? '' : 'all'; renderList(box, pages); });
+      selectHead.appendChild(caret);
       if (libraryFilters.pickOpen) {
         selectHead.appendChild(buildPickPanel({ box: box, pages: pages }));
         setTimeout(function () { var again = selectHead.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
