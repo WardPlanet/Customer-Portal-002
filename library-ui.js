@@ -3278,19 +3278,13 @@
         else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
         side.appendChild(support);
       } else {
-        // Visibility and when it was last updated, above Contacts
-        var details = el('section', 'side-card side-details');
-        var visRow = el('div', 'side-detail');
-        visRow.appendChild(el('span', 'side-detail-label', 'Visibility'));
-        visRow.appendChild(visibilityPill(detail.page.visibility));
-        details.appendChild(visRow);
+        // Visibility and when it was last updated, above Contacts: the same light line as it was above the title, now in the column
+        var details = el('div', 'side-details');
+        details.appendChild(visibilityPill(detail.page.visibility));
         if (detail.page.updatedAt) {
-          var updatedRow = el('div', 'side-detail');
-          updatedRow.appendChild(el('span', 'side-detail-label', 'Last updated'));
-          var updatedText = el('span', 'side-detail-value', W.daysAgo(detail.page.updatedAt));
+          var updatedText = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
           updatedText.title = formatDate(detail.page.updatedAt);
-          updatedRow.appendChild(updatedText);
-          details.appendChild(updatedRow);
+          details.appendChild(updatedText);
         }
         side.appendChild(details);
         renderContacts(W.fields(data.text), teamFor(detail.page.team) || team).forEach(function (card) { side.appendChild(card); });

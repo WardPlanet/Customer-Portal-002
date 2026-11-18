@@ -2493,8 +2493,9 @@ dialog { position: fixed; }
 .icon-picker-cell:hover { background: var(--surface-muted); color: var(--accent); }
 .icon-picker-cell.is-selected { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }
 
-/* Visibility and last updated, above Contacts */
-.side-details { display: flex; flex-direction: column; gap: 8px; }
-.side-detail { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; }
-.side-detail-label { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
-.side-detail-value { color: var(--text); }
+/* Visibility and last updated, above Contacts: a light line, not a box */
+.side-details { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 0 4px; }
+
+/* A line under the page title and under each first-level heading, so the sections read as separate blocks */
+.preview-title { padding-bottom: 12px; border-bottom: 1px solid var(--border-strong); }
+.preview-h:is(h2) { padding-bottom: 8px; border-bottom: 1px solid var(--border-strong); }
