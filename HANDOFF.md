@@ -1313,3 +1313,5 @@ One rule under the title block: the title's own rule is dropped when the contact
 The department name above a live page's title (the eyebrow) is a link: it opens the search page with the Team filter set to that department, listing all of its documents.
 
 Clicking the department above a page's title opens the search page already scrolled to that department's list, with a heading (icon, name, page count) and an Order choice (Newest, A to Z, Most opened); the cards leave out the department icon while one department is chosen.
+
+Corner radius is now on the five-value scale: 6px (menu items, segmented control), 8px (inputs, selects, code blocks, banners), 12px (cards, tables, panels, menus, popovers, tiles; `--radius-card`), 16px (dialogs; `--radius-dialog`) and a pill (every button, chip and pill). The old 7, 9, 10 and 14px values and the 16px side cards were moved onto it. The way-back link above a live page is a quiet grey text link instead of a blue pill.
