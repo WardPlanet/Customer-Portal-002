@@ -2534,5 +2534,7 @@ dialog { position: fixed; }
 .preview-table thead tr:first-child th { border-top: 0; }
 .preview-table th { background: var(--table-head); color: #fff; font-size: 14px; font-weight: 700; }
 .preview-table th + th { border-left-color: rgba(255, 255, 255, 0.3); }
-.preview-table td { color: var(--text); }
+.preview-table td { color: var(--brand-navy, #000F60); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .preview-table td { color: var(--text); } }
+:root[data-theme="dark"] .preview-table td { color: var(--text); }
 .preview-table tbody tr:nth-child(even) td { background: var(--table-alt); }

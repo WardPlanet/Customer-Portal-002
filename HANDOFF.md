@@ -1283,3 +1283,5 @@ The highlighted section (after following a link to it) is tinted with a box-shad
 
 ## Tables in a live page
 They now match the library table: a white card with a 1px hairline border and 12px corners, a header row in the main blue with white text (14px, 700), grey alternating rows and grey hairlines between rows and columns (`--table-head`, `--table-alt`, `--table-line`; separate light and dark values). (`.preview-table-wrap` and `.preview-table` in `styles.css`.) The editor's table and the PDF export are not restyled.
+
+The text in a live page's table cells is the logo's dark blue (#000F60) in light mode (the normal light text colour in dark mode); the blue header keeps white text because dark blue on the main blue is too hard to read.
