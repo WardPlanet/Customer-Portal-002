@@ -1082,7 +1082,7 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
   puts the text back.
 - **Row actions:** Edit (and the lead's Publish shortcut on drafts) stay visible; Unpublish, Delete, Request deletion and Cancel deletion
   request are in the "..." menu, and each still asks first.
-- "Client-Safe" reads **Shareable with clients** in the table (one line, never wraps).
+- "Client-Safe" reads **Public** in the table (one line, never wraps). (Renamed from "Shareable with clients".)
 
 **Section 2: Team and roles and Replace person (frames 3 and 4).**
 - **Team and roles** is wider (980 px) so emails stay on one line. The hint is the text-revision list's wording ("To replace someone, add the new person
@@ -1135,7 +1135,7 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
   Tiles grow to fit, at least 200 px tall; the three in a row match.
 - **Search results** say who to ask and how fresh the answer is: "Owner: Lena Brooks — Knowledge Base Editor · Updated 15 days ago" (full date on hover).
   When the owner role has no one in it the line says "Contact:" and names the team lead, as on the page itself. A page past its review date adds a
-  red "Needs review". The "Shareable with clients" badge shows here too.
+  red "Needs review". The "Public" badge shows here too.
 
 **Section 6: Search review (frames 10 and 11).**
 - **`DECISIONS_APPLY`** (top of `search-review.js`, `false`): while decisions do not change the real search, the screen is a read-only list of what people
@@ -1147,9 +1147,9 @@ The review is the canvas "Wiki UX review: annotated mockups" (twelve frames, eac
 - **One empty state** ("No searches yet") instead of four stacked ones; the stat cards and the lists appear once there is data.
 - **Clear log** is a quiet row at the bottom ("Clearing the log removes every logged search and every decision on this screen."), still behind the confirmation.
 
-**Section 7: Confirm shareable (frame 12).** Choosing Client-safe in Page Setup asks first ("Make this page shareable with clients?" / "Clients will be able to
-read this page once it is live. Check that nothing in it is only for staff." / Cancel, Make shareable). Switching back to Internal only does not ask. A draft that is
-opened already marked Client-Safe does not ask either. The two choices keep the text-revision names ("Internal only / Client-safe"), not "Shareable with clients".
+**Section 7: Confirm shareable (frame 12).** Choosing Client-safe in Page Setup asks first ("Make this page public?" / "Clients will be able to
+read this page once it is live. Check that nothing in it is only for staff." / Cancel, Make public). Switching back to Internal only does not ask. A draft that is
+opened already marked Client-Safe does not ask either. The two choices in Page Setup keep the text-revision names ("Internal only / Client-safe"); everywhere else the label is "Public".
 
 ## Ownership by person (sign-in email) — replaces ownership by role
 
@@ -1191,7 +1191,7 @@ order (the first three fit what is already built or already needs IT):
 2. **Search that learns.** Apply the decisions recorded on Search review (synonyms, pinned pages, saved tests: set `DECISIONS_APPLY`), add a "Was this helpful?" on each
    page, and turn "found nothing" into a "request this page" message to the right owner.
 3. **Teams integration.** Search from Teams ("/wiki password reset"), approval requests and review reminders there; needs Entra sign-in first.
-4. **One source for staff and customers.** Publish the "Shareable with clients" pages to a customer help center from the same authoring and approval process.
+4. **One source for staff and customers.** Publish the "Public" pages to a customer help center from the same authoring and approval process.
 5. **Policy acknowledgement and an audit trail.** "I have read this" tracking, required review cycles by page type (for example yearly for compliance pages), and an
    exportable record of who approved what and when.
 6. **Ask, with citations.** An optional question box that answers only from live, approved pages and always links the source with its owner and updated date. Search itself
@@ -1226,3 +1226,4 @@ Support now has 16 people (`teams/support.json`: the original five plus Billing 
 ## Adjustments for the designer (changes that expand or contradict the UX review)
 Keep this list current: each line is something built that the critique document does not ask for, or does differently.
 - "Select By" section created for Team Lead and Admin document sorting (Library: accordion under the "N selected" bar; see "Select by (library)").
+- "Shareable with clients" changed to "Public" (the library pill, Select by, change-visibility menus and their confirmations, and the Page Setup confirmation "Make this page public?" / "Make public"). The Page Setup choice itself still reads "Client-safe" as in the text revisions.

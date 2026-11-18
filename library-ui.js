@@ -219,7 +219,7 @@
 
   function visibilityPill(visibility) {
     // "Internal-Only" is shortened to "Internal" so it stays on one line in the table
-    return el('span', 'pill pill-nowrap ' + (visibility === 'Client-Safe' ? 'pill-public' : 'pill-internal'), visibility === 'Client-Safe' ? 'Shareable with clients' : 'Internal');
+    return el('span', 'pill pill-nowrap ' + (visibility === 'Client-Safe' ? 'pill-public' : 'pill-internal'), visibility === 'Client-Safe' ? 'Public' : 'Internal');
   }
 
   // Runs an action and reports a problem in plain words instead of failing silently
@@ -653,8 +653,8 @@
   async function bulkSetVisibility(list, visibility) {
     var pub = visibility === 'Client-Safe';
     var many = list.length + (list.length === 1 ? ' page' : ' pages');
-    var question = pub ? 'Make ' + many + ' shareable with clients? Any that are live will appear on the public site.' : 'Make ' + many + ' internal only? Any that are live will disappear from the public site.';
-    if (!(await window.askConfirm(question, { title: pub ? 'Share with clients?' : 'Make internal only?', ok: pub ? 'Share with clients' : 'Make internal' }))) { return; }
+    var question = pub ? 'Make ' + many + ' public? Any that are live will appear on the public site.' : 'Make ' + many + ' internal only? Any that are live will disappear from the public site.';
+    if (!(await window.askConfirm(question, { title: pub ? 'Make public?' : 'Make internal only?', ok: pub ? 'Make public' : 'Make internal' }))) { return; }
     await runBulk(list, function (p) { return backend().setVisibility(p.id, visibility); }, 'Changed the visibility of', 'could not be changed');
   }
 
@@ -672,7 +672,7 @@
     // different columns narrow each other)
     var pick = libraryFilters.pick = libraryFilters.pick || {};
     var pickDefs = [
-      { key: 'visibility', title: 'Visibility', valueOf: function (p) { return p.visibility === 'Client-Safe' ? 'Shareable with clients' : 'Internal only'; } },
+      { key: 'visibility', title: 'Visibility', valueOf: function (p) { return p.visibility === 'Client-Safe' ? 'Public' : 'Internal only'; } },
       { key: 'status', title: 'Status', valueOf: function (p) { return STATE_LABELS[p.state][0]; } },
       { key: 'owner', title: 'Owner', valueOf: function (p) { return ownerShown(p, teamFor(p.team) || team).label; } }
     ];
@@ -719,7 +719,7 @@
       bulkBar.appendChild(ownerPick);
       var visibilityPick = el('select', 'acting-select');
       visibilityPick.setAttribute('aria-label', 'Change the visibility of the selected pages');
-      [['', 'Change visibility\u2026'], ['Internal-Only', 'Internal only'], ['Client-Safe', 'Shareable with clients']].forEach(function (pair) {
+      [['', 'Change visibility\u2026'], ['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (pair) {
         var option = el('option', '', pair[1]);
         option.value = pair[0];
         visibilityPick.appendChild(option);
@@ -1002,7 +1002,7 @@
         visCell.textContent = '';
         var visibilitySelect = el('select', 'acting-select owner-select');
         visibilitySelect.setAttribute('aria-label', 'Visibility of ' + p.title);
-        [['Internal-Only', 'Internal only'], ['Client-Safe', 'Shareable with clients']].forEach(function (pair) {
+        [['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (pair) {
           var option = el('option', '', pair[1]);
           option.value = pair[0];
           visibilitySelect.appendChild(option);
@@ -1012,7 +1012,7 @@
         visibilitySelect.addEventListener('change', async function () {
           if (visibilitySelect.value === p.visibility) { showVisibility(); return; }
           savingVisibility = true;
-          if (await attempt(backend().setVisibility(p.id, visibilitySelect.value))) { notice('\u201c' + p.title + '\u201d is now ' + (visibilitySelect.value === 'Client-Safe' ? 'shareable with clients' : 'internal only') + '.'); route(); }
+          if (await attempt(backend().setVisibility(p.id, visibilitySelect.value))) { notice('\u201c' + p.title + '\u201d is now ' + (visibilitySelect.value === 'Client-Safe' ? 'public' : 'internal only') + '.'); route(); }
           else { savingVisibility = false; showVisibility(); }
         });
         visibilitySelect.addEventListener('blur', function () { if (!savingVisibility) { showVisibility(); } });
