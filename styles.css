@@ -2594,15 +2594,15 @@ body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 .contact-strip .preview-contact-kicker { margin-bottom: 4px; }
 .preview-eyebrow + .contact-strip { margin-top: 12px; }
 
-/* The contacts byline under the title: each person is two lines. The first (who) is small and grey with the name a little darker; the second
-   (how to reach them) has the email and Teams with their icons in colour. */
-.contact-byline { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 32px; margin: 12px 0 4px; font-size: 13px; color: var(--text-muted); }
-.byline-person { display: flex; flex-direction: column; gap: 3px; }
-.byline-who { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; }
+/* The contacts byline under the title: one line. Small and grey with the name a little darker; the email and Teams are icons in the same dark blue
+   as the icons beside the related pages (the light blue on hover). */
+.contact-byline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 22px; margin: 12px 0 4px; font-size: 13px; color: var(--text-muted); }
+.byline-person { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; }
 .byline-kicker { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); }
 .byline-name { font-weight: 500; color: var(--text); }
 .byline-role { color: var(--text-muted); }
-.byline-reach { display: flex; flex-wrap: wrap; gap: 2px 16px; }
-.byline-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--icon-blue); text-decoration: none; }
-.byline-link:hover { text-decoration: underline; }
-.byline-link .contact-icon { color: var(--icon-blue); }
+.byline-link { display: inline-flex; align-items: center; align-self: center; padding: 2px; border-radius: 4px; text-decoration: none; }
+.byline-link .contact-icon { color: #000F60; }
+.byline-link:hover .contact-icon { color: var(--icon-blue); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .byline-link .contact-icon { color: var(--text); } }
+:root[data-theme="dark"] .byline-link .contact-icon { color: var(--text); }

@@ -3032,24 +3032,22 @@
     byline.setAttribute('aria-label', 'Contacts');
     function person(role, kicker, isDefault) {
       var part = el('span', 'byline-person');
-      // First line: who they are, small and quiet
-      var who = el('span', 'byline-who');
-      who.appendChild(el('span', 'byline-kicker', kicker));
-      who.appendChild(el('span', 'byline-name', role.person ? fullName(role.person, role.email) : 'Unassigned'));
-      who.appendChild(el('span', 'byline-role', role.title + (isDefault ? ' (Default)' : '')));
-      part.appendChild(who);
-      // Second line: how to reach them, with the icons and links in colour so they stand out
+      part.appendChild(el('span', 'byline-kicker', kicker));
+      part.appendChild(el('span', 'byline-name', role.person ? fullName(role.person, role.email) : 'Unassigned'));
+      part.appendChild(el('span', 'byline-role', role.title + (isDefault ? ' (Default)' : '')));
       if (role.email) {
-        var reach = el('span', 'byline-reach');
-        var mail = link(role.email, 'mailto:' + role.email, 'byline-link');
-        mail.insertBefore(contactIcon(CONTACT_ICONS.mail), mail.firstChild);
-        reach.appendChild(mail);
-        var chat = link('Message on Teams', 'https://teams.microsoft.com/l/chat/0/0?users=' + encodeURIComponent(role.email), 'byline-link');
+        var mail = link('', 'mailto:' + role.email, 'byline-link');
+        mail.title = role.email;
+        mail.setAttribute('aria-label', 'Email ' + (role.person || role.title));
+        mail.appendChild(contactIcon(CONTACT_ICONS.mail));
+        part.appendChild(mail);
+        var chat = link('', 'https://teams.microsoft.com/l/chat/0/0?users=' + encodeURIComponent(role.email), 'byline-link');
         chat.target = '_blank';
         chat.rel = 'noopener noreferrer';
-        chat.insertBefore(contactIcon(CONTACT_ICONS.chat), chat.firstChild);
-        reach.appendChild(chat);
-        part.appendChild(reach);
+        chat.title = 'Message ' + (role.person || role.title) + ' on Teams';
+        chat.setAttribute('aria-label', 'Message ' + (role.person || role.title) + ' on Teams');
+        chat.appendChild(contactIcon(CONTACT_ICONS.chat));
+        part.appendChild(chat);
       }
       return part;
     }
