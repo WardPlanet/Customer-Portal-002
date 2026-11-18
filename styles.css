@@ -2571,8 +2571,7 @@ body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 .preview-anchor:hover { color: #fff; background: var(--icon-blue); opacity: 1; }
 .section-linked > .preview-h:first-child .preview-anchor { color: #fff; background: var(--icon-blue); opacity: 1; }
 
-/* The "Wiki" mark in the bar is the logo's dark blue; it only picks up the light blue when hovered */
-a.lib-brand, a.lib-brand.is-current { color: #000F60; }
-a.lib-brand:hover { color: var(--icon-blue); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) a.lib-brand, :root:not([data-theme="light"]) a.lib-brand.is-current { color: var(--text); } }
-:root[data-theme="dark"] a.lib-brand, :root[data-theme="dark"] a.lib-brand.is-current { color: var(--text); }
+/* The icons beside plain links (the department icon before a related page, the envelope and speech bubble in Contacts) are the logo's dark blue */
+.side-list-item .team-icon, .contact-icon { color: #000F60; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .side-list-item .team-icon, :root:not([data-theme="light"]) .contact-icon { color: var(--text); } }
+:root[data-theme="dark"] .side-list-item .team-icon, :root[data-theme="dark"] .contact-icon { color: var(--text); }
