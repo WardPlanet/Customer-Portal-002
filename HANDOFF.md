@@ -1301,3 +1301,5 @@ A live page has an eyebrow above its title: the department's icon and name in th
 Contacts is one card again: the owner and linked people, then the team lead below a divider with a small TEAM LEAD label (this replaces the separate Team Lead box). The role under each name is regular weight, grey, in sentence case.
 
 Live pages are back to two columns (the article, and a right column with the details line, Contacts with the team lead, Related pages and On this page; the search box is in the Wiki bar). The staff/public view toggle ("View as the public") stays removed.
+
+Contacts moved under the title: a strip of small blocks side by side (Owner, any linked people, then Team lead), each with the name, role, email and Teams, between the title's rule and the description. The right column now holds the details line, Related pages and On this page. A visitor still sees the support link in the column.

@@ -3026,21 +3026,21 @@
       }
       return card;
     }
-    // One Contacts card: the owner and the linked people, then the team lead (marked "Team lead") below a divider
-    var boxes = [];
-    if (wanted.length || (lead && lead.person)) {
-      var box = el('section', 'side-card');
-      box.appendChild(el('h2', 'side-title', 'Contacts'));
-      wanted.forEach(function (item) { box.appendChild(contactCard(item.entry, item.isDefault)); });
-      if (lead && lead.person) {
-        var leadCard = contactCard(lead, false);
-        leadCard.classList.add('is-lead');
-        leadCard.insertBefore(el('span', 'preview-contact-kicker', 'Team lead'), leadCard.firstChild);
-        box.appendChild(leadCard);
-      }
-      boxes.push(box);
+    // A strip of small blocks for under the title: the owner (and linked people), then the team lead, side by side. Each block marks who the
+    // person is (Owner, Team lead) in the small label style, then the name, the role, the email and Teams.
+    var strip = el('section', 'contact-strip');
+    strip.setAttribute('aria-label', 'Contacts');
+    wanted.forEach(function (item, index) {
+      var card = contactCard(item.entry, item.isDefault);
+      card.insertBefore(el('span', 'preview-contact-kicker', index === 0 ? 'Owner' : 'Also'), card.firstChild);
+      strip.appendChild(card);
+    });
+    if (lead && lead.person && !wanted.some(function (item) { return item.key === W.keyFor(lead); })) {
+      var leadCard = contactCard(lead, false);
+      leadCard.insertBefore(el('span', 'preview-contact-kicker', 'Team lead'), leadCard.firstChild);
+      strip.appendChild(leadCard);
     }
-    return boxes;
+    return strip.children.length ? [strip] : [];
   }
 
   // The related pages for a live page: the ones the author chose come first, in the order they chose, then other live
@@ -3355,6 +3355,11 @@
         eyebrow.appendChild(el('span', '', ownerTeam.name));
         pageTitle.parentNode.insertBefore(eyebrow, pageTitle);
       }
+      // Who to ask, under the title (staff; a visitor sees the support link in the column instead)
+      if (pageTitle && !asPublic) {
+        var contactsAt = pageTitle.nextSibling;
+        renderContacts(W.fields(data.text), ownerTeam).forEach(function (strip) { pageTitle.parentNode.insertBefore(strip, contactsAt); });
+      }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
       side.setAttribute('aria-label', asPublic ? 'Support, related pages and on this page' : 'Contacts, related pages and on this page');
@@ -3375,7 +3380,6 @@
           details.appendChild(updatedText);
         }
         side.appendChild(details);
-        renderContacts(W.fields(data.text), teamFor(detail.page.team) || team).forEach(function (card) { side.appendChild(card); });
       }
       // Related pages come next, also scrolling away with the page
       var related = await relatedPages(id, W.fields(data.text), asPublic);
