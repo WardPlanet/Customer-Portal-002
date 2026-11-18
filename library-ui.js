@@ -1684,33 +1684,27 @@
       var problem = el('p', 'dialog-hint is-error');
       problem.setAttribute('role', 'alert');
       problem.hidden = true;
-      var name = textField('For example Customer Success');
-      var places = textField('For example Help Center, Playbooks');
-      var leadTitle = textField('For example Customer Success Manager');
       var newIcon = window.TeamIcons.picker('document');
-      var go;
-      var leadPicker = directoryPicker('Search the company directory, or type a name', 'Lead', function () { problem.hidden = true; });
-      var leadEmail = textField('Their email address');
-      leadEmail.type = 'email';
-      d.appendChild(adminField('Team name', name));
-      d.appendChild(adminField('Places its pages live (separate with commas)', places));
+      var name = textField('For example Customer Success');
+      var leadTitle = textField('For example Customer Success Manager');
+      var leadPicker = directoryPicker('Search the company directory', 'Lead', function () { problem.hidden = true; });
+      // Order: icon, team name, lead, the lead's job title. The lead is picked from the company directory, which supplies their email
+      // (the invitation goes there), so no email is typed here.
       d.appendChild(adminField('Icon', newIcon));
-      d.appendChild(adminField('Lead job title', leadTitle));
-      var leadWrap = adminField('Lead', leadPicker.input);
-      d.appendChild(leadWrap);
+      d.appendChild(adminField('Team name', name));
+      d.appendChild(adminField('Lead', leadPicker.input));
       d.appendChild(leadPicker.list);
       d.appendChild(leadPicker.note);
-      d.appendChild(adminField('Lead email (filled in when you pick someone)', leadEmail));
+      d.appendChild(adminField('Lead job title', leadTitle));
       d.appendChild(problem);
-      leadPicker.input.addEventListener('input', function () { if (leadPicker.chosen) { leadEmail.value = leadPicker.chosen.email || ''; } });
-      leadPicker.input.addEventListener('change', function () { if (leadPicker.chosen) { leadEmail.value = leadPicker.chosen.email || ''; } });
       var actions = el('div', 'dialog-actions');
       actions.appendChild(button('Cancel', 'secondary-link', function () { d.close(); }));
-      go = button('Create team', 'primary-btn', function () {
-        if (leadPicker.chosen && !leadEmail.value) { leadEmail.value = leadPicker.chosen.email || ''; }
+      actions.appendChild(button('Create team', 'primary-btn', function () {
         var made;
         try {
-          made = window.Store.admin.createTeam({ name: name.value, locations: places.value, icon: newIcon.value, directPublish: 'lead', leadTitle: leadTitle.value, leadPerson: leadPicker.input.value, leadEmail: leadEmail.value });
+          if (!leadPicker.chosen) { throw new Error('Pick the lead from the company directory.'); }
+          // Where its pages live is not asked here: a new team starts with one place, named after the team
+          made = window.Store.admin.createTeam({ name: name.value, locations: name.value, icon: newIcon.value, directPublish: 'lead', leadTitle: leadTitle.value, leadPerson: leadPicker.chosen.person, leadEmail: leadPicker.chosen.email });
         } catch (error) {
           problem.textContent = error && error.message ? error.message : 'That did not work.';
           problem.hidden = false;
@@ -1719,12 +1713,11 @@
         d.close();
         notice('Created ' + made.team.name + '. An invitation was written for ' + made.invitation.person + '.');
         reopenAs(made.team.slug);
-      });
-      actions.appendChild(go);
+      }));
       d.appendChild(actions);
       document.body.appendChild(d);
       d.showModal();
-      name.focus();
+      newIcon.querySelector('button').focus();
     }
 
     // Moving a person to another team always asks what happens to their pages first: they go with the person, or someone on the

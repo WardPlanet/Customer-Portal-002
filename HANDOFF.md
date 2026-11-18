@@ -1227,6 +1227,7 @@ Support now has 16 people (`teams/support.json`: the original five plus Billing 
 Keep this list current: each line is something built that the critique document does not ask for, or does differently.
 - "Select By" section created for Team Lead and Admin document sorting (Library: accordion under the "N selected" bar; see "Select by (library)").
 - "Shareable with clients" changed to "Public" (the library pill, Select by, change-visibility menus and their confirmations, and the Page Setup confirmation "Make this page public?" / "Make public"). The Page Setup choice itself still reads "Client-safe" as in the text revisions.
+- Create team (Team and roles) no longer asks "Where its pages live" or an email: the fields are Icon, Team name, Lead (picked from the company directory, which supplies the email) and Lead job title, and a new team starts with one place named after the team. TO DISCUSS WITH THE DESIGNER: whether teams still need places at all, and who sets them. The Admin tools create form still has the old fields.
 - Public view added to the Testing bar's Department dropdown: the site as a signed-out visitor sees it (live Public pages only, read-only, staff navigation hidden). See "Public view (Testing bar)".
 - Bulk and per-row visibility change for team leads and Admin: a "Change visibility…" menu in the "N selected" bar and a Change link under each row's visibility label, the same pattern as changing the owner.
 
