@@ -2432,3 +2432,7 @@ dialog { position: fixed; }
 .preview-contact-links a { display: flex; align-items: center; gap: 6px; }
 .contact-icon { display: inline-flex; flex: none; color: var(--text-muted, #666); }
 .preview-contact-links a:hover .contact-icon { color: var(--accent, #0b6bdc); }
+
+/* On this page: with nothing to expand or fold there is no bottom bar, so the card needs its own bottom padding (the last row already has 3px of its own) */
+.toc-card:has(> .toc-actions[hidden]) { padding-bottom: 11px; }
+.outline .toc-card:has(> .toc-actions[hidden]) { padding-bottom: 0; }
