@@ -1331,3 +1331,5 @@ On this page highlights (light blue, a ring so nothing shifts) the heading the p
 
 ## Search behaviour (like Wikipedia)
 Suggestions are articles: one row per page, shown by its title (a keyword or heading match stands for its page). Clicking one, or arrowing to it and pressing Enter, opens the article. Enter in the box, or the search button at its right end, runs the full search. Applies to the landing box, the sticky bar and the left column of a live page. In the left column only the body scrolls; the logo and search stay clear so the focus ring and the list are never cut off.
+
+Staff live pages: contacts stay in the byline under the title; visibility and "Updated N days ago" moved to the left of the fixed bottom bar. A visitor (Public) sees neither.

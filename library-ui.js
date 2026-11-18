@@ -3497,15 +3497,6 @@
         var bylineAt = pageTitle.nextSibling;
         var lines = renderContacts(W.fields(data.text), ownerTeam);
         var byline = lines[0] || el('p', 'contact-byline');
-        // The visibility and when it was last updated close the same line, at its right end
-        var details = el('span', 'byline-details');
-        details.appendChild(visibilityPill(detail.page.visibility));
-        if (detail.page.updatedAt) {
-          var updatedText = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
-          updatedText.title = formatDate(detail.page.updatedAt);
-          details.appendChild(updatedText);
-        }
-        byline.appendChild(details);
         pageTitle.parentNode.insertBefore(byline, bylineAt);   // a byline under the title
       }
       // A visitor sees "Need help?" where staff see the names
@@ -3556,6 +3547,17 @@
     var footerMessage = el('span', 'preview-footer-message');
     footerMessage.id = 'preview-message';
     footerMessage.setAttribute('role', 'status');
+    // Staff see the page's visibility and when it was last updated at the left of the bar (a visitor sees neither)
+    if (!publicMode) {
+      var footerDetails = el('span', 'footer-details');
+      footerDetails.appendChild(visibilityPill(detail.page.visibility));
+      if (detail.page.updatedAt) {
+        var footerUpdated = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
+        footerUpdated.title = formatDate(detail.page.updatedAt);
+        footerDetails.appendChild(footerUpdated);
+      }
+      footer.appendChild(footerDetails);
+    }
     footer.appendChild(footerMessage);
     var footerActions = el('div', 'preview-footer-actions');
     footer.appendChild(footerActions);

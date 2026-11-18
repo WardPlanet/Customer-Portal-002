@@ -2709,3 +2709,8 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .side-head .suggest-text { font-size: 14px; }
 .side-head .doc-search-input::-webkit-search-cancel-button { display: none; }
 .side-head .suggest-text { white-space: normal; padding: 6px 0; }
+
+/* Visibility and last-updated, at the left of the fixed bar */
+.footer-details { display: inline-flex; align-items: center; gap: 12px; flex: none; font-size: 13px; color: var(--text-muted); }
+.footer-details .preview-updated { font-size: 13px; color: var(--text-muted); }
+.preview-footer-message { text-align: left; }
