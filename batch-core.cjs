@@ -418,6 +418,19 @@
       }
     }
 
+    // Lines at the top that give the document's own date, owner or version (often left over from a template). They stay on the page as written,
+    // and are flagged: the page's real owner is chosen separately, and a template placeholder such as "[Name / Department]" was never filled in.
+    var meta = [];
+    for (var m = 0; m < Math.min(lines.length, 10); m += 1) {
+      if (m === titleIndex || lines[m].tag === 'TABLE' || /^H[1-6]$/.test(lines[m].tag)) { continue; }
+      if (/^\s*(date|effective date|last updated|last reviewed|review date|version|owner|author|prepared by|approved by|department)\s*:/i.test(lines[m].text)) { meta.push(lines[m].text); }
+    }
+    meta.forEach(function (text) {
+      var label = /^\s*([^:]+):/.exec(text)[1].trim();
+      if (/\[[^\]]{2,60}\]/.test(text)) { notes.push('\u201C' + oneLine(text, 70) + '\u201D is a template placeholder that was never filled in. Fill it in or take it out.'); }
+      else if (/date|updated|reviewed|version/i.test(label)) { notes.push('The document gives its own ' + label.toLowerCase() + ' (\u201C' + oneLine(text, 70) + '\u201D). Check it is current.'); }
+      else { notes.push('The document names its own ' + label.toLowerCase() + ' (\u201C' + oneLine(text, 70) + '\u201D). The page owner is chosen separately, so check the two agree.'); }
+    });
     if (titleIndex >= 0 && lines[titleIndex].tag === 'P') { notes.push('The title was taken from the first line of the document: \u201C' + oneLine(lines[titleIndex].text, 80) + '\u201D.'); }
     if (titleIndex < 0 && !opts.title) { notes.push('The document has no title line, so the file name is used as the title.'); }
     if (disguised.length) { notes.push(disguised.length + (disguised.length === 1 ? ' line' : ' lines') + ' that looked like headings (short, bold or numbered) ' + (disguised.length === 1 ? 'was' : 'were') + ' made headings: ' + disguised.slice(0, 4).map(function (t) { return '\u201C' + oneLine(t, 40) + '\u201D'; }).join(', ') + (disguised.length > 4 ? ' and more' : '') + '.'); }

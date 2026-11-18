@@ -4302,6 +4302,19 @@
         }
       });
 
+      // A heading always stays with what follows it: it is kept together with the paragraph (or list) after it, so it is never left alone at the
+      // bottom of a page. Long things such as tables are left to break as they need to.
+      var kept = [];
+      for (var c = 0; c < content.length; c += 1) {
+        var node = content[c];
+        var following = content[c + 1];
+        if (node && node.headlineLevel && following && !following.table && (following.text !== undefined || following.ul || following.ol)) {
+          kept.push({ stack: [node, following], unbreakable: true });
+          c += 1;
+        } else { kept.push(node); }
+      }
+      content = kept;
+
       return {
         info: { title: title },
         pageSize: 'A4',
@@ -4320,6 +4333,7 @@
             ]
           };
         },
+        // A heading is never left alone at the bottom of a page: if nothing follows it on the page, it moves to the next one
         content: content
       };
     }

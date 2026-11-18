@@ -148,3 +148,12 @@ test('AI labels: only valid ones are used, tables and Word titles are protected,
   assert.equal(page.title, 'Real title');
   assert.equal(page.blocks.find((b) => b.type === 'header').level, 1);
 });
+
+test('a date or owner line at the top stays on the page and is flagged; a template placeholder is flagged as unfilled', () => {
+  const lines = [L('TITLE', 'Website Transfer Policy'), L('P', 'Date: November 3, 2026'), L('P', 'Owner: [Name / Department]'), L('H2', 'Purpose'), L('P', 'This policy explains how clients may transfer their website.')];
+  const page = B.buildPage(lines, B.labelByRules(lines), {});
+  assert.equal(page.blocks[0].text, 'Date: November 3, 2026');
+  assert.equal(page.blocks[1].text, 'Owner: [Name / Department]');
+  assert.ok(page.review_notes.some((n) => /gives its own date/.test(n)));
+  assert.ok(page.review_notes.some((n) => /template placeholder/.test(n) && /Owner/.test(n)));
+});
