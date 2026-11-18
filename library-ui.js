@@ -3283,12 +3283,13 @@
         return;
       }
       var at = -1;
-      // A heading counts once it is a third of the way up the window; at the very bottom of the page the last heading counts,
-      // since a short last section may never reach that line.
-      var line = Math.max(120, window.innerHeight * 0.33);
-      headings.forEach(function (h, i) { if (h.getBoundingClientRect().top <= line) { at = i; } });
+      // A heading counts once it passes a line that starts a third of the way down the window and slides to the window's bottom edge
+      // as you reach the end of the page. That way short sections at the end each get their turn instead of being skipped.
       var root = document.documentElement;
-      if (headings.length && window.scrollY > 0 && window.innerHeight + window.scrollY >= root.scrollHeight - 4) { at = headings.length - 1; }
+      var room = root.scrollHeight - window.innerHeight;
+      var progress = room > 0 ? Math.min(1, Math.max(0, window.scrollY / room)) : 0;
+      var line = Math.max(120, window.innerHeight * 0.33) + (window.innerHeight - Math.max(120, window.innerHeight * 0.33)) * progress;
+      headings.forEach(function (h, i) { if (h.getBoundingClientRect().top <= line) { at = i; } });
       var shown = null;
       while (at >= 0 && !shown) {
         var a = links['#' + headings[at].getAttribute('data-section')];
