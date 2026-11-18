@@ -858,8 +858,8 @@
       return row;
     }
     if (canBulk) {
+      if (activeDefs.length) { box.appendChild(buildChips()); }   // what is ticked, above Select by
       box.appendChild(buildNarrowBox());
-      if (activeDefs.length) { box.appendChild(buildChips()); }
       if (libraryFilters.pickOpen) {
         setTimeout(function () { var again = box.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
       }
