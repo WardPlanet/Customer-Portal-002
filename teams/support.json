@@ -33,6 +33,61 @@
       "title": "Training Coordinator",
       "person": "Marcus Hale",
       "email": "marcus.hale@example.com"
+    },
+    {
+      "title": "Billing Specialist",
+      "person": "Aisha Rahman",
+      "email": "aisha.rahman@example.com"
+    },
+    {
+      "title": "Escalations Lead",
+      "person": "Tomás Rivera",
+      "email": "tomas.rivera@example.com"
+    },
+    {
+      "title": "Quality Analyst",
+      "person": "Hannah Kim",
+      "email": "hannah.kim@example.com"
+    },
+    {
+      "title": "Chat Support Agent",
+      "person": "Jordan Ellis",
+      "email": "jordan.ellis@example.com"
+    },
+    {
+      "title": "Onboarding Specialist",
+      "person": "Sofia Marin",
+      "email": "sofia.marin@example.com"
+    },
+    {
+      "title": "Technical Writer",
+      "person": "Ben Okafor",
+      "email": "ben.okafor@example.com"
+    },
+    {
+      "title": "Weekend Support Lead",
+      "person": "Maya Patel",
+      "email": "maya.patel@example.com"
+    },
+    {
+      "title": "Community Moderator",
+      "person": "Leo Brandt",
+      "email": "leo.brandt@example.com"
+    },
+    {
+      "title": "Product Liaison",
+      "person": "Grace Nguyen",
+      "email": "grace.nguyen@example.com"
+    },
+    {
+      "title": "Workforce Planner",
+      "person": "Owen Fitzgerald",
+      "email": "owen.fitzgerald@example.com"
+    },
+    {
+      "title": "Compliance Reviewer",
+      "person": "Rosa Delgado",
+      "email": "rosa.delgado@example.com"
     }
   ]
 }
