@@ -1235,3 +1235,6 @@ Remove opens a hand-over window. When the person owns pages, nothing is chosen t
 
 ## Pop-ups close
 Every pop-up (`<dialog>`, in the page or drawn later) gets an **X** in its upper right corner (`addCloseButton` in `app.js`, a MutationObserver adds it to new ones). The X does what Cancel does when there is a Cancel button (so a question answers "no"), otherwise it just closes. Clicking outside the pop-up on the dimmed page also closes it (press and release both outside); a pop-up with something typed in it ignores the outside click so writing is not lost, and the X still closes it.
+
+## Owner in the library table
+The owner cell reads: **Name**, the job title in smaller text beneath it (with "(Default)" when the team lead has it as the fallback), then the Change link.

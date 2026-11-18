@@ -181,7 +181,13 @@
   function ownerShown(p, t) {
     var pageTeam = t || team;
     var who = W.effectiveOwner(pageTeam, { owner: p.owner, ownerDefault: p.ownerDefault });
-    return { entry: who.entry, isDefault: who.isDefault, label: who.entry ? roleLabel(W.keyFor(who.entry), pageTeam, who.isDefault) : 'No owner' };
+    return { entry: who.entry, isDefault: who.isDefault, name: who.entry ? (who.entry.person || 'Unassigned') : 'No owner', title: who.entry ? who.entry.title : '', label: who.entry ? roleLabel(W.keyFor(who.entry), pageTeam, who.isDefault) : 'No owner' };
+  }
+
+  // The owner as shown in the library: the name, then the job title in smaller text beneath it ("(Default)" when the team lead has it)
+  function appendOwnerLines(cell, shownOwner) {
+    cell.appendChild(el('div', 'owner-name' + (shownOwner.isDefault ? ' is-default' : ''), shownOwner.name));
+    if (shownOwner.title) { cell.appendChild(el('div', 'owner-role' + (shownOwner.isDefault ? ' is-default' : ''), shownOwner.title + (shownOwner.isDefault ? ' (Default)' : ''))); }
   }
 
   // The people a page can be given to: on the team, with a name, and past any invitation
@@ -949,7 +955,7 @@
         // Linked people stay as they are.
         var showOwner = function () {
           ownerCell.textContent = '';
-          ownerCell.appendChild(el('div', 'owner-name' + (shownOwner.isDefault ? ' is-default' : ''), shownOwner.label));
+          appendOwnerLines(ownerCell, shownOwner);
           var change = el('button', 'owner-change', 'Change');
           change.type = 'button';
           change.setAttribute('aria-label', 'Change the owner of ' + p.title);
@@ -983,7 +989,7 @@
         };
         showOwner();
       } else {
-        ownerCell.appendChild(el('span', shownOwner.isDefault ? 'owner-name is-default' : '', shownOwner.label));
+        appendOwnerLines(ownerCell, shownOwner);
       }
       row.appendChild(ownerCell);
       var visCell = el('td');
