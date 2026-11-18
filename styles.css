@@ -2760,3 +2760,8 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 :root { --draft-tint: #ECEDF0; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --draft-tint: #2b2d34; } }
 :root[data-theme="dark"] { --draft-tint: #2b2d34; }
+
+/* Expired: the same warning triangle, in red, with the row and the words red too */
+.lib-row.is-expired td { background: var(--danger-soft); }
+.caution-icon.is-expired { color: var(--danger); }
+.expiry-line.is-expired, .notify-sub.is-expired { color: var(--danger); font-weight: 700; }

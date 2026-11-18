@@ -296,10 +296,11 @@
   var notifyTimer = null;
   // A yellow caution triangle, for a page that is close to expiring
   var CAUTION_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
-  function cautionIcon() {
-    var icon = el('span', 'caution-icon');
+  // expired: the same triangle (it is the page builder's warning symbol) in red
+  function cautionIcon(expired) {
+    var icon = el('span', 'caution-icon' + (expired ? ' is-expired' : ''));
     icon.setAttribute('role', 'img');
-    icon.setAttribute('aria-label', 'Expiring soon');
+    icon.setAttribute('aria-label', expired ? 'Expired' : 'Expiring soon');
     icon.innerHTML = CAUTION_SVG;   // fixed markup above
     return icon;
   }
@@ -338,10 +339,10 @@
         var info = W.expiryStatus(p.updatedAt);
         var item = link('', previewUrl(p.id), 'notify-item');
         var line = el('strong', '');
-        line.appendChild(cautionIcon());
+        line.appendChild(cautionIcon(info.expired));
         line.appendChild(document.createTextNode(p.title));
         item.appendChild(line);
-        item.appendChild(el('span', 'notify-sub', info.text + ' \u00b7 last updated ' + W.daysAgo(p.updatedAt)));
+        item.appendChild(el('span', 'notify-sub' + (info.expired ? ' is-expired' : ''), info.text + ' \u00b7 last updated ' + W.daysAgo(p.updatedAt)));
         item.addEventListener('click', closeNotifyPops);
         pop.appendChild(item);
       });
@@ -986,7 +987,7 @@
       var row = el('tr', 'lib-row');
       var expiry = p.liveVersion ? W.expiryStatus(p.updatedAt) : null;
       if (draftsStickToTop() && isOwnDraft(p)) { row.classList.add('is-draft'); }   // light grey
-      if (expiry && expiry.soon) { row.classList.add('is-expiring'); }   // light yellow
+      if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // light yellow; red once expired
       if (canBulk) {
         var tickCell = el('td', 'lib-select-cell');
         var tick = el('input');
@@ -1103,11 +1104,11 @@
       row.appendChild(visCell);
       var updatedCell = el('td', 'lib-date');
       var when = el('div', 'lib-when');
-      if (expiry && expiry.soon) { when.appendChild(cautionIcon()); }
+      if (expiry && expiry.soon) { when.appendChild(cautionIcon(expiry.expired)); }
       when.appendChild(document.createTextNode(W.daysAgo(p.updatedAt)));
       when.title = formatDate(p.updatedAt);   // the full date, on hover
       updatedCell.appendChild(when);
-      if (expiry && expiry.soon) { updatedCell.appendChild(el('div', 'lib-row-sub expiry-line', expiry.text)); }
+      if (expiry && expiry.soon) { updatedCell.appendChild(el('div', 'lib-row-sub expiry-line' + (expiry.expired ? ' is-expired' : ''), expiry.text)); }
       row.appendChild(updatedCell);
       if (canDelete) {
         var deleteCell = el('td', 'lib-row-actions');
@@ -2715,7 +2716,7 @@
         updated.title = formatDate(p.updatedAt);
         meta.appendChild(updated);
         var expiry = W.expiryStatus(p.updatedAt);
-        if (expiry && expiry.soon && !(window.Store.isPublicMode && window.Store.isPublicMode())) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(cautionIcon()); meta.appendChild(el('span', 'is-overdue', expiry.text)); }
+        if (expiry && expiry.soon && !(window.Store.isPublicMode && window.Store.isPublicMode())) { meta.appendChild(document.createTextNode(' \u00B7 ')); meta.appendChild(cautionIcon(expiry.expired)); meta.appendChild(el('span', 'is-overdue', expiry.text)); }
         body.appendChild(meta);
         card.appendChild(body);
         listBox.appendChild(card);
