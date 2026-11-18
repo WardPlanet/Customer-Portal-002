@@ -2505,3 +2505,8 @@ dialog { position: fixed; }
 .preview-title, .preview-h:is(h2) { font-family: var(--font-serif); letter-spacing: 0; }   /* the colour is the brand navy set with the other headings (the text colour in dark mode) */
 .preview-title { font-size: 40px; line-height: 1.2; font-weight: 500; }
 .preview-h:is(h2) { font-size: 26px; line-height: 1.25; font-weight: 600; }
+
+/* Spacing around a first-level heading: a generous gap before it, so each section stands apart, and a short gap after its rule, including when
+   a second-level heading follows straight away */
+.preview-h:is(h2) { margin-top: 48px; margin-bottom: 16px; }
+.preview-h:is(h2) + .preview-h:not(:is(h2)) { margin-top: 16px; }
