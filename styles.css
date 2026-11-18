@@ -2561,3 +2561,18 @@ dialog { position: fixed; }
 @media (prefers-reduced-motion: reduce) { .top-search { transition: none; } }
 body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 .preview-h, .section-linked { scroll-margin-top: 90px; }   /* a heading scrolled to is not hidden under the sticky Wiki bar */
+
+/* Plain links (related pages, contacts, links in a page) are the light blue of the logo. Zero specificity, so every styled link keeps its own colour. */
+:where(a) { color: var(--icon-blue); }
+
+/* The link icon beside a heading is a quiet grey until the heading is hovered, the icon is focused, or the section was linked to */
+.preview-anchor { color: var(--text-faint); background: transparent; opacity: 0.55; }
+.preview-h:hover .preview-anchor, .preview-anchor:focus-visible, .section-linked .preview-anchor { color: var(--icon-blue); opacity: 1; background: transparent; }
+.preview-anchor:hover { color: #fff; background: var(--icon-blue); opacity: 1; }
+.section-linked > .preview-h:first-child .preview-anchor { color: #fff; background: var(--icon-blue); opacity: 1; }
+
+/* The "Wiki" mark in the bar is the logo's dark blue; it only picks up the light blue when hovered */
+a.lib-brand, a.lib-brand.is-current { color: #000F60; }
+a.lib-brand:hover { color: var(--icon-blue); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) a.lib-brand, :root:not([data-theme="light"]) a.lib-brand.is-current { color: var(--text); } }
+:root[data-theme="dark"] a.lib-brand, :root[data-theme="dark"] a.lib-brand.is-current { color: var(--text); }
