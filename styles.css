@@ -2673,3 +2673,12 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .side-head .top-search, .side-head .top-search:focus-within { width: 100%; margin: 0; }
 .side-head .doc-search-input { height: 36px; }
 @media (max-width: 860px) { .preview-side { position: static; width: 100%; flex-basis: auto; } }
+
+.side-logo { display: block; line-height: 0; }
+.side-logo svg { width: 150px; height: auto; display: block; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .side-logo { background: #fff; border-radius: 8px; padding: 6px 8px; } }
+:root[data-theme="dark"] .side-logo { background: #fff; border-radius: 8px; padding: 6px 8px; }
+/* Related pages never scroll sideways: long titles wrap inside the column */
+.preview-side { overflow-x: hidden; }
+.side-accordion, .side-accordion .side-list { min-width: 0; }
+.side-accordion .side-list-item > a { overflow-wrap: anywhere; }

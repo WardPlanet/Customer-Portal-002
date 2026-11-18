@@ -3426,7 +3426,9 @@
       var side = el('aside', 'preview-side');
       // The logo and the search box head the left column, which stays on screen as the page scrolls
       var sideHead = el('div', 'side-head');
-      var logo = el('a', 'side-logo', 'Wiki');
+      var logo = el('a', 'side-logo');
+      logo.innerHTML = window.Brand.logoSvg;   // the supplied PDDS logo: fixed markup, no page text
+      logo.setAttribute('aria-label', 'Search the wiki');
       logo.href = '#/public';
       logo.title = 'Search the wiki';
       sideHead.appendChild(logo);
