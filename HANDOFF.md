@@ -1256,3 +1256,6 @@ In Admin mode, Team and roles has a **Create team** button (name, where its page
 
 ## Team and roles: no sideways scrolling, and Admin sees everyone
 The window is up to 1120px wide, buttons wrap under each other and long emails break, so there is no horizontal scroll (checked at 1280 and 820px). In Admin mode it opens on **All departments**: everyone on every team in a single table, A to Z by name, with Person, Department, Job title, Email and Pages owned columns that each sort (click a heading; again to reverse). Each row has **Manage** (switches to that person's department with the full Replace, Transfer and Remove tools) and a "…" menu with **Move to another team…** (not for team leads). The Department picker's other choices show one team.
+
+## Admin: Manage team
+Next to Create team in Team and roles (Admin mode): **Manage team** opens a window to pick a team and change its **name**, its **icon** (Team, Support or Web Team, with a preview) and its **team lead** (chosen from the people already on the team who have accepted their invitation; the old lead stays on the team). Uses `Store.admin.editTeam`; the Department list and the All departments view update at once. The server has no equivalent yet (Admin tools are artifact only).

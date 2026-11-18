@@ -2473,3 +2473,6 @@ dialog { position: fixed; }
   .team-actions { white-space: normal; }
   .team-buttons { flex-wrap: wrap; }
 }
+
+.manage-icon-row { display: flex; align-items: center; gap: 10px; }
+.manage-icon-preview { color: var(--accent); }

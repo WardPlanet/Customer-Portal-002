@@ -1443,6 +1443,7 @@
       });
       switcher.appendChild(switchSelect);
       switcher.appendChild(button('Create team', 'secondary-link', openCreateTeamDialog));
+      switcher.appendChild(button('Manage team', 'secondary-link', function () { openManageTeamDialog(); }));
       box.appendChild(switcher);
     }
     if (actingAsAdmin() && teamAllView && window.Store.teams().length > 1) { renderAllPeople(); return; }
@@ -1593,6 +1594,74 @@
         try { sessionStorage.setItem('pageEditor.reopenTeam', '1'); } catch (error) { /* the window is simply not reopened */ }
         location.reload();
       }
+    }
+
+    // Admin: change a team's name, its icon and its team lead (the lead is chosen from the people already on the team who have accepted)
+    function openManageTeamDialog() {
+      var d = adminDialog('Manage team', 'Change the name, the icon or the team lead. People, pages and the library stay as they are.');
+      var problem = el('p', 'dialog-hint is-error');
+      problem.setAttribute('role', 'alert');
+      problem.hidden = true;
+      var teams = window.Store.teams();
+      var which = el('select', 'acting-select');
+      which.setAttribute('aria-label', 'Team to manage');
+      teams.forEach(function (t) { var o = el('option', '', t.name); o.value = t.slug; which.appendChild(o); });
+      which.value = team.slug;
+      var name = textField('Team name');
+      var iconSelect = el('select', 'acting-select');
+      iconSelect.setAttribute('aria-label', 'Icon');
+      Object.keys(TEAM_ICONS).forEach(function (key) { var o = el('option', '', TEAM_ICONS[key].label); o.value = key; iconSelect.appendChild(o); });
+      var preview = el('span', 'team-icon manage-icon-preview');
+      var leadSelect = el('select', 'acting-select');
+      leadSelect.setAttribute('aria-label', 'Team lead');
+      var iconRow = el('div', 'manage-icon-row');
+      iconRow.appendChild(iconSelect);
+      iconRow.appendChild(preview);
+      function current() { return teams.filter(function (t) { return t.slug === which.value; })[0]; }
+      function fill() {
+        var t = current();
+        name.value = t.name;
+        iconSelect.value = TEAM_ICONS[t.icon] ? t.icon : 'document';
+        showIcon();
+        leadSelect.textContent = '';
+        t.roles.filter(function (r) { return r.person && r.status !== 'invited'; }).forEach(function (r) {
+          var o = el('option', '', r.person + ' \u2014 ' + r.title);
+          o.value = r.title;
+          leadSelect.appendChild(o);
+        });
+        leadSelect.value = t.lead;
+        problem.hidden = true;
+      }
+      function showIcon() { preview.innerHTML = (TEAM_ICONS[iconSelect.value] || TEAM_ICONS.document).svg; }   // fixed markup, no page text
+      which.addEventListener('change', fill);
+      iconSelect.addEventListener('change', showIcon);
+      d.appendChild(adminField('Team', which));
+      d.appendChild(adminField('Team name', name));
+      d.appendChild(adminField('Icon', iconRow));
+      d.appendChild(adminField('Team lead', leadSelect));
+      d.appendChild(el('p', 'dialog-hint', 'Only someone who has accepted their invitation can lead. The new lead gets the lead\u2019s tools; the old lead stays on the team.'));
+      d.appendChild(problem);
+      var actions = el('div', 'dialog-actions');
+      actions.appendChild(button('Cancel', 'secondary-link', function () { d.close(); }));
+      actions.appendChild(button('Save changes', 'primary-btn', function () {
+        var t = current();
+        try {
+          window.Store.admin.editTeam(t.slug, { name: name.value, icon: iconSelect.value, lead: leadSelect.value });
+        } catch (error) {
+          problem.textContent = error && error.message ? error.message : 'That did not work.';
+          problem.hidden = false;
+          return;
+        }
+        d.close();
+        notice('Saved the changes to ' + t.name + '.');
+        mountActing();
+        showTeam(box, dialog);
+      }));
+      d.appendChild(actions);
+      fill();
+      document.body.appendChild(d);
+      d.showModal();
+      name.focus();
     }
 
     function openCreateTeamDialog() {
