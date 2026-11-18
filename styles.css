@@ -2552,17 +2552,16 @@ dialog { position: fixed; }
 .preview-anchor:hover, .preview-anchor:focus-visible { color: #fff; background: var(--icon-blue); }
 .landing-tile-top .team-icon { color: var(--tile-icon); }
 
-/* A live page has three columns: the rail on the left (search, then On this page; it stays on screen), the article, then the details */
-.lib-main.has-rail { max-width: 1260px; }
-.preview-layout { gap: 32px; }
-.preview-rail { flex: 0 0 220px; position: sticky; top: 16px; align-self: flex-start; max-height: calc(100vh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 2px; margin: -2px; }
-.rail-search { width: 100%; }
-.rail-search .doc-search-wrap { position: relative; max-width: none; }
-.rail-search .doc-search-input { width: 100%; height: 38px; padding: 0 12px 0 36px; }
-.rail-search-icon { position: absolute; z-index: 1; left: 12px; top: 50%; transform: translateY(-50%); display: inline-grid; color: var(--icon-blue); pointer-events: none; }
-.preview-rail .toc-card { width: 100%; }
-@media (max-width: 1100px) { .preview-layout { flex-wrap: wrap; } .preview-rail { flex: 1 1 100%; position: static; max-height: none; order: -1; } .preview-layout > .preview { flex: 1 1 60%; } }
-.preview-h, .section-linked { scroll-margin-top: 24px; }
+/* The search box in the Wiki bar on a live page; the bar sticks to the top of the screen there */
+.top-search { flex: 0 1 auto; width: 320px; min-width: 0; margin: 0 8px 0 auto; transition: width 0.2s ease; }
+.top-search:focus-within { width: 460px; }
+.top-search .doc-search-wrap { position: relative; max-width: none; }
+.top-search .doc-search-input { width: 100%; height: 38px; padding: 0 16px 0 38px; }
+.top-search-icon { position: absolute; z-index: 1; left: 13px; top: 50%; transform: translateY(-50%); display: inline-grid; color: var(--icon-blue); pointer-events: none; }
+@media (max-width: 900px) { .top-search { width: 200px; } .top-search:focus-within { width: 260px; } }
+@media (prefers-reduced-motion: reduce) { .top-search { transition: none; } }
+body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
+.preview-h, .section-linked { scroll-margin-top: 90px; }   /* a heading scrolled to is not hidden under the sticky Wiki bar */
 
 /* Plain links (related pages, contacts, links in a page) are the light blue of the logo. Zero specificity, so every styled link keeps its own colour. */
 :where(a) { color: var(--icon-blue); }
@@ -2587,19 +2586,3 @@ dialog { position: fixed; }
 .preview-contact-label { font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
 .preview-contact-kicker { display: block; margin: 0 0 2px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
 .preview-contact.is-lead { border-top: 1px solid var(--border); }
-
-.preview-rail .back-row { margin: 0; }
-.preview-rail .back-link { margin-bottom: 0; }
-
-/* Layout: a left rail (back and search), the article, and a right rail with only On this page as a plain list. Under the title one line of details;
-   below the article, Contacts and Related pages side by side. */
-.lib-main.has-rail { max-width: 1240px; }
-.preview-layout { gap: 40px; }
-.preview-layout > .preview { flex: 1 1 auto; max-width: 760px; }
-.preview-rail { flex: 0 0 200px; }
-.preview-outline { flex: 0 0 200px; position: sticky; top: 16px; align-self: flex-start; max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; }
-.preview-outline .toc-card { background: none; border: 0; border-radius: 0; padding: 0 0 8px; box-shadow: none; }
-.preview-outline .toc-actions { background: var(--bg); }
-.preview-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 12px 0 0; font-size: 13px; color: var(--text-muted); }
-.preview-after { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border-strong); align-items: start; }
-@media (max-width: 1100px) { .preview-layout { flex-wrap: wrap; } .preview-outline { flex: 1 1 100%; position: static; max-height: none; order: -1; } }
