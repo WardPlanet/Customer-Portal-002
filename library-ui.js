@@ -304,6 +304,9 @@
     var mine = !!(p.owner && W.ownsKey(me, p.owner)) || !!(p.ownerDefault && actorIsLead());
     return mine ? e : null;
   }
+  var REVIEW_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 14l2 2 4-4"/></svg>';
+  function reviewsFirstBar() { return actorIsLead() || actingAsAdmin(); }
+  var LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
   // A yellow caution triangle, for a page that is close to expiring
   var CAUTION_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>';
   // expired: the same triangle (it is the page builder's warning symbol) in red
@@ -469,7 +472,7 @@
     search.value = libraryFilters.q;
     var status = el('select', 'lib-status');
     status.setAttribute('aria-label', 'Filter by status');
-    [['', 'All statuses'], ['live', 'Live'], ['expiring', 'Expiring soon'], ['expired', 'Expired'], ['draft', 'Draft'], ['review', 'In review'], ['sent-back', 'Sent back'], ['unpublished', 'Unpublished']].forEach(function (pair) {
+    [['', 'All statuses'], ['live', 'Live'], ['expiring', 'Expiring soon'], ['expired', 'Expired']].concat(actorIsLead() || actingAsAdmin() ? [['waiting', 'Waiting for review']] : []).concat([, ['draft', 'Draft'], ['review', 'In review'], ['sent-back', 'Sent back'], ['unpublished', 'Unpublished']]).forEach(function (pair) {
       var option = el('option', '', pair[1]);
       option.value = pair[0];
       status.appendChild(option);
@@ -482,6 +485,9 @@
     main.appendChild(el('p', 'lib-hint search-tip', 'Use quotes for an exact phrase (\u201Cpassword reset\u201D), a minus sign to exclude a word (-billing), or title: to search titles only (title: escalation).'));
 
     // Two bars under the search: yellow for pages about to expire (the owner's), red for pages that have expired. "Show them" lists just those.
+    var reviewBar = el('div', 'lib-expiry-bar is-review');
+    reviewBar.hidden = true;
+    main.appendChild(reviewBar);
     var soonBar = el('div', 'lib-expiry-bar');
     var expiredBar = el('div', 'lib-expiry-bar is-expired');
     soonBar.hidden = true;
@@ -492,7 +498,8 @@
       bar.textContent = '';
       bar.hidden = !pages.length;
       if (!pages.length) { return; }
-      bar.appendChild(cautionIcon(kind === 'expired'));
+      if (kind === 'waiting') { var tick = el('span', 'caution-icon'); tick.innerHTML = REVIEW_SVG; bar.appendChild(tick); }   // fixed markup
+      else { bar.appendChild(cautionIcon(kind === 'expired')); }
       bar.appendChild(el('span', 'lib-expiry-text', text));
       var filtering = libraryFilters.status === kind;
       bar.appendChild(button(filtering ? 'Show all pages' : 'Show them', 'row-btn', function () {
@@ -502,6 +509,9 @@
       }));
     }
     function renderExpiryBar(pages) {
+      // The team lead (and Admin) are told how many pages wait for their review
+      var waiting = reviewsFirstBar() ? pages.filter(isWaitingForReview) : [];
+      fillBar(reviewBar, waiting, 'waiting', waiting.length + (waiting.length === 1 ? ' page is' : ' pages are') + ' waiting for your review.');
       var soon = pages.filter(function (p) { var e = expiryOf(p); return e && !e.expired; });
       var gone = pages.filter(function (p) { var e = expiryOf(p); return e && e.expired; });
       fillBar(soonBar, soon, 'expiring', soon.length + (soon.length === 1 ? ' page expires' : ' pages expire') + ' within ' + W.EXPIRY_WARNING_DAYS + ' days.');
@@ -516,7 +526,6 @@
       if (!result || mine !== routing) { return; }
       renderBackupLine(backupLine, result.pages);
       renderExpiryBar(result.pages);
-      renderQueue(queue, result.pages);
       renderList(listBox, result.pages);
       var note = libraryFilters.q ? searchNote(result, function (word) { search.value = word; libraryFilters.q = word; refresh(); }) : null;
       if (note) { listBox.insertBefore(note, listBox.firstChild); }
@@ -672,9 +681,10 @@
   }
 
   // Sorts a copy of the rows by the chosen heading. Ties keep the newest page first.
-  // A person who is not the team lead or Admin sees their own drafts first, until they search or choose a sort
+  // A person who is not the team lead or Admin sees their own drafts first, until they search or choose a column to sort by
   function draftsStickToTop() { return !actorIsLead() && !actingAsAdmin() && !libraryFilters.q && !libraryFilters.sortChosen; }
   function isOwnDraft(p) { return p.state === 'draft' || p.state === 'sent_back'; }
+  function isWaitingForReview(p) { return !!(p.workingVersion && p.workingVersion.status === 'submitted'); }
   function sortRows(rows) {
     var sorted = sortRowsBy(rows);
     if (!draftsStickToTop()) { return sorted; }
@@ -755,6 +765,7 @@
   function renderList(box, pages) {
     box.textContent = '';
     var pool = pages.filter(function (p) {
+      if (libraryFilters.status === 'waiting') { return isWaitingForReview(p); }   // submitted, for the team lead to review
       if (libraryFilters.status === 'expiring' || libraryFilters.status === 'expired') {
         var due = expiryOf(p);
         return !!(due && due.expired === (libraryFilters.status === 'expired'));
@@ -1145,7 +1156,8 @@
           reviewButton.setAttribute('aria-label', 'Review ' + p.title);
           deleteCell.appendChild(reviewButton);
         }
-        // Someone who is not the team lead sends their own draft to the lead from here (the lead has Publish)
+        var lockedInReview = !lead && !actingAsAdmin() && p.workingVersion && p.workingVersion.status === 'submitted';
+        // Someone who is not the team lead sends their own draft to the lead from here. Once sent, the page is locked and reads "In Review".
         if (!lead && !actingAsAdmin() && p.workingVersion && (p.workingVersion.status === 'draft' || p.workingVersion.status === 'sent_back')) {
           var submitButton = button('Submit', 'row-btn row-btn-publish', async function () {
             if (await attempt(backend().act(p.id, p.workingVersion.n, 'submit'))) {
@@ -1156,29 +1168,40 @@
           submitButton.setAttribute('aria-label', 'Submit ' + p.title + ' to the team lead');
           deleteCell.appendChild(submitButton);
         }
-        deleteCell.appendChild(editButton);
-        // Testing shortcut for the team lead: publish the draft (or version in review) without opening it. In the
-        // finished system the lead reviews the draft and publishes from there. Remove this button then.
-        if (lead && p.workingVersion) {
-          var publishButton = button('Publish', 'row-btn row-btn-publish', async function () {
-            // No confirmation: this is a dev shortcut. It downloads the text file, then publishes. A problem (for
-            // example a missing owner) is shown on the row.
-            var problem = nameCell.querySelector('.lib-row-error');
-            if (problem) { problem.remove(); }
-            try {
-              var version = await backend().getVersion(p.id, p.workingVersion.n);
-              notice(await publishAndDownload(p.id, p.workingVersion.n, version.text, version.version.title || p.title));
-            } catch (error) {
-              nameCell.appendChild(el('div', 'lib-row-error', 'Not published: ' + (error && error.message ? error.message : 'that did not work.')));
-              return;
-            }
-            route();
-          });
-          publishButton.setAttribute('aria-label', 'Publish ' + p.title);
-          deleteCell.appendChild(publishButton);
+        if (lockedInReview) {
+          var locked = el('span', 'row-locked');
+          locked.setAttribute('aria-label', 'In review: locked until the team lead approves it or sends it back');
+          var lockIcon = el('span', 'row-locked-icon');
+          lockIcon.innerHTML = LOCK_SVG;   // fixed markup, no page text
+          locked.appendChild(lockIcon);
+          locked.appendChild(document.createTextNode('In Review'));
+          deleteCell.appendChild(locked);
+        } else {
+          deleteCell.appendChild(editButton);
         }
+        // Publish (a testing shortcut for the team lead: publish the draft or version in review without opening it; in the finished system the
+        // lead reviews it and publishes from there) sits in the "..." menu
+        var publishFromRow = async function () {
+          // No confirmation: this is a dev shortcut. It downloads the text file, then publishes. A problem (for example a missing owner) is shown on the row.
+          var problem = nameCell.querySelector('.lib-row-error');
+          if (problem) { problem.remove(); }
+          try {
+            var version = await backend().getVersion(p.id, p.workingVersion.n);
+            notice(await publishAndDownload(p.id, p.workingVersion.n, version.text, version.version.title || p.title));
+          } catch (error) {
+            nameCell.appendChild(el('div', 'lib-row-error', 'Not published: ' + (error && error.message ? error.message : 'that did not work.')));
+            return;
+          }
+          route();
+        };
         // Unpublish and the delete actions sit one step away, in the "..." menu. Each still asks before it does anything.
         var moreItems = [];
+        if (lead && p.workingVersion) { moreItems.push({ label: 'Publish', onClick: publishFromRow }); }
+        if (lockedInReview) {
+          moreItems.push({ label: 'Withdraw from review', onClick: async function () {
+            if (await attempt(backend().act(p.id, p.workingVersion.n, 'withdraw'))) { notice('Withdrawn. \u201c' + p.title + '\u201d is a draft again.'); route(); }
+          } });
+        }
         if (lead && p.liveVersion) {
           moreItems.push({ label: 'Unpublish', onClick: async function () {
             if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }

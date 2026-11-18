@@ -2769,5 +2769,15 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .lib-expiry-bar.is-expired { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 
 /* The main button of a row that needs a look: filled blue */
-.row-btn.row-btn-main { background: var(--icon-blue); border-color: var(--icon-blue); color: #fff; font-weight: 600; }
-.row-btn.row-btn-main:hover { background: var(--navy); border-color: var(--navy); }
+.row-btn.row-btn-main { background: var(--go); border-color: var(--go); color: var(--go-ink); font-weight: 600; }
+.row-btn.row-btn-main:hover { background: var(--go-hover); border-color: var(--go-hover); }
+
+:root { --go: #1B8A4B; --go-hover: #146C3A; --go-ink: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --go: #3DBB74; --go-hover: #5BCB8A; --go-ink: #07210f; } }
+:root[data-theme="dark"] { --go: #3DBB74; --go-hover: #5BCB8A; --go-ink: #07210f; }
+/* A page the author has sent for review: locked, and it says so */
+.row-locked { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; font-weight: 600; color: var(--text-muted); background: var(--surface-muted); border: 1px solid var(--border); border-radius: 999px; }
+.row-locked-icon { display: inline-grid; }
+
+.lib-expiry-bar.is-review { background: var(--live-bg); border-color: var(--live-border); color: var(--live-ink); }
+.lib-expiry-bar.is-review .caution-icon { color: var(--live-ink); }

@@ -1369,3 +1369,7 @@ Expired pages (past the 180 days): the same warning triangle as the page builder
 Expiry, who sees what: **expired** (red) is separate from **expiring soon** (yellow), each with its own bar under the search ("N pages expire within 15 days" / "N pages have expired") and its own status filter. Expired shows to everyone who sees the page (the team lead sees the team's). Expiring soon is the owner's business: it shows (row, bar, bell) only to the page's owner, and to the team lead only for pages the lead owns or holds by default. Admin owns none, so sees only expired.
 
 Library rows: "Review" is the main (filled blue) button, ahead of Edit, for an expired page (opens the page) and, for the team lead, a page just submitted (opens its review view to approve or send back). Reviewing an expired page does not by itself restart its 180 days: editing and publishing does.
+
+## Review flow in the library
+- **Team lead / Admin:** no sticky list. A green bar under the search says "N pages are waiting for your review" with "Show them" (status filter "Waiting for review"), like the yellow (expiring soon) and red (expired) bars. It replaces the old blue "Waiting for your approval" panel (`renderQueue` is no longer called). The row's main button is a green **Review** before **Edit**; **Publish** now lives in the "..." menu.
+- **Anyone else:** their own drafts still stick to the top in grey. After **Submit** the row is locked: no Edit or Submit, a "In Review" lock label instead, and "Withdraw from review" in the "..." menu until the lead approves it or sends it back.
