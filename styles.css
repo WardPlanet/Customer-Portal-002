@@ -2350,6 +2350,68 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 
 
 
+/* Select by: under the "N selected" bar */
+.lib-narrow { margin: 0 0 12px; padding: 10px 14px 12px; background: var(--surface, #fff); border: 1px solid var(--border, #e5e5e5); border-radius: 12px; }
+.lib-narrow-hint { margin: 0 0 6px; font-size: 0.85rem; font-weight: 700; color: var(--text, #111); }
+.lib-narrow-columns { display: flex; flex-wrap: wrap; gap: 4px 32px; }
+.lib-pick-group { min-width: 170px; }
+.lib-pick-title { margin: 0 0 2px; font-size: 0.72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted, #666); }
+.lib-pick-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; font-size: 0.9rem; color: var(--text, #111); }
+.lib-pick-label { flex: 1; }
+.lib-pick-count { color: var(--text-faint, #888); font-size: 0.8rem; }
+
+/* Select by, as an accordion */
+.lib-narrow { padding: 0; overflow: hidden; }
+.lib-narrow-head, .lib-pick-group > .lib-pick-title { display: flex; justify-content: space-between; align-items: center; width: 100%; background: none; border: 0; cursor: pointer; font: inherit; text-align: left; }
+.lib-narrow-head { padding: 10px 14px; font-weight: 700; font-size: 0.9rem; color: var(--text, #111); }
+.lib-pick-group { min-width: 0; border-top: 1px solid var(--border, #e5e5e5); padding: 0 14px; }
+.lib-pick-group > .lib-pick-title { margin: 0; padding: 9px 0; }
+.lib-pick-group .lib-pick-row { padding: 4px 0 4px 4px; }
+.lib-pick-group .lib-pick-row:last-child { margin-bottom: 8px; }
+.lib-narrow-arrow { margin-left: 8px; color: var(--text-muted, #666); }
+.lib-narrow-head, .lib-pick-group > .lib-pick-title { justify-content: flex-start; width: auto; }
+.lib-pick-group > .lib-pick-title { display: flex; }
+.lib-narrow-arrow { margin-left: 6px; }
+
+/* Select by: column headings in a row, the open one's tick boxes below, chips for what is ticked */
+.lib-pick-tabs { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 0 14px 8px; border-top: 1px solid var(--border, #e5e5e5); }
+.lib-pick-tabs .lib-pick-title { display: inline-flex; align-items: center; width: auto; margin: 0; padding: 8px 12px; border-radius: 8px; font-weight: 700; }
+.lib-pick-tabs .lib-pick-title:hover, .lib-pick-tabs .lib-pick-title.is-open { background: var(--border, #e5e5e5); }
+.lib-pick-list { display: flex; flex-wrap: wrap; gap: 2px 28px; padding: 0 14px 12px 26px; }
+.lib-pick-list .lib-pick-row { min-width: 200px; margin: 0; }
+.lib-pick-find { margin: 0 14px 6px; width: calc(100% - 28px); box-sizing: border-box; }
+.lib-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 12px; }
+.lib-chip { padding: 4px 10px; font: inherit; font-size: 0.85rem; background: var(--accent-soft, #e3effd); color: var(--accent-text, #0b57c0); border: 1px solid var(--accent, #0b6bdc); border-radius: 999px; cursor: pointer; }
+.lib-chip:hover { background: var(--accent, #0b6bdc); color: #fff; }
+.lib-chips-count { margin-left: 4px; font-size: 0.85rem; color: var(--text-muted, #666); }
+.lib-pick-tabs .lib-pick-title { border: 0; box-shadow: none; background: none; cursor: pointer; }
+.lib-pick-tabs .lib-pick-title:hover, .lib-pick-tabs .lib-pick-title.is-open { background: var(--border, #e5e5e5); }
+.lib-pick-tabs { padding-top: 8px; }
+
+/* Select by: the open column's choices in an even grid (label left, count right, every cell the same width) */
+.lib-pick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2px 20px; padding: 4px 14px 14px; }
+.lib-pick-list .lib-pick-row { min-width: 0; display: grid; grid-template-columns: 18px 1fr auto; align-items: center; column-gap: 10px; margin: 0; padding: 7px 10px; border-radius: 8px; }
+.lib-pick-list .lib-pick-row:hover { background: var(--border, #eee); }
+.lib-pick-list .lib-pick-row input { margin: 0; width: 16px; height: 16px; }
+.lib-pick-list .lib-pick-label { min-width: 0; overflow-wrap: anywhere; }
+.lib-pick-list .lib-pick-count { min-width: 1.5em; text-align: right; }
+.lib-pick-list .lib-pick-row[hidden] { display: none; }
+
+/* Select by: choices as compact pills (name, then its count in a small badge) that fill when ticked */
+.lib-pick-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 14px 14px; }
+.lib-pick-list .lib-pick-pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 6px 5px 12px; margin: 0; background: var(--surface, #fff); border: 1px solid var(--border-strong, #cfcfcf); border-radius: 999px; cursor: pointer; font-size: 0.88rem; }
+.lib-pick-list .lib-pick-pill:hover { border-color: var(--accent, #0b6bdc); background: var(--surface, #fff); }
+.lib-pick-list .lib-pick-pill input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.lib-pick-list .lib-pick-pill:focus-within { outline: 2px solid var(--accent, #0b6bdc); outline-offset: 2px; }
+.lib-pick-list .lib-pick-pill .lib-pick-label { flex: none; }
+.lib-pick-list .lib-pick-pill .lib-pick-count { min-width: 1.6em; padding: 1px 7px; text-align: center; font-size: 0.78rem; border-radius: 999px; background: var(--border, #eee); color: var(--text-muted, #555); }
+.lib-pick-list .lib-pick-pill:has(input:checked) { background: var(--accent, #0b6bdc); border-color: var(--accent, #0b6bdc); color: #fff; }
+.lib-pick-list .lib-pick-pill:has(input:checked) .lib-pick-count { background: rgba(255,255,255,.25); color: #fff; }
+
+.lib-pick-list.is-one-row { max-height: 44px; overflow: hidden; padding-bottom: 0; }
+.lib-pick-more { margin: 0 14px 12px; }
+.lib-pick-find { display: block; margin: 4px 14px 6px; padding: 8px 12px; width: calc(100% - 28px); box-sizing: border-box; font: inherit; font-size: 0.9rem; border: 1px solid var(--border-strong, #cfcfcf); border-radius: 999px; background: var(--surface, #fff); color: var(--text, #111); }
+
 /* A close X in the upper right corner of every pop-up */
 dialog { position: fixed; }
 .dialog-x { position: absolute; top: 10px; right: 12px; z-index: 2; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; line-height: 1; color: var(--text-muted, #666); background: none; border: 0; border-radius: 50%; cursor: pointer; }
@@ -2382,18 +2444,3 @@ dialog { position: fixed; }
 .side-list-item .team-icon { margin-top: 1px; }
 .side-list-item > a { flex: 1; min-width: 0; }
 .side-list-item > .pill { flex: none; margin-top: 1px; }
-
-/* Select by (library): the library's own parts — a pill button like "More", the segmented control from Page Setup, and toggle chips */
-.lib-select-by { margin: 0 0 12px; }
-.lib-select-by-panel { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 8px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
-.lib-select-tabs { display: inline-grid; grid-auto-flow: column; max-width: 100%; }
-.lib-select-list { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
-.lib-select-list.is-one-row { max-height: 30px; overflow: hidden; }
-.lib-select-list .chip { cursor: pointer; }
-.lib-select-list .chip[hidden] { display: none; }
-.lib-select-count { color: var(--text-faint); font-weight: 400; }
-.chip[aria-pressed="true"] .lib-select-count { color: var(--accent-text); opacity: 0.8; }
-.lib-select-find { width: 100%; max-width: 320px; }
-.lib-select-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 12px; }
-.lib-select-chips .chip { cursor: pointer; }
-.lib-select-chips-count { margin-left: 4px; font-size: 13px; color: var(--text-muted); }
