@@ -752,6 +752,8 @@
       if (!now.length) { return; }   // nothing ticked: nothing is selected by the choices
       pool.forEach(function (p) { if (now.every(function (d) { return pick[d.key][d.valueOf(p)]; })) { selected[p.id] = true; } });
     }
+    // An owner reads "Name — Job title"; the choices show just the name (the whole line is the tooltip)
+    function shortChoice(value) { return String(value).split(' \u2014 ')[0]; }
     function tick(key, value, on) {
       pick[key] = pick[key] || {};
       if (on) { pick[key][value] = true; } else { delete pick[key][value]; }
@@ -801,14 +803,15 @@
           panel.appendChild(finder);
         }
         values.forEach(function (v) {
-          var line = el('label', 'lib-pick-row');
+          var line = el('label', 'lib-pick-row lib-pick-pill');
+          line.title = v + ' \u2014 ' + openGroup.counts[v] + (openGroup.counts[v] === 1 ? ' page' : ' pages');
           var tickBox = el('input');
           tickBox.type = 'checkbox';
           tickBox.checked = !!(pick[openGroup.key] && pick[openGroup.key][v]);
           tickBox.dataset.pick = openGroup.key + ':' + v;
           tickBox.addEventListener('change', function () { tick(openGroup.key, v, tickBox.checked); });
           line.appendChild(tickBox);
-          line.appendChild(el('span', 'lib-pick-label', v));
+          line.appendChild(el('span', 'lib-pick-label', shortChoice(v)));
           line.appendChild(el('span', 'lib-pick-count', String(openGroup.counts[v])));
           list.appendChild(line);
         });
@@ -821,7 +824,8 @@
       var row = el('div', 'lib-chips');
       pickDefs.forEach(function (d) {
         Object.keys(pick[d.key] || {}).forEach(function (v) {
-          var chip = el('button', 'lib-chip', v + ' \u00D7');
+          var chip = el('button', 'lib-chip', shortChoice(v) + ' \u00D7');
+          chip.title = v;
           chip.type = 'button';
           chip.setAttribute('aria-label', 'Remove ' + v);
           chip.addEventListener('click', function () { tick(d.key, v, false); });
