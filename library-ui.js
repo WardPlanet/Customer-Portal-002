@@ -3360,11 +3360,7 @@
     if (!detail.page.liveVersion) { bar.appendChild(el('span', 'pill pill-internal', 'Not live yet')); }
     // Staff see the visibility and when the page was last updated in the side column, above Contacts. A signed-out visitor
     // (the Public view) has only "Updated ..." here. When it was updated is always in days: today, yesterday, 2 days ago.
-    if (publicMode && detail.page.updatedAt) {
-      var fresh = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
-      fresh.title = formatDate(detail.page.updatedAt);
-      bar.appendChild(fresh);
-    }
+    // A signed-out visitor (the Public view) sees no update date.
     main.appendChild(bar);
     // Points the AI flagged when the document was imported are shown ON the draft, while it is not live (they are in its version note)
     var shownNote = ((detail.history || []).filter(function (h) { return h.n === shownVersion; })[0] || {}).note || '';
@@ -3422,6 +3418,15 @@
         byline.appendChild(details);
         pageTitle.parentNode.insertBefore(byline, bylineAt);   // a byline under the title
       }
+      // A visitor sees "Need help?" where staff see the names
+      if (pageTitle && asPublic) {
+        var helpLine = el('p', 'contact-byline');
+        helpLine.appendChild(el('span', 'byline-name', 'Need help?'));
+        helpLine.appendChild(document.createTextNode(' '));
+        if (team.supportUrl) { helpLine.appendChild(link('Contact support', team.supportUrl)); }
+        else { helpLine.appendChild(el('span', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
+        pageTitle.parentNode.insertBefore(helpLine, pageTitle.nextSibling);
+      }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
       // The logo and the search box head the left column, which stays on screen as the page scrolls
@@ -3436,13 +3441,6 @@
       side.appendChild(sideHead);
       side.setAttribute('aria-label', asPublic ? 'Support, related pages and on this page' : 'Contacts, related pages and on this page');
       // The owner (contacts, or the support link in the public view) comes first and scrolls away with the page
-      if (asPublic) {
-        var support = el('section', 'side-card');
-        support.appendChild(el('h2', 'side-title', 'Need help?'));
-        if (team.supportUrl) { support.appendChild(link('Contact support', team.supportUrl)); }
-        else { support.appendChild(el('p', 'lib-hint', 'A support link will go here. It has not been set yet.')); }
-        side.appendChild(support);
-      }
       // Related pages come next, also scrolling away with the page
       var related = await relatedPages(id, W.fields(data.text), asPublic);
       if (mine !== routing) { return; }
