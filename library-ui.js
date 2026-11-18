@@ -3283,7 +3283,12 @@
         return;
       }
       var at = -1;
-      headings.forEach(function (h, i) { if (h.getBoundingClientRect().top <= 120) { at = i; } });
+      // A heading counts once it is a third of the way up the window; at the very bottom of the page the last heading counts,
+      // since a short last section may never reach that line.
+      var line = Math.max(120, window.innerHeight * 0.33);
+      headings.forEach(function (h, i) { if (h.getBoundingClientRect().top <= line) { at = i; } });
+      var root = document.documentElement;
+      if (headings.length && window.scrollY > 0 && window.innerHeight + window.scrollY >= root.scrollHeight - 4) { at = headings.length - 1; }
       var shown = null;
       while (at >= 0 && !shown) {
         var a = links['#' + headings[at].getAttribute('data-section')];
