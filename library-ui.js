@@ -2831,7 +2831,7 @@
     var wrap = el('div', 'suggest-wrap doc-search-wrap');
     var input = el('input', 'lib-search doc-search-input');
     input.type = 'search';
-    input.placeholder = 'Search by title or keyword';
+    input.placeholder = 'Search the wiki';
     input.setAttribute('aria-label', 'Search the wiki');
     input.setAttribute('autocomplete', 'off');
     var list = el('ul', 'suggest-list');
@@ -3175,7 +3175,7 @@
         window.removeEventListener('resize', schedule);
         return;
       }
-      var top = Math.max(box.getBoundingClientRect().top, 82);   // below the sticky Wiki bar
+      var top = Math.max(box.getBoundingClientRect().top, 16);
       var footer = document.querySelector('.preview-footer');   // the fixed bottom bar must not cover the box
       var reserved = (footer ? footer.offsetHeight : 0) + 16;
       box.style.maxHeight = Math.max(180, window.innerHeight - top - reserved) + 'px';
@@ -3351,7 +3351,6 @@
     showScreen('library', true);
     main.textContent = '';
     // The back link follows where you came from: the batch import's results, the library, or the search page
-    mountTopSearch();   // the search box sits in the Wiki bar at the top of every live page, and the bar stays while the page scrolls
     var backRow = el('div', 'back-row');
     var cameFromBatch = fromLibrary && /^#\/batch/.test(routeHistory.previous);
     backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));
@@ -3425,6 +3424,14 @@
       }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');
+      // The logo and the search box head the left column, which stays on screen as the page scrolls
+      var sideHead = el('div', 'side-head');
+      var logo = el('a', 'side-logo', 'Wiki');
+      logo.href = '#/public';
+      logo.title = 'Search the wiki';
+      sideHead.appendChild(logo);
+      sideHead.appendChild(buildDocSearchBar());
+      side.appendChild(sideHead);
       side.setAttribute('aria-label', asPublic ? 'Support, related pages and on this page' : 'Contacts, related pages and on this page');
       // The owner (contacts, or the support link in the public view) comes first and scrolls away with the page
       if (asPublic) {
@@ -3449,7 +3456,7 @@
         followBox = follow;
       }
       layout.insertBefore(side, article);   // the column sits on the left, as on Wikipedia
-      if (followBox) { keepOnScreen(followBox); }   // once it is on the page, so its position can be measured
+      keepOnScreen(side);   // the whole column is sticky; if it is taller than the window it scrolls inside itself
     }
 
     // The fixed bar along the bottom: Edit (the team lead and the page's owner), Export PDF and Copy link
