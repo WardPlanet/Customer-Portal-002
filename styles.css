@@ -2502,6 +2502,6 @@ dialog { position: fixed; }
 .preview-h:is(h2) { padding-bottom: 8px; border-bottom: 1px solid var(--border-strong); }
 
 /* The page title and each first-level heading are set in a medium serif: 500 for the title and 600 for headings, the text colour, a step smaller than the sans sizes (a serif sets larger) */
-.preview-title, .preview-h:is(h2) { font-family: var(--font-serif); letter-spacing: 0; color: var(--text); }
+.preview-title, .preview-h:is(h2) { font-family: var(--font-serif); letter-spacing: 0; }   /* the colour is the brand navy set with the other headings (the text colour in dark mode) */
 .preview-title { font-size: 40px; line-height: 1.2; font-weight: 500; }
 .preview-h:is(h2) { font-size: 26px; line-height: 1.25; font-weight: 600; }
