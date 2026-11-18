@@ -2588,7 +2588,8 @@ body.has-top-search .lib-top { position: sticky; top: 0; z-index: 30; }
 .preview-contact.is-lead { border-top: 1px solid var(--border); }
 
 /* Contacts under the title: small blocks side by side (owner, then the team lead) */
-.contact-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0 4px; }
+.contact-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 0 0 20px; }
 .contact-strip .preview-contact { padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .contact-strip .preview-contact:first-of-type { padding-top: 12px; border-top: 1px solid var(--border); }
 .contact-strip .preview-contact-kicker { margin-bottom: 4px; }
+.preview-eyebrow + .contact-strip { margin-top: 12px; }

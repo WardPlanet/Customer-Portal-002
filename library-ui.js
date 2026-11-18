@@ -3355,10 +3355,9 @@
         eyebrow.appendChild(el('span', '', ownerTeam.name));
         pageTitle.parentNode.insertBefore(eyebrow, pageTitle);
       }
-      // Who to ask, under the title (staff; a visitor sees the support link in the column instead)
+      // Who to ask, directly below the eyebrow and above the title (staff; a visitor sees the support link in the column instead)
       if (pageTitle && !asPublic) {
-        var contactsAt = pageTitle.nextSibling;
-        renderContacts(W.fields(data.text), ownerTeam).forEach(function (strip) { pageTitle.parentNode.insertBefore(strip, contactsAt); });
+        renderContacts(W.fields(data.text), ownerTeam).forEach(function (strip) { pageTitle.parentNode.insertBefore(strip, pageTitle); });   // below the eyebrow, above the title
       }
       if (section) { highlightSection(article, section, true); section = ''; }   // an address with a section in it opens highlighted
       var side = el('aside', 'preview-side');

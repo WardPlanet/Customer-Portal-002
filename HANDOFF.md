@@ -1303,3 +1303,5 @@ Contacts is one card again: the owner and linked people, then the team lead belo
 Live pages are back to two columns (the article, and a right column with the details line, Contacts with the team lead, Related pages and On this page; the search box is in the Wiki bar). The staff/public view toggle ("View as the public") stays removed.
 
 Contacts moved under the title: a strip of small blocks side by side (Owner, any linked people, then Team lead), each with the name, role, email and Teams, between the title's rule and the description. The right column now holds the details line, Related pages and On this page. A visitor still sees the support link in the column.
+
+The contacts strip sits directly below the eyebrow, above the page title.
