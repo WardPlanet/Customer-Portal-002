@@ -614,7 +614,7 @@
     for (var i = 0; i < list.length; i += 1) {
       try { await work(list[i]); done += 1; } catch (error) { failures.push('\u201c' + list[i].title + '\u201d: ' + (error && error.message ? error.message : 'that did not work.')); }
     }
-    libraryFilters.selected = {};
+    libraryFilters.selected = {}; libraryFilters.pick = {}; libraryFilters.pickOpen = '';
     var text = doneVerb + ' ' + done + (done === 1 ? ' page.' : ' pages.');
     if (failures.length) { text += ' ' + failures.length + ' ' + failVerb + ': ' + failures.slice(0, 2).join('; ') + (failures.length > 2 ? '; and more.' : ''); }
     notice(text);
@@ -699,53 +699,79 @@
       bulkBar.appendChild(ownerPick);
       bulkBar.appendChild(button('Delete', 'row-btn row-btn-danger', function () { bulkDelete(chosenPages()); }));
       bulkBar.appendChild(button('Clear', 'row-btn', function () {
-        libraryFilters.selected = {};
+        libraryFilters.selected = {}; libraryFilters.pick = {}; libraryFilters.pickOpen = '';
         renderList(box, pages);
       }));
       box.appendChild(bulkBar);
     }
+    // The header checkbox opens a panel of tick boxes to select by what the table shows: visibility, status, owner (department, for
+    // Admin) and pages due for review. Ticks inside one group add up (Internal or Client-Safe); different groups narrow each other
+    // (Internal AND live). Only the pages shown, after any filter, are considered.
+    var pickGroups = [];
+    var pick = libraryFilters.pick = libraryFilters.pick || {};
     if (canBulk) {
-      // Select by what the table shows: one visibility, one status, one owner (one department, for Admin) or the pages due for
-      // review. It replaces what was ticked, and only the pages shown (after any filter) are considered.
-      var pickBy = el('select', 'acting-select lib-select-by');
-      pickBy.setAttribute('aria-label', 'Select pages by');
-      var pickPrompt = el('option', '', 'Select\u2026');
-      pickPrompt.value = '';
-      pickBy.appendChild(pickPrompt);
-      var groups = [];
-      function addGroup(label, entries) {
-        if (!entries.length) { return; }
-        var group = el('optgroup');
-        group.label = label;
-        entries.forEach(function (entry) { var option = el('option', '', entry.label + ' (' + entry.test.count + ')'); option.value = groups.length + ':' + entry.key; group.appendChild(option); groups.push(entry); });
-        pickBy.appendChild(group);
-      }
-      function distinct(label, valueOf) {
-        var seen = {};
+      var visibilityOf = function (p) { return p.visibility === 'Client-Safe' ? 'Shareable with clients' : 'Internal only'; };
+      var dueOf = function (p) { var r = p.liveVersion ? W.reviewStatus(p.updatedAt) : null; return r && r.overdue ? 'Needs review' : ''; };
+      var addPickGroup = function (key, title, valueOf) {
+        var counts = {};
         var order = [];
-        shown.forEach(function (p) { var v = valueOf(p); if (!(v in seen)) { seen[v] = 0; order.push(v); } seen[v] += 1; });
-        return order.sort().map(function (v) { return { key: v, label: v, test: { count: seen[v], matches: function (p) { return valueOf(p) === v; } } }; });
-      }
-      var pickGroups = [
-        ['Everything shown', [{ key: 'all', label: 'All pages', test: { count: shown.length, matches: function () { return true; } } }]],
-        ['Visibility', distinct('Visibility', function (p) { return p.visibility === 'Client-Safe' ? 'Shareable with clients' : 'Internal only'; })],
-        ['Status', distinct('Status', function (p) { return STATE_LABELS[p.state][0]; })],
-        ['Owner', distinct('Owner', function (p) { return ownerShown(p, teamFor(p.team) || team).label; })]
-      ];
-      if (actingAsAdmin()) { pickGroups.push(['Department', distinct('Department', function (p) { return (teamFor(p.team) || team).name || ''; })]); }
-      var dueCount = shown.filter(function (p) { var r = p.liveVersion ? W.reviewStatus(p.updatedAt) : null; return r && r.overdue; }).length;
-      if (dueCount) { pickGroups.push(['Review', [{ key: 'due', label: 'Needs review', test: { count: dueCount, matches: function (p) { var r = p.liveVersion ? W.reviewStatus(p.updatedAt) : null; return !!(r && r.overdue); } } }]]); }
-      pickGroups.forEach(function (pair) { addGroup(pair[0], pair[1]); });
-      pickBy.addEventListener('change', function () {
-        var chosen = groups[parseInt(pickBy.value, 10)];
-        if (!chosen) { return; }
-        Object.keys(selected).forEach(function (id) { delete selected[id]; });
-        shown.forEach(function (p) { if (chosen.test.matches(p)) { selected[p.id] = true; } });
-        renderList(box, pages);
+        shown.forEach(function (p) { var v = valueOf(p); if (!v) { return; } if (!(v in counts)) { counts[v] = 0; order.push(v); } counts[v] += 1; });
+        if (order.length) { pickGroups.push({ key: key, title: title, valueOf: valueOf, values: order.sort(), counts: counts }); }
+      };
+      addPickGroup('visibility', 'Visibility', visibilityOf);
+      addPickGroup('status', 'Status', function (p) { return STATE_LABELS[p.state][0]; });
+      addPickGroup('owner', 'Owner', function (p) { return ownerShown(p, teamFor(p.team) || team).label; });
+      if (actingAsAdmin()) { addPickGroup('department', 'Department', function (p) { return (teamFor(p.team) || team).name || ''; }); }
+      addPickGroup('review', 'Review', dueOf);
+    }
+    function applyPick() {
+      var active = pickGroups.filter(function (g) { return Object.keys(pick[g.key] || {}).length; });
+      Object.keys(selected).forEach(function (id) { delete selected[id]; });
+      if (!active.length) { return; }
+      shown.forEach(function (p) {
+        if (active.every(function (g) { return pick[g.key][g.valueOf(p)]; })) { selected[p.id] = true; }
       });
-      var pickRow = el('div', 'lib-select-by-row');
-      pickRow.appendChild(pickBy);
-      box.appendChild(pickRow);
+    }
+    function buildPickPanel(anchor) {
+      var panel = el('div', 'lib-pick-panel');
+      panel.setAttribute('role', 'group');
+      panel.setAttribute('aria-label', 'Select pages by');
+      function row(label, count, checked, indeterminate, onChange, id) {
+        var line = el('label', 'lib-pick-row');
+        var box = el('input');
+        box.type = 'checkbox';
+        box.checked = checked;
+        box.indeterminate = !!indeterminate;
+        box.dataset.pick = id;
+        box.addEventListener('change', function () { onChange(box.checked); libraryFilters.pickOpen = id; renderList(anchor.box, anchor.pages); });
+        line.appendChild(box);
+        line.appendChild(el('span', 'lib-pick-label', label));
+        line.appendChild(el('span', 'lib-pick-count', String(count)));
+        return line;
+      }
+      var everyShown = shown.length > 0 && shown.every(function (p) { return selected[p.id]; });
+      var someShown = shown.some(function (p) { return selected[p.id]; });
+      panel.appendChild(row('All pages shown', shown.length, everyShown, someShown && !everyShown, function (on) {
+        Object.keys(pick).forEach(function (k) { delete pick[k]; });
+        Object.keys(selected).forEach(function (id) { delete selected[id]; });
+        if (on) { shown.forEach(function (p) { selected[p.id] = true; }); }
+      }, 'all'));
+      pickGroups.forEach(function (g) {
+        var section = el('div', 'lib-pick-group');
+        section.appendChild(el('p', 'lib-pick-title', g.title));
+        g.values.forEach(function (v) {
+          section.appendChild(row(v, g.counts[v], !!(pick[g.key] && pick[g.key][v]), false, function (on) {
+            pick[g.key] = pick[g.key] || {};
+            if (on) { pick[g.key][v] = true; } else { delete pick[g.key][v]; }
+            applyPick();
+          }, g.key + ':' + v));
+        });
+        panel.appendChild(section);
+      });
+      var done = button('Done', 'row-btn', function () { libraryFilters.pickOpen = ''; renderList(anchor.box, anchor.pages); });
+      done.classList.add('lib-pick-done');
+      panel.appendChild(done);
+      return panel;
     }
     var table = el('table', 'lib-table');
     var headRow = el('tr');
@@ -754,11 +780,19 @@
       selectAll = el('input');
       selectAll.type = 'checkbox';
       selectAll.setAttribute('aria-label', 'Select all pages shown');
-      selectAll.addEventListener('change', function () {
-        shown.forEach(function (p) { if (selectAll.checked) { selected[p.id] = true; } else { delete selected[p.id]; } });
+      selectAll.setAttribute('aria-haspopup', 'true');
+      selectAll.setAttribute('aria-label', 'Select pages: choose which');
+      selectAll.addEventListener('click', function (event) {
+        event.preventDefault();   // the checkbox opens the choices; the ticks inside them do the selecting
+        libraryFilters.pickOpen = libraryFilters.pickOpen ? '' : 'all';
         renderList(box, pages);
       });
+      selectHead.classList.add('lib-select-head');
       selectHead.appendChild(selectAll);
+      if (libraryFilters.pickOpen) {
+        selectHead.appendChild(buildPickPanel({ box: box, pages: pages }));
+        setTimeout(function () { var again = selectHead.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
+      }
       headRow.appendChild(selectHead);
     }
     var canDelete = true;   // every row has a delete-type button; which one depends on who is asking and whether the page is live
