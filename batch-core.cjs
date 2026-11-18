@@ -160,7 +160,39 @@
     return { documents: documents, skipped: skipped, problems: plan.problems };
   }
 
+  // The AI must not change the wording. Everything it wrote as text (headings, paragraphs, step titles, notes, warnings, the description)
+  // is looked for in the source, ignoring case, spacing, punctuation and formatting marks. What cannot be found is returned as flagged
+  // points, so a changed word is always shown to the reviewer. segments are the pieces of the source: [{ text }].
+  function plainKey(text) {
+    return String(text || '').toLowerCase().replace(/\\(.)/g, '$1').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  function changedWording(result, segments) {
+    var source = ' ' + plainKey((segments || []).map(function (s) { return s.text; }).join(' ')) + ' ';
+    var found = [];
+    function check(label, text) {
+      var lines = String(text || '').split(/\n/);
+      lines.forEach(function (line) {
+        var key = plainKey(line.replace(/^\s*(?:[-\u2013\u2022]|\d+[.)])\s+/, ''));
+        if (key.length < 8 || source.indexOf(' ' + key + ' ') >= 0) { return; }
+        found.push('Wording differs from the source (' + label + '): \u201C' + line.trim().slice(0, 90) + (line.trim().length > 90 ? '\u2026' : '') + '\u201D. Compare it with the original.');
+      });
+    }
+    check('description', result && result.description);
+    ((result && result.blocks) || []).forEach(function (block) {
+      if (block.type === 'header') { check('heading', block.text); }
+      else if (block.type === 'paragraph' || block.type === 'note' || block.type === 'warning') { check(block.type === 'paragraph' ? 'text' : block.type, block.text); }
+      else if (block.type === 'step') {
+        check('step title', block.title);
+        check('step', block.text);
+        (block.items || []).forEach(function (item) { if (item.type !== 'code') { check(item.type, item.text); } });
+      }
+    });
+    if (found.length > 6) { var more = found.length - 5; found = found.slice(0, 5); found.push(more + ' more places where the wording differs from the source. Compare the page with the original.'); }
+    return found;
+  }
+
   return {
+    changedWording: changedWording,
     MAX_SEGMENTS: MAX_SEGMENTS,
     describeSegments: describeSegments,
     buildScanPrompt: buildScanPrompt,

@@ -3473,12 +3473,50 @@
     var shownNote = ((detail.history || []).filter(function (h) { return h.n === shownVersion; })[0] || {}).note || '';
     var flagged = !detail.page.liveVersion && /Check:/.test(shownNote) ? shownNote.slice(shownNote.indexOf('Check:') + 6).split(' \u2022 ').map(function (s) { return s.trim(); }).filter(Boolean) : [];
     if (flagged.length) {
+      // Each flagged point is approved (it is fine as it is) or denied (it has to be fixed before this goes live). The choices are kept in this browser.
+      var DECISIONS_KEY = 'pageEditor.flagDecisions.v1';
+      var decisionKey = id + ':' + shownVersion;
+      var decisions = {};
+      try { decisions = (JSON.parse(localStorage.getItem(DECISIONS_KEY) || '{}') || {})[decisionKey] || {}; } catch (storeError) { decisions = {}; }
+      function saveDecisions() {
+        try { var all = JSON.parse(localStorage.getItem(DECISIONS_KEY) || '{}') || {}; all[decisionKey] = decisions; localStorage.setItem(DECISIONS_KEY, JSON.stringify(all)); } catch (storeError) { /* the choices just are not kept */ }
+      }
       var flags = el('section', 'preview-flags');
-      flags.appendChild(el('h2', 'preview-flags-title', flagged.length + (flagged.length === 1 ? ' point' : ' points') + ' to check before this goes live'));
-      flags.appendChild(el('p', 'preview-flags-hint', 'Flagged by the AI when the document was imported. Text and title may have been reworded.'));
+      var flagsTitle = el('h2', 'preview-flags-title');
+      flags.appendChild(flagsTitle);
+      flags.appendChild(el('p', 'preview-flags-hint', 'Flagged by the AI when the document was imported. The AI does not change the text it imports. Approve each point if it is fine, or deny it if it needs fixing.'));
       var flagList = el('ul', 'preview-flags-list');
-      flagged.forEach(function (point) { flagList.appendChild(el('li', '', point)); });
+      var flagRows = [];
+      function updateFlags() {
+        var done = flagged.filter(function (point, i) { return decisions[i]; }).length;
+        var denied = flagged.filter(function (point, i) { return decisions[i] === 'denied'; }).length;
+        flagsTitle.textContent = done === flagged.length && !denied
+          ? 'All ' + flagged.length + (flagged.length === 1 ? ' point' : ' points') + ' approved'
+          : flagged.length + (flagged.length === 1 ? ' point' : ' points') + ' to check before this goes live \u00B7 ' + done + ' of ' + flagged.length + ' reviewed' + (denied ? ' \u00B7 ' + denied + ' to fix' : '');
+        flagRows.forEach(function (row, i) {
+          row.item.classList.toggle('is-approved', decisions[i] === 'approved');
+          row.item.classList.toggle('is-denied', decisions[i] === 'denied');
+          row.approve.setAttribute('aria-pressed', String(decisions[i] === 'approved'));
+          row.deny.setAttribute('aria-pressed', String(decisions[i] === 'denied'));
+        });
+      }
+      flagged.forEach(function (point, i) {
+        var item = el('li', 'preview-flag');
+        item.appendChild(el('span', 'preview-flag-text', point));
+        var choices = el('span', 'preview-flag-choices');
+        function choose(value) { decisions[i] = decisions[i] === value ? '' : value; saveDecisions(); updateFlags(); }
+        var approve = button('Approve', 'row-btn', function () { choose('approved'); });
+        var deny = button('Deny', 'row-btn', function () { choose('denied'); });
+        approve.setAttribute('aria-label', 'Approve: ' + point);
+        deny.setAttribute('aria-label', 'Deny: ' + point);
+        choices.appendChild(approve);
+        choices.appendChild(deny);
+        item.appendChild(choices);
+        flagList.appendChild(item);
+        flagRows.push({ item: item, approve: approve, deny: deny });
+      });
       flags.appendChild(flagList);
+      updateFlags();
       main.appendChild(flags);
     }
     var isClientSafe = detail.page.visibility === 'Client-Safe';

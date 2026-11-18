@@ -1336,3 +1336,10 @@ Staff live pages: contacts stay in the byline under the title; visibility and "U
 
 ## Batch import: Choose owner
 The owner pickers are now "Choose owner" buttons that open a searchable list. Admin sees everyone in every department (grouped by department); a team lead sees their own team. When Admin gives a document to someone in another department, the draft is created in that department (store.js local create takes a team slug; the Node server does not have this yet).
+
+## Import fidelity and flagged points (important)
+- **The AI changes nothing on import.** `guidelines/import-guidelines.md` was rewritten (Fidelity first: exact wording, no new text, nothing left out, title and description are the document's own). `buildInstructions` no longer sends the style guide or the job-title rules. Names, contact details, bare links and header case stay as written; they are flagged instead.
+- **Safeguards in code:** batch import forces the page title to the document's own title (first heading, file name or what the reviewer typed); `BatchCore.changedWording` looks for every heading/paragraph/step/note in the source and flags text that is not found ("Wording differs from the source ... Compare it with the original").
+- **One file = one document** unless "This file holds several documents" is ticked on the upload step (then the AI scan runs; one file at a time).
+- **Flagged points on a draft:** each point has Approve / Deny; the title shows "N of M reviewed · K to fix". Choices are kept in the browser (localStorage `pageEditor.flagDecisions.v1`, per page and version). They do not yet block publishing, and the Node server does not store them. To discuss: should an unreviewed or denied point block going live?
+- Not tested with the real AI (not available in the preview): the prompt change should be checked with a real import.

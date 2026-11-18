@@ -5,63 +5,52 @@ text: edit this file and the next import uses the change. No restart or code cha
 
 Keep them short and concrete. Add a rule when you see the AI make the same mistake twice.
 
-## Fidelity
+## Fidelity (the most important rule)
 
-- Keep the original meaning and wording wherever possible. Reorganize and tidy; do not rewrite.
-- Never invent facts, numbers, names, systems, links or policies that are not in the document.
-- If something is unclear, contradictory or missing, keep what the document says and add a short
-  note for the reviewer instead of guessing.
-- Leave out content that is not documentation: cover pages, tables of contents, page numbers,
-  headers and footers, revision-history tables, "confidential" banners.
+- **Change nothing.** An import puts the document into the page layout and does not edit it. Every word, number,
+  name, link, heading, list item and table cell stays exactly as written in the source: same wording, same
+  capitalisation, same spelling, same punctuation, same order. Do not reword, shorten, summarise, correct, tidy,
+  "improve" or translate anything. Do not change the case of headings.
+- Do not add anything: no new sentences, titles, step titles, headings, links, notes or explanations that are not
+  in the source. Do not write a description of your own.
+- Do not leave anything out. Cover pages, tables of contents, page numbers, headers, footers, revision tables and
+  banners are kept as they are, and mentioned in a flagged point so a person can decide.
+- The page title is the document's own title exactly as written (its first heading or title line). If it has none,
+  use the file name without its extension. Never write a new title.
+- The description is the document's own opening paragraph, copied exactly. If the document does not open with one,
+  leave the description empty.
+- When something is unclear, contradictory, out of date or looks wrong, keep it exactly as it is and add a flagged
+  point. A flagged point only describes what a person should look at. It never changes the page.
 
-## Structure
+## Layout (formatting only, never wording)
 
-- The page title says what the process or topic is, in a few words, with no file-name leftovers
-  such as "v2" or "FINAL".
-- The description is two or three sentences: what this page covers, who it is for and when to use it.
-  There is no separate summary or subtitle, so do not repeat the description anywhere else.
-- Procedures become numbered steps. Each step has a short title that starts with a verb. Add detail
-  underneath only when the source has it or the reader would need it. If the title says enough ("Open
-  the Billing tab"), leave the detail empty. Never add detail just to fill the space. Numbering restarts at 1 for each separate procedure on the page.
-- Use a header to start each major section. Do not use headers for decoration.
-- A tip, background fact or "good to know" becomes a Note. A note or warning that applies to one step goes
-  inside that step (in its "items" list), not after the procedure. Only one that applies to the whole
-  procedure or page is a separate Note or Warning block.
-- Anything that can cause data loss, money loss, a compliance problem or a patient or customer
-  problem if ignored becomes a Warning. Use warnings sparingly, only when the document itself
-  stresses the risk.
-- Lists that are not a procedure stay as bullet lists inside a Text block. Write every list item on its own line
-  starting with "- " (or "1. " for a numbered list). Dashes, en dashes, bullet characters and "*" at the start of
-  a line in the original are all list items: convert them to "- " and do not leave the original dash in the text.
-- Information laid out in rows and columns in the original (a Word or HTML table, or columns of aligned text)
-  becomes a Table block, not paragraphs and not a bulleted list. The first row is the header row. Keep every
-  row and cell and the original order. If a cell holds more than one line or a list, join the items with
-  "; " so each cell stays one line. A table that is only used for page layout (one wide cell holding text)
-  is not a table: use its text as normal blocks. Never turn a table into a list or the reverse.
-- A web address in the original (typed out, or the text of a link) becomes a link written as [words that say where
-  it goes](https://address), with the address kept exactly. Never leave a bare web address in the text. If the
-  original link already has words, keep them. If it does not, write short link text from the sentence around it
-  and add a reviewer note.
-- Commands, queries, scripts, configuration, file contents and anything the reader is meant to copy and
-  type or paste go in a Code block, copied exactly: same characters, same line breaks, same indentation.
-  A command or snippet that belongs to a step goes in that step's "items" list (type "code"), so it stays
-  inside the step. Only a snippet that is not tied to one step becomes a separate Code block. Never reword, reformat, fix
-  or style code. A short name inside a sentence (a file or setting name) stays
-  in the sentence.
+- Headings stay headings, at the level they have in the source (the first one on the page is level 1; if the source
+  skips a level, keep its text as it is and add a flagged point).
+- A numbered list in the source becomes numbered steps. The step's title is the list item's own text, copied
+  exactly, and its detail is empty. A list that is not numbered stays a bullet list, every item on its own line
+  starting with "- " (a dash, en dash, bullet character or "*" in the source all mean a list item). Do not turn
+  paragraphs into steps and do not turn steps into paragraphs.
+- A note, tip or warning that the source itself marks as one (a "Note:" or "Warning:" label, a call-out box)
+  becomes a Note or Warning block with its text unchanged. Do not decide yourself that something is a warning.
+- Information in rows and columns in the source (a Word or HTML table, or columns of aligned text) becomes a Table
+  block. The first row is the header row. Keep every row and cell and the original order. If a cell holds more
+  than one line, join the lines with "; " so the cell stays one line. A table used only for page layout (one wide
+  cell holding text) is not a table: use its text as normal blocks.
+- Commands, queries, scripts, configuration, file contents and anything meant to be copied go in a Code block,
+  copied exactly: same characters, same line breaks, same indentation.
+- A web address that is already a link in the source keeps its words and its address. A bare address stays as
+  written. Do not invent link text and do not shorten or fix addresses.
+- Bold and italics in the source stay bold and italics.
 
 ## People and contact details
 
-- This wiki connects contact details to job titles, not names, so the details stay right when
-  someone changes jobs.
-- Where the document names a person in a role ("ask Dana in Billing"), write the job title instead
-  ("ask the Billing Team Lead") if the document makes the title clear.
-- If the title is not clear, keep the name and add a reviewer note saying a job title is needed.
-- Do not copy personal phone numbers or email addresses into the page. Add a reviewer note listing
-  what was left out and which role it probably belongs to.
+- Names, phone numbers, email addresses and job titles stay exactly as written. Do not replace a name with a job
+  title and do not remove contact details. Add a flagged point listing each personal phone number or email address
+  and each person named in a role, so a person can decide what to do.
 
 ## Things the AI cannot do
 
-- It cannot see images, screenshots, diagrams or embedded files. Mark where one was
-  ("[Screenshot omitted]") and add a reviewer note so a person can add it back.
-- It cannot judge whether the content is still correct. Add a reviewer note for anything that looks
-  out of date, such as old product names, old dates, or systems that may have been retired.
+- It cannot see images, screenshots, diagrams or embedded files. Where the source marks one (for example
+  "[image omitted]"), keep that marker as written and add a flagged point so a person can add it back.
+- It cannot judge whether the content is still correct. Add a flagged point for anything that looks out of date,
+  such as old product names, old dates, or systems that may have been retired.

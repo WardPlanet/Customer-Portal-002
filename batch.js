@@ -362,7 +362,7 @@
     function stepChoose(message) {
       self.stage = 'choose';
       clear();
-      head('Batch import', 'Add several pages at once. Upload one file that contains multiple pages, or upload a separate file for each page. Imported pages are saved as drafts.');
+      head('Batch import', 'Add several pages at once. Upload a file for each page (each one is imported as a single document), or tick the box for one file that holds several. Imported pages are saved as drafts.');
       if (message) { root.appendChild(el('p', 'batch-problem', message)); }
       // The limitation is a visible warning above the form, not small grey text inside it
       var warning = el('p', 'batch-warning', 'Images and pictures are not imported. Add them back by hand after the page is created.');
@@ -373,8 +373,17 @@
       card.appendChild(el('h2', 'lib-h2', '1. Upload files'));
       card.appendChild(el('p', 'lib-hint', 'Supported formats: Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text, and Markdown. You’ll review everything before any pages are created.'));
 
+      // Each file is ONE document unless this is ticked: then the AI looks for where each separate document starts (one file only)
+      var splitBox = el('label', 'batch-split');
+      var splitCheck = el('input');
+      splitCheck.type = 'checkbox';
+      splitBox.appendChild(splitCheck);
+      splitBox.appendChild(el('span', '', 'This file holds several documents. Find where each one starts.'));
+      card.appendChild(splitBox);
+      card.appendChild(el('p', 'lib-hint', 'Left unticked, every file you choose is imported as a single document, exactly as written. The ticked option works on one file at a time.'));
+
       function chooseFiles(files) {
-        if (files.length > 1) { loadSeveral(files); }   // several files: each is its own document, so straight to the review
+        if (files.length > 1 || (files[0] && !splitCheck.checked)) { loadSeveral(files); }   // every file is its own document, so straight to the review
         else if (files[0]) { load(files[0]); }
       }
 
@@ -470,7 +479,7 @@
     async function loadSeveral(files) {
       if (files.length > MAX_FILES) { stepChoose('That is ' + files.length + ' files. Choose up to ' + MAX_FILES + ' at a time.'); return; }
       clear();
-      head('Batch import', files.length + ' files');
+      head('Batch import', files.length === 1 ? files[0].name : files.length + ' files');
       var bar = progressBar('Reading the files…');
       root.appendChild(bar.node);
       var list = el('div', 'batch-list');
@@ -507,7 +516,7 @@
       }
       bar.set(1, 'Done reading');
       if (!documents.length) { stepChoose('None of those files could be read. ' + notes.join(' ')); return; }
-      session = { fileName: files.length + ' files', segments: segments, imageCount: images, plan: { documents: documents, skipped: [], problems: [] }, notes: ['Each file is treated as one separate document.'].concat(notes), multiFile: true, edited: {} };
+      session = { fileName: files.length === 1 ? files[0].name : files.length + ' files', segments: segments, imageCount: images, plan: { documents: documents, skipped: [], problems: [] }, notes: [files.length === 1 ? 'This file is imported as one document.' : 'Each file is treated as one separate document.'].concat(notes), multiFile: true, edited: {} };
       session.aiOk = await window.PageEditor.aiAvailable();
       if (!session.aiOk) { session.notes.push('The AI is not available, so the drafts cannot be created here.'); }
       var pages = await ui.backend().list('').catch(function () { return { pages: [] }; });
@@ -836,16 +845,14 @@
       }
       var source = doc.fileName ? doc.fileName : session.fileName + ' (document ' + job.number + ' of ' + job.of + ')';
       result.source = source;
-      var aiTitle = String(result.title || '').trim();
-      if (doc.edited && String(doc.title).trim()) { result.title = String(doc.title).trim(); }   // a title you typed wins
+      // The title is the document's own (its first heading, or the file name, or what you typed). The AI never gets to change it.
+      if (String(doc.title || '').trim()) { result.title = String(doc.title).trim(); }
       var ownerTeam = ui.teamOfOwner ? ui.teamOfOwner(ownerFor(doc)) : null;   // admin: the draft belongs to its owner's department
       var text = window.PageEditor.draftTextFromResult(result, { owner: ownerFor(doc), visibility: session.visibility, source: source, teamName: ownerTeam ? ownerTeam.name : '' });
       var notes = [];
-      // The AI's own edits are disclosed: if its title differs from the one shown in the review step, say so and show both
-      if (!doc.edited && aiTitle && aiTitle.toLowerCase() !== String(doc.title).trim().toLowerCase()) {
-        notes.push('The AI changed the title from \u201C' + String(doc.title).trim() + '\u201D to \u201C' + aiTitle + '\u201D.');
-      }
       notes = notes.concat(result.review_notes);
+      // A check on the AI: any text on the page that cannot be found in the source is flagged, so a changed word never goes unseen
+      notes = notes.concat(Core.changedWording(result, session.segments.slice(doc.first - 1, doc.last)));
       if (session.imageCount) { notes.push('Images in the original file were not imported.'); }
       var note = ('Imported from ' + source + '.' + (notes.length ? ' Check: ' + notes.join(' • ') : '')).slice(0, 2000);
       var created = await ui.backend().create(text, note, ownerTeam ? ownerTeam.slug : '');

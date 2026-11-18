@@ -97,3 +97,11 @@ test('the scan prompt names the file and the number of pieces and shows every pi
   assert.match(prompt, /\[12\] P \| Change budgets monthly\./);
   assert.match(prompt, /Do not split a document at a sub-heading/);
 });
+
+test('changedWording flags text that is not in the source and ignores formatting differences', () => {
+  const segments = [{ text: 'Simplicity of Use' }, { text: 'Ask the **Team Lead** for "access" first.' }];
+  const same = { description: '', blocks: [{ type: 'header', text: 'Simplicity of Use' }, { type: 'paragraph', text: 'Ask the Team Lead for "access" first.' }] };
+  assert.deepEqual(B.changedWording(same, segments), []);
+  const reworded = { blocks: [{ type: 'header', text: 'Simplicity of use today' }, { type: 'paragraph', text: 'Please contact your manager before anything else.' }] };
+  assert.equal(B.changedWording(reworded, segments).length, 2);
+});
