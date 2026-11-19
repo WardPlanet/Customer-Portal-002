@@ -45,6 +45,7 @@
       <span class="page-name" id="page-name">New page</span>
     </div>
     <div class="topbar-right">
+      <button type="button" class="secondary-link setup-toggle" id="setup-toggle" aria-controls="editor-setup" aria-expanded="false">Page setup</button>
       <span class="notify-slot" id="notify-slot-editor"></span>
       <div class="save-status is-unsaved" id="save-status" role="status">
         <span class="save-dot" aria-hidden="true"></span>
@@ -148,9 +149,12 @@
 
     <!-- Page setup -->
     <aside class="setup" id="editor-setup" aria-label="Page setup">
-      <h2 class="section-label" style="margin: 0;">Page setup</h2>
+      <div class="setup-head">
+        <h2 class="section-label">Page setup</h2>
+        <button type="button" class="setup-close" id="setup-close" aria-label="Close page setup">&times;</button>
+      </div>
 
-      <div id="team-field" hidden>   <!-- Admin only: the team, drawn like Owner and Linked people -->
+      <div id="team-field" hidden>   <!-- Admin only: the team, drawn like Owner -->
         <span class="field-label">Team</span>
         <p class="team-name" id="team-name" hidden></p>
         <div id="team-picker"></div>
@@ -167,39 +171,14 @@
         <div class="chips" id="chips"></div>
       </div>
 
+      <!-- What has to be set to submit: first, and always showing -->
       <div id="owner-field">
-        <label class="field-label" for="owner">Owner <span class="field-required" aria-hidden="true">*</span></label>
+        <label class="field-label" for="owner">Owner <span class="field-required" aria-hidden="true">*</span>
+          <span class="hint-dot" tabindex="0" role="img" aria-label="This person owns the page and is who readers contact about it. If they leave the team, it goes to the team lead until reassigned." title="This person owns the page and is who readers contact about it. If they leave the team, it goes to the team lead until reassigned.">?</span></label>
         <div class="select-wrap">
           <select class="select-field" id="owner"></select>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </div>
-        <p class="field-hint">This person owns the page and is who readers contact about it. If they leave the team, it goes to the team lead until reassigned.</p>
-      </div>
-
-      <div>
-        <span class="field-label">Linked people</span>
-        <ul class="role-list" id="roles"></ul>
-        <div class="select-wrap" id="role-add-wrap">
-          <select class="select-field" id="role-add" aria-label="Select a person"></select>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-        </div>
-      </div>
-
-      <div id="related-field">
-        <span class="field-label">Related pages</span>
-        <ul class="related-list" id="related"></ul>
-        <input type="search" class="related-search" id="related-search" placeholder="Search pages" aria-label="Search for a related page" autocomplete="off">
-        <ul class="related-suggestions" id="related-suggestions"></ul>
-        <p class="field-hint">Appear at the top of the published page, in this order.</p>
-      </div>
-
-      <div>
-        <label class="field-label" for="reviewer">Reviewer <span class="field-required" aria-hidden="true">*</span></label>
-        <div class="reviewer-field is-locked">
-          <span class="avatar avatar-blue avatar-small" id="reviewer-avatar" hidden></span>
-          <select class="reviewer-select" id="reviewer" disabled></select>
-        </div>
-        <p class="field-hint">The team lead always reviews, so this can&rsquo;t be changed.</p>
       </div>
 
       <div id="visibility-field">
@@ -208,8 +187,40 @@
           <button class="segment" type="button" data-value="Internal-Only" aria-pressed="false">Internal only</button>
           <button class="segment" type="button" data-value="Client-Safe" aria-pressed="false">Client-safe</button>
         </div>
+        <p class="field-hint">Client-safe pages can be read by customers.</p>
       </div>
+
+      <!-- Not a field: the team lead always reviews (the select below is only kept so the page can still read it) -->
+      <p class="setup-reviewer">Reviewed by <strong id="reviewer-name"></strong></p>
+      <div hidden>
+        <span class="avatar avatar-blue avatar-small" id="reviewer-avatar" hidden></span>
+        <select class="reviewer-select" id="reviewer" disabled></select>
+      </div>
+
+      <!-- Optional things are folded away until someone wants them -->
+      <details class="setup-more" id="setup-more">
+        <summary>More options</summary>
+        <div class="setup-more-body">
+          <div>
+            <span class="field-label">Linked people</span>
+            <ul class="role-list" id="roles"></ul>
+            <div class="select-wrap" id="role-add-wrap">
+              <select class="select-field" id="role-add" aria-label="Select a person"></select>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+          </div>
+
+          <div id="related-field">
+            <span class="field-label">Related pages
+              <span class="hint-dot" tabindex="0" role="img" aria-label="Appear at the top of the published page, in this order." title="Appear at the top of the published page, in this order.">?</span></span>
+            <ul class="related-list" id="related"></ul>
+            <input type="search" class="related-search" id="related-search" placeholder="Search pages" aria-label="Search for a related page" autocomplete="off">
+            <ul class="related-suggestions" id="related-suggestions"></ul>
+          </div>
+        </div>
+      </details>
     </aside>
+    <div class="setup-scrim" id="setup-scrim" hidden></div>
 
   </main>
 

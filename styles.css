@@ -184,7 +184,7 @@
   .workspace {
    flex: 1;
    display: grid;
-   grid-template-columns: 220px minmax(0, 1fr) 270px;   /* On this page | the page | Page setup */
+   grid-template-columns: 210px minmax(0, 1fr) 290px;   /* On this page | the page | Page setup */
    gap: 24px;
    align-items: start;
    padding: 32px;
@@ -2783,3 +2783,39 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .outline-sticky .toc-card { margin: 0; }
 /* Not needed for now: "where this lives" (Library) and version history */
 #location-field, #version-field { display: none !important; }
+
+/* ---------- Page setup: required first, optional folded away, room to breathe ---------- */
+.setup { gap: 24px; }
+.setup-head { display: flex; align-items: center; justify-content: space-between; }
+.setup-head .section-label { margin: 0; }
+.setup-close, .setup-toggle { display: none; }
+.setup-close { place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text-muted); font-size: 22px; line-height: 1; cursor: pointer; }
+.setup-close:hover { background: var(--surface-muted); }
+.setup .field-label { margin: 0 0 8px; }
+.setup .field-hint { margin: 8px 0 0; line-height: 1.4; }
+.hint-dot { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 6px; border: 1px solid var(--border-strong); border-radius: 50%; color: var(--text-muted); font-size: 11px; font-weight: 600; cursor: help; vertical-align: 1px; }
+.hint-dot:hover, .hint-dot:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.setup-reviewer { margin: 0; padding-top: 16px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
+.setup-reviewer strong { color: var(--text); font-weight: 600; }
+.setup-more { border-top: 1px solid var(--border); padding-top: 16px; }
+.setup-more > summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--text); }
+.setup-more > summary::-webkit-details-marker { display: none; }
+.setup-more > summary::after { content: "\25BE"; color: var(--text-muted); font-size: 12px; }
+.setup-more[open] > summary::after { content: "\25B4"; }
+.setup-more-body { display: flex; flex-direction: column; gap: 24px; margin-top: 16px; }
+.setup-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(0, 15, 96, 0.35); }
+.setup-scrim[hidden] { display: none; }
+
+/* Narrower windows: Page setup slides in from the right, so the page and the toolbar have the room */
+@media (max-width: 1300px) {
+  .workspace { grid-template-columns: 210px minmax(0, 1fr); }
+  .setup { position: fixed; top: 0; right: 0; bottom: 0; z-index: 70; width: 340px; max-width: 92vw; overflow-y: auto; border-radius: 0; border-width: 0 0 0 1px; box-shadow: var(--shadow-popover); transform: translateX(105%); transition: transform 0.2s ease; visibility: hidden; }
+  .setup.is-open { transform: none; visibility: visible; }
+  .setup-toggle { display: inline-flex; margin-right: 8px; }
+  .setup-close { display: inline-grid; }
+}
+@media (max-width: 1100px) { .workspace { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .setup { transition: none; } }
+body.is-public .setup-toggle { display: none; }
+
+.setup-head .section-label { text-transform: none; letter-spacing: 0; font-size: 13px; }

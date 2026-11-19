@@ -2146,6 +2146,7 @@
       avatar.hidden = !state.reviewer;
       avatar.textContent = person ? initials(person) : '?';
       avatar.className = 'avatar avatar-small avatar-blue';
+      byId('reviewer-name').textContent = state.reviewer ? roleLabel(state.reviewer) : 'no team lead set';
     }
 
     /* ---------- Page Setup: visibility ---------- */
@@ -3606,6 +3607,7 @@
       var missing = validateRequired(verb !== 'save');
       if (!missing.length) { return false; }
       showNotice('Can\u2019t ' + verb + ' yet. Still needed: ' + missing.map(function (item) { return item.label; }).join(', ') + '.');
+      if (missing[0].target.closest && missing[0].target.closest('#editor-setup') && setupIsDrawer()) { setSetupOpen(true); }   // what is missing is in Page setup: show it
       missing[0].target.focus();
       return true;
     }
@@ -3616,6 +3618,19 @@
       });
     });
     byId('leave-btn').addEventListener('click', function () { window.PageHost.leave(); });
+
+    // Page setup as a slide-over on narrower windows (the panel is beside the page above 1300px): a button opens it, the scrim or × closes it
+    function setSetupOpen(open) {
+      byId('editor-setup').classList.toggle('is-open', open);
+      byId('setup-scrim').hidden = !open;
+      byId('setup-toggle').setAttribute('aria-expanded', String(open));
+    }
+    function setupIsDrawer() { return window.getComputedStyle(byId('setup-toggle')).display !== 'none'; }
+    byId('setup-toggle').addEventListener('click', function () { setSetupOpen(!byId('editor-setup').classList.contains('is-open')); });
+    byId('setup-close').addEventListener('click', function () { setSetupOpen(false); });
+    byId('setup-scrim').addEventListener('click', function () { setSetupOpen(false); });
+    document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && byId('editor-setup').classList.contains('is-open')) { setSetupOpen(false); } });
+    window.addEventListener('resize', function () { if (!setupIsDrawer()) { setSetupOpen(false); } });
 
     /* ---------- Import an existing document ----------
        The server reads the file and asks the AI to restructure it following

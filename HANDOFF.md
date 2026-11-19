@@ -1408,3 +1408,11 @@ The Review button on an expired page opens the live version with the same blue-b
 ## Support team and its documentation: removed for now
 - The Support department file moved from `teams/support.json` to `teams-parked/support.json` (nothing reads that folder), so the build has only the Legwork Web Team. With one team there is no Department picker and no Support demo pages. The demo pages (`SUPPORT_DEMO` in `store.js`) stay in the code but are not made without a Support team, and a browser that already had them has them removed (and `pageEditor.seededSupport.v1` forgotten) the next time the page opens.
 - **To bring Support back:** `git mv teams-parked/support.json teams/support.json`, restore the `['legwork-web-team', 'support']` expectation in `tests/teams.test.cjs`, rebuild. The demo pages are made again the first time it starts.
+
+## Page setup: less squashed
+1. **Required first, optional folded:** Owner and Visibility (and Team for Admin) are always showing; **Linked people** and **Related pages** sit under a collapsed "More options".
+2. **Reviewer is not a field:** a plain line, "Reviewed by <the team lead>" (the hidden select is kept so the page can still read it).
+3. **Fewer hints:** the long sentences became "?" tooltips next to Owner and Related pages; Visibility keeps one short line ("Client-safe pages can be read by customers.").
+4. **More room:** 24px between groups, thin dividers, "Page setup" in sentence case; columns are now 210px (On this page) | the page | 290px (Page setup).
+5. **Narrower windows (under 1300px):** Page setup becomes a slide-over opened from a "Page setup" button in the top bar (× or a click outside closes it, Escape too). If something required is missing, it opens by itself. Under 1100px the page is a single column.
+Still to do (not asked yet): the properties-above-the-title alternative (Confluence/Notion style); the editor toolbar's "AI assist" button still wraps onto a second row at 1440px.
