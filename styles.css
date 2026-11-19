@@ -3058,3 +3058,11 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .toggle-check input:focus-visible + .toggle-track { outline: 2px solid var(--accent); outline-offset: 2px; }
 .toggle-check.is-disabled { cursor: not-allowed; opacity: .6; }
 .prop-strip .prop-ownerpub { width: 150px; }
+.prop-strip .prop-ownerpub { width: 205px; }
+.prop-strip #owner-field { width: 230px; }
+.prop-strip #team-field.prop { width: 170px; }
+.prop-strip .prop-reviewer, .prop-strip .prop-reviewer .setup-reviewer.is-na { width: 180px; }
+.prop-strip #owner-field { width: 220px; }
+.prop-strip .prop-members { width: 170px; }
+.prop-strip #visibility-field { width: 160px; }
+.prop-strip .prop-ownerpub { width: 200px; }

@@ -4688,14 +4688,14 @@
       byId('ownerpub').disabled = !config.editable;
       byId('ownerpub-toggle').title = config.note || '';
       byId('ownerpub-toggle').classList.toggle('is-disabled', !config.editable);
-      byId('ownerpub-text').textContent = config.value ? 'No review' : 'Needs review';
+      byId('ownerpub-text').textContent = config.value ? 'Allow' : 'Requires review';
     }
     byId('ownerpub').addEventListener('change', async function () {
       var box = byId('ownerpub');
       var wanted = box.checked;
       var ok = ownerPubChange ? await ownerPubChange(wanted) : false;
       if (!ok) { box.checked = !wanted; }
-      byId('ownerpub-text').textContent = box.checked ? 'No review' : 'Needs review';
+      byId('ownerpub-text').textContent = box.checked ? 'Allow' : 'Requires review';
     });
 
     /* ---------- What the library uses to drive the editor ---------- */
