@@ -668,13 +668,16 @@
   // Deleting a whole page (every version) is the team lead's alone. This only checks the rule; the server
   // or the browser store then removes the page. A deleted page can only come back from a downloaded backup.
   //
-  // Nobody else may delete a page, not even their own draft: the owner sends a deletion request (below) and the team lead
-  // deletes the page or keeps it.
+  // An owner may delete their own draft (never published, not waiting for review). A page that is live or in review is the
+  // lead's to delete: the owner sends a deletion request (below) and the lead deletes it or keeps it.
+  function ownerMayDelete(page) { return !page.liveVersion && !(workingVersion(page) && workingVersion(page).status === STATUS.SUBMITTED); }
   function assertCanDelete(actor, team, page) {
     if (!page || isLead(actor, team)) { requireLead(actor, team, 'delete a page'); return; }
     requireActor(actor);
     if (!isMine(page, actor)) { throw new WorkflowError('not_yours', 'You can only delete your own pages.', 403); }
-    throw new WorkflowError('needs_lead', 'Only the team lead (' + team.lead + ') can delete a page. Send a deletion request instead.', 403);
+    if (!ownerMayDelete(page)) {
+      throw new WorkflowError('needs_lead', 'This page is live or in review, so deleting it needs the team lead (' + team.lead + '). Send a deletion request instead.', 403);
+    }
   }
 
   // A page is "mine" when the person owns it (their sign-in email, or a role title they hold on an older page), or wrote its first version
@@ -697,7 +700,7 @@
   // their own, and may read any page that is live
   function canSeeInLibrary(page, actor, team) {
     if (isMine(page, actor)) { return true; }
-    return isLead(actor, team) && (!isUnsubmittedDraft(page) || !!page.deleteRequest);   // the lead also sees a draft its owner asked to delete
+    return isLead(actor, team) && !isUnsubmittedDraft(page);
   }
 
   function canReadVersion(page, version, actor, team) {
@@ -709,6 +712,7 @@
     requireActor(actor);
     if (isLead(actor, team)) { throw new WorkflowError('is_lead', 'The team lead can delete a page directly.', 409); }
     if (!isMine(page, actor)) { throw new WorkflowError('not_yours', 'You can only ask to delete your own pages.', 403); }
+    if (ownerMayDelete(page)) { throw new WorkflowError('delete_yourself', 'This is your draft, so you can delete it yourself.', 409); }
     if (page.deleteRequest) { throw new WorkflowError('already_requested', 'A deletion request is already waiting for the team lead.', 409); }
     page.deleteRequest = { by: actor.name, at: now };
   }
@@ -838,7 +842,8 @@
       actions.push('delete');
       if (page.deleteRequest) { actions.push('decline_delete'); }
     } else if (isMine(page, actor)) {
-      actions.push(page.deleteRequest ? 'cancel_delete_request' : 'request_delete');
+      if (ownerMayDelete(page)) { actions.push('delete'); }
+      else { actions.push(page.deleteRequest ? 'cancel_delete_request' : 'request_delete'); }
     }
     return actions;
   }

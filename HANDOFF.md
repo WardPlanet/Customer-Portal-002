@@ -1529,7 +1529,6 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - Library (lead/Admin) order: **Select by**, then the pills for what is chosen (with the count and Clear all), then the action bar (# selected, Publish, Unpublish, Change owner, Change visibility, Delete, Clear), then the table.
 
 ## Deleting pages
-- **Owners cannot delete**, not even their own draft: the "..." menu has **Request deletion** (or Cancel deletion request) on every page. The request goes to the team lead, who also sees a draft that has a request on it. `assertCanDelete` now refuses anyone but the lead; `requestDelete` no longer needs the page to be live.
+- An **owner can delete their own draft** (never published, not waiting for review): "Delete" in the "..." menu, with a plain confirm. A page that is **live or in review** shows **Request deletion** (or Cancel deletion request) instead, and the request goes to the team lead. `assertCanDelete` / `ownerMayDelete` in `workflow.cjs`; `requestDelete` refuses a plain draft ("delete it yourself").
 - The team lead sees a red **"N pages with a deletion request"** bar under the search (like the other alert bars) listing who asked and when, with **Delete** and **Keep it**.
-- Every delete (the lead's "..." menu, the bar, and the bulk Delete) asks first with a **tick box** ("I understand this permanently deletes ...") that has to be ticked before **Delete it** works. `window.askConfirm` has a new `checkbox` option for this.
-- Known small thing: a draft someone else asked to delete shows in the lead's "Your drafts" count.
+- Every delete by the lead (the "..." menu, the bar, and the bulk Delete) asks first with a **tick box** ("I understand this permanently deletes ...") that has to be ticked before **Delete it** works. `window.askConfirm` has a new `checkbox` option for this.

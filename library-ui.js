@@ -754,7 +754,7 @@
     var live = page.liveVersion ? ' It is live now, so it will disappear from the library, search and the public site.' : '';
     var warn = 'This removes \u201c' + page.title + '\u201d and all ' + page.versionCount + (page.versionCount === 1 ? ' version' : ' versions') + '.' + live +
       ' It cannot be undone, except from a backup you downloaded earlier.';
-    if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it', checkbox: 'I understand this permanently deletes the page and every version.' }))) { return false; }
+    if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it', checkbox: actorIsLead() ? 'I understand this permanently deletes the page and every version.' : '' }))) { return false; }
     if (!(await attempt(backend().remove(page.id)))) { return false; }
     notice('Deleted \u201c' + page.title + '\u201d.');
     return true;
@@ -1307,7 +1307,7 @@
             } });
           }
         }
-        if (lead) {
+        if (lead || (!p.liveVersion && !isWaitingForReview(p))) {   // an owner deletes their own draft; a live or in-review page needs a request
           moreItems.push({ label: 'Delete', danger: true, onClick: async function () { if (await confirmAndDelete(p)) { route(); } } });
         } else if (p.deleteRequest) {
           moreItems.push({ label: 'Cancel deletion request', onClick: async function () { if (await cancelDeletionRequest(p)) { route(); } } });
