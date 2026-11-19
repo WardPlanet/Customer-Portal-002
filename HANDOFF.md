@@ -4,7 +4,7 @@ The current state of the wiki prototype: what it does, how it is built, what is 
 `docs/HANDOFF-history.md` (some of it is out of date; this file wins). Hosting notes for IT are in `README.md`.
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
-- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 329, private).
+- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 330, private).
 - **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 26).
 - **Tests:** `npm test`, 123 passing (rules, search, import, admin, photos, and the Node server's library routes).
 
@@ -74,6 +74,8 @@ and earlier is the only acceptable AutoMapper range (neither is used).
 **Library** (team members only): a sticky top bar holds Import document(s), Team and roles and More (lead), New page and the bell. Under the search, coloured **alert bars** appear only when they have something: waiting for review (blue, lead), sent back (orange, owner), expiring soon (yellow), expired (red), deletion requests (maroon, lead). Each opens to its pages. Tabs: All (the landing tab), Your drafts, In review (For review for the lead), Live, Recently deleted. Rows carry their status as a coloured left bar. The lead also gets **Select by**, then the pills for what is chosen, then the action bar (# selected, Publish, Unpublish, Change owner, Change visibility, Delete, Clear).
 
 **Status colour standard** (also in the style guide): red error or expired, yellow or orange warning, green Live, blue information and in review and the primary action, grey inactive or not live. Colour is never the only signal.
+
+**Saving page setup without republishing:** on a live page, changing the setup (owner, linked people, visibility, allow owner to republish) shows a blue **Save changes** and a **Cancel** at the lower left of the Page setup box. Save changes applies them straight to the page (`updateSetup` in `workflow.cjs`; `POST /api/library/pages/:id/setup`): no new draft, no republish, no review. The team lead changes all four; an owner only who is linked (an owner's visibility change is part of the draft they submit). These changes do not turn on Save draft or Submit for review.
 
 **Page setup bar:** Team, Reviewer, Owner, Linked members, Visibility, Allow owner to republish (live pages). Greyed while reviewing. Footer: Delete draft (live drafts), Save draft, and Submit for review (Publish for the lead or an owner allowed to republish). The blue bar above the page repeats those same three, in the same order, with the same labels and greyed-out states (they copy the footer buttons, `syncBarButtons` in `app.js`). There is no Review button in the editor. A greyed-out Delete draft is neutral grey, not red.
 

@@ -1078,6 +1078,47 @@
     return changed;
   }
 
+  // Sets the people linked to a page as contacts (emails), on its live and in-progress versions. The team lead, or a person who owns the page, may.
+  function setLinked(page, keys, actor, team, now) {
+    requireActor(actor);
+    if (!isLead(actor, team) && !isMine(page, actor)) { throw new WorkflowError('not_yours', 'Only the owner or the team lead can change who is linked to this page.', 403); }
+    var seen = {};
+    var linked = [];
+    (keys || []).forEach(function (key) {
+      var mapped = resolveKey(team, key);
+      if (mapped && !seen[mapped]) { seen[mapped] = true; linked.push(mapped); }
+    });
+    if (linked.length > MAX_ROLES) { throw new WorkflowError('too_many', 'That is more people than a page can link.', 400); }
+    var changed = false;
+    currentVersions(page).forEach(function (version) {
+      var f = fields(version.text);
+      var before = f.linkedRoles.map(function (key) { return resolveKey(team, key); }).sort().join('|');
+      if (before === linked.slice().sort().join('|')) { return; }
+      version.text = removeSections(version.text, ['LINKED ROLES', 'LINKED PEOPLE']).replace(/\s*$/, '\n') + (linked.length ? '\n[LINKED PEOPLE]\n' + linked.join('\n') + '\n' : '');
+      copyFields(version);
+      version.updatedAt = now;
+      version.updatedBy = actor.name;
+      changed = true;
+    });
+    if (changed) { page.updatedAt = now; }
+    return changed;
+  }
+
+  // Saves changes to a page's setup (owner, linked people, visibility, whether the owner may republish) straight to the page, without a new version
+  // and without republishing: changes = { owner?, linked?, visibility?, ownerPublishes? }. The owner, visibility and republishing are the team lead's.
+  function updateSetup(page, changes, actor, team, now) {
+    requireActor(actor);
+    changes = changes || {};
+    var leadOnly = ['owner', 'visibility', 'ownerPublishes'].some(function (key) { return changes[key] !== undefined; });
+    if (leadOnly) { requireLead(actor, team, 'change a page\'s owner, visibility or republishing'); }
+    // Making a page public also ends the owner's right to republish it without review, so that is applied first
+    if (changes.visibility !== undefined) { setVisibility(page, changes.visibility, actor, team, now); }
+    if (changes.owner !== undefined) { setOwner(page, changes.owner, actor, team, now, { asDefault: false }); }
+    if (changes.linked !== undefined) { setLinked(page, changes.linked, actor, team, now); }
+    if (changes.ownerPublishes !== undefined) { setOwnerPublishes(page, !!changes.ownerPublishes, actor, team, now); }
+    return true;
+  }
+
   // Moves a page (its live and in-progress versions) to another team: it is now that team's page, and "where this lives" is that team's
   // first place unless the page already names one of the new team's places. The owner stays the same person.
   function moveToTeam(page, toTeam, actor, now) {
@@ -1284,6 +1325,8 @@
     canPublishDirectly: canPublishDirectly,
     ownerMayPublish: ownerMayPublish,
     setOwnerPublishes: setOwnerPublishes,
+    setLinked: setLinked,
+    updateSetup: updateSetup,
     withdraw: withdraw,
     approve: approve,
     sendBack: sendBack,

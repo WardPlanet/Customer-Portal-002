@@ -604,3 +604,29 @@ test('a draft of a live page can be thrown away, which reverts to the live page'
   const fresh = W.createPage(team, draftText('Other'), scott, t(1));
   assert.throws(() => W.discardDraft(fresh, 1, scott, team, t(2)), /not live/);
 });
+
+test('page setup changes are saved in place, without a new version', () => {
+  const bigTeam = Object.assign({}, team, { roles: team.roles.concat([{ title: 'Web Designer', person: 'Molly', email: 'molly@x.com' }]) });
+  const sc = W.actorFor('Scott Archer', bigTeam);
+  const mi = W.actorFor('Micah', bigTeam);
+  const mo = W.actorFor('Molly', bigTeam);
+  const page = W.createPage(bigTeam, draftText('Refunds'), sc, t(1));
+  W.submit(page, 1, sc, bigTeam, t(2));
+  W.approve(page, 1, mi, bigTeam, t(3));
+  const versions = page.versions.length;
+  // The owner can change who is linked, but not the owner, visibility or republishing
+  W.updateSetup(page, { linked: ['molly@x.com'] }, sc, bigTeam, t(4));
+  assert.deepEqual(W.summary(page).linkedRoles, ['molly@x.com']);
+  assert.throws(() => W.updateSetup(page, { visibility: 'Client-Safe' }, sc, bigTeam, t(5)), /team lead/);
+  assert.throws(() => W.updateSetup(page, { linked: [] }, mo, bigTeam, t(5)), /owner or the team lead/);
+  // The team lead changes several things at once; nothing new is published
+  W.updateSetup(page, { owner: 'molly@x.com', linked: [], ownerPublishes: true }, mi, bigTeam, t(6));
+  assert.equal(W.summary(page).ownerPublishes, true);
+  assert.deepEqual(W.summary(page).linkedRoles, []);
+  assert.equal(page.versions.length, versions);
+  assert.equal(W.summary(page).state, 'live');
+  // Public ends the owner's right to republish
+  W.updateSetup(page, { visibility: 'Client-Safe' }, mi, bigTeam, t(7));
+  assert.equal(page.ownerPublishes, false);
+  assert.throws(() => W.updateSetup(page, { ownerPublishes: true }, mi, bigTeam, t(8)), /public/i);
+});

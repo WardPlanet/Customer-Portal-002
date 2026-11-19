@@ -73,6 +73,15 @@ test('server: opt-in republish, soft delete, restore, review routes and emails',
     assert.equal(published.status, 200);
     assert.ok((await s.outbox()).some((m) => m.kind === 'owner-republished'));
 
+    // Page setup saved in place: no new version. The owner may change linked people, only the lead the rest.
+    const versionsBefore = (await s.call('Micah', 'GET', '/api/library/pages/' + id)).body.history.length;
+    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/setup', { visibility: 'Client-Safe' })).status, 403);
+    const linked = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/setup', { linked: ['mataya.arnold@planetdds.com'] });
+    assert.deepEqual(linked.body.page.linkedRoles, ['mataya.arnold@planetdds.com']);
+    const leadSetup = await s.call('Micah', 'POST', '/api/library/pages/' + id + '/setup', { linked: [], ownerPublishes: false });
+    assert.deepEqual(leadSetup.body.page.linkedRoles, []);
+    assert.equal(leadSetup.body.history.length, versionsBefore);
+
     // A live page: the owner can only ask for deletion; the lead is emailed; keeping it emails the owner
     assert.equal((await s.call('Scott Archer', 'DELETE', '/api/library/pages/' + id)).status, 403);
     assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/request-delete')).status, 200);

@@ -1716,6 +1716,12 @@
     // A small "v2" link in Page Setup opens the versions (restore, or view details). No long notice up here.
     window.PageEditor.setVersionLink(versionLinkText(detail), function () { openVersionsDialog(id); });
     showOwnerPublishField(id, detail, true);
+    // On a live page the setup (owner, linked people, visibility, republishing) is saved in place with Save changes, not by republishing. The team
+    // lead changes all four; an owner only who is linked (their visibility choice is part of the draft they submit).
+    if (current.liveEdit) {
+      var setupFields = (actorIsLead() || actingAsAdmin()) ? ['owner', 'linked', 'visibility', 'ownerPublishes'] : ['linked'];
+      window.PageEditor.trackSetup({ fields: setupFields, onSave: async function (changes) { return !!(await attempt(backend().saveSetup(id, changes))); } });
+    }
 
     // The banner appears only when there is something to act on: a sent-back note, or the points flagged by an import
     var lines = [];

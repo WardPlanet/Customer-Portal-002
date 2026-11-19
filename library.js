@@ -680,6 +680,14 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json({ restored: page.id });
   }));
 
+  // Page setup changes saved in place (owner, linked people, visibility, owner republishing): no new version, no republish
+  app.post('/api/library/pages/:id/setup', staff(async function (req, res, ctx) {
+    var page = await openMine(req, ctx);
+    Workflow.updateSetup(page, req.body || {}, ctx.actor, ctx.team, ctx.now);
+    await savePage(draftsDir, ctx.team, page);
+    res.json(detail(page, ctx));
+  }));
+
   // Team lead only: lets the owner of one live, internal-only page publish edits without review (or requires review again)
   app.post('/api/library/pages/:id/owner-publishes', staff(async function (req, res, ctx) {
     var page = await open(req, ctx);

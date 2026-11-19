@@ -232,6 +232,64 @@
     var editCount = 0;   // goes up on every edit, so a save can tell whether anything changed while it ran
     function markDirty() { editCount += 1; setStatus('Unsaved changes', false); }
 
+    /* ---------- Page setup changes saved in place ----------
+       On a page that is live, changes to the setup (owner, linked people, visibility, whether the owner may republish) are not edits to the page's
+       content: a blue Save changes and a Cancel appear at the lower left of the Page setup box, and Save changes applies them straight to the page
+       without a new draft or a republish. The library turns this on with PageEditor.trackSetup. */
+    var setupTrack = null;   // { fields, onSave, baseline }
+    function currentSetup() {
+      return { owner: state.owner, linked: state.roles.slice(), visibility: state.visibility, ownerPublishes: byId('ownerpub').checked };
+    }
+    function sameSet(one, two) { return one.slice().sort().join('|') === two.slice().sort().join('|'); }
+    // What differs from when the page was opened (only the fields this person can save this way), or null
+    function setupDiff() {
+      if (!setupTrack) { return null; }
+      var now = currentSetup();
+      var base = setupTrack.baseline;
+      var changes = {};
+      var any = false;
+      setupTrack.fields.forEach(function (field) {
+        if (field === 'linked') { if (!sameSet(now.linked, base.linked)) { changes.linked = now.linked; any = true; } }
+        else if (now[field] !== base[field]) { changes[field] = now[field]; any = true; }
+      });
+      return any ? changes : null;
+    }
+    function refreshSetupActions() {
+      var box = byId('setup-actions');
+      box.hidden = !setupDiff() || document.body.classList.contains('is-readonly');
+    }
+    // A setup field changed: tracked on a live page (Save changes), otherwise it is an edit of the draft like any other
+    function touchSetup(field) {
+      if (setupTrack && setupTrack.fields.indexOf(field) >= 0) { refreshSetupActions(); } else { markDirty(); }
+    }
+    byId('setup-save').addEventListener('click', async function () {
+      var changes = setupDiff();
+      if (!changes || !setupTrack) { return; }
+      var button = byId('setup-save');
+      button.setAttribute('aria-disabled', 'true');
+      var ok = false;
+      try { ok = await setupTrack.onSave(changes); } finally { button.removeAttribute('aria-disabled'); }
+      if (ok) {
+        setupTrack.baseline = currentSetup();
+        refreshSetupActions();
+        showNotice('Page setup saved. The page was not republished.');
+      }
+    });
+    byId('setup-cancel').addEventListener('click', function () {
+      if (!setupTrack) { return; }
+      var base = setupTrack.baseline;
+      state.owner = base.owner;
+      state.roles = base.linked.slice();
+      state.visibility = base.visibility;
+      byId('ownerpub').checked = base.ownerPublishes;
+      byId('ownerpub-text').textContent = base.ownerPublishes ? 'Allow' : 'Requires review';
+      renderOwner();
+      renderRoles();
+      renderVisibility();
+      refreshSetupActions();
+      updateSaveState();
+    });
+
     var noticeTimer = null;
     function showNotice(message) {
       var el = byId('footer-message');
@@ -2203,7 +2261,7 @@
         remove.addEventListener('click', function () {
           state.roles = state.roles.filter(function (other) { return other !== key; });
           renderRoles();
-          markDirty();
+          touchSetup('linked');
         });
 
         item.appendChild(avatar);
@@ -4778,7 +4836,7 @@
       state.ownerDefault = false;   // chosen by the team lead, so no longer the fallback
       markOwnerUnassigned();
       clearBlockError(byId('owner-field'));
-      markDirty();
+      touchSetup('owner');
       updateSaveState();
     });
     byId('role-add').addEventListener('change', function (event) {
@@ -4786,7 +4844,7 @@
       if (title && state.roles.indexOf(title) < 0) {
         state.roles.push(title);
         renderRoles();
-        markDirty();
+        touchSetup('linked');
       }
     });
     byId('visibility').addEventListener('change', async function () {
@@ -4800,7 +4858,7 @@
       state.visibility = chosen;
       renderVisibility();
       clearBlockError(byId('visibility-field'));
-      markDirty();
+      touchSetup('visibility');
       updateSaveState();
     });
 
@@ -4821,6 +4879,11 @@
     byId('ownerpub').addEventListener('change', async function () {
       var box = byId('ownerpub');
       var wanted = box.checked;
+      if (setupTrack && setupTrack.fields.indexOf('ownerPublishes') >= 0) {   // part of the pending Page setup changes: saved with Save changes
+        byId('ownerpub-text').textContent = box.checked ? 'Allow' : 'Requires review';
+        refreshSetupActions();
+        return;
+      }
       var ok = ownerPubChange ? await ownerPubChange(wanted) : false;
       if (!ok) { box.checked = !wanted; }
       byId('ownerpub-text').textContent = box.checked ? 'Allow' : 'Requires review';
@@ -4926,11 +4989,15 @@
       errorMessage: importErrorMessage,
       // The people a page can be given to: [{ key (their email), label ("Name — Job title") }]
       people: function () { return choosablePeople('').map(function (role) { return { key: window.Workflow.keyFor(role), label: roleLabel(window.Workflow.keyFor(role)) }; }); },
-      reset: function () { setOwnerPublish(null); resetEditor.apply(null, arguments); },
+      reset: function () { setOwnerPublish(null); setupTrack = null; byId('setup-actions').hidden = true; resetEditor.apply(null, arguments); },
       setSubmitLabel: function (text) { byId('submit-draft').textContent = text; syncBarButtons(); },
+      // Starts (or, with null, stops) the Save changes and Cancel on Page setup; the current setup is the starting point
+      trackSetup: function (config) { setupTrack = config ? { fields: config.fields.slice(), onSave: config.onSave, baseline: currentSetup() } : null; refreshSetupActions(); },
       setOwnerPublish: setOwnerPublish,
       // Fill the editor from a saved version's text (silently, unlike Import)
       load: function (text, readOnly) {
+        setupTrack = null;   // the library turns Save changes on again, for the page it opens (trackSetup)
+        byId('setup-actions').hidden = true;
         clearOldWarnings();
         lockEditing(false);
         setVersionLink('', null);   // the library sets it again for a saved page
