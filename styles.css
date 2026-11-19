@@ -2375,7 +2375,6 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .public-mode #nav-new,
 .public-mode .notify-slot { display: none !important; }
 
-.toc-flat .toc-spacer { display: none; }
 
 
 

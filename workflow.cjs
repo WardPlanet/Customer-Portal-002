@@ -77,7 +77,9 @@
       title: first(sections, 'TITLE'),
       description: first(sections, 'DESCRIPTION') || first(sections, 'SUMMARY'),
       location: first(sections, 'WHERE THIS LIVES').split('\n')[0] || '',
-      visibility: first(sections, 'VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only',
+      // Chosen by the author: Client-Safe or Internal-Only. Empty when the section is there but nothing was chosen (a new draft). A page from before
+      // visibility had to be chosen has no section at all and counts as Internal-Only.
+      visibility: first(sections, 'VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : first(sections, 'VISIBILITY') === 'Internal-Only' ? 'Internal-Only' : (sections['VISIBILITY'] ? '' : 'Internal-Only'),
       // The owner is a person, named by the email address of their sign-in account (older pages named a role title: see findPerson)
       owner: first(sections, 'OWNER') || first(sections, 'OWNER ROLE'),
       ownerDefault: first(sections, 'OWNER DEFAULT').toLowerCase() === 'yes',   // given to the team lead as a fallback, to be reassigned later
@@ -98,6 +100,7 @@
     if (!f.title) { missing.push('a page title'); }
     if (!f.description) { missing.push('a description'); }
     if (team && team.roles && team.roles.length && !f.owner) { missing.push('an owner'); }
+    if (!f.visibility) { missing.push('a visibility (Internal only or Public)'); }
     return missing;
   }
 

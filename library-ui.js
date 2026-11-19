@@ -221,6 +221,7 @@
 
   function visibilityPill(visibility) {
     // "Internal-Only" is shortened to "Internal" so it stays on one line in the table
+    if (!visibility) { return el('span', 'pill pill-nowrap pill-internal', 'Not set'); }   // a draft whose visibility has not been chosen yet
     return el('span', 'pill pill-nowrap ' + (visibility === 'Client-Safe' ? 'pill-public' : 'pill-internal'), visibility === 'Client-Safe' ? 'Public' : 'Internal');
   }
 
@@ -1479,14 +1480,18 @@
   // Admin starting a page chooses its team. The editor works as one department (its roles are the choices for Owner), so choosing
   // another one reloads the page as that department (Admin mode kept), after asking if something has been typed.
   function setTeamPicker(show) {
+    var field = document.getElementById('team-field');
     var picker = document.getElementById('team-picker');
-    var fixed = document.getElementById('team-name');
     picker.textContent = '';
-    picker.hidden = !show;
-    fixed.hidden = !!show;
-    document.getElementById('team-hint').textContent = show ? 'Admin: choose the team this page belongs to.' : 'Pages you save belong to this team.';
-    if (!show) { return; }
-    var select = el('select', 'acting-select team-select');
+    picker.hidden = false;
+    // Only Admin sees Team (anyone else's pages belong to their own team). It is drawn like Owner and Linked people: a dropdown. On a new page it
+    // can be changed; on a saved page it is shown, not changed.
+    var admin = actingAsAdmin();
+    field.hidden = !admin;
+    if (!admin) { return; }
+    document.getElementById('team-hint').textContent = show ? 'Admin: choose the team this page belongs to.' : 'The team this page belongs to.';
+    var wrap = el('div', 'select-wrap');
+    var select = el('select', 'select-field team-select');
     select.setAttribute('aria-label', 'Team for this page');
     window.Store.teams().forEach(function (department) {
       var option = el('option', '', department.name);
@@ -1494,6 +1499,11 @@
       select.appendChild(option);
     });
     select.value = team.slug;
+    select.disabled = !show;
+    wrap.appendChild(select);
+    var chevron = el('span', 'select-chevron');
+    chevron.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';   // fixed markup
+    wrap.appendChild(chevron.firstChild);
     select.addEventListener('change', async function () {
       var wanted = select.value;
       if (window.PageEditor.isDirty() && !(await window.askConfirm('What you have typed on this page will be cleared, because the page starts again as the ' + wanted + ' team.', { title: 'Change the team?', ok: 'Change team' }))) {
@@ -1502,7 +1512,7 @@
       }
       if (window.Store.setDepartment(wanted, true)) { location.reload(); }
     });
-    picker.appendChild(select);
+    picker.appendChild(wrap);
   }
 
   function openNewPage() {
@@ -1533,11 +1543,29 @@
     var name = versionName(hist).toLowerCase();   // "version 2" or "draft"
     window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · ' + name);
     var box = el('div', 'banner banner-info');
-    box.appendChild(el('p', '', 'Reading ' + (hist && hist.release ? name : 'a draft') + ' — ' + describe(data.version.status) + '.'));
+    var reading = hist && hist.release ? name : 'a draft';
+    var statusWords = describe(data.version.status);
+    box.appendChild(el('p', '', 'Reading ' + reading + (statusWords === reading ? '' : ' \u2014 ' + statusWords) + '.'));
     if (hist && hist.decisionComment) { box.appendChild(el('p', '', 'Review note: \u201c' + hist.decisionComment + '\u201d')); }
     var row = el('div', 'banner-actions');
     // (version history: hidden for now, see HANDOFF)
-    versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
+    if (!actorIsLead() && !actingAsAdmin()) {
+      // The page's owner (not the team lead or Admin): Submit for review and Edit. Once it is sent, it reads "In Review" and can be withdrawn.
+      var ownerCan = function (action) { return data.actions.indexOf(action) >= 0; };
+      if (ownerCan('submit')) { row.appendChild(button('Submit for review', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'submit', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); })); }
+      if (ownerCan('edit')) { row.appendChild(button('Edit', 'row-btn', function () { location.hash = '#/edit/' + id + '/' + n; })); }
+      if (data.version.status === 'submitted') {
+        var inReview = el('span', 'row-locked');
+        var lockSpan = el('span', 'row-locked-icon');
+        lockSpan.innerHTML = LOCK_SVG;   // fixed markup, no page text
+        inReview.appendChild(lockSpan);
+        inReview.appendChild(document.createTextNode('In Review'));
+        row.appendChild(inReview);
+        if (ownerCan('withdraw')) { row.appendChild(button('Withdraw', 'row-btn', function () { runAction(id, Number(n), 'withdraw', 'Withdrawn. It is a draft again.'); })); }
+      }
+    } else {
+      versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
+    }
     if (row.childNodes.length) { box.appendChild(row); }
     setBanner(box);
   }

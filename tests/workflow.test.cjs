@@ -511,3 +511,13 @@ test('expiryStatus: warns from 15 days before a live page runs out and says how 
   assert.equal(gone.text, 'Expired 3 days ago');
   assert.equal(W.expiryStatus('not a date', now), null);
 });
+
+test('visibility must be chosen before a page is submitted or published; a page from before has none written and counts as internal', () => {
+  const team = { slug: 't', name: 'T', lead: 'Lead', roles: [{ title: 'Lead', person: 'Lee', email: 'lee@x.com' }] };
+  const base = '[TITLE]\nA page\n\n[DESCRIPTION]\nWhat it is.\n\n[OWNER]\nlee@x.com\n';
+  assert.equal(W.fields(base + '\n[VISIBILITY]\n\n').visibility, '');
+  assert.equal(W.fields(base + '\n[VISIBILITY]\nClient-Safe\n').visibility, 'Client-Safe');
+  assert.equal(W.fields(base).visibility, 'Internal-Only');
+  assert.ok(W.missingForSubmit(base + '\n[VISIBILITY]\n\n', team).some((m) => /visibility/.test(m)));
+  assert.equal(W.missingForSubmit(base + '\n[VISIBILITY]\nInternal-Only\n', team).length, 0);
+});

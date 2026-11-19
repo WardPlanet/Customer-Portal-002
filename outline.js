@@ -110,7 +110,7 @@
       return list;
     }
     box.appendChild(build(roots, 0));
-    if (!groups.length) { box.classList.add('toc-flat'); }   // no headings fold, so no room is kept for fold arrows
+    // Top-level headings are always indented as if an arrow sat beside them, whether or not they fold
 
     box.appendChild(actions);
 

@@ -150,11 +150,11 @@
     <aside class="setup" id="editor-setup" aria-label="Page setup">
       <h2 class="section-label" style="margin: 0;">Page setup</h2>
 
-      <div>
+      <div id="team-field" hidden>   <!-- Admin only: the team, drawn like Owner and Linked people -->
         <span class="field-label">Team</span>
-        <p class="team-name" id="team-name"></p>
-        <div id="team-picker" hidden></div>   <!-- Admin only, on a new page: choose the team -->
-        <p class="field-hint" id="team-hint">Pages you save belong to this team.</p>
+        <p class="team-name" id="team-name" hidden></p>
+        <div id="team-picker"></div>
+        <p class="field-hint" id="team-hint"></p>
       </div>
 
       <div id="version-field" hidden>
@@ -202,10 +202,10 @@
         <p class="field-hint">The team lead always reviews, so this can&rsquo;t be changed.</p>
       </div>
 
-      <div>
-        <span class="field-label">Visibility</span>
+      <div id="visibility-field">
+        <span class="field-label">Visibility <span class="field-required" aria-hidden="true">*</span></span>
         <div class="segmented" role="group" aria-label="Visibility">
-          <button class="segment" type="button" data-value="Internal-Only" aria-pressed="true">Internal only</button>
+          <button class="segment" type="button" data-value="Internal-Only" aria-pressed="false">Internal only</button>
           <button class="segment" type="button" data-value="Client-Safe" aria-pressed="false">Client-safe</button>
         </div>
       </div>
