@@ -2765,8 +2765,11 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .lib-expiry-bar.is-expired { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 
 /* The main button of a row that needs a look: filled blue */
-.row-btn.row-btn-main { background: var(--go); border-color: var(--go); color: var(--go-ink); font-weight: 600; }
-.row-btn.row-btn-main:hover { background: var(--go-hover); border-color: var(--go-hover); }
+.row-btn.row-btn-main { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }   /* the main action is the standard primary blue */
+.row-btn.row-btn-main:hover { background: var(--navy); border-color: var(--navy); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .row-btn.row-btn-main { color: #06182e; } :root:not([data-theme="light"]) .row-btn.row-btn-main:hover { background: #8dbcf7; border-color: #8dbcf7; } }
+:root[data-theme="dark"] .row-btn.row-btn-main { color: #06182e; }
+:root[data-theme="dark"] .row-btn.row-btn-main:hover { background: #8dbcf7; border-color: #8dbcf7; }
 
 :root { --go: #1B8A4B; --go-hover: #146C3A; --go-ink: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --go: #3DBB74; --go-hover: #5BCB8A; --go-ink: #07210f; } }

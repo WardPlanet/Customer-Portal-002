@@ -1510,3 +1510,4 @@ Landing: the three Popular pages tiles share the full content width (three equal
 ## Library: coloured bars for important items, Live landing
 - Under the search, **coloured accordion bars** list the important items, each opening to its pages with a Review (or Edit) button: **green** pages waiting for your review (lead/Admin), **orange** pages sent back (owner), **yellow** expiring soon, **red** expired. A bar shows only when it has something in it.
 - The tabs are Live, Your drafts, In review (owner), All (Live and All only for lead/Admin). The library opens on **Live**; live rows have a green left bar (expiring/expired keep their yellow/red). The In review count badge is neutral.
+- Review (the row's main button) is the standard primary blue, not green. Green stays for the Live and waiting-for-review colours only.
