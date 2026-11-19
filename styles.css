@@ -2988,10 +2988,9 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 /* Status colours (the standard): tints only for expiring, expired and (lead) waiting for review. Drafts: a "Your drafts" heading and a blue bar.
    Sent back: an orange bar. Locked in review: grey, because grey means "nothing to do here". */
 .lib-group-row td { padding: 16px 16px 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); background: transparent; border: 0; }
-.lib-row.is-draft td:first-child { box-shadow: inset 4px 0 0 var(--icon-blue); }
+.lib-row.is-draft td:first-child { box-shadow: inset 4px 0 0 var(--border-strong); }   /* a draft: neutral grey, not live yet */
 .lib-row.is-sent-back td:first-child { box-shadow: inset 4px 0 0 var(--warn-icon); }
-.lib-row.is-locked td { background: var(--surface-muted); color: var(--text-muted); }
-.lib-row.is-locked a.lib-page-link, .lib-row.is-locked .lib-row-sub { color: var(--text-muted); }
+.lib-row.is-locked td:first-child { box-shadow: inset 4px 0 0 var(--icon-blue); }   /* in review: blue, in progress, waiting for the lead */
 
 /* Status tabs under the search */
 .lib-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 16px; border-bottom: 1px solid var(--border); }
@@ -3000,7 +2999,10 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 .lib-tab.is-selected { color: var(--navy); border-bottom-color: var(--icon-blue); }
 .lib-tab:focus-visible { outline: 2px solid var(--icon-blue); outline-offset: -2px; border-radius: 6px; }
 .lib-tab-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--text); background: var(--surface-muted); border: 1px solid var(--border); }
-.lib-tab-drafts .lib-tab-count { color: #fff; background: var(--icon-blue); border-color: transparent; }
+.lib-tab-inreview .lib-tab-count { color: #fff; background: var(--icon-blue); border-color: transparent; }
 .lib-tab-waiting .lib-tab-count { color: var(--live-ink); background: var(--live-bg); border-color: var(--live-border); }
 .lib-tab-expiring .lib-tab-count { color: var(--warn-ink); background: var(--caution-tint); border-color: var(--warn-border); }
 .lib-tab-expired .lib-tab-count { color: var(--danger); background: var(--danger-soft); border-color: var(--danger-border); }
+
+/* The "In Review" label on a locked row is blue too */
+.row-locked { color: var(--navy); background: var(--brand-tint); border-color: var(--accent-border, var(--border)); }
