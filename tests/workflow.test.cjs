@@ -548,3 +548,31 @@ test('reviewing a live page: the lead can renew it, the owner can send it back f
   assert.equal(W.workingVersion(p2).decisionComment, 'Update the prices.');
   assert.equal(p2.liveVersion, 1);
 });
+
+// Per-page opt-in: the owner publishes edits to a live internal page without review
+test('owner publishes edits only where the lead allowed that page', () => {
+  const strict = Object.assign({}, team, { directPublish: 'lead' });
+  const lead = W.actorFor('Micah', strict);
+  const owner = W.actorFor('Scott Archer', strict);
+  const page = W.createPage(strict, draftText('Refunds'), owner, t(1));
+  W.submit(page, 1, owner, strict, t(2));
+  W.approve(page, 1, lead, strict, t(3));
+  // Not allowed yet: an edit needs review
+  let v = W.startEdit(page, owner, t(4));
+  assert.throws(() => W.publish(page, v.n, owner, strict, t(5)), /Only the team lead/);
+  // Only the lead can allow it
+  assert.throws(() => W.setOwnerPublishes(page, true, owner, strict, t(5)), /team lead/);
+  W.setOwnerPublishes(page, true, lead, strict, t(6));
+  assert.ok(W.history(page, owner, strict).find((h) => h.n === v.n).actions.includes('publish'));
+  W.saveDraft(page, v.n, draftText('Refunds', 'new detail'), owner, t(7), strict);
+  W.publish(page, v.n, owner, strict, t(8));
+  assert.equal(page.liveVersion, v.n);
+  assert.equal(W.versionOf(page, v.n).ownerPublished, true);
+  // Visibility cannot be changed that way, and a public page clears the opt-in
+  v = W.startEdit(page, owner, t(9));
+  W.saveDraft(page, v.n, draftText('Refunds', 'x').replace('Internal-Only', 'Client-Safe'), owner, t(9), strict);
+  assert.throws(() => W.publish(page, v.n, owner, strict, t(9)), /visibility/);
+  W.setVisibility(page, 'Client-Safe', lead, strict, t(9));
+  assert.equal(page.ownerPublishes, false);
+  assert.throws(() => W.setOwnerPublishes(page, true, lead, strict, t(9)), /public/i);
+});

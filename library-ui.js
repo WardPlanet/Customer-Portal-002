@@ -756,14 +756,10 @@
   }
 
   // Sorts a copy of the rows by the chosen heading. Ties keep the newest page first.
-  // A person who is not the team lead or Admin sees their own drafts first, until they search or choose a column to sort by
-  function draftsStickToTop() { return !actorIsLead() && !actingAsAdmin() && !libraryFilters.q && !libraryFilters.sortChosen; }
   function isOwnDraft(p) { return p.state === 'draft' || p.state === 'sent_back'; }
   function isWaitingForReview(p) { return !!(p.workingVersion && p.workingVersion.status === 'submitted') || p.state === 'in_review' || p.state === 'live_edit_in_review'; }
   function sortRows(rows) {
-    var sorted = sortRowsBy(rows);
-    if (!draftsStickToTop()) { return sorted; }
-    return sorted.filter(isOwnDraft).concat(sorted.filter(function (p) { return !isOwnDraft(p); }));
+    return sortRowsBy(rows);   // drafts are not pinned to the top: they have their own tab
   }
   function sortRowsBy(rows) {
     if (libraryFilters.q && !libraryFilters.sortChosen) { return rows.slice(); }   // a search: best match first, as the search returned them
@@ -1089,25 +1085,16 @@
     thead.appendChild(headRow);
     table.appendChild(thead);
     var body = el('tbody');
-    var draftsHeadingShown = false;
     sortRows(shown).forEach(function (p) {
       // Status colours follow the standard (see "Status colours" in HANDOFF): a tint only for expiring (yellow), expired (red) and, for the team
       // lead, waiting for review (green); the owner's own drafts have a "Your drafts" heading and a blue bar, a sent-back page an orange bar, and a
       // page locked in review is grey.
-      if (draftsStickToTop() && isOwnDraft(p) && !draftsHeadingShown) {
-        draftsHeadingShown = true;
-        var groupRow = el('tr', 'lib-group-row');
-        var groupCell = el('td', '', 'Your drafts');
-        groupCell.colSpan = headRow.children.length;
-        groupRow.appendChild(groupCell);
-        body.appendChild(groupRow);
-      }
       var row = el('tr', 'lib-row');
       var expiry = expiryOf(p);
-      if (draftsStickToTop() && isOwnDraft(p)) { row.classList.add(p.state === 'sent_back' ? 'is-sent-back' : 'is-draft'); }   // a blue bar; an orange one when changes were requested
+      if (isOwnDraft(p)) { row.classList.add(p.state === 'sent_back' ? 'is-sent-back' : 'is-draft'); }   // a blue bar; an orange one when changes were requested
       if (reviewsFirstBar() && isWaitingForReview(p)) { row.classList.add('is-waiting'); }   // light green, for the lead
       if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // light yellow; red once expired
-      else if (STATE_LABELS[p.state][1] === 'live') { row.classList.add('is-live'); }   // a green bar: live
+      else if (STATE_LABELS[p.state][1] === 'live' && p.state !== 'live_edit_in_review') { row.classList.add('is-live'); }   // a green bar: live
       if (canBulk) {
         var tickCell = el('td', 'lib-select-cell');
         var tick = el('input');
@@ -1133,11 +1120,19 @@
         snippet.appendChild(markedNodes(p.search.snippetParts));
         nameCell.appendChild(snippet);
       }
-      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '')));
+      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '') + (p.ownerPublishes ? ' · owner can publish edits' : '')));
       row.appendChild(nameCell);
       if (actingAsAdmin()) { row.appendChild(el('td', 'lib-dept', (teamFor(p.team) || team).name)); }
       var statusCell = el('td');
-      statusCell.appendChild(badge(STATE_LABELS[p.state]));
+      if (p.state === 'live_edit_in_review') {
+        // A live page with an edit waiting for review: "In review" first, with "Live" beneath it (the live version is still up)
+        statusCell.appendChild(badge(['In review', 'review']));
+        var stillLive = el('div', 'lib-row-sub', '');
+        stillLive.appendChild(badge(['Live', 'live']));
+        statusCell.appendChild(stillLive);
+      } else {
+        statusCell.appendChild(badge(STATE_LABELS[p.state]));
+      }
       row.appendChild(statusCell);
       var ownerCell = el('td');
       // Who answers for the page. When the owner has left the team the team lead has it, marked "(Default)" until it is reassigned.
@@ -1297,6 +1292,14 @@
             if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }
             if (await attempt(backend().unpublish(p.id))) { notice('Unpublished \u201c' + p.title + '\u201d.'); route(); }
           } });
+          // Per-page opt-in: the owner publishes edits to this page without review (internal-only pages only)
+          if (p.ownerPublishes || p.visibility === 'Internal-Only') {
+            moreItems.push({ label: p.ownerPublishes ? 'Require review for edits' : 'Let owner publish edits', onClick: async function () {
+              var turnOn = !p.ownerPublishes;
+              if (turnOn && !(await window.askConfirm('The owner will be able to publish changes to \u201c' + p.title + '\u201d without your review. Every version stays in the history. It stops if the page becomes public.', { title: 'Let the owner publish edits?', ok: 'Allow' }))) { return; }
+              if (await attempt(backend().setOwnerPublishes(p.id, turnOn))) { notice(turnOn ? 'The owner can now publish edits to \u201c' + p.title + '\u201d.' : 'Edits to \u201c' + p.title + '\u201d need review again.'); route(); }
+            } });
+          }
         }
         if (lead || !p.liveVersion) {
           moreItems.push({ label: 'Delete', danger: true, onClick: async function () { if (await confirmAndDelete(p)) { route(); } } });
@@ -1460,6 +1463,10 @@
   async function publishAndDownload(id, n, text, title) {
     var missing = W.missingForSubmit(text, team);
     if (missing.length) { throw new Error('Still needed before it can be published: ' + missing.join(', ') + '.'); }
+    if (!actorIsLead() && !actingAsAdmin()) {   // an owner the lead allowed to publish: no text file, just publish
+      await backend().act(id, n, 'publish');
+      return 'Published. It is live now, and the team lead can see it in the history.';
+    }
     var filename = textFileName(title);
     var downloaded = false;
     try { downloaded = await saveFile(filename, text, 'text/plain'); } catch (error) { downloaded = false; }
@@ -1546,6 +1553,7 @@
     window.PageEditor.setLabel(data.version.title || 'Untitled page');
     current = { id: id, n: Number(n), backTo: '#/' };
     var detail = await attempt(backend().get(id));
+    current.ownerPublishes = !!(detail && detail.page && detail.page.ownerPublishes && !actorIsLead() && !actingAsAdmin());
     if (mine !== routing) { return; }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
 
@@ -1567,7 +1575,8 @@
     var box = editorBanner(lines, tone === 'warn' ? 'info' : tone);
     var actionsRow = el('div', 'banner-actions');
     var leadView = actorIsLead() || actingAsAdmin();
-    if (leadView) {
+    var ownerPublishes = !leadView && !!(detail && detail.page && detail.page.ownerPublishes) && !!(hist && hist.actions.indexOf('publish') >= 0);
+    if (leadView || ownerPublishes) {
       actionsRow.appendChild(button('Publish', 'row-btn row-btn-main', function () { document.getElementById('publish-draft').click(); }));
     } else {
       actionsRow.appendChild(button('Submit', 'row-btn row-btn-main', function () { document.getElementById('submit-draft').click(); }));
@@ -4139,7 +4148,7 @@
       location.hash = '#/';
       return 'Submitted for approval. ' + personFor(team.lead) + ' has been notified.';
     },
-    canPublish: function () { return !!team && W.canPublishDirectly(actor(), team); },
+    canPublish: function () { return !!team && (W.canPublishDirectly(actor(), team) || current.ownerPublishes === true); },
     // Skips review: saves, makes it live, and downloads the text. (Who may do this is the team's
     // "directPublish" setting; the server and store both enforce it.)
     // Who may choose a page's owner: the team lead. Anyone else owns what they create, shown greyed out in Page Setup.
@@ -4168,7 +4177,15 @@
     publish: async function (text) {
       await this.save(text);
       var id = current.id;
-      var message = await publishAndDownload(id, current.n, text, window.PageEditor.title());
+      var message;
+      if (current.ownerPublishes) {
+        var missing = W.missingForSubmit(text, team);
+        if (missing.length) { throw new Error('Still needed before it can be published: ' + missing.join(', ') + '.'); }
+        await backend().act(id, current.n, 'publish');
+        message = 'Published. It is live now, and the team lead can see it in the history.';
+      } else {
+        message = await publishAndDownload(id, current.n, text, window.PageEditor.title());
+      }
       notice(message);
       location.hash = '#/';
       return message;

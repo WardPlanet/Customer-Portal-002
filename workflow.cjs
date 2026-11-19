@@ -516,17 +516,47 @@
 
   // Publishing without review (a stop-gap while review is not in use). Who may do it is the team's
   // "directPublish" setting: anyone on the team, or only the lead.
-  function canPublishDirectly(actor, team) {
+  function canPublishDirectly(actor, team, page) {
     if (!actor || !actor.name) { return false; }
-    return team && team.directPublish === 'lead' ? isLead(actor, team) : true;
+    if (!(team && team.directPublish === 'lead') || isLead(actor, team)) { return true; }
+    return ownerMayPublish(page, actor);
+  }
+
+  // Per-page opt-in: the team lead lets the owner publish edits to one live, internal-only page without review.
+  // It never applies to a public page, and the owner and visibility cannot be changed this way.
+  function ownerMayPublish(page, actor) {
+    if (!page || !page.ownerPublishes || !page.liveVersion || !isMine(page, actor)) { return false; }
+    var live = liveVersion(page);
+    return !!live && fields(live.text).visibility === 'Internal-Only';
+  }
+  function setOwnerPublishes(page, on, actor, team, now) {
+    requireLead(actor, team, 'let the owner publish edits');
+    if (on) {
+      var live = liveVersion(page);
+      if (!live) { throw new WorkflowError('not_live', 'Only a live page can let its owner publish edits.', 409); }
+      if (fields(live.text).visibility !== 'Internal-Only') { throw new WorkflowError('public_page', 'A public page always needs review. Make it internal only first.', 409); }
+    }
+    page.ownerPublishes = !!on;
+    page.updatedAt = page.updatedAt || now;
+    return page.ownerPublishes;
   }
 
   function publish(page, n, actor, team, now) {
     requireActor(actor);
-    if (!canPublishDirectly(actor, team)) {
+    if (!canPublishDirectly(actor, team, page)) {
       throw new WorkflowError('not_lead', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can publish without review.', 403);
     }
     var version = versionOf(page, n);
+    var byOwnerOptIn = !isLead(actor, team) && team && team.directPublish === 'lead';
+    if (byOwnerOptIn) {
+      var liveNow = liveVersion(page);
+      var f = fields(version.text);
+      var lf = fields(liveNow.text);
+      if (version.status === STATUS.SUBMITTED) { throw new WorkflowError('not_editable', 'That version is waiting for the team lead.', 409); }
+      if (f.visibility !== 'Internal-Only' || resolveKey(team, f.owner) !== resolveKey(team, lf.owner) || resolveKey(team, f.secondaryOwner) !== resolveKey(team, lf.secondaryOwner)) {
+        throw new WorkflowError('needs_lead', 'Changing the owner or the visibility needs the team lead.', 403);
+      }
+    }
     if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK && version.status !== STATUS.SUBMITTED) {
       throw new WorkflowError('not_editable', 'Only a draft can be published.', 409);
     }
@@ -541,7 +571,8 @@
     version.submittedBy = version.submittedBy || actor.name;
     version.decidedBy = actor.name;
     version.decidedAt = now;
-    version.decisionComment = 'Published directly, without review.';
+    version.decisionComment = byOwnerOptIn ? 'Published by the owner (the team lead allowed this page).' : 'Published directly, without review.';
+    if (byOwnerOptIn) { version.ownerPublished = true; }
     version.directPublish = true;
     page.liveVersion = version.n;
     touch(page, version, actor, now);
@@ -757,6 +788,7 @@
       liveVersion: page.liveVersion,
       workingVersion: working ? { n: working.n, status: working.status, submittedBy: working.submittedBy || '', submittedAt: working.submittedAt || '', decisionComment: working.status === STATUS.SENT_BACK ? (working.decisionComment || '') : '', decidedAt: working.decidedAt || '' } : null,
       versionCount: page.versions.length,
+      ownerPublishes: !!page.ownerPublishes,
       releaseCount: page.versions.filter(isPublished).length,
       liveRelease: live ? releaseNumber(page, live) : null,
       // "Updated" is when the live version went live (published or approved by the team lead). Changing the owner, moving pages between roles or
@@ -774,7 +806,7 @@
     if (!actor || !actor.name) { return actions; }
     var lead = isLead(actor, team);
     if (v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK) { actions.push('edit', 'submit'); }
-    if ((v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK || v.status === STATUS.SUBMITTED) && canPublishDirectly(actor, team)) { actions.push('publish'); }
+    if ((v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK || v.status === STATUS.SUBMITTED) && canPublishDirectly(actor, team, page)) { actions.push('publish'); }
     if (v.status === STATUS.SUBMITTED) {
       // Locked for its owner until the team lead decides: no edit, no withdraw. The lead can still edit it, take it back, publish it or send it back.
       if (lead) { actions.push('edit', 'withdraw', 'approve', 'send_back'); }
@@ -1004,6 +1036,7 @@
     requireLead(actor, team, 'change a page\'s visibility');
     if (to !== 'Client-Safe' && to !== 'Internal-Only') { throw new WorkflowError('bad_visibility', 'Choose Internal-Only or Client-Safe.', 400); }
     var changed = false;
+    if (to === 'Client-Safe') { page.ownerPublishes = false; }   // a public page always needs review
     currentVersions(page).forEach(function (version) {
       if (fields(version.text).visibility === to) { return; }
       version.text = setVisibilityInText(version.text, to);
@@ -1220,6 +1253,8 @@
     submit: submit,
     publish: publish,
     canPublishDirectly: canPublishDirectly,
+    ownerMayPublish: ownerMayPublish,
+    setOwnerPublishes: setOwnerPublishes,
     withdraw: withdraw,
     approve: approve,
     sendBack: sendBack,

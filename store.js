@@ -221,6 +221,7 @@
     getRoster: function () { return this.call('GET', '/api/library/roster'); },
     saveRoster: function (roles) { return this.call('PUT', '/api/library/roster', { roles: roles }); },
     // The owner is a person's email. opts.asDefault: the team lead has the page as a fallback, marked "(Default)" until it is reassigned.
+    setOwnerPublishes: function (id, on) { return this.call('POST', '/api/library/pages/' + id + '/owner-publishes', { on: !!on }); },
     setVisibility: function (id, visibility) { return this.call('POST', '/api/library/pages/' + id + '/visibility', { visibility: visibility }); },
     setOwner: function (id, owner, opts) { return this.call('POST', '/api/library/pages/' + id + '/owner', { owner: owner, asDefault: !!(opts && opts.asDefault) }); },
     reassign: function (from, to, ids, opts) { return this.call('POST', '/api/library/reassign', { from: from, to: to, ids: ids, asDefault: !!(opts && opts.asDefault) }); },
@@ -544,6 +545,15 @@
         var t = teamOf(page);
         var who = actorIn(t);
         guard(function () { W.setOwner(page, owner, who, t, now(), opts); });
+        writeAll(data);
+        return detail(page);
+      },
+      setOwnerPublishes: async function (id, on) {
+        var data = readAll();
+        var page = find(data, id);
+        var t = teamOf(page);
+        var who = actorIn(t);
+        guard(function () { W.setOwnerPublishes(page, on, who, t, now()); });
         writeAll(data);
         return detail(page);
       },
