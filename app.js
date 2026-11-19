@@ -171,6 +171,28 @@
     function setStatus(text, isSaved) {
       byId('save-status-text').textContent = text;
       byId('save-status').classList.toggle('is-unsaved', !isSaved);
+      updateLiveEditButtons();
+    }
+
+    // Editing a draft of a LIVE page: Save draft stays greyed out until something has been changed, and Delete draft until there is a draft to
+    // delete (changes saved earlier, or changes just made). Other pages are not affected.
+    function updateLiveEditButtons() {
+      var host = window.PageHost;
+      var del = byId('delete-draft');
+      var save = byId('save-draft');
+      var live = !!(host && host.isLiveEdit && host.isLiveEdit());
+      save.removeAttribute('data-nochange');
+      if (!live) { del.removeAttribute('aria-disabled'); return; }
+      var changed = byId('save-status').classList.contains('is-unsaved') && pageHasContent();
+      if (!changed) {
+        save.setAttribute('aria-disabled', 'true');
+        save.setAttribute('data-nochange', 'true');
+        save.title = 'No changes to save yet';
+      }
+      var deletable = changed || !!(host.hasSavedDraftChanges && host.hasSavedDraftChanges());
+      del.setAttribute('aria-disabled', String(!deletable));
+      del.title = deletable ? '' : 'There is no draft to delete yet';
+      Array.prototype.forEach.call(document.querySelectorAll('[data-delete-draft]'), function (b) { b.setAttribute('aria-disabled', String(!deletable)); b.title = del.title; });   // the blue bar's copy of the button follows
     }
 
     var editCount = 0;   // goes up on every edit, so a save can tell whether anything changed while it ran
@@ -1725,6 +1747,7 @@
         button.setAttribute('aria-disabled', String(!ready));
         button.title = ready ? '' : complete ? 'Choose a visibility first (Page setup)' : 'Fill in the required fields (*) first';
       });
+      updateLiveEditButtons();
 
       // AI assist unlocks under the same rule: every required field is filled in
       var aiAssist = byId('ai-assist');
@@ -3647,6 +3670,7 @@
     }
     [['save-draft', 'save', 'save'], ['submit-draft', 'send for review', 'submit'], ['publish-draft', 'publish', 'publish']].forEach(function (item) {
       byId(item[0]).addEventListener('click', function () {
+        if (byId(item[0]).getAttribute('data-nochange') === 'true') { return; }   // a live page's draft with nothing changed yet
         if (byId(item[0]).getAttribute('aria-disabled') === 'true' && explainMissing(item[1])) { return; }
         saveAndMaybeSubmit(item[2]);
       });

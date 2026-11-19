@@ -3134,3 +3134,5 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .danger-btn { color: var(--danger); border-color: var(--danger-border); }
 .danger-btn:hover { background: var(--danger-soft); }
 .danger-btn[hidden] { display: none; }
+
+.row-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }

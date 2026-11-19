@@ -1700,6 +1700,8 @@
     var detail = await attempt(backend().get(id));
     current.ownerPublishes = !!(detail && detail.page && detail.page.ownerPublishes && !actorIsLead() && !actingAsAdmin());
     current.liveEdit = !!(detail && detail.page && detail.page.liveVersion);   // changes to a live page are saved only by hand
+    current.draftChanged = !!(current.liveEdit && detail.page.workingVersion && detail.page.workingVersion.changed);
+    window.PageEditor.refresh();   // greys Save draft and Delete draft until there is something to save or delete
     if (mine !== routing) { return; }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
 
@@ -1745,8 +1747,10 @@
     if (current.liveEdit && hist && hist.actions.indexOf('discard') >= 0) {
       // A draft of a live page can be thrown away: the page goes back to the live version (in the blue bar and in the footer)
       var discardTitle = data.version.title || (detail && detail.page && detail.page.title) || 'this page';
-      var discardNow = async function () { if (await confirmAndDiscardDraft(id, Number(n), discardTitle)) { location.hash = '#/'; } };
-      actionsRow.appendChild(button('Delete draft', 'row-btn row-btn-danger', discardNow));
+      var discardNow = async function () { if (document.getElementById('delete-draft').getAttribute('aria-disabled') === 'true') { return; } if (await confirmAndDiscardDraft(id, Number(n), discardTitle)) { location.hash = '#/'; } };
+      var barDiscard = button('Delete draft', 'row-btn row-btn-danger', discardNow);
+      barDiscard.setAttribute('data-delete-draft', '1');
+      actionsRow.appendChild(barDiscard);
       footerDelete.hidden = false;
       footerDelete.onclick = discardNow;
     }
@@ -4383,6 +4387,7 @@
         history.replaceState(null, '', '#/edit/' + current.id + '/' + current.n);   // no reload of the editor
       } else {
         await backend().save(current.id, current.n, text);
+        if (current.liveEdit) { current.draftChanged = true; }   // there is now a saved draft that differs from the live page
       }
       window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
       return 'Draft saved. It is in the library.';
@@ -4417,6 +4422,8 @@
     },
     // Called by the editor on a timer. Saves the draft quietly when the page already exists in the library;
     // a brand-new page is only kept once the person has saved it themselves. Resolves to true when it saved.
+    isLiveEdit: function () { return !!current.liveEdit; },
+    hasSavedDraftChanges: function () { return !!current.draftChanged; },   // the saved draft of this live page differs from the live version
     autosaveEnabled: function () { return !current.liveEdit; },   // a draft of a live page is saved only when the editor clicks Save draft
     autosave: async function (text) {
       if (current.id === null || current.liveEdit) { return false; }
