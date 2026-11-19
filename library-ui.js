@@ -459,7 +459,8 @@
     titles.appendChild(el('h1', 'lib-title', 'Library'));
     titles.appendChild(el('p', 'lib-sub', actingAsAdmin() ? 'Admin · every department\u2019s pages and drafts' : team.name + ' · ' + (team.locations || []).join(', ') + (actorIsLead() ? '' : ' · showing your pages and drafts')));
     head.appendChild(titles);
-    var headActions = el('div', 'lib-actions');
+    var headActions = document.getElementById('top-actions');
+    headActions.textContent = '';
     // One button for importing: it asks whether it is one document (the editor's own import) or several (batch import)
     headActions.appendChild(button('Import document(s)', 'secondary-link', async function () {
       var kind = await askImportKind();
@@ -475,9 +476,7 @@
         { label: 'Restore backup', onClick: function () { restoreInput.click(); } }
       ], backupStatus));
     }
-    headActions.appendChild(link('New page', '#/new', 'primary-link'));
-    head.appendChild(headActions);
-    main.appendChild(head);
+    main.appendChild(head);   // the buttons live in the sticky top bar (#top-actions)
 
     var backupLine = el('p', 'lib-backup');
     if (actorIsLead()) { main.appendChild(backupLine); }
@@ -4229,6 +4228,13 @@
       location.hash = '#/';
       return message;
     },
+    // From the editor's Import: keep this page as a draft (or let it go), then import the document into a new page
+    importInNewPage: async function (saveFirst, text) {
+      if (saveFirst) { await this.save(text); }
+      window.PageEditor.markClean && window.PageEditor.markClean();
+      importOnNewPage = true;
+      if (location.hash === '#/new') { route(); } else { location.hash = '#/new'; }
+    },
     leave: async function () {
       if (window.PageEditor.isDirty() && !(await window.askConfirm('Your changes will be lost.', { title: 'Leave without saving?', ok: 'Leave' }))) { return; }
       location.hash = current.backTo || '#/';
@@ -4251,6 +4257,8 @@
     if ((window.Store.isPublicMode && window.Store.isPublicMode()) && screen !== 'public' && screen !== 'search') { screen = 'public'; parts = ['public']; if (location.hash !== '#/public') { history.replaceState(null, '', '#/public'); } }
     setBanner(null);
     removeTopSearch();   // only a live page has the search box in the Wiki bar
+    var topActions = document.getElementById('top-actions');
+    if (topActions) { topActions.textContent = ''; }   // the library list puts its buttons here
     if (screen !== 'admin' && window.Admin) { window.Admin.leave(); }   // the Admin tools page lets go of its listeners
     if (screen === 'new') { openNewPage(); }
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }

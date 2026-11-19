@@ -4004,8 +4004,66 @@
         showNotice(aiUnavailable ? 'Importing needs the AI, which isn\u2019t available in this view.' : 'An import is already running.');
         return;
       }
+      // A page that already has content: ask what to do with it first
+      if (pageHasContent() && window.PageHost && window.PageHost.importInNewPage) {
+        var choice = await askImportConflict();
+        if (!choice) { return; }
+        if (choice === 'save' || choice === 'discard') {
+          try { await window.PageHost.importInNewPage(choice === 'save', serializeDraft()); }
+          catch (error) { showNotice(error && error.message ? error.message : 'That could not be saved yet.'); }
+          return;
+        }
+      }
       importSourceDialog.showModal();
     });
+
+    // "Replace current page", "Save to draft" or "Exit without saving": what happens to the page open now when another document is imported
+    function askImportConflict() {
+      return new Promise(function (resolve) {
+        var dialog = document.createElement('dialog');
+        dialog.className = 'draft-dialog import-kind-dialog';
+        dialog.setAttribute('aria-label', 'Import a document');
+        var title = document.createElement('h2');
+        title.className = 'dialog-title';
+        title.textContent = 'Import a document';
+        var hint = document.createElement('p');
+        hint.className = 'dialog-hint';
+        hint.textContent = 'This page already has content. What should happen to it?';
+        dialog.appendChild(title);
+        dialog.appendChild(hint);
+        var answer = null;
+        var choices = document.createElement('div');
+        choices.className = 'import-kind-choices';
+        [['replace', 'Replace current page', 'The imported document takes the place of what is on this page.'],
+         ['save', 'Save to draft', 'Keeps this page as a draft, then imports the document into a new page.'],
+         ['discard', 'Exit without saving', 'Leaves this page without saving it, then imports the document into a new page.']].forEach(function (item) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'import-kind-choice';
+          var strong = document.createElement('strong');
+          strong.textContent = item[1];
+          var span = document.createElement('span');
+          span.textContent = item[2];
+          b.appendChild(strong);
+          b.appendChild(span);
+          b.addEventListener('click', function () { answer = item[0]; dialog.close(); });
+          choices.appendChild(b);
+        });
+        dialog.appendChild(choices);
+        var actions = document.createElement('div');
+        actions.className = 'dialog-actions';
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'secondary-link';
+        cancel.textContent = 'Cancel';
+        cancel.addEventListener('click', function () { dialog.close(); });
+        actions.appendChild(cancel);
+        dialog.appendChild(actions);
+        dialog.addEventListener('close', function () { dialog.remove(); resolve(answer); });
+        document.body.appendChild(dialog);
+        dialog.showModal();
+      });
+    }
 
     // Step 1 of an import: choose a file, or paste the text
     var importSourceDialog = byId('import-source-dialog');

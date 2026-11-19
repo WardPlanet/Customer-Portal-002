@@ -1519,3 +1519,7 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - Page setup has an **Owner publishes edits** toggle (Allow / Requires review) for a live page: the lead and Admin change it in edit mode (saved at once, not with the draft); it is read-only in the review view and for owners, and greyed on a public page. Same setting as the library menu.
 - Wording: the setting is **Allow owner to republish** (toggle: Allow / Requires review); library menu: Allow owner to republish / Require review for edits.
 - The **+** next to Owner (secondary owner) is no longer shown: Linked members covers it. A page that already has a secondary owner still shows it.
+
+## Library: actions in the sticky top bar; import prompt
+- The library's actions (Import document(s), Team and roles for the lead, More with backups) now sit in the top bar beside New page and the bell (`#top-actions`, filled by `library-ui.js` and cleared on every route). The top bar (`.lib-top`) is **sticky** on every screen. The old second "New page" button in the page header is gone.
+- The editor's **Import document** button, when the page already has content, first asks: **Replace current page** (imports into this page), **Save to draft** (saves this page, then imports into a new page) or **Exit without saving** (discards, then imports into a new page). `PageHost.importInNewPage` does the last two. The library's Import button still asks one document or several.

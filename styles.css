@@ -3067,3 +3067,8 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .prop-strip #visibility-field { width: 160px; }
 .prop-strip .prop-ownerpub { width: 200px; }
 .owner-add[hidden] { display: none; }
+
+/* The top bar stays put while the page scrolls, and carries the library's actions (Import, Team and roles, More) beside New page */
+.lib-top { position: sticky; top: 0; z-index: 30; }
+.top-actions { display: flex; align-items: center; gap: 12px; }
+.top-actions:empty { display: none; }
