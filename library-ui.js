@@ -3755,7 +3755,7 @@
       var article = anchor.closest('article');
       var sectionUrl = location.href.split('#')[0] + anchor.getAttribute('href');
       // Highlighted already? (this heading is the first thing in the highlight). A heading inside a highlighted bigger section starts its own highlight.
-      var isHighlighted = heading.parentNode.classList && heading.parentNode.classList.contains('section-linked') && heading.parentNode.firstChild === heading;
+      var isHighlighted = heading.parentNode.classList && heading.parentNode.classList.contains('section-linked') && !heading.parentNode.classList.contains('is-jump') && heading.parentNode.firstChild === heading;
       if (isHighlighted) {
         clearHighlight(article);
         history.replaceState(null, '', location.href.split('#')[0] + base);   // back to the page's own address
@@ -3780,12 +3780,12 @@
 
   // Marks one section as the linked one: its heading and everything under it, up to the next heading of the same
   // or a higher level, are put on a light yellow background (and scrolled into view when asked).
-  function highlightSection(article, slug, scroll) {
+  function highlightSection(article, slug, scroll, tone) {
     clearHighlight(article);
     var heading = article.querySelector('[data-section="' + slug.replace(/[^a-z0-9-]/g, '') + '"]');
     if (!heading) { return; }
     var level = Number(heading.getAttribute('data-level'));
-    var wrapper = el('div', 'section-linked');
+    var wrapper = el('div', 'section-linked' + (tone === 'jump' ? ' is-jump' : ''));
     // The space above the heading stays above the yellow box (the heading's own top margin moves to the box), so the section above keeps its gap
     wrapper.style.marginTop = getComputedStyle(heading).marginTop;
     article.insertBefore(wrapper, heading);
@@ -3796,7 +3796,7 @@
       if (!next || (next.getAttribute && next.getAttribute('data-level') && Number(next.getAttribute('data-level')) <= level)) { break; }
       node = next;
     }
-    if (scroll !== false) { wrapper.scrollIntoView({ block: 'start' }); }
+    if (scroll !== false) { wrapper.scrollIntoView(tone === 'jump' ? { behavior: 'smooth', block: 'start' } : { block: 'start' }); }
   }
 
   // "On this page" for a live page: the headings in the article, handed to the shared outline (outline.js, also used by the editor).
@@ -3946,7 +3946,7 @@
         text: heading.textContent,
         href: '#' + heading.getAttribute('data-section'),
         target: heading,
-        go: function () { heading.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        go: function () { highlightSection(article, heading.getAttribute('data-section'), true, 'jump'); }   // the same section highlight a link icon gives, in light blue
       };
     });
     var box = window.OnThisPage.build(items);

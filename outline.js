@@ -165,16 +165,6 @@
     // A link the reader clicked wins over the worked-out position: it stays highlighted (even for a short section at the end that the page
     // cannot scroll up to the reading line) until the reader scrolls for themselves (wheel, touch or keys), then the page takes over again.
     var pinned = null;
-    // After a click the heading (and a short first line under it) glow light blue for a couple of seconds, so the eye finds where the page landed. The
-    // box-shadow does the padding, so nothing shifts. Not for a section that is already yellow (linked), nor when motion is turned down.
-    function arrive(heading) {
-      if (!heading || heading.closest('.section-linked') || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) { return; }
-      var parts = [heading];
-      var next = heading.nextElementSibling;
-      if (next && !next.hasAttribute('data-level') && !/^H[1-6]$/.test(next.tagName) && next.getBoundingClientRect().height <= 90) { parts.push(next); }   // a short opening line, not a whole block
-      parts.forEach(function (node) { node.classList.remove('is-arrived'); void node.offsetWidth; node.classList.add('is-arrived'); });
-      setTimeout(function () { parts.forEach(function (node) { node.classList.remove('is-arrived'); }); }, 2400);
-    }
     function unpin() { if (pinned) { pinned = null; schedule(); } }
     function linkOf(item) { return links.filter(function (a) { return a._item === item; })[0]; }
     function mark() {
@@ -220,7 +210,7 @@
     window.addEventListener('resize', schedule);
     box.addEventListener('click', function (event) {
       var link = event.target.closest ? event.target.closest('a') : null;
-      if (link && link._item && tracked.indexOf(link._item) >= 0) { pinned = link._item; arrive(link._item.target); }
+      if (link && link._item && tracked.indexOf(link._item) >= 0) { pinned = link._item; }
       schedule();
     });
     ['wheel', 'touchstart'].forEach(function (name) { window.addEventListener(name, unpin, { passive: true }); });
