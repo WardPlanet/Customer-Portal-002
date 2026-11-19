@@ -505,7 +505,7 @@
     function barDefs() {
       var lead = reviewsFirstBar();
       var defs = [];
-      if (lead) { defs.push(['waiting', 'is-green', function (p) { return isWaitingForReview(p); }, ' waiting for your review']); }
+      if (lead) { defs.push(['waiting', 'is-blue', function (p) { return isWaitingForReview(p); }, ' waiting for your review']); }
       else { defs.push(['sentback', 'is-orange', function (p) { return p.state === 'sent_back'; }, ' sent back with changes requested']); }
       defs.push(['expiring', 'is-yellow', function (p) { var d = expiryOf(p); return !!(d && !d.expired); }, ' expiring soon']);
       defs.push(['expired', 'is-red', function (p) { var d = expiryOf(p); return !!(d && d.expired); }, ' expired']);
@@ -554,7 +554,7 @@
     main.appendChild(tabsBar);
     function tabDefs() {
       return reviewsFirstBar()
-        ? [['', 'All'], ['live', 'Live']]
+        ? [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['live', 'Live']]   // a lead can write drafts too; In review is the pages waiting for the lead
         : [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['live', 'Live']];
     }
     function inTab(p, key) {
