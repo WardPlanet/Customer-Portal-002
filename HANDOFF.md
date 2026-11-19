@@ -1507,6 +1507,6 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - Tabs under the search: **owner** All · Your drafts · In review · Expiring soon · Expired · Live; **team lead and Admin** All · Waiting for review · Expiring soon · Expired · Live. A tab other than All and Live is only shown when it has something in it, with a count badge in its status colour (blue drafts, green waiting, yellow expiring, red expired). The status dropdown and the three bars ("N pages expire…", "…have expired", "…waiting for your review", each with "Show them") are gone; the tabs do the same job. A selected tab that empties goes back to All.
 - The "Your drafts" pinned group and the row colours (blue bar, orange bar, grey locked, yellow/red/green tints) are unchanged; Unpublished and the old "Sent back" filter now live under All. The Select by panel is unchanged.
 
-## Library tabs: Sent back tab, Live landing
-- A **Sent back** tab (owners) shows only when a page was sent back, with a yellow/orange count, the same way Expiring soon and Expired show. Tab order is now Live first, All last.
-- The library opens on **Live**, unless something needs the person: owners land on Sent back, team leads on Waiting for review. Decided once per person per visit (switching the acting person re-decides). The In review count badge is neutral.
+## Library: coloured bars for important items, Live landing
+- Under the search, **coloured accordion bars** list the important items, each opening to its pages with a Review (or Edit) button: **green** pages waiting for your review (lead/Admin), **orange** pages sent back (owner), **yellow** expiring soon, **red** expired. A bar shows only when it has something in it.
+- The tabs are Live, Your drafts, In review (owner), All (Live and All only for lead/Admin). The library opens on **Live**; live rows have a green left bar (expiring/expired keep their yellow/red). The In review count badge is neutral.

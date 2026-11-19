@@ -23,7 +23,7 @@
 
   var team = null;
   var current = { id: null, n: null, backTo: '#/' };   // what the editor is showing
-  var libraryFilters = { q: '', status: '', sortKey: 'updated', sortDown: true, selected: {} };   // selected: page ids ticked for a bulk action (team lead)   // sortDown: newest / Z first
+  var libraryFilters = { q: '', status: 'live', sortKey: 'updated', sortDown: true, selected: {} };   // selected: page ids ticked for a bulk action (team lead)   // sortDown: newest / Z first
 
   // Counts navigations. A screen that finishes loading after the person has already moved on must not
   // draw itself, so each screen remembers the count when it started and checks it after every wait.
@@ -498,13 +498,64 @@
 
     // Status tabs under the search (instead of a status list and the coloured bars). The owner: All, Your drafts, In review, Expiring soon, Expired, Live.
     // The team lead (and Admin): All, Waiting for review, Expiring soon, Expired, Live. A tab other than All and Live shows only when it has something in it, with a count.
+    // Coloured bars under the search for the important items; each opens to list its pages. Owner: sent back, expiring soon, expired.
+    // Team lead / Admin: waiting for review, expiring soon, expired. A bar shows only when it has something in it.
+    var barsBox = el('div', 'lib-bars');
+    main.appendChild(barsBox);
+    function barDefs() {
+      var lead = reviewsFirstBar();
+      var defs = [];
+      if (lead) { defs.push(['waiting', 'is-green', function (p) { return isWaitingForReview(p); }, ' waiting for your review']); }
+      else { defs.push(['sentback', 'is-orange', function (p) { return p.state === 'sent_back'; }, ' sent back with changes requested']); }
+      defs.push(['expiring', 'is-yellow', function (p) { var d = expiryOf(p); return !!(d && !d.expired); }, ' expiring soon']);
+      defs.push(['expired', 'is-red', function (p) { var d = expiryOf(p); return !!(d && d.expired); }, ' expired']);
+      return defs;
+    }
+    function renderBars(pages) {
+      barsBox.textContent = '';
+      libraryFilters.barOpen = libraryFilters.barOpen || {};
+      barDefs().forEach(function (def) {
+        var list = pages.filter(def[2]);
+        if (!list.length) { return; }
+        var open = !!libraryFilters.barOpen[def[0]];
+        var bar = el('div', 'lib-bar ' + def[1]);
+        var head = el('button', 'lib-bar-head');
+        head.type = 'button';
+        head.setAttribute('aria-expanded', String(open));
+        head.appendChild(el('span', 'lib-bar-text', list.length + (list.length === 1 ? ' page' : ' pages') + def[3]));
+        head.appendChild(el('span', 'lib-bar-chevron', open ? '\u25B4' : '\u25BE'));
+        head.addEventListener('click', function () { libraryFilters.barOpen[def[0]] = !open; renderBars(pages); });
+        bar.appendChild(head);
+        if (open) {
+          var ul = el('ul', 'lib-bar-list');
+          list.forEach(function (p) {
+            var li = el('li', 'lib-bar-item');
+            var t = link(p.title, previewUrl(p.id), 'lib-page-link');
+            li.appendChild(t);
+            var info = expiryOf(p);
+            li.appendChild(el('span', 'lib-bar-sub', def[0] === 'expiring' || def[0] === 'expired' ? (info ? info.text : '') : (def[0] === 'sentback' ? 'changes requested' : 'submitted')));
+            var go = button(def[0] === 'sentback' ? 'Edit' : 'Review', 'row-btn' + (def[0] === 'sentback' ? '' : ' row-btn-main'), function () {
+              if (def[0] === 'sentback') { location.hash = '#/edit/' + p.id + '/' + p.workingVersion.n; return; }
+              var n = isWaitingForReview(p) && p.workingVersion ? p.workingVersion.n : (p.liveVersion && p.liveVersion.n ? p.liveVersion.n : p.liveVersion);
+              location.hash = '#/view/' + p.id + '/' + n;
+            });
+            go.setAttribute('aria-label', (def[0] === 'sentback' ? 'Edit ' : 'Review ') + p.title);
+            li.appendChild(go);
+            ul.appendChild(li);
+          });
+          bar.appendChild(ul);
+        }
+        barsBox.appendChild(bar);
+      });
+    }
+
     var tabsBar = el('div', 'lib-tabs');
     tabsBar.setAttribute('role', 'tablist');
     main.appendChild(tabsBar);
     function tabDefs() {
       return reviewsFirstBar()
-        ? [['live', 'Live'], ['waiting', 'Waiting for review'], ['expiring', 'Expiring soon'], ['expired', 'Expired'], ['', 'All']]
-        : [['live', 'Live'], ['sentback', 'Sent back'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['expiring', 'Expiring soon'], ['expired', 'Expired'], ['', 'All']];
+        ? [['live', 'Live'], ['', 'All']]
+        : [['live', 'Live'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['', 'All']];
     }
     function inTab(p, key) {
       if (!key) { return true; }
@@ -522,12 +573,6 @@
       var defs = tabDefs();
       var counts = {};
       defs.forEach(function (def) { counts[def[0]] = pages.filter(function (p) { return inTab(p, def[0]); }).length; });
-      // First arrival: land on Live, unless something needs the person (changes were sent back to them, or pages wait for their review)
-      var landKey = JSON.stringify(window.Store.getActor());
-      if (libraryFilters.landed !== landKey) {
-        libraryFilters.landed = landKey;
-        libraryFilters.status = counts.sentback ? 'sentback' : (counts.waiting ? 'waiting' : 'live');
-      }
       // A selected tab that has emptied (the last draft was submitted) goes back to All
       if (libraryFilters.status && !counts[libraryFilters.status] && defs.some(function (d) { return d[0] === libraryFilters.status; }) && libraryFilters.status !== 'live') { libraryFilters.status = ''; }
       if (!defs.some(function (d) { return d[0] === libraryFilters.status; })) { libraryFilters.status = ''; }
@@ -555,6 +600,7 @@
       var result = await attempt(backend().list(libraryFilters.q));
       if (!result || mine !== routing) { return; }
       renderBackupLine(backupLine, result.pages);
+      renderBars(result.pages);
       renderTabs(result.pages);
       renderList(listBox, result.pages);
       var note = libraryFilters.q ? searchNote(result, function (word) { search.value = word; libraryFilters.q = word; refresh(); }) : null;
@@ -1061,6 +1107,7 @@
       if (draftsStickToTop() && isOwnDraft(p)) { row.classList.add(p.state === 'sent_back' ? 'is-sent-back' : 'is-draft'); }   // a blue bar; an orange one when changes were requested
       if (reviewsFirstBar() && isWaitingForReview(p)) { row.classList.add('is-waiting'); }   // light green, for the lead
       if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // light yellow; red once expired
+      else if (STATE_LABELS[p.state][1] === 'live') { row.classList.add('is-live'); }   // a green bar: live
       if (canBulk) {
         var tickCell = el('td', 'lib-select-cell');
         var tick = el('input');
