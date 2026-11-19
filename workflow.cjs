@@ -594,6 +594,44 @@
     return version;
   }
 
+  // Review of a live page that is expiring or has expired. Each starts a new draft from the live version, so the live page stays up meanwhile.
+  //   renewLive:   the team lead reviews it and it needs no change: the draft is published at once (a copy of the same text, so its 180 days start again)
+  //   submitLive:  the owner says it is still right and sends it to the team lead to approve
+  //   requestChangesOnLive: the team lead asks the owner to update it: a draft goes back to the owner with the lead's note
+  function liveFor(page) {
+    var live = liveVersion(page);
+    if (!live) { throw new WorkflowError('not_live', 'That page is not live.', 409); }
+    if (workingVersion(page)) { throw new WorkflowError('edit_in_progress', 'There is already a version being edited or reviewed. Finish that first.', 409); }
+    return live;
+  }
+  function renewLive(page, actor, team, now) {
+    requireLead(actor, team, 'renew a page');
+    liveFor(page);
+    var v = startEdit(page, actor, now);
+    v.note = 'Reviewed by ' + actor.name + ': no changes needed';
+    return publish(page, v.n, actor, team, now);
+  }
+  function submitLive(page, actor, team, now) {
+    requireActor(actor);
+    liveFor(page);
+    var v = startEdit(page, actor, now);
+    v.note = 'Sent for review as it is still correct';
+    return submit(page, v.n, actor, team, now);
+  }
+  function requestChangesOnLive(page, comment, actor, team, now) {
+    requireLead(actor, team, 'ask for changes to a page');
+    liveFor(page);
+    if (!String(comment || '').trim()) { throw new WorkflowError('comment_needed', 'Say what needs to change, so the owner knows what to fix.', 422); }
+    var v = startEdit(page, actor, now);
+    v.status = STATUS.SENT_BACK;
+    v.decidedBy = actor.name;
+    v.decidedAt = now;
+    v.decisionComment = String(comment).trim();
+    v.note = 'Changes requested by ' + actor.name;
+    touch(page, v, actor, now);
+    return v;
+  }
+
   // Deleting a whole page (every version) is the team lead's alone. This only checks the rule; the server
   // or the browser store then removes the page. A deleted page can only come back from a downloaded backup.
   //
@@ -1173,6 +1211,9 @@
     withdraw: withdraw,
     approve: approve,
     sendBack: sendBack,
+    renewLive: renewLive,
+    submitLive: submitLive,
+    requestChangesOnLive: requestChangesOnLive,
     unpublish: unpublish,
     assertCanDelete: assertCanDelete,
     isMine: isMine,

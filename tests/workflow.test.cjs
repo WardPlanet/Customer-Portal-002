@@ -521,3 +521,26 @@ test('visibility must be chosen before a page is submitted or published; a page 
   assert.ok(W.missingForSubmit(base + '\n[VISIBILITY]\n\n', team).some((m) => /visibility/.test(m)));
   assert.equal(W.missingForSubmit(base + '\n[VISIBILITY]\nInternal-Only\n', team).length, 0);
 });
+
+test('reviewing a live page: the lead can renew it, the owner can send it back for approval, the lead can ask for changes', () => {
+  const team = { slug: 't', name: 'T', lead: 'Lead', roles: [{ title: 'Lead', person: 'Lee', email: 'lee@x.com' }, { title: 'Editor', person: 'Sam', email: 'sam@x.com' }] };
+  const lee = W.actorFor('Lee', team);
+  const sam = W.actorFor('Sam', team);
+  const text = '[TITLE]\nA page\n\n[DESCRIPTION]\nWhat it is.\n\n[OWNER]\nsam@x.com\n\n[VISIBILITY]\nInternal-Only\n';
+  const at = (n) => new Date(Date.UTC(2026, 0, n)).toISOString();
+  const page = W.createPage(team, text, sam, at(1));
+  W.publish(page, 1, lee, team, at(2));
+  W.renewLive(page, lee, team, at(200));
+  assert.equal(page.versions.length, 2);
+  assert.equal(page.liveVersion, 2);
+  assert.throws(() => W.renewLive(page, sam, team, at(201)), (e) => e.code === 'not_lead');
+  W.submitLive(page, sam, team, at(300));
+  assert.equal(W.workingVersion(page).status, 'submitted');
+  const p2 = W.createPage(team, text, sam, at(1));
+  W.publish(p2, 1, lee, team, at(2));
+  assert.throws(() => W.requestChangesOnLive(p2, '', lee, team, at(5)), (e) => e.code === 'comment_needed');
+  W.requestChangesOnLive(p2, 'Update the prices.', lee, team, at(5));
+  assert.equal(W.workingVersion(p2).status, 'sent_back');
+  assert.equal(W.workingVersion(p2).decisionComment, 'Update the prices.');
+  assert.equal(p2.liveVersion, 1);
+});

@@ -1560,7 +1560,26 @@
     // (version history: hidden for now, see HANDOFF)
     var can = function (action) { return data.actions.indexOf(action) >= 0; };
     var waiting = data.version.status === 'submitted';
-    if (actingAsAdmin()) {
+    // Reading the live version of a page that nobody is working on (how a page that is expiring or expired is reviewed)
+    var liveReview = !!(detail && detail.page && detail.page.liveVersion === Number(n) && !detail.page.workingVersion);
+    var isOwner = !!(detail && detail.page && detail.page.owner && W.ownsKey(actor(), detail.page.owner)) || !!(detail && detail.page && detail.page.ownerDefault && actorIsLead());
+    var editFromLive = async function () {
+      var started = await attempt(backend().edit(id));
+      if (started) { location.hash = '#/edit/' + id + '/' + started.version; }
+    };
+    if (liveReview && (actorIsLead() || actingAsAdmin())) {
+      // The team lead: Publish (the page is fine as it is: it stays live and its 180 days start again), Edit, Request changes (the owner is asked to update it)
+      row.appendChild(button('Publish', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'renew-live', 'Reviewed. \u201c' + (data.version.title || 'The page') + '\u201d stays live and its 180 days start again.'); }));
+      row.appendChild(button('Edit', 'row-btn', editFromLive));
+      row.appendChild(button('Request changes', 'row-btn', async function () {
+        var comment = await askComment();
+        if (comment) { runAction(id, Number(n), 'request-changes-live', 'Asked the owner to update it, with your note.', { comment: comment }); }
+      }));
+    } else if (liveReview && isOwner) {
+      // The owner: Submit (it is still correct: the team lead approves it again) and Edit
+      row.appendChild(button('Submit', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'submit-live', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); }));
+      row.appendChild(button('Edit', 'row-btn', editFromLive));
+    } else if (actingAsAdmin()) {
       // Admin sees everything the review can do
       versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
     } else if (actorIsLead()) {

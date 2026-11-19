@@ -488,6 +488,9 @@
           else if (action === 'approve') { W.approve(page, n, who, t, at); }
           else if (action === 'send-back') { W.sendBack(page, n, body && body.comment, who, t, at); }
           else if (action === 'restore') { return { version: W.restore(page, n, who, at).n }; }
+          else if (action === 'renew-live') { W.renewLive(page, who, t, at); }
+          else if (action === 'submit-live') { W.submitLive(page, who, t, at); }
+          else if (action === 'request-changes-live') { W.requestChangesOnLive(page, body && body.comment, who, t, at); }
         });
       },
       requestDelete: async function (id) {

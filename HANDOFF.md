@@ -1394,3 +1394,9 @@ Pages waiting for the lead's review also get a light green row (red/yellow expir
 - **Admin:** unchanged, the full set (Publish, Withdraw, Approve, Send back).
 - **Owner is told:** the bell lists "Changes requested" with the lead's note (a link to the page), and the review view shows the note. **To draft later: the email** to the owner when changes are requested (the server's outbox, like the submission emails).
 - Open question: "the Edit button can change to Review after edits" was not built; Edit stays Edit.
+
+## Reviewing a live page that is expiring or expired
+The Review button on an expired page opens the live version with the same blue-banner buttons:
+- **Team lead (and Admin):** **Publish** (the page is fine: a copy of the live text is published at once, so it stays live and its 180 days start again; version note "Reviewed by ...: no changes needed"), **Edit** (starts a draft from the live version and opens the editor) and **Request changes** (needs a note; a draft goes back to the owner as "Sent back" with the note, and the live page stays up).
+- **Owner:** **Submit** (it is still correct: a copy is sent to the team lead to approve again) and **Edit**.
+- Added to the workflow: `renewLive`, `submitLive`, `requestChangesOnLive` (store actions `renew-live`, `submit-live`, `request-changes-live`; the browser store only, the Node server does not have them yet). The owner's bell shows the requested changes; the email is still to be drafted.
