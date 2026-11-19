@@ -462,11 +462,7 @@
     var headActions = document.getElementById('top-actions');
     headActions.textContent = '';
     // One button for importing: it asks whether it is one document (the editor's own import) or several (batch import)
-    headActions.appendChild(button('Import document(s)', 'secondary-link', async function () {
-      var kind = await askImportKind();
-      if (kind === 'one') { importOnNewPage = true; location.hash = '#/new'; }
-      else if (kind === 'many') { location.hash = '#/batch'; }
-    }));
+    headActions.appendChild(importButton());
     if (actorIsLead()) { headActions.appendChild(button('Team and roles', 'secondary-link', function () { openTeamDialog(); })); }
     // Backups cover the whole team's pages, so only the team lead sees them. They live in a "More" menu so they do not compete with
     // New page; the menu also says when the last backup was made.
@@ -1674,6 +1670,22 @@
   var importOnNewPage = false;
 
   // "Are you importing one document or several?" Resolves to 'one', 'many' or null (closed)
+  // Signed in (not the public site): the wiki's landing and search pages offer Import beside New page
+  function offerImportInTopBar(slot) {
+    if (!slot || (window.Store.isPublicMode && window.Store.isPublicMode())) { return; }
+    slot.textContent = '';
+    slot.appendChild(importButton());
+  }
+
+  // The top bar's Import document(s) button: asks one document or several
+  function importButton() {
+    return button('Import document(s)', 'secondary-link', async function () {
+      var kind = await askImportKind();
+      if (kind === 'one') { importOnNewPage = true; location.hash = '#/new'; }
+      else if (kind === 'many') { location.hash = '#/batch'; }
+    });
+  }
+
   function askImportKind() {
     return new Promise(function (resolve) {
       var dialog = el('dialog', 'draft-dialog import-kind-dialog');
@@ -4276,8 +4288,8 @@
       document.getElementById('nav-library').classList.remove('is-current');
       window.SearchReview.show(main, { el: el, button: button, backend: backend });
     }
-    else if (screen === 'search') { await showPublic({ query: decodeURIComponent(parts.slice(1).join('/')) }); }
-    else if (screen === 'public') { await showPublic(); }
+    else if (screen === 'search') { offerImportInTopBar(topActions); await showPublic({ query: decodeURIComponent(parts.slice(1).join('/')) }); }
+    else if (screen === 'public') { offerImportInTopBar(topActions); await showPublic(); }
     else { await showLibrary(); }
     // Search review is for the team lead only for now
     var adminLink = document.getElementById('nav-admin');

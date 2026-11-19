@@ -1525,3 +1525,4 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - The editor's **Import document** button, when the page already has content, first asks: **Replace current page** (imports into this page), **Save to draft** (saves this page, then imports into a new page) or **Exit without saving** (discards, then imports into a new page). `PageHost.importInNewPage` does the last two. The library's Import button still asks one document or several.
 - Live pages: the left column is 25px wider (265px).
 - The sticky top bar no longer covers things that stick below it: the live page's left column sticks 88px down, and the lead's bulk-action bar 72px down.
+- Signed in, the wiki's landing and search pages show **Import document(s)** beside New page in the top bar (not on the public site).
