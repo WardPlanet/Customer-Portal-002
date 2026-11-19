@@ -1296,7 +1296,7 @@
           if (p.ownerPublishes || p.visibility === 'Internal-Only') {
             moreItems.push({ label: p.ownerPublishes ? 'Require review for edits' : 'Allow owner to republish', onClick: async function () {
               var turnOn = !p.ownerPublishes;
-              if (turnOn && !(await window.askConfirm('The owner will be able to publish changes to \u201c' + p.title + '\u201d without your review. Every version stays in the history. It stops if the page becomes public.', { title: 'Allow the owner to republish?', ok: 'Allow' }))) { return; }
+              if (turnOn && !(await window.askConfirm('The owner will be able to republish changes to \u201c' + p.title + '\u201d without your review. Every version stays in the history. It stops if the page becomes public.', { title: 'Allow owner to republish?', ok: 'Allow' }))) { return; }
               if (await attempt(backend().setOwnerPublishes(p.id, turnOn))) { notice(turnOn ? 'The owner can now publish edits to \u201c' + p.title + '\u201d.' : 'Edits to \u201c' + p.title + '\u201d need review again.'); route(); }
             } });
           }
@@ -1517,7 +1517,7 @@
   }
   async function offerOwnerPublishing(id, title) {
     if (!title) { try { title = (await backend().get(id)).page.title; } catch (error) { title = ''; } }
-    if (!(await window.askConfirm('Once it is live, the owner can publish changes to \u201c' + (title || 'this page') + '\u201d without your review. Every version stays in the history, and you can turn it off any time from the page\u2019s menu.', { title: 'Allow the owner to republish?', ok: 'Allow owner to republish', cancel: 'Keep review' }))) { return; }
+    if (!(await window.askConfirm('Once it is live, the owner can republish changes to \u201c' + (title || 'this page') + '\u201d without your review. Every version stays in the history, and you can turn it off any time from the page\u2019s menu.', { title: 'Allow owner to republish?', ok: 'Allow', cancel: 'Requires review' }))) { return; }
     await attempt(backend().setOwnerPublishes(id, true));
   }
 
