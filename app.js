@@ -103,8 +103,19 @@
         document.getElementById('confirm-dialog-message').textContent = message;
         okButton.textContent = options.ok || 'Continue';
         cancelButton.textContent = options.cancel || 'Cancel';
+        // options.checkbox: a sentence the person must tick before the main button works (for something that cannot be undone)
+        var checkWrap = document.getElementById('confirm-dialog-check-wrap');
+        var check = document.getElementById('confirm-dialog-check');
+        checkWrap.hidden = !options.checkbox;
+        check.checked = false;
+        document.getElementById('confirm-dialog-check-text').textContent = options.checkbox || '';
+        okButton.disabled = !!options.checkbox;
+        function onCheck() { okButton.disabled = !check.checked; }
+        check.addEventListener('change', onCheck);
 
         function finish(answer) {
+          check.removeEventListener('change', onCheck);
+          okButton.disabled = false;
           okButton.removeEventListener('click', onOk);
           cancelButton.removeEventListener('click', onCancel);
           dialog.removeEventListener('cancel', onEscape);
@@ -119,7 +130,7 @@
         cancelButton.addEventListener('click', onCancel);
         dialog.addEventListener('cancel', onEscape);
         dialog.showModal();
-        okButton.focus();
+        (options.checkbox ? check : okButton).focus();
       });
     };
 

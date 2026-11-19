@@ -3072,3 +3072,8 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .lib-top { position: sticky; top: 0; z-index: 30; }
 .top-actions { display: flex; align-items: center; gap: 12px; }
 .top-actions:empty { display: none; }
+
+/* A tick the person must make before a destructive confirm button works */
+.confirm-check { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 16px; font-size: 14px; color: var(--text); cursor: pointer; }
+.confirm-check input { margin-top: 3px; flex: none; }
+#confirm-dialog-ok:disabled { opacity: .5; cursor: not-allowed; }

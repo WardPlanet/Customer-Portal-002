@@ -1527,3 +1527,9 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - The sticky top bar no longer covers things that stick below it: the live page's left column sticks 88px down, and the lead's bulk-action bar 72px down.
 - Signed in, the wiki's landing and search pages show **Import document(s)** beside New page in the top bar (not on the public site).
 - Library (lead/Admin) order: **Select by**, then the pills for what is chosen (with the count and Clear all), then the action bar (# selected, Publish, Unpublish, Change owner, Change visibility, Delete, Clear), then the table.
+
+## Deleting pages
+- **Owners cannot delete**, not even their own draft: the "..." menu has **Request deletion** (or Cancel deletion request) on every page. The request goes to the team lead, who also sees a draft that has a request on it. `assertCanDelete` now refuses anyone but the lead; `requestDelete` no longer needs the page to be live.
+- The team lead sees a red **"N pages with a deletion request"** bar under the search (like the other alert bars) listing who asked and when, with **Delete** and **Keep it**.
+- Every delete (the lead's "..." menu, the bar, and the bulk Delete) asks first with a **tick box** ("I understand this permanently deletes ...") that has to be ticked before **Delete it** works. `window.askConfirm` has a new `checkbox` option for this.
+- Known small thing: a draft someone else asked to delete shows in the lead's "Your drafts" count.

@@ -502,6 +502,7 @@
       var defs = [];
       if (lead) { defs.push(['waiting', 'is-blue', function (p) { return isWaitingForReview(p); }, ' waiting for your review']); }
       else { defs.push(['sentback', 'is-orange', function (p) { return p.state === 'sent_back'; }, ' sent back with changes requested']); }
+      if (lead) { defs.push(['deletion', 'is-red', function (p) { return !!p.deleteRequest; }, ' with a deletion request']); }
       defs.push(['expiring', 'is-yellow', function (p) { var d = expiryOf(p); return !!(d && !d.expired); }, ' expiring soon']);
       defs.push(['expired', 'is-red', function (p) { var d = expiryOf(p); return !!(d && d.expired); }, ' expired']);
       return defs;
@@ -528,7 +529,16 @@
             var t = link(p.title, previewUrl(p.id), 'lib-page-link');
             li.appendChild(t);
             var info = expiryOf(p);
-            li.appendChild(el('span', 'lib-bar-sub', def[0] === 'expiring' || def[0] === 'expired' ? (info ? info.text : '') : (def[0] === 'sentback' ? 'changes requested' : ownerShown(p, teamFor(p.team) || team).name + ' \u00b7 submitted ' + (p.workingVersion && p.workingVersion.submittedAt ? W.daysAgo(p.workingVersion.submittedAt) : 'for review'))));
+            if (def[0] !== 'deletion') li.appendChild(el('span', 'lib-bar-sub', def[0] === 'expiring' || def[0] === 'expired' ? (info ? info.text : '') : (def[0] === 'sentback' ? 'changes requested' : ownerShown(p, teamFor(p.team) || team).name + ' \u00b7 submitted ' + (p.workingVersion && p.workingVersion.submittedAt ? W.daysAgo(p.workingVersion.submittedAt) : 'for review'))));
+            if (def[0] === 'deletion') {
+              li.appendChild(el('span', 'lib-bar-sub', p.deleteRequest.by + ' asked ' + formatDate(p.deleteRequest.at)));
+              li.appendChild(button('Delete', 'row-btn row-btn-danger', async function () { if (await confirmAndDelete(p)) { route(); } }));
+              li.appendChild(button('Keep it', 'row-btn', async function () {
+                if (await attempt(backend().cancelDeleteRequest(p.id))) { notice('Kept \u201c' + p.title + '\u201d. The request was cleared.'); route(); }
+              }));
+              ul.appendChild(li);
+              return;
+            }
             var go = button(def[0] === 'sentback' ? 'Edit' : 'Review', 'row-btn' + (def[0] === 'sentback' ? '' : ' row-btn-main'), function () {
               if (def[0] === 'sentback') { location.hash = '#/edit/' + p.id + '/' + p.workingVersion.n; return; }
               var n = isWaitingForReview(p) && p.workingVersion ? p.workingVersion.n : (p.liveVersion && p.liveVersion.n ? p.liveVersion.n : p.liveVersion);
@@ -725,10 +735,10 @@
 
   // A person who is not the team lead asks for a live page to be deleted. It stays live until the lead agrees.
   async function confirmAndRequestDelete(page) {
-    var question = 'Ask ' + personFor(team.lead) + ' (' + team.lead + ') to delete \u201c' + page.title + '\u201d? It stays live until they agree.';
-    if (!(await window.askConfirm(question, { title: 'Ask to delete this live page?', ok: 'Send request' }))) { return false; }
+    var question = 'Ask ' + personFor(team.lead) + ' (' + team.lead + ') to delete \u201c' + page.title + '\u201d? The page stays until they agree.';
+    if (!(await window.askConfirm(question, { title: 'Request deletion?', ok: 'Send request' }))) { return false; }
     if (!(await attempt(backend().requestDelete(page.id)))) { return false; }
-    notice('Asked ' + personFor(team.lead) + ' to delete \u201c' + page.title + '\u201d. It stays live until then.');
+    notice('Asked ' + personFor(team.lead) + ' to delete \u201c' + page.title + '\u201d. The page stays until then.');
     return true;
   }
 
@@ -744,7 +754,7 @@
     var live = page.liveVersion ? ' It is live now, so it will disappear from the library, search and the public site.' : '';
     var warn = 'This removes \u201c' + page.title + '\u201d and all ' + page.versionCount + (page.versionCount === 1 ? ' version' : ' versions') + '.' + live +
       ' It cannot be undone, except from a backup you downloaded earlier.';
-    if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it' }))) { return false; }
+    if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it', checkbox: 'I understand this permanently deletes the page and every version.' }))) { return false; }
     if (!(await attempt(backend().remove(page.id)))) { return false; }
     notice('Deleted \u201c' + page.title + '\u201d.');
     return true;
@@ -811,7 +821,7 @@
     var question = 'This removes ' + list.length + (list.length === 1 ? ' page' : ' pages') + ' and every version of ' + (list.length === 1 ? 'it' : 'them') + '.' +
       (liveCount ? ' ' + liveCount + (liveCount === 1 ? ' is' : ' are') + ' live and will disappear from the library, search and the public site.' : '') +
       ' It cannot be undone, except from a backup you downloaded earlier.';
-    if (!(await window.askConfirm(question, { title: 'Delete ' + list.length + (list.length === 1 ? ' page?' : ' pages?'), ok: 'Delete them' }))) { return; }
+    if (!(await window.askConfirm(question, { title: 'Delete ' + list.length + (list.length === 1 ? ' page?' : ' pages?'), ok: 'Delete them', checkbox: 'I understand this permanently deletes ' + (list.length === 1 ? 'the page and every version.' : 'these pages and every version.') }))) { return; }
     await runBulk(list, function (p) { return backend().remove(p.id); }, 'Deleted', 'could not be deleted');
   }
 
@@ -1297,7 +1307,7 @@
             } });
           }
         }
-        if (lead || !p.liveVersion) {
+        if (lead) {
           moreItems.push({ label: 'Delete', danger: true, onClick: async function () { if (await confirmAndDelete(p)) { route(); } } });
         } else if (p.deleteRequest) {
           moreItems.push({ label: 'Cancel deletion request', onClick: async function () { if (await cancelDeletionRequest(p)) { route(); } } });

@@ -374,15 +374,20 @@ test('anyone may read a live page, but not another person\'s draft', () => {
   assert.equal(W.canReadVersion(live, live.versions[0], molly, team), true);
 });
 
-test('deleting: a person may delete their own page until it is live; live pages go through the lead', () => {
+test('deleting: only the team lead deletes; an owner sends a deletion request', () => {
   const page = W.createPage(team, draftText('Refunds'), scott, t(1));
-  assert.doesNotThrow(() => W.assertCanDelete(scott, team, page));
+  assert.throws(() => W.assertCanDelete(scott, team, page), /Only the team lead/);   // not even their own draft
   assert.throws(() => W.assertCanDelete(molly, team, page), /your own pages/);
   W.submit(page, 1, scott, team, t(2));
   W.approve(page, 1, micah, team, t(3));
-  assert.throws(() => W.assertCanDelete(scott, team, page), /needs the team lead/);
+  assert.throws(() => W.assertCanDelete(scott, team, page), /Only the team lead/);
   assert.doesNotThrow(() => W.assertCanDelete(micah, team, page));
   assert.throws(() => W.assertCanDelete(scott, team), /Only the team lead/);   // no page given: lead only
+  // A draft can be the subject of a request, and the lead then sees it
+  const draft = W.createPage(team, draftText('Old idea'), scott, t(4));
+  assert.equal(W.canSeeInLibrary(draft, micah, team), false);
+  W.requestDelete(draft, scott, team, t(5));
+  assert.equal(W.canSeeInLibrary(draft, micah, team), true);
 });
 
 test('a deletion request on a live page: owner asks, owner or lead can cancel, others cannot', () => {
@@ -397,7 +402,7 @@ test('a deletion request on a live page: owner asks, owner or lead can cancel, o
   W.cancelDeleteRequest(page, micah, team);
   assert.equal(W.summary(page).deleteRequest, null);
   const draft = W.createPage(team, draftText('Drafty'), scott, t(1));
-  assert.throws(() => W.requestDelete(draft, scott, team, t(4)), /not live/);
+  assert.doesNotThrow(() => W.requestDelete(draft, scott, team, t(4)));   // a draft can be asked about too
 });
 
 test('the lead can change the owner of one page; linked roles stay; others cannot', () => {
