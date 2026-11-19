@@ -1603,8 +1603,15 @@
     } catch (error) { return false; }
   }
   async function offerOwnerPublishing(id, title) {
-    if (!title) { try { title = (await backend().get(id)).page.title; } catch (error) { title = ''; } }
-    if (!(await window.askConfirm('Once it is live, the owner can republish changes to \u201c' + (title || 'this page') + '\u201d without your review. Every version stays in the history, and you can turn it off any time in the page\u2019s setup.', { title: 'Allow owner to republish?', ok: 'Allow', cancel: 'Requires review' }))) { return; }
+    var ownerName = 'the owner';
+    try {
+      var d = await backend().get(id);
+      if (!title) { title = d.page.title; }
+      var who = ownerShown(d.page, teamFor(d.page.team) || team);
+      if (who && who.name && who.name !== 'No owner' && who.name !== 'Unassigned') { ownerName = who.name; }
+    } catch (error) { /* the generic wording is used */ }
+    var question = 'Once it is live, ' + ownerName + ' can republish changes to \u201c' + (title || 'this document') + '\u201d without your review. Every version stays in the history, and you can turn it off any time in the page\u2019s setup.';
+    if (!(await window.askConfirm(question, { title: 'Allow ' + ownerName + ' to republish this document?', ok: 'Allow', cancel: 'Requires review', checkbox: 'I understand ' + ownerName + ' will be able to publish changes to this document without my review.' }))) { return; }
     await attempt(backend().setOwnerPublishes(id, true));
   }
 

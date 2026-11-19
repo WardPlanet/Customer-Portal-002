@@ -3128,3 +3128,4 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* A jump highlight is not a link: no yellow and no "linked" link icon (the icon keeps its normal quiet look) */
 .section-linked.is-jump > .preview-h:first-child .preview-anchor { color: var(--text-faint); background: transparent; opacity: 0.55; }
 .section-linked.is-jump > .preview-h:first-child .preview-anchor:hover { opacity: 1; color: var(--white); background: var(--accent); }
+.confirm-check[hidden] { display: none; }   /* the tick box only shows when a confirm asks for one */
