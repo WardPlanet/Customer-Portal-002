@@ -2376,6 +2376,12 @@ details.menu > summary:focus-visible { outline: 2px solid var(--accent); outline
 .public-mode #nav-admin,
 .public-mode #nav-new,
 .public-mode .notify-slot { display: none !important; }
+/* A signed-in employee on no team has no library: no Library, Search review, Admin or New page links, and no bell */
+.employee-mode #nav-library,
+.employee-mode #nav-review,
+.employee-mode #nav-admin,
+.employee-mode #nav-new,
+.employee-mode .notify-slot { display: none !important; }
 
 
 

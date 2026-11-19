@@ -864,7 +864,7 @@
   // unpublish (lead only, and only while live)
   function pageActions(page, actor, team) {
     var actions = [];
-    if (actor && actor.name) { actions.push('edit'); }
+    if (actor && actor.name && actor.roles && actor.roles.length) { actions.push('edit'); }   // someone on no team can read but not edit
     if (isLead(actor, team) && page.liveVersion) { actions.push('unpublish'); }
     if (isLead(actor, team)) {
       actions.push('delete');

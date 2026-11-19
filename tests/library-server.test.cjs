@@ -136,3 +136,39 @@ test('server: housekeeping purges the old trash and queues expiry emails once', 
     assert.equal((await s.call('Micah', 'GET', '/api/library/trash')).body.items.length, 0);
   } finally { await s.close(); await fs.rm(s.dir, { recursive: true, force: true }); }
 });
+
+test('server: a signed-in employee on no team can search and read live pages, but has no library and cannot change anything', async () => {
+  const s = await start();
+  try {
+    const internal = await s.call('Scott Archer', 'POST', '/api/library/pages', { text: draftText('Internal refunds') });
+    await s.call('Scott Archer', 'POST', '/api/library/pages/' + internal.body.page.id + '/versions/1/submit');
+    await s.call('Micah', 'POST', '/api/library/pages/' + internal.body.page.id + '/versions/1/approve');
+    const publicPage = await s.call('Scott Archer', 'POST', '/api/library/pages', { text: draftText('Public policy').replace('Internal-Only', 'Client-Safe') });
+    await s.call('Scott Archer', 'POST', '/api/library/pages/' + publicPage.body.page.id + '/versions/1/submit');
+    await s.call('Micah', 'POST', '/api/library/pages/' + publicPage.body.page.id + '/versions/1/approve');
+    const draft = await s.call('Scott Archer', 'POST', '/api/library/pages', { text: draftText('Secret draft') });
+
+    const pat = 'Pat Jones';   // signed in at PDDS, on no roster
+    // Search: every live page, internal and public
+    const live = await s.call(pat, 'GET', '/api/library/pages?live=1');
+    assert.equal(live.status, 200);
+    assert.deepEqual(live.body.pages.map((p) => p.title).sort(), ['Internal refunds', 'Public policy']);
+    assert.equal((await s.call(pat, 'GET', '/api/library/suggest?q=refund')).status, 200);
+    assert.equal((await s.call(pat, 'GET', '/api/library/popular')).status, 200);
+    // Reading a live page works and shows the owners; it offers no editing
+    const read = await s.call(pat, 'GET', '/api/library/pages/' + internal.body.page.id);
+    assert.equal(read.status, 200);
+    assert.ok(read.body.page.owner);
+    assert.ok(!read.body.actions.includes('edit'));
+    assert.equal((await s.call(pat, 'GET', '/api/library/pages/' + internal.body.page.id + '/versions/1')).status, 200);
+    // No library, no drafts, no changes
+    assert.equal((await s.call(pat, 'GET', '/api/library/pages')).status, 403);
+    assert.equal((await s.call(pat, 'GET', '/api/library/pages/' + draft.body.page.id)).status, 403);
+    assert.equal((await s.call(pat, 'POST', '/api/library/pages', { text: draftText('Mine') })).status, 403);
+    assert.equal((await s.call(pat, 'POST', '/api/library/pages/' + internal.body.page.id + '/edit')).status, 403);
+    assert.equal((await s.call(pat, 'DELETE', '/api/library/pages/' + internal.body.page.id)).status, 403);
+    assert.equal((await s.call(pat, 'GET', '/api/library/trash')).status, 403);
+    // Nobody anonymous at all
+    assert.equal((await s.call('', 'GET', '/api/library/pages?live=1')).status, 401);
+  } finally { await s.close(); await fs.rm(s.dir, { recursive: true, force: true }); }
+});

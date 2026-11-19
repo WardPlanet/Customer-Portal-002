@@ -253,6 +253,9 @@
         var adminDepartment = el('option', '', 'Admin');   // every department's pages, acting as Admin (test)
         adminDepartment.value = 'admin';
         deptSelect.appendChild(adminDepartment);
+        var employeeDepartment = el('option', '', 'Signed in (no team)');   // a PDDS employee who is on no team: search and read, no library
+        employeeDepartment.value = 'employee';
+        deptSelect.appendChild(employeeDepartment);
         var publicDepartment = el('option', '', 'Public');   // the site as a signed-out visitor sees it (Client-Safe pages only)
         publicDepartment.value = 'public';
         deptSelect.appendChild(publicDepartment);
@@ -267,7 +270,11 @@
       var label = el('label', 'acting-label', 'Acting as ');
       var select = el('select', 'acting-select');
       select.setAttribute('aria-label', 'Acting as');
-      if (window.Store.isAdminMode && window.Store.isAdminMode()) {
+      if (window.Store.isEmployeeMode && window.Store.isEmployeeMode()) {
+        var employeeOption = el('option', '', 'PDDS employee (not on a team)');
+        employeeOption.value = window.Store.getActor();
+        select.appendChild(employeeOption);
+      } else if (window.Store.isAdminMode && window.Store.isAdminMode()) {
         // Admin is the only person to act as there
         var adminOption = el('option', '', 'Admin (test)');
         adminOption.value = window.Workflow.ADMIN_NAME;
@@ -408,7 +415,7 @@
 
   async function refreshNotifications() {
     var slots = ['notify-slot-library', 'notify-slot-editor'].map(function (id) { return document.getElementById(id); });
-    if (!team || !backend() || (window.Store.isPublicMode && window.Store.isPublicMode())) { slots.forEach(function (slot) { slot.textContent = ''; }); return; }
+    if (!team || !backend() || (window.Store.isPublicMode && window.Store.isPublicMode()) || (window.Store.isEmployeeMode && window.Store.isEmployeeMode())) { slots.forEach(function (slot) { slot.textContent = ''; }); return; }
     var result = null;
     try { result = await backend().list(''); } catch (error) { result = null; }
     if (!result) { return; }
@@ -1805,7 +1812,7 @@
   // "Are you importing one document or several?" Resolves to 'one', 'many' or null (closed)
   // Signed in (not the public site): the wiki's landing and search pages offer Import beside New page
   function offerImportInTopBar(slot) {
-    if (!slot || (window.Store.isPublicMode && window.Store.isPublicMode())) { return; }
+    if (!slot || (window.Store.isPublicMode && window.Store.isPublicMode()) || (window.Store.isEmployeeMode && window.Store.isEmployeeMode())) { return; }
     slot.textContent = '';
     slot.appendChild(importButton());
   }
@@ -4483,6 +4490,8 @@
     var screen = parts[0];
     // The public view is the site a signed-out visitor sees: the search page and the Client-Safe pages, nothing else
     if ((window.Store.isPublicMode && window.Store.isPublicMode()) && screen !== 'public' && screen !== 'search') { screen = 'public'; parts = ['public']; if (location.hash !== '#/public') { history.replaceState(null, '', '#/public'); } }
+    // Signed in but on no team: only searching and reading live pages. Everything else (the library, editing, Admin) goes back to the search page.
+    if ((window.Store.isEmployeeMode && window.Store.isEmployeeMode()) && ['public', 'search', 'preview'].indexOf(screen) < 0) { screen = 'public'; parts = ['public']; if (location.hash !== '#/public') { history.replaceState(null, '', '#/public'); } }
     setBanner(null);
     removeTopSearch();   // only a live page has the search box in the Wiki bar
     var topActions = document.getElementById('top-actions');
@@ -4492,7 +4501,7 @@
     else if (screen === 'edit' && parts[1] && parts[2]) { await openEditor(parts[1], parts[2]); }
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
-    else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], true, parts[2]); }
+    else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], !(window.Store.isEmployeeMode && window.Store.isEmployeeMode()), parts[2]); }   // no library to go back to for someone on no team
     else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return (actor().emails || [])[0] || ''; }, destination: batchDestination, owners: batchOwners, teamOfOwner: batchTeamOfOwner }); }
     else if (screen === 'admin' && window.Store.isAdminMode && window.Store.isAdminMode()) {
       showScreen('library', false);
@@ -4527,7 +4536,8 @@
       return;
     }
     team = roster;
-    if (!window.Store.getActor() || (window.Store.getActor().toLowerCase() !== 'admin' && !team.roles.some(function (r) { return r.person === window.Store.getActor(); }))) {
+    var employeeMode = !!(window.Store.isEmployeeMode && window.Store.isEmployeeMode());   // someone signed in who is on no team stays that way
+    if (!employeeMode && (!window.Store.getActor() || (window.Store.getActor().toLowerCase() !== 'admin' && !team.roles.some(function (r) { return r.person === window.Store.getActor(); })))) {
       // The first time: act as the first person who is not the lead, so a new page can be started at once
       var starter = team.roles.filter(function (r) { return r.title !== team.lead; })[0] || team.roles[0];
       window.Store.setActor(starter ? starter.person : '');

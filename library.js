@@ -313,14 +313,17 @@ async function queueEmailToLead(draftsDir, ctx, page) {
 
 export function registerLibraryRoutes(app, draftsDir) {
   // Wraps a handler with the team, the acting person and the current time
-  function staff(handler) {
+  // options.anyone: a signed-in PDDS employee who is on no team's roster may use the route (reading live pages and searching). Everything
+  // else still needs a roster entry, so being signed in alone never gives a library. The handler gets ctx.onTeam to tell the two apart.
+  function staff(handler, options) {
     return async function (req, res) {
       try {
         var team = await readTeam();
         var actor = Workflow.actorFor(decodeURIComponent(req.get('X-Acting-As') || ''), team);
         if (!actor.name) { throw new Workflow.WorkflowError('no_actor', 'Choose who you are acting as first.', 401); }
-        if (!actor.roles.length) { throw new Workflow.WorkflowError('not_on_team', actor.name + ' is not on the team roster.', 403); }
-        await handler(req, res, { team: team, actor: actor, now: new Date().toISOString() });
+        var onTeam = actor.roles.length > 0;
+        if (!onTeam && !(options && options.anyone)) { throw new Workflow.WorkflowError('not_on_team', actor.name + ' is not on the team roster.', 403); }
+        await handler(req, res, { team: team, actor: actor, onTeam: onTeam, now: new Date().toISOString() });
       } catch (error) {
         fail(res, error);
       }
@@ -359,7 +362,7 @@ export function registerLibraryRoutes(app, draftsDir) {
       await fs.appendFile(logFile, JSON.stringify(event) + '\n', 'utf8');
     }
     res.json({});
-  }));
+  }, { anyone: true }));
 
   app.get('/api/search-log', staff(async function (req, res, ctx) {
     Workflow.requireLeadFor(ctx.actor, ctx.team, 'see the search log');
@@ -409,7 +412,7 @@ export function registerLibraryRoutes(app, draftsDir) {
 
   app.get('/api/library/views', staff(async function (req, res) {
     res.json({ views: (await currentDigest()).views });
-  }));
+  }, { anyone: true }));
 
   app.get('/api/library/popular', staff(async function (req, res, ctx) {
     var pages = (await loadAllPages(draftsDir, ctx.team)).filter(function (page) { return !!page.liveVersion; });
@@ -426,15 +429,17 @@ export function registerLibraryRoutes(app, draftsDir) {
       }),
       searches: SearchLog.topSearches(digest.searches, hidden, 3)
     });
-  }));
+  }, { anyone: true }));
 
   // The search box's dropdown: titles, keywords and headings of live pages that match what has been typed so far
   app.get('/api/library/suggest', staff(async function (req, res, ctx) {
     var pages = (await loadAllPages(draftsDir, ctx.team)).filter(function (page) { return !!page.liveVersion; });
     res.json({ suggestions: Search.suggestPages(Workflow, pages, String(req.query.q || ''), 'staff', undefined, function () { return ctx.team; }) });
-  }));
+  }, { anyone: true }));
 
   app.get('/api/library/pages', staff(async function (req, res, ctx) {
+    // Someone signed in who is on no team may search the live pages (?live=1) but has no library
+    if (!req.query.live && !ctx.onTeam) { throw new Workflow.WorkflowError('not_on_team', ctx.actor.name + ' is not on the team roster, so there is no library.', 403); }
     var pages = await loadAllPages(draftsDir, ctx.team);
     var q = String(req.query.q || '').trim();
     // ?live=1 is every live page (what any staff member can read); otherwise it is the library: the team lead
@@ -454,7 +459,7 @@ export function registerLibraryRoutes(app, draftsDir) {
     }
     summaries.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
     res.json({ pages: summaries });
-  }));
+  }, { anyone: true }));
 
   // Team lead only: who holds each role, and how many pages use each role
   app.get('/api/library/roster', staff(async function (req, res, ctx) {
@@ -582,7 +587,7 @@ export function registerLibraryRoutes(app, draftsDir) {
       throw new Workflow.WorkflowError('not_yours', 'That page belongs to someone else.', 403);
     }
     res.json(detail(page, ctx));
-  }));
+  }, { anyone: true }));
 
   app.get('/api/library/pages/:id/versions/:n', staff(async function (req, res, ctx) {
     var page = await open(req, ctx);
@@ -591,7 +596,7 @@ export function registerLibraryRoutes(app, draftsDir) {
       throw new Workflow.WorkflowError('not_yours', 'That version belongs to someone else.', 403);
     }
     res.json({ version: { n: version.n, status: version.status, title: version.title }, text: version.text, actions: Workflow.history(page, ctx.actor, ctx.team).filter(function (h) { return h.n === version.n; })[0].actions });
-  }));
+  }, { anyone: true }));
 
   app.put('/api/library/pages/:id/versions/:n', staff(async function (req, res, ctx) {
     var page = await openMine(req, ctx);

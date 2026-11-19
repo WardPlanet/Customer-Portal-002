@@ -1577,3 +1577,11 @@ The Node server (`server.js`, `library.js`) now has the same rules and routes as
 ## Team lead edits publish, no review
 - For the team lead (and Admin) the editor has no "Review" button in the blue bar, and the footer's main button is **Publish** instead of "Submit for review" (`setMainButtonLabel`, `PageEditor.setSubmitLabel`); `PageHost.submit` publishes for them. Owners keep Submit and Review.
 - When editing a draft of a live page, **Save draft** is greyed out until a change is made (any change counts: typing, a Page setup choice, a block moved) and the required fields are filled in; **Delete draft** (footer and blue bar) is greyed out until a draft has been **saved**. After a save, Save draft greys again and Delete draft is on. Other pages are unchanged (`updateLiveEditButtons` in app.js).
+
+## Signed in, but on no team
+Anyone signed in with a PDDS Entra account can use the wiki even if no team's roster lists them; they just have no library until a team invites them.
+- **They can:** search every live page (public and internal), open them, see each page's owner and contacts, ask a question about a page, copy a link or export a PDF.
+- **They cannot:** open the library, create, import, edit, publish or delete anything, see anyone's drafts, or get notifications. The Library, Search review, Admin and New page links are hidden, and any address for those screens goes back to the search page.
+- **Rule (workflow.cjs):** `pageActions` offers `edit` only to someone who holds a role on the team, so a reader on no team never gets an Edit button.
+- **Node server (`library.js`):** `staff(handler, { anyone: true })` lets a person with no roster entry through for searching and reading only: search log, views, popular, suggest, `GET pages?live=1`, `GET pages/:id` and `versions/:n` (live versions only). The library list, drafts, trash and every change still answer 403 `not_on_team`. `ctx.onTeam` tells the two apart. Tested in `tests/library-server.test.cjs`.
+- **Prototype stand-in:** the Department dropdown has **Signed in (no team)** (`EMPLOYEE_MODE`, acting as "PDDS Employee", `employeeOnly` in store.js). With real Entra sign-in this needs no switch: a verified email that is on no roster simply lands here, and an invitation to a team (a roster entry with that email) gives them a library the next time they open the wiki.

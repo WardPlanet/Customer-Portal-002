@@ -20,6 +20,8 @@
   var DEPARTMENT_KEY = 'pageEditor.department.v1';   // which department the artifact is showing
   var ADMIN_KEY = 'pageEditor.adminMode.v1';         // "1" while the Department dropdown is on Admin (every department, acting as Admin)
   var PUBLIC_KEY = 'pageEditor.publicMode.v1';       // "1" while the Department dropdown is on Public (the site as a signed-out visitor sees it)
+  var EMPLOYEE_KEY = 'pageEditor.employeeMode.v1';   // "1" while the Department dropdown is on "Signed in, no team" (a PDDS employee who is on no team's roster)
+  var EMPLOYEE_NAME = 'PDDS Employee';
   var SEED_KEY = 'pageEditor.seededSupport.v1';
   var DIRECTORY_KEY = 'pageEditor.directory.v1';   // what the Admin tools page changed: new teams, team edits, retired teams, invitations, history
 
@@ -48,8 +50,11 @@
     window.TEAM_ROSTER = window.TEAMS.filter(function (candidate) { return candidate.slug === slug; })[0] || window.TEAMS[0];
     try { window.ADMIN_MODE = localStorage.getItem(ADMIN_KEY) === '1'; } catch (error) { window.ADMIN_MODE = false; }
     try { window.PUBLIC_MODE = localStorage.getItem(PUBLIC_KEY) === '1'; } catch (error) { window.PUBLIC_MODE = false; }
-    if (window.PUBLIC_MODE) { window.ADMIN_MODE = false; }   // one mode at a time
+    try { window.EMPLOYEE_MODE = localStorage.getItem(EMPLOYEE_KEY) === '1'; } catch (error) { window.EMPLOYEE_MODE = false; }
+    if (window.PUBLIC_MODE) { window.ADMIN_MODE = false; window.EMPLOYEE_MODE = false; }   // one mode at a time
+    if (window.EMPLOYEE_MODE) { window.ADMIN_MODE = false; }
     document.documentElement.classList.toggle('public-mode', !!window.PUBLIC_MODE);
+    document.documentElement.classList.toggle('employee-mode', !!window.EMPLOYEE_MODE);
   })();
 
   function fail(code, message) {
@@ -294,6 +299,19 @@
     return view;
   }
 
+  // A signed-in PDDS employee who is on no team: they can search and read every live page (public and internal), but there is no library,
+  // no editing and no notifications. Everything else is refused. (Being invited to a team's roster gives them a library.)
+  function employeeOnly(inner) {
+    var ALLOWED = ['mode', 'isMemoryOnly', 'logSearch', 'viewCounts', 'list', 'suggest', 'popular', 'get', 'getVersion'];
+    var view = {};
+    Object.keys(inner).forEach(function (name) {
+      if (ALLOWED.indexOf(name) >= 0) { view[name] = inner[name]; return; }
+      view[name] = async function () { throw fail('not_on_team', 'You are signed in, but you are not on a team, so you do not have a library.'); };
+    });
+    view.list = async function (q) { return inner.list(q || '', true); };   // live pages only, never the library
+    return view;
+  }
+
   function local(team, allTeams) {
     var W = window.Workflow;
     var teamsBySlug = {};
@@ -333,6 +351,13 @@
     }
     function writeJson(key, value) {
       try { localStorage.setItem(key, JSON.stringify(value)); } catch (error) { /* storage full or blocked: the log is best effort */ }
+    }
+
+    // Who is reading: anyone signed in, on a team or not (reading live pages needs no roster entry)
+    function reader() {
+      var who = W.actorFor(actingAs, team);
+      if (!who.name) { throw fail('no_actor', 'Choose who you are acting as first.'); }
+      return who;
     }
 
     function actor() {
@@ -381,7 +406,7 @@
       mode: 'local',
       isMemoryOnly: function () { return !!memory; },
       list: async function (q, liveOnly) {
-        var who = actor();
+        var who = liveOnly ? reader() : actor();
         // Live pages are company-wide; the library is this department's own pages
         // (Admin sees every department's pages and drafts in the library.)
         var isAdmin = !!who.admin;
@@ -462,13 +487,13 @@
         return Object.assign(detail(page), { version: page.versions[0].n });
       },
       get: async function (id) {
-        actor();
+        reader();
         var page = find(readAll(), id);
         if (!page.liveVersion && !W.canSeeInLibrary(page, actorIn(teamOf(page)), teamOf(page))) { throw fail('not_yours', 'That page belongs to someone else.'); }
         return detail(page);
       },
       getVersion: async function (id, n) {
-        actor();
+        reader();
         var page = find(readAll(), id);
         var t = teamOf(page);
         var who = actorIn(t);
@@ -1052,28 +1077,34 @@
     // The departments this copy can show (more than one only in the Claude artifact), and which one is showing
     teams: function () { return window.TEAMS && window.TEAMS.length ? window.TEAMS : (window.TEAM_ROSTER ? [window.TEAM_ROSTER] : []); },
     // What the Department dropdown shows: a department's slug, or "admin"
-    getDepartment: function () { return window.PUBLIC_MODE ? 'public' : window.ADMIN_MODE ? 'admin' : (window.TEAM_ROSTER ? window.TEAM_ROSTER.slug : ''); },
+    getDepartment: function () { return window.PUBLIC_MODE ? 'public' : window.EMPLOYEE_MODE ? 'employee' : window.ADMIN_MODE ? 'admin' : (window.TEAM_ROSTER ? window.TEAM_ROSTER.slug : ''); },
     isAdminMode: function () { return !!window.ADMIN_MODE; },
     isPublicMode: function () { return !!window.PUBLIC_MODE; },
+    isEmployeeMode: function () { return !!window.EMPLOYEE_MODE; },
     // Switching department is a reload of the page (the page then works as that team); the person acting becomes that team's lead.
     // "admin" is not a team: it shows every department's pages, and the only person to act as is Admin (test). keepMode: change the
     // team the page works as without leaving the mode (Admin opening another department's page).
     setDepartment: function (slug, keepMode) {
       if (slug === 'public') {
-        try { localStorage.setItem(PUBLIC_KEY, '1'); localStorage.removeItem(ADMIN_KEY); } catch (error) { /* storage unavailable */ }
+        try { localStorage.setItem(PUBLIC_KEY, '1'); localStorage.removeItem(ADMIN_KEY); localStorage.removeItem(EMPLOYEE_KEY); } catch (error) { /* storage unavailable */ }
+        return true;
+      }
+      if (slug === 'employee') {
+        try { localStorage.setItem(EMPLOYEE_KEY, '1'); localStorage.removeItem(PUBLIC_KEY); localStorage.removeItem(ADMIN_KEY); } catch (error) { /* storage unavailable */ }
+        this.setActor(EMPLOYEE_NAME);
         return true;
       }
       if (slug === 'admin') {
-        try { localStorage.setItem(ADMIN_KEY, '1'); localStorage.removeItem(PUBLIC_KEY); } catch (error) { /* storage unavailable */ }
+        try { localStorage.setItem(ADMIN_KEY, '1'); localStorage.removeItem(PUBLIC_KEY); localStorage.removeItem(EMPLOYEE_KEY); } catch (error) { /* storage unavailable */ }
         this.setActor('Admin');
         return true;
       }
       var chosen = this.teams().filter(function (candidate) { return candidate.slug === slug; })[0];
       if (!chosen) { return false; }
       try { localStorage.setItem(DEPARTMENT_KEY, slug); } catch (error) { /* storage unavailable */ }
-      if (keepMode && (window.ADMIN_MODE || window.PUBLIC_MODE)) { return true; }
+      if (keepMode && (window.ADMIN_MODE || window.PUBLIC_MODE || window.EMPLOYEE_MODE)) { return true; }
       try { localStorage.removeItem(PUBLIC_KEY); } catch (error) { /* storage unavailable */ }
-      try { localStorage.removeItem(ADMIN_KEY); } catch (error) { /* storage unavailable */ }
+      try { localStorage.removeItem(ADMIN_KEY); localStorage.removeItem(EMPLOYEE_KEY); } catch (error) { /* storage unavailable */ }
       var lead = chosen.roles.filter(function (role) { return role.title === chosen.lead; })[0];
       if (lead && lead.person) { this.setActor(lead.person); }
       return true;
@@ -1084,10 +1115,11 @@
       if (team && window.Workflow) {
         // Admin (test) is only for the Admin department, and nobody else is Admin
         if (window.ADMIN_MODE) { this.setActor('Admin'); }
-        else if (actingAs.toLowerCase() === 'admin') { this.setActor(DEFAULT_ACTOR); }
+        else if (actingAs.toLowerCase() === 'admin' || (!window.EMPLOYEE_MODE && actingAs === EMPLOYEE_NAME)) { this.setActor(DEFAULT_ACTOR); }
         this.backend = local(team, window.TEAMS);
         seedSupportDemo(window.TEAMS);
         if (window.PUBLIC_MODE) { this.backend = publicOnly(this.backend); }
+        else if (window.EMPLOYEE_MODE) { this.setActor(EMPLOYEE_NAME); this.backend = employeeOnly(this.backend); }
         return team;
       }
       try {
