@@ -4023,7 +4023,7 @@
 
     // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)
     var asPublicNow = (window.Store.isPublicMode && window.Store.isPublicMode());   // the public view always reads as the public sees it
-    var exportButton = button('Export PDF', 'secondary-btn', async function () {
+    var exportButton = button('Export PDF', 'primary-btn', async function () {
       exportButton.disabled = true;
       try {
         var name = await window.PageEditor.exportPdfFromText(asPublicNow ? W.publicText(data.text) : data.text);
@@ -4035,12 +4035,13 @@
         exportButton.disabled = false;
       }
     });
-    railTools.appendChild(exportButton);
-    var copyButton = button('Copy link', 'secondary-btn', async function () {
+
+    var copyButton = button('Copy link', 'primary-btn', async function () {
       var pageUrl = location.href.split('#')[0] + (fromLibrary ? '#/preview/' : '#/public/') + id;
       await copyLinkWithNotice(pageUrl, 'Page link ready.');
     });
-    railTools.appendChild(copyButton);
+    railTools.appendChild(copyButton);   // Copy link above Export PDF
+    railTools.appendChild(exportButton);
 
     await draw(asPublicNow);
   }

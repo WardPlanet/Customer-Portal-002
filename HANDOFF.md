@@ -1486,3 +1486,5 @@ Page setup order, left to right: Team, Reviewer, Owner, Linked members, Visibili
 - **Not covered:** "This page does not cover that." with "Search the wiki for it" (the results page for the question) and, for staff, the owner's email and Teams (the public view offers Contact support when it is set).
 - **Logged** without names (`k: 'a'`, the question, page and whether it was covered; see `search-log.cjs`). The Search review screen has a new list, **"Questions a page could not answer"**, so owners can see what a page is missing.
 - Scope for now: this page only (not the whole wiki). Tested here with stand-in answers only, because the real AI is not available in the preview; the prompt and answer handling are what to check with the real AI. Cost: one AI request per question.
+
+Live page left column: **Copy link** is above **Export PDF**, and both are the standard blue primary buttons.

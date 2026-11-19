@@ -2954,3 +2954,5 @@ body.is-public .prop-bar { display: none; }
 .ask-working { margin: 0; font-size: 14px; color: var(--text-muted); }
 .ask-from, .ask-next { margin: 8px 0 0; font-size: 13px; color: var(--text-muted); }
 .ask-note { margin: 10px 0 0; font-size: 12px; color: var(--text-muted); }
+
+.rail-tools .primary-btn { width: 100%; justify-content: center; text-align: center; }
