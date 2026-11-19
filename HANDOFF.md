@@ -1557,3 +1557,4 @@ The Node server (`server.js`, `library.js`) now has the same rules and routes as
 - **Still not on the server:** several departments (the server uses one team, `readTeam()`), Admin creating a draft in another department, the import example outlines, flag decisions, and backups including the trash (a backup holds the pages only). Real sign-in still replaces the `X-Acting-As` header.
 - A highlighted (linked) section is now exactly as wide as the section, with its padding inside; the text reflows to fit and the box no longer spills into the margins.
 - Linked section: the link icon stays in the same place as before the highlight (nudged back by the padding); the yellow starts where the text started and the text moves in by the padding.
+- Linked section: the gap above it is kept (the heading's top margin moves to the yellow box), so nothing above moves and nothing moves up; the heading and what follows move down by the box's 16px padding.

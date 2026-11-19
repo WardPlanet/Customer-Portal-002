@@ -3113,7 +3113,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 
 /* A highlighted (linked) section stays exactly as wide as the section itself, with its padding inside, so the text reflows to fit
    instead of the box spilling into the margins */
-.section-linked { margin: 0 0 12px; padding: 8px 16px 12px; box-shadow: none; background: var(--linked-bg); border-radius: 12px; }
+.section-linked { margin: 0 0 12px; padding: 16px 16px 12px; box-shadow: none; background: var(--linked-bg); border-radius: 12px; }
 .section-linked > :last-child { margin-bottom: 0; }
 .section-linked > .preview-h:first-child { margin-top: 0; }
 /* The link icon stays exactly where it is when a section is highlighted: the box starts where the text started, the text moves in by the padding, so the icon is nudged back by the same amount without moving the text */

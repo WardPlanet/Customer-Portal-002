@@ -3786,6 +3786,8 @@
     if (!heading) { return; }
     var level = Number(heading.getAttribute('data-level'));
     var wrapper = el('div', 'section-linked');
+    // The space above the heading stays above the yellow box (the heading's own top margin moves to the box), so the section above keeps its gap
+    wrapper.style.marginTop = getComputedStyle(heading).marginTop;
     article.insertBefore(wrapper, heading);
     var node = heading;
     while (node) {
