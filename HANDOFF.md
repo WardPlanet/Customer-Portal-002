@@ -1460,7 +1460,7 @@ The library's "Batch import" link is now one button, **Import document(s)**. It 
 The team lead and Admin no longer see a draft (or a sent-back page) that has never been published and has not been submitted for review, unless it is theirs (they own it or wrote it). It appears for the lead the moment its author submits it (`Workflow.canSeeInLibrary`, `isUnsubmittedDraft`; the library list, the bell and opening the page all follow it; the Node server uses the same rule). A live page with a draft edit in progress still shows as live. Download backup still contains every page.
 
 ## Live page: where things sit now
-- **Public / Internal and "Updated N days ago"** are at the right of the department line (the eyebrow), for staff; a visitor sees neither.
+- **"Updated N days ago" and then Public / Internal** are at the right of the department line (the eyebrow), for staff, in that order (Public / Internal is the far right); a visitor sees neither.
 - **Export PDF and Copy link** are two buttons at the bottom of the left column, under Related pages. The fixed bottom bar now holds only Edit / Send for review / Publish page for the people allowed to use them, and is not drawn at all when there is none (a visitor, or a reader who cannot edit).
 
 ## Editor: Visibility dropdown, quieter outline, Related pages card

@@ -3771,12 +3771,12 @@
         eyebrowRow.appendChild(eyebrow);
         if (!publicMode) {
           var eyebrowDetails = el('span', 'eyebrow-details');
-          eyebrowDetails.appendChild(visibilityPill(detail.page.visibility));
           if (detail.page.updatedAt) {
             var eyebrowUpdated = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
             eyebrowUpdated.title = formatDate(detail.page.updatedAt);
             eyebrowDetails.appendChild(eyebrowUpdated);
           }
+          eyebrowDetails.appendChild(visibilityPill(detail.page.visibility));   // "Updated ..." first, then Public / Internal at the far right
           eyebrowRow.appendChild(eyebrowDetails);
         }
         pageTitle.parentNode.insertBefore(eyebrowRow, pageTitle);
