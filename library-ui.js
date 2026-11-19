@@ -828,7 +828,7 @@
   // Sorts a copy of the rows by the chosen heading. Ties keep the newest page first.
   function isOwnDraft(p) { return p.state === 'draft' || p.state === 'sent_back'; }
   // A live page with changes being drafted (not submitted): seen only by the person who is drafting them or owns the page (a lead who edits someone else's live page sees their own draft too)
-  function hasOwnEditInProgress(p) { return p.state === 'live_edit_in_progress' && !!p.workingVersion && ((p.owner && W.ownsKey(actor(), p.owner)) || (p.ownerDefault && actorIsLead()) || (!!p.workingVersion.author && p.workingVersion.author === actor().name)); }
+  function hasOwnEditInProgress(p) { return p.state === 'live_edit_in_progress' && !!p.workingVersion && p.workingVersion.changed !== false && ((p.owner && W.ownsKey(actor(), p.owner)) || (p.ownerDefault && actorIsLead()) || (!!p.workingVersion.author && p.workingVersion.author === actor().name)); }
   // What the Your drafts tab lists: drafts, and live pages with changes being drafted
   function inYourDrafts(p) { return isOwnDraft(p) || hasOwnEditInProgress(p); }
   function isWaitingForReview(p) { return !!(p.workingVersion && p.workingVersion.status === 'submitted') || p.state === 'in_review' || p.state === 'live_edit_in_review'; }
@@ -1678,6 +1678,7 @@
     current = { id: id, n: Number(n), backTo: '#/' };
     var detail = await attempt(backend().get(id));
     current.ownerPublishes = !!(detail && detail.page && detail.page.ownerPublishes && !actorIsLead() && !actingAsAdmin());
+    current.liveEdit = !!(detail && detail.page && detail.page.liveVersion);   // changes to a live page are saved only by hand
     if (mine !== routing) { return; }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
 
@@ -1697,6 +1698,7 @@
     // reading the page). The owner: Submit and Review. The team lead (and Admin): Publish, Review, and Request changes when the page is waiting for review.
     var status = hist ? hist.status : 'draft';
     lines.unshift('Editing ' + (hist && hist.release ? versionName(hist).toLowerCase() : 'a draft') + (status === 'submitted' ? ' \u2014 waiting for review' : '') + '.');
+    if (current.liveEdit && status !== 'submitted') { lines.push('This page is live, so your changes are not saved automatically. Click Save draft to keep them.'); }
     var box = editorBanner(lines, tone === 'warn' ? 'info' : tone);
     var actionsRow = el('div', 'banner-actions');
     var leadView = actorIsLead() || actingAsAdmin();
@@ -1709,7 +1711,13 @@
     actionsRow.appendChild(button('Review', 'row-btn', async function () {
       // Save what was typed first, so the review shows it
       if (window.PageEditor.isDirty()) {
-        try { await window.PageHost.autosave(window.PageEditor.getText()); } catch (error) { notice(error && error.message ? error.message : 'That could not be saved yet.'); return; }
+        if (current.liveEdit) {
+          var choice = await askSaveOrLeave();
+          if (!choice) { return; }
+          if (choice === 'save') { try { await window.PageHost.save(window.PageEditor.getText()); } catch (error) { notice(error && error.message ? error.message : 'That could not be saved yet.'); return; } }
+        } else {
+          try { await window.PageHost.autosave(window.PageEditor.getText()); } catch (error) { notice(error && error.message ? error.message : 'That could not be saved yet.'); return; }
+        }
       }
       location.hash = '#/view/' + id + '/' + n;
     }));
@@ -1768,6 +1776,40 @@
     slot.textContent = '';
     slot.appendChild(importButton());
   }
+
+  // "Save draft", "Leave without saving" or Cancel: asked when someone leaves a live page they have changed but not saved. Resolves to 'save', 'leave' or null.
+  function askSaveOrLeave() {
+    return new Promise(function (resolve) {
+      var dialog = el('dialog', 'draft-dialog import-kind-dialog');
+      dialog.setAttribute('aria-label', 'Save your changes?');
+      dialog.appendChild(el('h2', 'dialog-title', 'Save your changes?'));
+      dialog.appendChild(el('p', 'dialog-hint', 'This page is live, so your changes are only kept when you save them. They are not saved automatically.'));
+      var answer = null;
+      var choices = el('div', 'import-kind-choices');
+      function choice(title, text, value) {
+        var b = el('button', 'import-kind-choice');
+        b.type = 'button';
+        b.appendChild(el('strong', '', title));
+        b.appendChild(el('span', '', text));
+        b.addEventListener('click', function () { answer = value; dialog.close(); });
+        return b;
+      }
+      choices.appendChild(choice('Save draft', 'Keeps your changes as a draft. The live page does not change.', 'save'));
+      choices.appendChild(choice('Leave without saving', 'Your changes are lost.', 'leave'));
+      dialog.appendChild(choices);
+      var actions = el('div', 'dialog-actions');
+      actions.appendChild(button('Cancel', 'secondary-link', function () { dialog.close(); }));
+      dialog.appendChild(actions);
+      dialog.addEventListener('close', function () { dialog.remove(); resolve(answer); });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
+  // Closing the tab or reloading with unsaved changes to a live page: the browser's own warning
+  window.addEventListener('beforeunload', function (event) {
+    if (current.liveEdit && window.PageEditor && window.PageEditor.isDirty && window.PageEditor.isDirty()) { event.preventDefault(); event.returnValue = ''; }
+  });
 
   // The top bar's Import document(s) button: asks one document or several
   function importButton() {
@@ -4336,8 +4378,9 @@
     },
     // Called by the editor on a timer. Saves the draft quietly when the page already exists in the library;
     // a brand-new page is only kept once the person has saved it themselves. Resolves to true when it saved.
+    autosaveEnabled: function () { return !current.liveEdit; },   // a draft of a live page is saved only when the editor clicks Save draft
     autosave: async function (text) {
-      if (current.id === null) { return false; }
+      if (current.id === null || current.liveEdit) { return false; }
       await backend().save(current.id, current.n, text);
       window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
       return true;
@@ -4366,7 +4409,16 @@
       if (location.hash === '#/new') { route(); } else { location.hash = '#/new'; }
     },
     leave: async function () {
-      if (window.PageEditor.isDirty() && !(await window.askConfirm('Your changes will be lost.', { title: 'Leave without saving?', ok: 'Leave' }))) { return; }
+      if (window.PageEditor.isDirty()) {
+        if (current.liveEdit) {
+          // Changes to a live page are never autosaved: save the draft, or leave without it
+          var choice = await askSaveOrLeave();
+          if (!choice) { return; }
+          if (choice === 'save') {
+            try { await this.save(window.PageEditor.getText()); } catch (error) { notice(error && error.message ? error.message : 'That could not be saved yet.'); return; }
+          }
+        } else if (!(await window.askConfirm('Your changes will be lost.', { title: 'Leave without saving?', ok: 'Leave' }))) { return; }
+      }
       location.hash = current.backTo || '#/';
     }
   };

@@ -2475,6 +2475,7 @@
     var AUTOSAVE_SECONDS = 30;
     async function autosave() {
       if (isSaving || !window.PageHost || !window.PageHost.autosave) { return; }
+      if (window.PageHost.autosaveEnabled && !window.PageHost.autosaveEnabled()) { return; }   // a draft of a live page is saved only by hand
       if (document.body.classList.contains('is-readonly') || byId('editor-screen').hidden) { return; }
       if (!byId('save-status').classList.contains('is-unsaved')) { return; }
       var seen = editCount;

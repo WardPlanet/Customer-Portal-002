@@ -796,7 +796,7 @@
       state: state,
       deleteRequest: page.deleteRequest ? { by: page.deleteRequest.by, at: page.deleteRequest.at } : null,
       liveVersion: page.liveVersion,
-      workingVersion: working ? { n: working.n, status: working.status, author: working.author || '', submittedBy: working.submittedBy || '', submittedAt: working.submittedAt || '', decisionComment: working.status === STATUS.SENT_BACK ? (working.decisionComment || '') : '', decidedAt: working.decidedAt || '' } : null,
+      workingVersion: working ? { n: working.n, status: working.status, author: working.author || '', changed: !!live && working.text !== live.text, submittedBy: working.submittedBy || '', submittedAt: working.submittedAt || '', decisionComment: working.status === STATUS.SENT_BACK ? (working.decisionComment || '') : '', decidedAt: working.decidedAt || '' } : null,
       versionCount: page.versions.length,
       ownerPublishes: !!page.ownerPublishes,
       // The live version was published by the owner without review (the lead is told for a week)
