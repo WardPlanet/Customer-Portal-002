@@ -3005,3 +3005,5 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 
 /* The "In Review" label on a locked row is blue too */
 .row-locked { color: var(--navy); background: var(--brand-tint); border-color: var(--accent-border, var(--border)); }
+
+.lib-tab-sentback .lib-tab-count { color: var(--warn-ink); background: var(--caution-tint); border-color: var(--warn-border); }   /* changes requested: orange/yellow like expiring */

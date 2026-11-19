@@ -503,12 +503,13 @@
     main.appendChild(tabsBar);
     function tabDefs() {
       return reviewsFirstBar()
-        ? [['', 'All'], ['waiting', 'Waiting for review'], ['expiring', 'Expiring soon'], ['expired', 'Expired'], ['live', 'Live']]
-        : [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['expiring', 'Expiring soon'], ['expired', 'Expired'], ['live', 'Live']];
+        ? [['live', 'Live'], ['waiting', 'Waiting for review'], ['expiring', 'Expiring soon'], ['expired', 'Expired'], ['', 'All']]
+        : [['live', 'Live'], ['sentback', 'Sent back'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['expiring', 'Expiring soon'], ['expired', 'Expired'], ['', 'All']];
     }
     function inTab(p, key) {
       if (!key) { return true; }
       if (key === 'live') { return STATE_LABELS[p.state][1] === 'live'; }
+      if (key === 'sentback') { return p.state === 'sent_back'; }
       if (key === 'drafts') { return isOwnDraft(p); }
       if (key === 'inreview') { return isWaitingForReview(p); }
       if (key === 'waiting') { return isWaitingForReview(p); }
@@ -521,6 +522,12 @@
       var defs = tabDefs();
       var counts = {};
       defs.forEach(function (def) { counts[def[0]] = pages.filter(function (p) { return inTab(p, def[0]); }).length; });
+      // First arrival: land on Live, unless something needs the person (changes were sent back to them, or pages wait for their review)
+      var landKey = JSON.stringify(window.Store.getActor());
+      if (libraryFilters.landed !== landKey) {
+        libraryFilters.landed = landKey;
+        libraryFilters.status = counts.sentback ? 'sentback' : (counts.waiting ? 'waiting' : 'live');
+      }
       // A selected tab that has emptied (the last draft was submitted) goes back to All
       if (libraryFilters.status && !counts[libraryFilters.status] && defs.some(function (d) { return d[0] === libraryFilters.status; }) && libraryFilters.status !== 'live') { libraryFilters.status = ''; }
       if (!defs.some(function (d) { return d[0] === libraryFilters.status; })) { libraryFilters.status = ''; }
@@ -792,6 +799,7 @@
         var due = expiryOf(p);
         return !!(due && due.expired === (libraryFilters.status === 'expired'));
       }
+      if (libraryFilters.status === 'sentback') { return p.state === 'sent_back'; }
       if (libraryFilters.status === 'drafts') { return isOwnDraft(p); }
       if (libraryFilters.status === 'inreview') { return isWaitingForReview(p); }
       return !libraryFilters.status || STATE_LABELS[p.state][1] === libraryFilters.status;
