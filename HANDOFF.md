@@ -1467,3 +1467,5 @@ The team lead and Admin no longer see a draft (or a sent-back page) that has nev
 - **Visibility is a dropdown** ("Choose visibility", "Internal only", "Client-safe") in the Page setup bar. It is still required to submit or publish, and choosing Client-safe still asks "Make this page public?" (Cancel puts the old value back).
 - The outline's empty-state sentence ("No steps yet. Add a Step block…") is gone; the "~N min read · N steps" line only shows when there are steps.
 - **Related pages** is a card of its own under On this page, with a normal-size title, a "?" tooltip and a larger blue **+** that opens the search.
+
+Landing page: the Popular pages tiles are white (light mode) with a light grey border and a pale grey hover; dark mode is unchanged (`--tile-*` in `styles.css`). The design reference showed them pale blue.

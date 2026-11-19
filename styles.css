@@ -2039,7 +2039,7 @@ mark.search-hit { background: var(--mark-bg); color: inherit; border-radius: 3px
 /* The tiles follow the theme: pale blue in light mode (as before), dark surfaces in dark mode. The description shows up to three lines and
    ends with an ellipsis; the tile grows to fit, with a "View page" line at the bottom. */
 .landing-tile {
-  --tile-bg: #D3E6F5; --tile-hover: #C7DDF1; --tile-border: #B3CFE8; --tile-title: var(--navy); --tile-text: #2A3F6B; --tile-link: #0A5BC4; --tile-icon: var(--icon-blue);
+  --tile-bg: var(--surface); --tile-hover: var(--surface-muted); --tile-border: var(--border); --tile-title: var(--navy); --tile-text: #2A3F6B; --tile-link: #0A5BC4; --tile-icon: var(--icon-blue);
   display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; min-height: 200px; padding: 24px 24px; box-sizing: border-box;
   background: var(--tile-bg); border: 1px solid var(--tile-border); border-radius: 12px; color: var(--tile-title); text-decoration: none;
 }
