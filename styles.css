@@ -2035,7 +2035,9 @@ mark.search-hit { background: var(--mark-bg); color: inherit; border-radius: 3px
 .landing-search::placeholder { color: #8A8EA8; }
 .landing-results { width: 100%; max-width: var(--content-max); margin: 0 auto; padding: 32px 32px 32px; box-sizing: border-box; }
 .landing-top-title { margin: 0 0 16px; font-size: 22px; font-weight: 700; color: var(--text); }
-.landing-top { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
+.landing-top { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }   /* the three tiles share the full width */
+@media (max-width: 960px) { .landing-top { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .landing-top { grid-template-columns: minmax(0, 1fr); } }
 /* The tiles follow the theme: pale blue in light mode (as before), dark surfaces in dark mode. The description shows up to three lines and
    ends with an ellipsis; the tile grows to fit, with a "View page" line at the bottom. */
 .landing-tile {

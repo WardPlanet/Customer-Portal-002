@@ -1500,3 +1500,5 @@ The content width was set to 1350px (from 1400). The five Page setup fields were
 
 ## Status colours (the standard, applied)
 Five meanings, the same on every screen, never colour alone (each has words or an icon): **red** error or urgent (expired); **yellow/orange** warning (expiring soon; changes requested, an orange bar and "Sent back"); **green** done or ready (Live; the lead's "waiting for your review" tint and Review button); **blue** information, in progress, primary (links, buttons, your own drafts: a blue bar under a **"Your drafts"** heading); **grey** inactive or locked (a page locked "In Review" is a grey row with muted text; disabled fields). Status itself is a badge; a whole-row tint is only used for needs-attention states (expiring, expired, waiting for review). Owners' drafts are no longer tinted grey. Also written into the style guide artifact ("Status colours").
+
+Landing: the three Popular pages tiles share the full content width (three equal columns; two under 960px, one under 640px). The old auto-fill grid left an empty fourth column at 1350px.
