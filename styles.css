@@ -2999,7 +2999,6 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 .lib-tab.is-selected { color: var(--navy); border-bottom-color: var(--icon-blue); }
 .lib-tab:focus-visible { outline: 2px solid var(--icon-blue); outline-offset: -2px; border-radius: 6px; }
 .lib-tab-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--text); background: var(--surface-muted); border: 1px solid var(--border); }
-.lib-tab-inreview .lib-tab-count { color: #fff; background: var(--icon-blue); border-color: transparent; }
 .lib-tab-waiting .lib-tab-count { color: var(--live-ink); background: var(--live-bg); border-color: var(--live-border); }
 .lib-tab-expiring .lib-tab-count { color: var(--warn-ink); background: var(--caution-tint); border-color: var(--warn-border); }
 .lib-tab-expired .lib-tab-count { color: var(--danger); background: var(--danger-soft); border-color: var(--danger-border); }
