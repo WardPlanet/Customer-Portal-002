@@ -1864,7 +1864,7 @@
 .lib-select-cell { width: 34px; padding-right: 0; }
 .lib-select-cell input { width: 16px; height: 16px; cursor: pointer; }
 .lib-row.is-selected td { background: var(--accent-soft); }
-.lib-bulk { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 12px; box-shadow: var(--shadow-lift); }
+.lib-bulk { position: sticky; top: 72px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--accent-border); border-radius: 12px; box-shadow: var(--shadow-lift); }
 .lib-bulk[hidden] { display: none; }
 .lib-bulk-count { margin-right: 8px; }
 
@@ -2662,7 +2662,7 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .preview-side { flex-basis: 220px; width: 220px; }   /* narrower left column */
 
 /* Left column: logo and search on top, the whole column sticky and a little wider */
-.preview-side { flex-basis: 265px; width: 265px; position: sticky; top: 16px; align-self: flex-start; }
+.preview-side { flex-basis: 265px; width: 265px; position: sticky; top: 88px; align-self: flex-start; }
 .preview-side .preview-follow { position: static; max-height: none !important; overflow: visible; order: -1; }
 .side-head { order: -2; display: flex; flex-direction: column; gap: 12px; }
 .side-logo { font-size: 18px; font-weight: 700; color: var(--icon-blue); text-decoration: none; letter-spacing: -0.01em; }
