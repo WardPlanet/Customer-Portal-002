@@ -3118,3 +3118,8 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .section-linked > .preview-h:first-child { margin-top: 0; }
 /* The link icon stays exactly where it is when a section is highlighted: the box starts where the text started, the text moves in by the padding, so the icon is nudged back by the same amount without moving the text */
 @media (min-width: 861px) { .section-linked > .preview-h:first-child .preview-anchor { position: relative; left: -16px; } }
+
+/* A short light-blue glow on the heading (and a short first line under it) a "On this page" link jumped to */
+@keyframes arrive-fade { 0%, 45% { background: var(--accent-soft); box-shadow: 0 0 0 8px var(--accent-soft); } 100% { background: transparent; box-shadow: 0 0 0 8px transparent; } }
+.is-arrived { border-radius: 8px; animation: arrive-fade 2.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .is-arrived { animation: none; } }
