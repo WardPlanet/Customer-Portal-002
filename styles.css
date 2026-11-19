@@ -3148,5 +3148,5 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .banner-actions [hidden] { display: none; }
 
 /* Save changes and Cancel, at the lower left of the Page setup box, when the setup of a live page has been changed */
-.setup-actions { flex-basis: 100%; display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.setup-actions { flex-basis: 100%; display: flex; align-items: center; gap: 8px; margin-top: 4px; }   /* the buttons are row-btn, the same size as the blue bar's */
 .setup-actions[hidden] { display: none; }

@@ -254,9 +254,16 @@
       });
       return any ? changes : null;
     }
+    // On a live page the two buttons are always there; they are greyed out (like the blue bar's) until a setup change has been made, and again once it is saved
     function refreshSetupActions() {
       var box = byId('setup-actions');
-      box.hidden = !setupDiff() || document.body.classList.contains('is-readonly');
+      box.hidden = !setupTrack || document.body.classList.contains('is-readonly');
+      var pending = !!setupDiff();
+      ['setup-save', 'setup-cancel'].forEach(function (id) {
+        var button = byId(id);
+        if (pending) { button.removeAttribute('aria-disabled'); button.title = ''; }
+        else { button.setAttribute('aria-disabled', 'true'); button.title = 'No changes to the page setup yet'; }
+      });
     }
     // A setup field changed: tracked on a live page (Save changes), otherwise it is an edit of the draft like any other
     function touchSetup(field) {
@@ -264,7 +271,7 @@
     }
     byId('setup-save').addEventListener('click', async function () {
       var changes = setupDiff();
-      if (!changes || !setupTrack) { return; }
+      if (!changes || !setupTrack) { return; }   // greyed out: nothing to save
       var button = byId('setup-save');
       button.setAttribute('aria-disabled', 'true');
       var ok = false;
@@ -276,7 +283,7 @@
       }
     });
     byId('setup-cancel').addEventListener('click', function () {
-      if (!setupTrack) { return; }
+      if (!setupTrack || !setupDiff()) { return; }   // greyed out: nothing to cancel
       var base = setupTrack.baseline;
       state.owner = base.owner;
       state.roles = base.linked.slice();
