@@ -3119,5 +3119,12 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* The link icon stays exactly where it is when a section is highlighted: the box starts where the text started, the text moves in by the padding, so the icon is nudged back by the same amount without moving the text */
 @media (min-width: 861px) { .section-linked > .preview-h:first-child .preview-anchor { position: relative; left: -16px; } }
 
-/* A section jumped to from "On this page" is highlighted exactly like a linked section (same width, padding and spacing), in light blue */
-.section-linked.is-jump { background: var(--accent-soft); }
+/* A section jumped to from "On this page" is highlighted exactly like a linked section (same width, padding and spacing), in light blue... */
+/* ...and it fades: the colour holds for a moment, then goes, and the side padding goes with it so taking the box off moves nothing (top and bottom never move) */
+@keyframes jump-fade { 0%, 45% { background: var(--accent-soft); padding-left: 16px; padding-right: 16px; } 100% { background: transparent; padding-left: 0; padding-right: 0; } }
+.section-linked.is-jump { background: var(--accent-soft); animation: jump-fade 3s ease-out forwards; }
+@media (prefers-reduced-motion: reduce) { .section-linked.is-jump { animation: none; } }
+
+/* A jump highlight is not a link: no yellow and no "linked" link icon (the icon keeps its normal quiet look) */
+.section-linked.is-jump > .preview-h:first-child .preview-anchor { color: var(--text-faint); background: transparent; opacity: 0.55; }
+.section-linked.is-jump > .preview-h:first-child .preview-anchor:hover { opacity: 1; color: var(--white); background: var(--accent); }

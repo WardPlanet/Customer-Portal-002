@@ -3788,6 +3788,12 @@
     var wrapper = el('div', 'section-linked' + (tone === 'jump' ? ' is-jump' : ''));
     // The space above the heading stays above the yellow box (the heading's own top margin moves to the box), so the section above keeps its gap
     wrapper.style.marginTop = getComputedStyle(heading).marginTop;
+    if (tone === 'jump') {
+      // The jump highlight must not move anything vertically, now or when it fades: the box's top padding is taken out of the space above it
+      // and its bottom padding out of the space below it, so the heading and the next section stay exactly where they were.
+      wrapper.style.marginTop = Math.max(0, parseFloat(getComputedStyle(heading).marginTop) - 16) + 'px';
+      wrapper.style.marginBottom = '-12px';
+    }
     article.insertBefore(wrapper, heading);
     var node = heading;
     while (node) {
@@ -3795,6 +3801,16 @@
       wrapper.appendChild(node);
       if (!next || (next.getAttribute && next.getAttribute('data-level') && Number(next.getAttribute('data-level')) <= level)) { break; }
       node = next;
+    }
+    if (tone === 'jump') {
+      // The light-blue jump highlight fades away (see jump-fade in styles.css); once it has, only this box is taken off, putting the section back as it was
+      var release = function () {
+        if (!wrapper.isConnected) { return; }
+        while (wrapper.firstChild) { wrapper.parentNode.insertBefore(wrapper.firstChild, wrapper); }
+        wrapper.remove();
+      };
+      wrapper.addEventListener('animationend', release);
+      setTimeout(release, 3400);   // also when motion is turned down and nothing animates
     }
     if (scroll !== false) { wrapper.scrollIntoView(tone === 'jump' ? { behavior: 'smooth', block: 'start' } : { block: 'start' }); }
   }
