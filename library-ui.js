@@ -580,7 +580,8 @@
     }
 
     var tabsBar = el('div', 'lib-tabs');
-    tabsBar.setAttribute('role', 'tablist');
+    tabsBar.setAttribute('role', 'group');   // these filter one list (there are no separate panels), so they are toggle buttons, not ARIA tabs
+    tabsBar.setAttribute('aria-label', 'Show pages');
     main.appendChild(tabsBar);
     function tabDefs() {
       return reviewsFirstBar()
@@ -616,8 +617,7 @@
         var selected = libraryFilters.status === key;
         var tab = el('button', 'lib-tab' + (selected ? ' is-selected' : '') + (special ? ' lib-tab-' + key : ''));
         tab.type = 'button';
-        tab.setAttribute('role', 'tab');
-        tab.setAttribute('aria-selected', String(selected));
+        tab.setAttribute('aria-pressed', String(selected));
         tab.appendChild(document.createTextNode(def[1]));
         if (special) { tab.appendChild(el('span', 'lib-tab-count', String(counts[key]))); }
         tab.addEventListener('click', function () { libraryFilters.status = key; refresh(); });
@@ -769,7 +769,7 @@
     if (!items.length) { box.appendChild(el('p', 'lib-empty', 'Nothing was deleted in the last ' + W.TRASH_DAYS + ' days.')); return; }
     var table = el('table', 'lib-table');
     var head = el('tr');
-    ['Page', 'Deleted by', 'Deleted', 'Time left', ''].forEach(function (h) { head.appendChild(el('th', '', h)); });
+    ['Page', 'Deleted by', 'Deleted', 'Time left', 'Actions'].forEach(function (h, i) { var th = el('th'); th.appendChild(el('span', i === 4 ? 'sr-only' : '', h)); head.appendChild(th); });
     var thead = el('thead');
     thead.appendChild(head);
     table.appendChild(thead);
@@ -1151,7 +1151,7 @@
       th.appendChild(sorter);
       headRow.appendChild(th);
     });
-    if (canDelete) { headRow.appendChild(el('th')); }
+    if (canDelete) { var actionsHead = el('th'); actionsHead.appendChild(el('span', 'sr-only', 'Actions')); headRow.appendChild(actionsHead); }
     var thead = el('thead');
     thead.appendChild(headRow);
     table.appendChild(thead);
