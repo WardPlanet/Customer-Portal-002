@@ -1526,3 +1526,4 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - Live pages: the left column is 25px wider (265px).
 - The sticky top bar no longer covers things that stick below it: the live page's left column sticks 88px down, and the lead's bulk-action bar 72px down.
 - Signed in, the wiki's landing and search pages show **Import document(s)** beside New page in the top bar (not on the public site).
+- Library (lead/Admin) order: **Select by**, then the pills for what is chosen (with the count and Clear all), then the action bar (# selected, Publish, Unpublish, Change owner, Change visibility, Delete, Clear), then the table.

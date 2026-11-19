@@ -905,7 +905,6 @@
         libraryFilters.selected = {}; libraryFilters.pick = {}; libraryFilters.pickOpen = '';
         renderList(box, pages);
       }));
-      box.appendChild(bulkBar);
     }
     // The tick boxes below the bar select by what the table shows of tick boxes to select by what the table shows: visibility, status, owner (department, for
     // Admin) and pages due for review. Ticks inside one group add up (Internal or Client-Safe); different groups narrow each other
@@ -1032,8 +1031,10 @@
       return row;
     }
     if (canBulk) {
-      if (activeDefs.length) { box.appendChild(buildChips()); }   // what is ticked, above Select by
+      // Order: Select by, then the pills for what is chosen, then the action bar (# selected, Publish, Unpublish...)
       box.appendChild(buildNarrowBox());
+      if (activeDefs.length) { box.appendChild(buildChips()); }
+      if (bulkBar) { box.appendChild(bulkBar); }
       if (libraryFilters.pickOpen) {
         setTimeout(function () { var again = box.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
       }
