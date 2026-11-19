@@ -3129,3 +3129,8 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .section-linked.is-jump > .preview-h:first-child .preview-anchor { color: var(--text-faint); background: transparent; opacity: 0.55; }
 .section-linked.is-jump > .preview-h:first-child .preview-anchor:hover { opacity: 1; color: var(--white); background: var(--accent); }
 .confirm-check[hidden] { display: none; }   /* the tick box only shows when a confirm asks for one */
+
+/* Delete draft in the footer: a quiet button with red text, so it is clear it throws something away */
+.danger-btn { color: var(--danger); border-color: var(--danger-border); }
+.danger-btn:hover { background: var(--danger-soft); }
+.danger-btn[hidden] { display: none; }

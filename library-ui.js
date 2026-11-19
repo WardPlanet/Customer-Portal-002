@@ -1691,6 +1691,8 @@
     if (data.actions.indexOf('edit') < 0) { location.hash = '#/view/' + id + '/' + n; return; }   // not editable: read it instead
     showScreen('editor', false);
     setMainButtonLabel();
+    var footerDelete = document.getElementById('delete-draft');
+    footerDelete.hidden = true;   // shown below for a saved draft of a live page
     setTeamPicker(false);
     window.PageEditor.load(data.text, false);
     window.PageEditor.setLabel(data.version.title || 'Untitled page');
@@ -1741,9 +1743,12 @@
       location.hash = '#/view/' + id + '/' + n;
     }));
     if (current.liveEdit && hist && hist.actions.indexOf('discard') >= 0) {
-      // A draft of a live page can be thrown away: the page goes back to the live version
+      // A draft of a live page can be thrown away: the page goes back to the live version (in the blue bar and in the footer)
       var discardTitle = data.version.title || (detail && detail.page && detail.page.title) || 'this page';
-      actionsRow.appendChild(button('Delete draft', 'row-btn row-btn-danger', async function () { if (await confirmAndDiscardDraft(id, Number(n), discardTitle)) { location.hash = '#/'; } }));
+      var discardNow = async function () { if (await confirmAndDiscardDraft(id, Number(n), discardTitle)) { location.hash = '#/'; } };
+      actionsRow.appendChild(button('Delete draft', 'row-btn row-btn-danger', discardNow));
+      footerDelete.hidden = false;
+      footerDelete.onclick = discardNow;
     }
     if (leadView && status === 'submitted') { actionsRow.appendChild(button('Request changes', 'row-btn', function () { sendBackWithComment(id, Number(n)); })); }
     box.appendChild(actionsRow);
@@ -1875,6 +1880,7 @@
   function openNewPage() {
     showScreen('editor', false);
     setMainButtonLabel();
+    document.getElementById('delete-draft').hidden = true;
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
     setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length >= 1);
@@ -1894,6 +1900,7 @@
     if (mine !== routing) { return; }
     if (!data) { location.hash = '#/'; return; }
     showScreen('editor', false);
+    document.getElementById('delete-draft').hidden = true;
     setTeamPicker(false);
     window.PageEditor.load(data.text, true);
     window.PageEditor.setStatus(VERSION_LABELS[data.version.status][0], true);
