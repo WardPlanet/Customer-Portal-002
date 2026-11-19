@@ -102,6 +102,7 @@
         document.getElementById('confirm-dialog-title').textContent = options.title || 'Are you sure?';
         document.getElementById('confirm-dialog-message').textContent = message;
         okButton.textContent = options.ok || 'Continue';
+        cancelButton.textContent = options.cancel || 'Cancel';
 
         function finish(answer) {
           okButton.removeEventListener('click', onOk);

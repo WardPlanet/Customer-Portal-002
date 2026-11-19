@@ -1470,7 +1470,9 @@
     var filename = textFileName(title);
     var downloaded = false;
     try { downloaded = await saveFile(filename, text, 'text/plain'); } catch (error) { downloaded = false; }
+    var firstPublish = await isFirstInternalPublish(id);
     await backend().act(id, n, 'publish');
+    if (firstPublish) { await offerOwnerPublishing(id, title); }
     return (downloaded ? 'Downloaded ' + filename + ' and published: ' : 'The text file was not downloaded, but the page is published: ') + 'it is live (review skipped).';
   }
 
@@ -1486,10 +1488,26 @@
     if (/^#\/view\//.test(location.hash)) { location.hash = '#/'; } else { route(); }
   }
 
+  // The first time the team lead (or Admin) publishes an internal-only page, ask whether the owner may publish later edits without review
+  async function isFirstInternalPublish(id) {
+    if (!actorIsLead() && !actingAsAdmin()) { return false; }
+    try {
+      var d = await backend().get(id);
+      return !!d && !d.page.liveVersion && d.page.visibility === 'Internal-Only' && !d.page.ownerPublishes;
+    } catch (error) { return false; }
+  }
+  async function offerOwnerPublishing(id, title) {
+    if (!title) { try { title = (await backend().get(id)).page.title; } catch (error) { title = ''; } }
+    if (!(await window.askConfirm('Once it is live, the owner can publish changes to \u201c' + (title || 'this page') + '\u201d without your review. Every version stays in the history, and you can turn it off any time from the page\u2019s menu.', { title: 'Allow the owner to publish edits?', ok: 'Allow owner to publish', cancel: 'Keep review' }))) { return; }
+    await attempt(backend().setOwnerPublishes(id, true));
+  }
+
   async function runAction(id, n, action, doneMessage, body) {
+    var first = (action === 'approve' || action === 'publish') && await isFirstInternalPublish(id);
     var result = await attempt(backend().act(id, n, action, body));
     if (!result) { return false; }
     notice(doneMessage);
+    if (first) { await offerOwnerPublishing(id); }
     // After deciding on a version you were reading, show the page's history (where the result is)
     if (/^#\/view\//.test(location.hash)) { location.hash = '#/'; } else { route(); }
     return true;
