@@ -22,7 +22,7 @@
     var FORMAT_VERSION = '2';
     var ESCAPE = '~';
 
-    var KNOWN_SECTIONS = ['TITLE', 'DESCRIPTION', 'SUBTITLE', 'SUMMARY', 'PAGE TYPE', 'TEAM', 'OWNER ROLE', 'OWNER', 'OWNER DEFAULT', 'LINKED PEOPLE', 'WHERE THIS LIVES', 'LINKED ROLES', 'RELATED PAGES', 'LINKED TEAM MEMBERS', 'REVIEWER', 'VISIBILITY', 'SOURCE FILE'];
+    var KNOWN_SECTIONS = ['TITLE', 'DESCRIPTION', 'SUBTITLE', 'SUMMARY', 'PAGE TYPE', 'TEAM', 'OWNER ROLE', 'OWNER', 'OWNER DEFAULT', 'SECONDARY OWNER', 'LINKED PEOPLE', 'WHERE THIS LIVES', 'LINKED ROLES', 'RELATED PAGES', 'LINKED TEAM MEMBERS', 'REVIEWER', 'VISIBILITY', 'SOURCE FILE'];
 
     /* ---------- State for the Page Setup sidebar (text fields live in the DOM) ---------- */
     var state = {
@@ -30,6 +30,7 @@
       location: '',    // where this page lives: one of the team's locations (for example "Websites")
       team: '',        // the team every page belongs to (from the roster)
       owner: '',       // who owns the page: a person, named by the email of their sign-in account (job titles do not own pages)
+      secondaryOwner: '',   // an optional second owner (a person's email)
       ownerDefault: false,   // the team lead has the page as a fallback, marked "(Default)" until the lead reassigns it
       roles: [],       // the other people (emails) linked to this page as contacts
       related: [],     // pages the author chose as related, in order: [{ id, title }]
@@ -2080,6 +2081,25 @@
       }
     }
 
+    // The secondary owner: one optional person, opened by the + beside Owner (it stays open while there is one)
+    function renderSecondaryOwner() {
+      var lock = window.PageHost && window.PageHost.ownerLock ? window.PageHost.ownerLock() : { locked: false };
+      var select = byId('secondary-select');
+      select.textContent = '';
+      addOption(select, '', 'No secondary owner');
+      choosablePeople(state.secondaryOwner).forEach(function (role) {
+        var key = window.Workflow.keyFor(role);
+        if (key !== state.owner) { addOption(select, key, roleLabel(key)); }
+      });
+      select.value = state.secondaryOwner || '';
+      select.disabled = !!lock.locked;
+      var secondary = byId('secondary-owner');
+      if (state.secondaryOwner) { secondary.hidden = false; }
+      var plus = byId('owner-add');
+      plus.setAttribute('aria-expanded', String(!secondary.hidden));
+      plus.textContent = secondary.hidden ? '+' : '\u2212';
+    }
+
     function renderRoles() {
       var list = byId('roles');
       list.textContent = '';
@@ -2125,20 +2145,12 @@
 
       var addSelect = byId('role-add');
       addSelect.textContent = '';
-      addOption(addSelect, '', 'Choose a person');
+      addOption(addSelect, '', 'Add a person');
       choosablePeople('').forEach(function (role) {
         var key = window.Workflow.keyFor(role);
-        if (state.roles.indexOf(key) < 0 && key !== state.owner) { addOption(addSelect, key, roleLabel(key)); }
+        if (state.roles.indexOf(key) < 0 && key !== state.owner && key !== state.secondaryOwner) { addOption(addSelect, key, roleLabel(key)); }
       });
-      // One secondary owner: once there is one, the choice is hidden (remove it with the x to pick someone else). A page that already has
-      // several linked people shows them all.
-      byId('role-add-wrap').hidden = addSelect.options.length < 2 || state.roles.length >= 1;
-      // The + opens the secondary owner; it stays open while there is one
-      var secondary = byId('secondary-owner');
-      var plus = byId('owner-add');
-      if (state.roles.length) { secondary.hidden = false; }
-      plus.setAttribute('aria-expanded', String(!secondary.hidden));
-      plus.textContent = secondary.hidden ? '+' : '\u2212';
+      byId('role-add-wrap').hidden = addSelect.options.length < 2;
     }
 
     function renderReviewer() {
@@ -2163,10 +2175,11 @@
     }
 
     function renderSidebar(keepSecondaryOpen) {
-      if (!keepSecondaryOpen) { byId('secondary-owner').hidden = !state.roles.length; }   // a page without a secondary owner starts with it closed
+      if (!keepSecondaryOpen) { byId('secondary-owner').hidden = !state.secondaryOwner; }   // a page without a secondary owner starts with it closed
       renderChips();
       renderTeam();
       renderOwner();
+      renderSecondaryOwner();
       renderRoles();
       renderReviewer();
       renderVisibility();
@@ -2240,6 +2253,7 @@
       // Everything saved belongs to the current team. The owner is a role, never a person's name.
       section('TEAM', textLines(roster ? roster.name : state.team));
       section('OWNER', textLines(state.owner));
+      if (state.secondaryOwner) { section('SECONDARY OWNER', textLines(state.secondaryOwner)); }
       if (state.ownerDefault) { section('OWNER DEFAULT', ['yes']); }
       section('WHERE THIS LIVES', textLines(state.location));
       section('LINKED PEOPLE', state.roles);
@@ -2379,6 +2393,7 @@
       // names in LINKED TEAM MEMBERS: each becomes the person it points at today).
       state.team = roster ? roster.name : (body('TEAM') || state.team);
       state.owner = personKeyFromValue(body('OWNER') || body('OWNER ROLE'));
+      state.secondaryOwner = personKeyFromValue(body('SECONDARY OWNER'));
       state.ownerDefault = body('OWNER DEFAULT').toLowerCase() === 'yes' && !!state.owner;
       state.roles = list('LINKED PEOPLE').concat(list('LINKED ROLES')).concat(list('LINKED TEAM MEMBERS')).map(personKeyFromValue).filter(function (key, index, all) {
         return key && all.indexOf(key) === index;
@@ -3628,8 +3643,14 @@
     // Owner +: show or hide the secondary owner (it cannot be hidden while there is one)
     byId('owner-add').addEventListener('click', function () {
       var secondary = byId('secondary-owner');
-      if (secondary.hidden) { secondary.hidden = false; } else if (!state.roles.length) { secondary.hidden = true; }
+      if (secondary.hidden) { secondary.hidden = false; } else if (!state.secondaryOwner) { secondary.hidden = true; }
+      renderSecondaryOwner();
+    });
+    byId('secondary-select').addEventListener('change', function () {
+      state.secondaryOwner = byId('secondary-select').value;
+      renderSecondaryOwner();
       renderRoles();
+      markDirty();
     });
 
     // Related pages: the + opens the search; it closes again when it is left empty
@@ -4689,6 +4710,7 @@
       state.owner = '';
       state.ownerDefault = false;
       state.roles = [];
+      state.secondaryOwner = '';
       state.related = [];
       state.visibility = '';   // a new page has none chosen: the author has to pick one
       state.keywords = [];

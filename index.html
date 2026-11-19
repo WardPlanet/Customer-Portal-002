@@ -92,9 +92,8 @@
         <!-- The secondary owner: opened by the +, one person -->
         <div class="secondary-owner" id="secondary-owner" hidden>
           <span class="secondary-label">Secondary owner</span>
-          <ul class="role-list" id="roles"></ul>
-          <div class="select-wrap" id="role-add-wrap">
-            <select class="select-field" id="role-add" aria-label="Choose a secondary owner"></select>
+          <div class="select-wrap">
+            <select class="select-field" id="secondary-select" aria-label="Secondary owner"></select>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </div>
         </div>
@@ -109,6 +108,17 @@
             <option value="Internal-Only">Internal only</option>
             <option value="Client-Safe">Client-safe</option>
           </select>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <!-- Linked members: other people who are contacts for this page (any number) -->
+      <div class="prop prop-members" id="members-field">
+        <label class="field-label" for="role-add">Linked members
+          <span class="hint-dot" tabindex="0" role="img" aria-label="People shown with the owner as contacts for this page." title="People shown with the owner as contacts for this page.">?</span></label>
+        <ul class="role-list" id="roles"></ul>
+        <div class="select-wrap" id="role-add-wrap">
+          <select class="select-field" id="role-add" aria-label="Add a linked member"></select>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </div>
       </div>

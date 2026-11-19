@@ -3361,6 +3361,7 @@
     // Contacts: the owner first, then the linked people. When the owner has left the team the team lead is the owner (marked Default).
     // The team lead is always in a box of their own below, so the person to escalate to is always in the same place.
     add(who.entry, who.isDefault);
+    if (fieldsOfPage.secondaryOwner) { var second = W.findPerson(pageOwnerTeam, fieldsOfPage.secondaryOwner); if (second && second.person) { add(second, false); } }   // the secondary owner comes next
     fieldsOfPage.linkedRoles.forEach(function (key) { var entry = W.findPerson(pageOwnerTeam, key); if (entry && entry.person) { add(entry, false); } });
     // One person: their name (bold), their job title in capitals beneath it, then the email and Teams, each with a small icon
     function contactCard(role, isDefault) {

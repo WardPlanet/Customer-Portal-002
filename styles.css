@@ -2934,3 +2934,7 @@ body.is-public .prop-bar { display: none; }
 .outline-related .related-list { margin: 12px 0 0; }
 .outline-related .related-list li, .outline-related .related-list a { font-size: 13px; color: var(--text); }
 .outline-related .related-search { margin-top: 12px; height: 34px; font-size: 13px; }
+
+/* Linked members: a field in the Page setup bar */
+.prop-members { width: 250px; }
+.prop-members .role-list { margin: 0 0 6px; }

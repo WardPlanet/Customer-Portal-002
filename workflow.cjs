@@ -82,6 +82,7 @@
       visibility: first(sections, 'VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : first(sections, 'VISIBILITY') === 'Internal-Only' ? 'Internal-Only' : (sections['VISIBILITY'] ? '' : 'Internal-Only'),
       // The owner is a person, named by the email address of their sign-in account (older pages named a role title: see findPerson)
       owner: first(sections, 'OWNER') || first(sections, 'OWNER ROLE'),
+      secondaryOwner: first(sections, 'SECONDARY OWNER'),   // a second owner (a person's email), optional
       ownerDefault: first(sections, 'OWNER DEFAULT').toLowerCase() === 'yes',   // given to the team lead as a fallback, to be reassigned later
       linkedRoles: (sections['LINKED PEOPLE'] || []).concat(sections['LINKED ROLES'] || []).map(function (line) { return line.trim(); }).filter(Boolean),   // people (emails)
       // The pages the author chose as related, in order (each line is "id | title"; only the id is used)
@@ -418,6 +419,7 @@
     version.location = f.location;
     version.visibility = f.visibility;
     version.owner = f.owner;
+    version.secondaryOwner = f.secondaryOwner;
   }
 
   function newVersion(page, text, actor, now, note) {
@@ -465,7 +467,7 @@
       throw new WorkflowError('not_editable', 'Version ' + version.n + ' is ' + describeStatus(version.status) + ' and cannot be edited. Start a new edit from the page.', 409);
     }
     // Only the team lead changes who owns a page
-    if (!isLead(actor, team) && resolveKey(team, fields(text).owner) !== resolveKey(team, fields(version.text).owner)) {
+    if (!isLead(actor, team) && (resolveKey(team, fields(text).owner) !== resolveKey(team, fields(version.text).owner) || resolveKey(team, fields(text).secondaryOwner) !== resolveKey(team, fields(version.text).secondaryOwner))) {
       throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can change the owner.', 403);
     }
     version.text = text;
@@ -651,6 +653,7 @@
     if (!actor || !actor.name) { return false; }
     var shown = liveVersion(page) || workingVersion(page) || latestVersion(page);
     if (shown && shown.owner && ownsKey(actor, shown.owner)) { return true; }
+    if (shown && shown.secondaryOwner && ownsKey(actor, shown.secondaryOwner)) { return true; }   // the secondary owner shares the page
     return !!page.versions.length && page.versions[0].author === actor.name;
   }
 
