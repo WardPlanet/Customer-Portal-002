@@ -1176,7 +1176,7 @@
     table.appendChild(thead);
     var body = el('tbody');
     sortRows(shown).forEach(function (p) {
-      // Status colours follow the standard (see "Status colours" in HANDOFF): a tint only for expiring (yellow), expired (red) and, for the team
+      // Status colours follow the standard (see "Status colours" in docs/HANDOFF-history.md): a tint only for expiring (yellow), expired (red) and, for the team
       // lead, waiting for review (green); the owner's own drafts have a "Your drafts" heading and a blue bar, a sent-back page an orange bar, and a
       // page locked in review is grey.
       var row = el('tr', 'lib-row');
@@ -1929,7 +1929,7 @@
     box.appendChild(el('p', '', 'Reading ' + reading + (statusWords === reading ? '' : ' \u2014 ' + statusWords) + '.'));
     if (hist && hist.decisionComment) { box.appendChild(el('p', '', 'Review note: \u201c' + hist.decisionComment + '\u201d')); }
     var row = el('div', 'banner-actions');
-    // (version history: hidden for now, see HANDOFF)
+    // (version history: hidden for now, see HANDOFF.md, open items)
     var can = function (action) { return data.actions.indexOf(action) >= 0; };
     var waiting = data.version.status === 'submitted';
     // Reading the live version of a page that nobody is working on (how a page that is expiring or expired is reviewed)

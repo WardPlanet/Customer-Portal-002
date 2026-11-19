@@ -3,7 +3,7 @@
 A web editor for process-documentation pages. A small Node server hosts the page, stores drafts as
 text files, and forwards the AI features to the Anthropic API so the API key never reaches the browser.
 
-This file is for whoever hosts it. `HANDOFF.md` has the product behavior and code layout.
+This file is for whoever hosts it. `HANDOFF.md` has the product behavior, who can do what, and what is still open; `docs/HANDOFF-history.md` is the older change log.
 
 ## What it needs
 
@@ -50,7 +50,8 @@ variables take priority). `.env.example` documents each one.
 | `store.js`, `library-ui.js` | The browser side of the library: where pages come from, and the library screens. |
 | `search-review.js`, `search-log.cjs` | The search log (rules and the three review lists, tested) and the team lead's Search review screen. |
 | `batch.js`, `batch-core.cjs` | Batch import: split one file holding several documents into several draft pages (the splitting rules are in `batch-core.cjs`, tested). |
-| `drafts/` | Pages, in one folder per team (`drafts/legwork-web-team/pages/<id>/`): `page.json` plus one `.txt` per version. Created on first save. Not in git. |
+| `drafts/` | Pages, in one folder per team (`drafts/legwork-web-team/pages/<id>/`): `page.json` plus one `.txt` per version. Deleted pages wait in `drafts/<team>/trash/<id>/` for 30 days. Emails that are due are written to `drafts/outbox/` (nothing is sent yet). Created on first save. Not in git. |
+| `notifications.md` | The email copy and the rules for when each is sent. |
 
 ## Endpoints
 
@@ -62,7 +63,8 @@ variables take priority). `.env.example` documents each one.
 | `POST /api/ai/json` | Sends one prompt to Claude and returns parsed JSON. |
 | `POST /api/import` | Takes an uploaded .docx, .pdf, .txt or .md and returns a standardized page for review. |
 | `GET /api/team` | The team and who holds each role today. |
-| `/api/library/...` | Pages and versions for staff (list, read, save, submit, approve, send back, withdraw, restore, unpublish). Needs the `X-Acting-As` header until real login exists. |
+| `/api/library/...` | Pages and versions for staff (list, read, save, submit, approve, send back, withdraw, restore, unpublish, renew or ask for changes on a live page, discard a live page's draft, allow the owner to republish, request or cancel a deletion). Needs the `X-Acting-As` header until real login exists. Someone signed in who is on no team's roster may only search and read live pages (`?live=1`, one page, its live version, suggest, popular); the library, drafts and every change answer 403. |
+| `DELETE /api/library/pages/:id`, `GET /api/library/trash`, `POST /api/library/trash/:id/restore` | Deleting moves a page to the trash for 30 days; the trash lists what the person may restore. |
 | `/vendor/mammoth.browser.min.js` | The Word reader the browser loads when a Word file is chosen. |
 | `/api/library/backup`, `/api/library/restore` | Download every page and version as one file; restore from one (team lead only). |
 | `/api/public/pages`, `/api/public/pages/:id` | The public side: no login, only live Client-Safe pages, no ownership details. |
@@ -77,9 +79,10 @@ variables take priority). `.env.example` documents each one.
 - **Team membership must follow Azure.** The editor is meant to be used through Planet DDS Azure (Microsoft Entra ID)
   sign-in, and only people with an existing Planet DDS Azure account should be addable to a team as a role holder.
   Today the Team & roles pop-up takes any typed name and email, so the add step needs to check the directory. See
-  HANDOFF.md, "Planned requirement: sign-in and who can be on a team".
+  `HANDOFF.md`, section 10 ("Sign-in").
 - **Pages are files with version history.** Every version is kept (`page.json` and one `.txt` per version), so
-  put `DRAFTS_DIR` on a backed-up volume. Only the team lead can delete a page (it removes every version), so keep backups.
+  put `DRAFTS_DIR` on a backed-up volume. A deleted page stays in the trash for 30 days and is then removed for good (the team lead deletes any page; an owner deletes only their own drafts), so keep backups.
 - **One instance only.** Pages live on local disk, so running several copies would give each its own set.
 - **Spend limits.** Set a spend cap on the API key in the Anthropic console.
+- **Housekeeping** runs at start-up and every 6 hours: it empties the trash after 30 days and queues the date-driven emails (expiring, expired, leaving the trash) in `drafts/outbox/`. Connecting the company mail account to send them is still to do.
 - **Logs** go to standard output. The server logs failures only, not draft contents.
