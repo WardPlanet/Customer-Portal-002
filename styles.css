@@ -2736,7 +2736,7 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .preview-flag-choices .row-btn[aria-pressed="true"]:last-child { background: var(--danger, #B42318); }
 
 /* Library rows: a person's own drafts are light grey and stay on top; a page close to expiring is light yellow with a caution triangle */
-.lib-row.is-draft td { background: var(--draft-tint); }
+
 .lib-row.is-expiring td { background: var(--caution-tint); }
 .lib-row.is-selected td { background: var(--accent-soft); }
 .caution-icon { display: inline-grid; place-items: center; margin-right: 6px; color: var(--caution); vertical-align: -3px; }
@@ -2982,3 +2982,11 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 .prop-members { width: 220px; }
 .prop-visibility { width: 190px; }
 .prop-team { width: 180px; }
+
+/* Status colours (the standard): tints only for expiring, expired and (lead) waiting for review. Drafts: a "Your drafts" heading and a blue bar.
+   Sent back: an orange bar. Locked in review: grey, because grey means "nothing to do here". */
+.lib-group-row td { padding: 16px 16px 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); background: transparent; border: 0; }
+.lib-row.is-draft td:first-child { box-shadow: inset 4px 0 0 var(--icon-blue); }
+.lib-row.is-sent-back td:first-child { box-shadow: inset 4px 0 0 var(--warn-icon); }
+.lib-row.is-locked td { background: var(--surface-muted); color: var(--text-muted); }
+.lib-row.is-locked a.lib-page-link, .lib-row.is-locked .lib-row-sub { color: var(--text-muted); }

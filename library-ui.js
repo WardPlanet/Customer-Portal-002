@@ -1032,10 +1032,22 @@
     thead.appendChild(headRow);
     table.appendChild(thead);
     var body = el('tbody');
+    var draftsHeadingShown = false;
     sortRows(shown).forEach(function (p) {
+      // Status colours follow the standard (see "Status colours" in HANDOFF): a tint only for expiring (yellow), expired (red) and, for the team
+      // lead, waiting for review (green); the owner's own drafts have a "Your drafts" heading and a blue bar, a sent-back page an orange bar, and a
+      // page locked in review is grey.
+      if (draftsStickToTop() && isOwnDraft(p) && !draftsHeadingShown) {
+        draftsHeadingShown = true;
+        var groupRow = el('tr', 'lib-group-row');
+        var groupCell = el('td', '', 'Your drafts');
+        groupCell.colSpan = headRow.children.length;
+        groupRow.appendChild(groupCell);
+        body.appendChild(groupRow);
+      }
       var row = el('tr', 'lib-row');
       var expiry = expiryOf(p);
-      if (draftsStickToTop() && isOwnDraft(p)) { row.classList.add('is-draft'); }   // light grey
+      if (draftsStickToTop() && isOwnDraft(p)) { row.classList.add(p.state === 'sent_back' ? 'is-sent-back' : 'is-draft'); }   // a blue bar; an orange one when changes were requested
       if (reviewsFirstBar() && isWaitingForReview(p)) { row.classList.add('is-waiting'); }   // light green, for the lead
       if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // light yellow; red once expired
       if (canBulk) {
@@ -1181,6 +1193,7 @@
           deleteCell.appendChild(reviewButton);
         }
         var lockedInReview = !lead && !actingAsAdmin() && p.workingVersion && p.workingVersion.status === 'submitted';
+        if (lockedInReview) { row.classList.add('is-locked'); }   // grey: it cannot be acted on until the lead decides
         // Someone who is not the team lead sends their own draft to the lead from here. Once sent, the page is locked and reads "In Review".
         if (!lead && !actingAsAdmin() && p.workingVersion && (p.workingVersion.status === 'draft' || p.workingVersion.status === 'sent_back')) {
           var submitButton = button('Submit', 'row-btn row-btn-publish', async function () {
