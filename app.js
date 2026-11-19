@@ -4869,6 +4869,7 @@
       // The people a page can be given to: [{ key (their email), label ("Name — Job title") }]
       people: function () { return choosablePeople('').map(function (role) { return { key: window.Workflow.keyFor(role), label: roleLabel(window.Workflow.keyFor(role)) }; }); },
       reset: function () { setOwnerPublish(null); resetEditor.apply(null, arguments); },
+      setSubmitLabel: function (text) { byId('submit-draft').textContent = text; },
       setOwnerPublish: setOwnerPublish,
       // Fill the editor from a saved version's text (silently, unlike Import)
       load: function (text, readOnly) {

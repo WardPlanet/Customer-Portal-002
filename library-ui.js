@@ -1690,6 +1690,7 @@
     if (!data) { location.hash = '#/'; return; }
     if (data.actions.indexOf('edit') < 0) { location.hash = '#/view/' + id + '/' + n; return; }   // not editable: read it instead
     showScreen('editor', false);
+    setMainButtonLabel();
     setTeamPicker(false);
     window.PageEditor.load(data.text, false);
     window.PageEditor.setLabel(data.version.title || 'Untitled page');
@@ -1726,7 +1727,7 @@
     } else {
       actionsRow.appendChild(button('Submit', 'row-btn row-btn-main', function () { document.getElementById('submit-draft').click(); }));
     }
-    actionsRow.appendChild(button('Review', 'row-btn', async function () {
+    if (!leadView) actionsRow.appendChild(button('Review', 'row-btn', async function () {   // the team lead needs no review of their own edits
       // Save what was typed first, so the review shows it
       if (window.PageEditor.isDirty()) {
         if (current.liveEdit) {
@@ -1873,6 +1874,7 @@
 
   function openNewPage() {
     showScreen('editor', false);
+    setMainButtonLabel();
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
     setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length >= 1);
@@ -4360,6 +4362,11 @@
     await draw(asPublicNow);
   }
 
+  // The editor's main button: "Publish" for the team lead (and Admin), who need no review, "Submit for review" for everyone else
+  function setMainButtonLabel() {
+    if (window.PageEditor && window.PageEditor.setSubmitLabel) { window.PageEditor.setSubmitLabel(actorIsLead() || actingAsAdmin() ? 'Publish' : 'Submit for review'); }
+  }
+
   /* ---------- What app.js calls when someone saves, submits or leaves ---------- */
   window.PageHost = {
     save: async function (text) {
@@ -4374,6 +4381,8 @@
       return 'Draft saved. It is in the library.';
     },
     submit: async function (text) {
+      // The team lead (and Admin) do not send their own work for review: the main button publishes
+      if (actorIsLead() || actingAsAdmin()) { return this.publish(text); }
       await this.save(text);
       await backend().act(current.id, current.n, 'submit');
       var id = current.id;

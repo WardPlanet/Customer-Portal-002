@@ -1573,3 +1573,6 @@ The Node server (`server.js`, `library.js`) now has the same rules and routes as
 
 ## Delete a saved draft of a live page
 - A live page with a saved draft offers **Delete draft** in the library row's "..." menu and as a button in the editor's blue bar. The prompt says "This will revert to the live page...". `Workflow.discardDraft` removes the unsubmitted draft (the person drafting it, the owner or the lead); a submitted edit cannot be thrown away, and a page that was never live is deleted instead. Store action `discard-draft`; Node route `versions/:n/discard-draft` (tested).
+
+## Team lead edits publish, no review
+- For the team lead (and Admin) the editor has no "Review" button in the blue bar, and the footer's main button is **Publish** instead of "Submit for review" (`setMainButtonLabel`, `PageEditor.setSubmitLabel`); `PageHost.submit` publishes for them. Owners keep Submit and Review.
