@@ -1230,6 +1230,21 @@ Keep this list current: each line is something built that the critique document 
 - Create team (Team and roles) no longer asks "Where its pages live" or an email: the fields are Icon, Team name, Lead (picked from the company directory, which supplies the email) and Lead job title, and a new team starts with one place named after the team. TO DISCUSS WITH THE DESIGNER: whether teams still need places at all, and who sets them. The Admin tools create form still has the old fields.
 - Public view added to the Testing bar's Department dropdown: the site as a signed-out visitor sees it (live Public pages only, read-only, staff navigation hidden). See "Public view (Testing bar)".
 - Bulk and per-row visibility change for team leads and Admin: a "Change visibility…" menu in the "N selected" bar and a Change link under each row's visibility label, the same pattern as changing the owner.
+- **Contradicts the In-App Text Revisions list (checked against it):**
+  - Footer buttons (both High): the editor's footer now says **Submit for review** (list: "Send for review") and **Publish page** is gone from the editor (list: "Publish page"). The blue bar uses **Submit**, **Publish**, **Edit/Review** and **Request changes**.
+  - Page setup panel: there is no panel any more, it is a **bar above the two columns**; its heading "Page setup" is gone; **Team** shows only for Admin (list: "Pages you save belong to this team."); **Library** ("where this lives") is hidden; the **Owner** helper is a tooltip in person wording ("This person owns the page…", list: "The person in this role…"); **Linked roles / "Select a role"** is removed from the editor; the **Related pages** helper is a tooltip and the search hides behind a **+**; the **Reviewer** helper sentence is replaced by a plain "Reviewer: name"; **Visibility** starts with nothing chosen and is required to submit or publish.
+  - Batch import: a new checkbox ("This file holds several documents…") and a hint line; the subtitle and description wording differ from the list; one file is one document unless the box is ticked (the list: one file is scanned for documents).
+  - Home/search: the live-page left column's search box says "Search the wiki" (list: "Search by title or keyword").
+- **Contradicts the UX review canvas:**
+  - "Review due in N days" / "Needs review · N days overdue" (library, live page, search results): replaced by Expiring soon (yellow) and Expired (red) with bars, filters and the bell. Status filter "Needs review" became "Expiring soon", "Expired" and (lead) "Waiting for review".
+  - Ownership by role: now by person (sign-in email). "Pages belong to a role, not a person" no longer holds.
+  - Flagged points (frame 8): the AI no longer changes text or titles, so "The AI changed the title…" and "Text and title may have been reworded." are gone; each point has Approve / Deny.
+  - Live page: contacts moved from the right column to a byline under the title; "On this page" and Related pages (an accordion) are in a sticky left column with the PDDS logo and search; an eyebrow with the department; serif title and first-level headings in navy; links in the logo's light blue.
+  - Page view of a draft: the footer "Continue editing | Submit for approval | Publish | Export PDF | Copy link" on drafts is now a blue bar with role buttons; Export PDF is not in the editor.
+  - Library row actions: Publish (lead) moved into the "..." menu; a green Review button, a Submit button (owner) and a locked "In Review" label were added.
+  - Batch import: "Set the owner role… / Choose a role…" became a searchable **Choose owner** list (Admin sees every department); drafts no longer need the AI to be created; the AI-title flag is gone.
+  - Team and roles dialogs, "Shareable with clients" dialog: "Make this page shareable with clients?" is now "Make this page public?".
+  - The Support department used in the mockups is removed for now.
 
 ## Removing a person (Team and roles)
 Remove opens a hand-over window. When the person owns pages, nothing is chosen to begin with and **Remove stays off until someone is picked by hand**; the team lead is one of the choices, marked "(Default)", so the pages can be reassigned later. A person who owns no pages can be removed straight away. (Admin tools' Remove still asks one confirmation and hands the pages to the lead as Default.)
