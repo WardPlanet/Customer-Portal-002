@@ -23,7 +23,7 @@
 
   var team = null;
   var current = { id: null, n: null, backTo: '#/' };   // what the editor is showing
-  var libraryFilters = { q: '', status: 'live', sortKey: 'updated', sortDown: true, selected: {} };   // selected: page ids ticked for a bulk action (team lead)   // sortDown: newest / Z first
+  var libraryFilters = { q: '', status: '', sortKey: 'updated', sortDown: true, selected: {} };   // selected: page ids ticked for a bulk action (team lead)   // sortDown: newest / Z first
 
   // Counts navigations. A screen that finishes loading after the person has already moved on must not
   // draw itself, so each screen remembers the count when it started and checks it after every wait.
@@ -554,8 +554,8 @@
     main.appendChild(tabsBar);
     function tabDefs() {
       return reviewsFirstBar()
-        ? [['live', 'Live'], ['', 'All']]
-        : [['live', 'Live'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['', 'All']];
+        ? [['', 'All'], ['live', 'Live']]
+        : [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['live', 'Live']];
     }
     function inTab(p, key) {
       if (!key) { return true; }
