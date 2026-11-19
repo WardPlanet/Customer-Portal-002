@@ -1576,4 +1576,4 @@ The Node server (`server.js`, `library.js`) now has the same rules and routes as
 
 ## Team lead edits publish, no review
 - For the team lead (and Admin) the editor has no "Review" button in the blue bar, and the footer's main button is **Publish** instead of "Submit for review" (`setMainButtonLabel`, `PageEditor.setSubmitLabel`); `PageHost.submit` publishes for them. Owners keep Submit and Review.
-- When editing a draft of a live page, **Save draft** stays greyed out until something is changed, and **Delete draft** (footer and blue bar) until there is a draft to delete (changes saved earlier, or changes just made). After a save, Save draft greys again and Delete draft stays on. Other pages are unchanged (`updateLiveEditButtons` in app.js).
+- When editing a draft of a live page, **Save draft** is greyed out until a change is made (any change counts: typing, a Page setup choice, a block moved) and the required fields are filled in; **Delete draft** (footer and blue bar) is greyed out until a draft has been **saved**. After a save, Save draft greys again and Delete draft is on. Other pages are unchanged (`updateLiveEditButtons` in app.js).

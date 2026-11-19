@@ -174,8 +174,8 @@
       updateLiveEditButtons();
     }
 
-    // Editing a draft of a LIVE page: Save draft stays greyed out until something has been changed, and Delete draft until there is a draft to
-    // delete (changes saved earlier, or changes just made). Other pages are not affected.
+    // Editing a draft of a LIVE page: Save draft stays greyed out until something has been changed, and Delete draft until a draft has been
+    // saved. Other pages are not affected.
     function updateLiveEditButtons() {
       var host = window.PageHost;
       var del = byId('delete-draft');
@@ -188,10 +188,16 @@
         save.setAttribute('aria-disabled', 'true');
         save.setAttribute('data-nochange', 'true');
         save.title = 'No changes to save yet';
+      } else {
+        // A change has been made: Save draft is clickable as long as the required fields are filled in (any kind of change counts, not only typing)
+        var fieldsOk = isDraftComplete();
+        save.setAttribute('aria-disabled', String(!fieldsOk));
+        save.title = fieldsOk ? '' : 'Fill in the required fields (*) first';
       }
-      var deletable = changed || !!(host.hasSavedDraftChanges && host.hasSavedDraftChanges());
+      // Delete draft waits until a draft has been saved: there is nothing to delete before that (unsaved changes go when the editor leaves without saving)
+      var deletable = !!(host.hasSavedDraftChanges && host.hasSavedDraftChanges());
       del.setAttribute('aria-disabled', String(!deletable));
-      del.title = deletable ? '' : 'There is no draft to delete yet';
+      del.title = deletable ? '' : 'Save a draft first. There is no saved draft to delete yet';
       Array.prototype.forEach.call(document.querySelectorAll('[data-delete-draft]'), function (b) { b.setAttribute('aria-disabled', String(!deletable)); b.title = del.title; });   // the blue bar's copy of the button follows
     }
 
