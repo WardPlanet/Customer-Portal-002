@@ -304,7 +304,7 @@
     font-size: 14px;
     line-height: 1.6;
     color: var(--text-muted);
-    max-width: 62ch;
+    max-width: none;   /* the description fills the box, not half of it */
     min-height: 2.4em;
   }
   [contenteditable]:focus { outline: none; }
@@ -2835,3 +2835,37 @@ body.is-public .prop-bar { display: none; }
 .prop-more-body > div { min-width: 0; }
 .prop-more-body .select-wrap, .prop-more-body .select-field, .prop-more-body .related-search { box-sizing: border-box; width: 100%; max-width: 100%; }
 .prop-bar + .workspace { padding-top: 24px; }
+
+/* ---------- Page properties in the bottom bar ---------- */
+.footer-props { flex: 0 1 auto; align-items: flex-end; gap: 24px; }
+.footer-prop { position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.footer-prop-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+#owner-field { width: 230px; }
+#visibility-field { width: 210px; }
+.footer-props .select-field, .footer-props .segmented { height: 36px; }
+#team-field.footer-prop { width: 180px; }
+.footer-reviewer .setup-reviewer { margin: 0; padding: 0; border: 0; font-size: 14px; line-height: 36px; color: var(--text); white-space: nowrap; }
+.footer-reviewer .setup-reviewer strong { font-weight: 500; }
+/* A missing Owner or Visibility is said just above the bar, not inside it */
+.footer-props .field-error { position: absolute; left: 0; bottom: calc(100% + 10px); margin: 0; padding: 6px 10px; white-space: nowrap; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 8px; font-size: 12px; }
+.footer-props .has-error .select-field { border-color: var(--danger); }
+.footer-message { text-align: left; padding: 0 8px; }
+
+/* Import document sits in the toolbar next to AI assist */
+.import-chip { margin-left: auto; }
+.import-chip + input + .ai-chip, .import-chip ~ .ai-chip { margin-left: 4px; }
+
+/* On this page (editor): more room, and Related pages quiet underneath */
+.outline .toc-card { padding: 20px 20px 12px; }
+.outline .toc-row { padding: 6px 0; }
+.outline-sticky { gap: 4px; }
+.outline-meta { margin: 12px 4px 0; line-height: 1.5; }
+.workspace { gap: 32px; }
+.outline-related { margin: 32px 4px 0; }
+.outline-related .field-label { margin: 0 0 6px; font-size: 12px; font-weight: 500; color: var(--text-faint); }
+.outline-related .related-list { margin: 0 0 6px; }
+.outline-related .related-list li, .outline-related .related-list a { font-size: 12px; color: var(--text-muted); }
+.outline-related .related-search { width: 100%; box-sizing: border-box; height: 30px; padding: 0 10px; font-size: 12px; background: transparent; border-color: var(--border); }
+.outline-related .related-suggestions { font-size: 12px; }
+
+.footer-prop[hidden], .footer-props [hidden] { display: none !important; }

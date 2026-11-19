@@ -4642,7 +4642,15 @@
     }
 
     // A blank page, as when someone starts a new one
+    // Whatever was flagged or said about the page that was open before does not carry over to the next one
+    function clearOldWarnings() {
+      document.querySelectorAll('.has-error').forEach(function (block) { clearBlockError(block); });
+      var message = byId('footer-message');
+      if (message) { message.textContent = ''; }
+    }
+
     function resetEditor() {
+      clearOldWarnings();
       lockEditing(false);
       setVersionLink('', null);
       titleEl.textContent = '';
@@ -4718,6 +4726,7 @@
       reset: resetEditor,
       // Fill the editor from a saved version's text (silently, unlike Import)
       load: function (text, readOnly) {
+        clearOldWarnings();
         lockEditing(false);
         setVersionLink('', null);   // the library sets it again for a saved page
         applyDraft(parseDraft(text));

@@ -1421,3 +1421,10 @@ Still to do (not asked yet): the properties-above-the-title alternative (Conflue
 - **A separate white bar above the page** (not inside the editor): Team (Admin only), Owner, Visibility, Reviewer (text), and a **More** button that opens a small panel with Linked people and Related pages. The right column is gone, so the page has the room (the toolbar fits on one row) and the layout is "On this page | the page". Errors for a missing Owner or Visibility show under their field.
 - Fixed while doing it: with Support removed there was only one team, which hid the Department picker, so **Admin and Public could not be chosen**. In the artifact the picker now always shows (and Admin's team tools work with one team). Also fixed: a **new page started with the previous page's visibility**; it now starts with none chosen.
 - The slide-over version of Page setup from the previous step was removed with the column.
+
+## Page setup moved to the bottom bar (replaces the bar above the page)
+- **Bottom bar:** Owner, Visibility, Reviewer (text) and, for Admin, Team on the left; **Save draft** and **Submit for review** on the right. A missing Owner or Visibility is said in a small red note just above the bar. Export PDF and Publish page are no longer shown in the editor (the buttons are still in the page, hidden, because the team lead's Publish in the blue bar uses the publish button).
+- **Removed for now:** "Linked people" (the "second owner") and the "More" section. Pages can still carry linked people; they just cannot be changed here. The hidden code is in index.html.
+- **Import document** moved into the editor's toolbar, next to AI assist.
+- **On this page (editor and review view):** more padding and row spacing; **Related pages** moved under it, small and quiet.
+- **Description:** it was capped at 62 characters wide (about half the box); it now fills the box. Warnings and the footer message from a previous page no longer carry over when another page is opened.

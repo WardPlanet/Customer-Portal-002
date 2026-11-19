@@ -56,80 +56,6 @@
   <!-- Says what state this version is in and, when reading, what the reviewer can do -->
   <div class="editor-banner" id="editor-banner" hidden></div>
 
-  <!-- The page's properties: a bar of its own above the page, apart from the editor -->
-  <div class="prop-bar">
-      <!-- The page's properties: a strip above the page. What has to be set to submit comes first; optional things are folded under "More". -->
-      <div class="prop-strip" id="editor-setup" aria-label="Page setup">
-
-        <div class="prop" id="team-field" hidden>   <!-- Admin only -->
-          <span class="field-label">Team</span>
-          <p class="team-name" id="team-name" hidden></p>
-          <div id="team-picker"></div>
-          <p class="field-hint" id="team-hint" hidden></p>
-        </div>
-
-        <div id="version-field" hidden>
-          <span class="field-label">Version</span>
-          <button type="button" class="link-btn" id="version-link" aria-haspopup="dialog"></button>
-        </div>
-
-        <div id="location-field" hidden>   <!-- "Where this lives": not needed for now (see HANDOFF) -->
-          <span class="field-label">Library</span>
-          <div class="chips" id="chips"></div>
-        </div>
-
-        <div class="prop prop-owner" id="owner-field">
-          <label class="field-label" for="owner">Owner <span class="field-required" aria-hidden="true">*</span>
-            <span class="hint-dot" tabindex="0" role="img" aria-label="This person owns the page and is who readers contact about it. If they leave the team, it goes to the team lead until reassigned." title="This person owns the page and is who readers contact about it. If they leave the team, it goes to the team lead until reassigned.">?</span></label>
-          <div class="select-wrap">
-            <select class="select-field" id="owner"></select>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-        </div>
-
-        <div class="prop prop-visibility" id="visibility-field">
-          <span class="field-label">Visibility <span class="field-required" aria-hidden="true">*</span>
-            <span class="hint-dot" tabindex="0" role="img" aria-label="Client-safe pages can be read by customers." title="Client-safe pages can be read by customers.">?</span></span>
-          <div class="segmented" role="group" aria-label="Visibility">
-            <button class="segment" type="button" data-value="Internal-Only" aria-pressed="false">Internal only</button>
-            <button class="segment" type="button" data-value="Client-Safe" aria-pressed="false">Client-safe</button>
-          </div>
-        </div>
-
-        <!-- Not a field: the team lead always reviews (the select is hidden and only kept so the page can still read it) -->
-        <div class="prop prop-reviewer">
-          <span class="field-label">Reviewer</span>
-          <p class="setup-reviewer"><strong id="reviewer-name"></strong></p>
-          <div hidden>
-            <span class="avatar avatar-blue avatar-small" id="reviewer-avatar" hidden></span>
-            <select class="reviewer-select" id="reviewer" disabled></select>
-          </div>
-        </div>
-
-        <details class="prop-more" id="setup-more">
-          <summary class="secondary-link">More</summary>
-          <div class="prop-more-body">
-            <div>
-              <span class="field-label">Linked people</span>
-              <ul class="role-list" id="roles"></ul>
-              <div class="select-wrap" id="role-add-wrap">
-                <select class="select-field" id="role-add" aria-label="Select a person"></select>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-              </div>
-            </div>
-
-            <div id="related-field">
-              <span class="field-label">Related pages
-                <span class="hint-dot" tabindex="0" role="img" aria-label="Appear at the top of the published page, in this order." title="Appear at the top of the published page, in this order.">?</span></span>
-              <ul class="related-list" id="related"></ul>
-              <input type="search" class="related-search" id="related-search" placeholder="Search pages" aria-label="Search for a related page" autocomplete="off">
-              <ul class="related-suggestions" id="related-suggestions"></ul>
-            </div>
-          </div>
-        </details>
-      </div>
-  </div>
-
   <main class="workspace">
 
     <!-- On this page: the left column, set up like the live page -->
@@ -137,6 +63,14 @@
       <div class="outline-sticky">
         <div id="outline-box"></div>
         <p class="outline-meta" id="outline-meta">No steps yet. Add a Step block to list steps here.</p>
+      </div>
+      <!-- Related pages: quiet, under On this page -->
+      <div class="outline-related" id="related-field">
+        <span class="field-label">Related pages
+          <span class="hint-dot" tabindex="0" role="img" aria-label="Appear at the top of the published page, in this order." title="Appear at the top of the published page, in this order.">?</span></span>
+        <ul class="related-list" id="related"></ul>
+        <input type="search" class="related-search" id="related-search" placeholder="Search pages" aria-label="Search for a related page" autocomplete="off">
+        <ul class="related-suggestions" id="related-suggestions"></ul>
       </div>
     </aside>
 
@@ -188,6 +122,8 @@
             Image
           </button>
         </div>
+        <button class="block-chip import-chip" type="button" id="import-doc" title="Convert an existing document, or pasted text, into a page">Import document</button>
+        <input type="file" id="import-file" accept=".docx,.pdf,.txt,.md" hidden>
         <button class="block-chip ai-chip" id="ai-assist" type="button" aria-disabled="true" title="Fill in the required fields (*) first">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>
           <span class="ai-label">AI assist</span>
@@ -227,16 +163,64 @@
 
   <!-- Footer -->
   <footer class="footer">
-    <div class="footer-group">
-      <button class="secondary-btn" type="button" id="import-doc" title="Convert an existing document, or pasted text, into a page">Import document</button>
-      <input type="file" id="import-file" accept=".docx,.pdf,.txt,.md" hidden>
+    <!-- The page's properties live here: what has to be set to submit -->
+    <div class="footer-group footer-props" id="editor-setup" aria-label="Page setup">
+
+      <div class="footer-prop" id="team-field" hidden>   <!-- Admin only -->
+        <span class="footer-prop-label">Team</span>
+        <p class="team-name" id="team-name" hidden></p>
+        <div id="team-picker"></div>
+        <p class="field-hint" id="team-hint" hidden></p>
+      </div>
+
+      <div id="version-field" hidden>
+        <span class="field-label">Version</span>
+        <button type="button" class="link-btn" id="version-link" aria-haspopup="dialog"></button>
+      </div>
+
+      <div id="location-field" hidden>   <!-- "Where this lives": not needed for now (see HANDOFF) -->
+        <span class="field-label">Library</span>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="footer-prop" id="owner-field">
+        <label class="footer-prop-label" for="owner">Owner <span class="field-required" aria-hidden="true">*</span>
+          <span class="hint-dot" tabindex="0" role="img" aria-label="This person owns the page and is who readers contact about it. If they leave the team, it goes to the team lead until reassigned." title="This person owns the page and is who readers contact about it. If they leave the team, it goes to the team lead until reassigned.">?</span></label>
+        <div class="select-wrap">
+          <select class="select-field" id="owner"></select>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <div class="footer-prop" id="visibility-field">
+        <span class="footer-prop-label">Visibility <span class="field-required" aria-hidden="true">*</span>
+          <span class="hint-dot" tabindex="0" role="img" aria-label="Client-safe pages can be read by customers." title="Client-safe pages can be read by customers.">?</span></span>
+        <div class="segmented" role="group" aria-label="Visibility">
+          <button class="segment" type="button" data-value="Internal-Only" aria-pressed="false">Internal only</button>
+          <button class="segment" type="button" data-value="Client-Safe" aria-pressed="false">Client-safe</button>
+        </div>
+      </div>
+
+      <!-- Not a field: the team lead always reviews (the select is hidden and only kept so the page can still read it) -->
+      <div class="footer-prop footer-reviewer">
+        <span class="footer-prop-label">Reviewer</span>
+        <p class="setup-reviewer"><strong id="reviewer-name"></strong></p>
+      </div>
+      <div hidden>
+        <span class="avatar avatar-blue avatar-small" id="reviewer-avatar" hidden></span>
+        <select class="reviewer-select" id="reviewer" disabled></select>
+        <!-- Linked people: not offered for now (see HANDOFF). The page can still carry them. -->
+        <ul class="role-list" id="roles"></ul>
+        <div class="select-wrap" id="role-add-wrap"><select class="select-field" id="role-add" aria-label="Select a person"></select></div>
+        <!-- Export PDF and Publish: not shown in the editor for now. The team lead's Publish in the blue bar uses the publish button. -->
+        <button class="secondary-btn" type="button" id="export-pdf">Export PDF</button>
+        <button class="submit-btn" type="button" id="publish-draft" aria-disabled="true">Publish page</button>
+      </div>
     </div>
     <span class="footer-message" id="footer-message" role="status"></span>
     <div class="footer-group">
-      <button class="secondary-btn" type="button" id="export-pdf" title="Save the page as a PDF: title, description and content only">Export PDF</button>
       <button class="secondary-btn" type="button" id="save-draft" aria-disabled="true">Save draft</button>
-      <button class="secondary-btn" type="button" id="submit-draft" aria-disabled="true">Send for review</button>
-      <button class="submit-btn" type="button" id="publish-draft" aria-disabled="true" title="Make this page live now and download a copy as a text file. Skips review.">Publish page</button>
+      <button class="submit-btn" type="button" id="submit-draft" aria-disabled="true">Submit for review</button>
     </div>
   </footer>
 
