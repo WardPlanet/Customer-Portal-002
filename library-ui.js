@@ -1204,6 +1204,14 @@
         statusCell.appendChild(stillLive);
       } else {
         statusCell.appendChild(badge(STATE_LABELS[p.state]));
+        // A live page that also has changes being drafted (not submitted): a Draft pill under Live, shown only to the people who can see that draft
+        // (the owner), not to a team lead who is not the owner. If the lead sent those changes back it says so instead.
+        var editInProgress = p.state === 'live_edit_in_progress' && p.workingVersion && ((p.owner && W.ownsKey(actor(), p.owner)) || (p.ownerDefault && actorIsLead()));
+        if (editInProgress) {
+          var draftWrap = el('div', 'lib-row-sub');
+          draftWrap.appendChild(badge(p.workingVersion.status === 'sent_back' ? VERSION_LABELS.sent_back : VERSION_LABELS.draft));
+          statusCell.appendChild(draftWrap);
+        }
       }
       if (p.deleteRequest) {
         // A deletion request is shown on every row, in every tab, for the owner and the lead alike (its own dark red, not the expired red)
