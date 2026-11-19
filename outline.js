@@ -149,14 +149,14 @@
     // Opening one heading by its own arrow changes what the all-button should say
     groups.forEach(function (group) { group.toggle.addEventListener('click', refresh); });
     refresh();
-    watchScroll(box, items);
+    watchScroll(box, items, function () { if (!listOpen) { listOpen = true; refresh(); } });   // scrolling into a folded-away section opens the list
     return box;
   }
 
   // The heading the page is scrolled to is highlighted (light blue) in the outline. Items need a `target` (the heading's element). A heading
-  // folded out of sight lends the highlight to the visible one above it. A section becomes current when its heading reaches the height of
-  // its own link in the outline; near the end of the page that line slides to the window's bottom edge so short last sections each get their turn.
-  function watchScroll(box, items) {
+  // folded out of sight lends the highlight to the visible one above it. Each section becomes current at a scroll position worked out
+  // from where its heading is; the sections at the very end share the last stretch of scrolling so each gets a turn (see mark()).
+  function watchScroll(box, items, openList) {
     var tracked = items.filter(function (item) { return item.target; });
     if (!tracked.length) { return; }
     var links = [];
@@ -171,22 +171,26 @@
         return;
       }
       var root = document.documentElement;
-      var room = root.scrollHeight - window.innerHeight;
-      var progress = room > 0 ? Math.min(1, Math.max(0, window.scrollY / room)) : 0;
-      var start = Math.max(120, window.innerHeight * 0.33);
-      var line = start + (window.innerHeight - start) * progress;
-      // A section becomes current when its heading (where its link symbol sits) reaches the height of its own link in the outline. Over the
-      // last 15% of the page the line slides down to the window's bottom edge, so the short sections at the end each get their turn.
-      var finish = Math.max(0, (progress - 0.85) / 0.15);
+      // Each section has a scroll position at which it becomes current: the moment its heading reaches a reading line a quarter of the way
+      // down the window. Sections too close to the end of the page to ever reach that line (there is nothing left to scroll) have their
+      // positions spread evenly over the last stretch of scrolling instead, so the last section is current exactly at the bottom and the
+      // highlight never depends on where the window happens to be sized.
+      var maxScroll = Math.max(0, root.scrollHeight - window.innerHeight);
+      var readLine = Math.max(100, window.innerHeight * 0.25);
+      var triggers = tracked.map(function (item) { return item.target ? item.target.getBoundingClientRect().top + window.scrollY - readLine : Infinity; });
+      var firstOut = triggers.findIndex(function (t) { return t > maxScroll; });
+      if (firstOut >= 0) {
+        var from = firstOut > 0 ? Math.min(triggers[firstOut - 1], maxScroll) : 0;
+        var count = triggers.length - firstOut;
+        for (var k = 0; k < count; k++) { triggers[firstOut + k] = from + (maxScroll - from) * (k + 1) / count; }
+      }
       var at = -1;
-      tracked.forEach(function (item, i) {
-        var heading = item.target;
-        if (!heading) { return; }
-        var a = linkOf(item);
-        var linkY = a && a.offsetParent !== null ? a.getBoundingClientRect().top : line;   // no visible link (folded away): the general line
-        var reach = linkY + (window.innerHeight - linkY) * finish;
-        if (heading.getBoundingClientRect().top <= reach) { at = i; }
-      });
+      triggers.forEach(function (t, i) { if (window.scrollY >= t - 1) { at = i; } });
+      // The current section's link is folded away or faded (the list is shown short): open the list so the highlight is on the right link
+      if (at >= 0 && openList) {
+        var currentLink = linkOf(tracked[at]);
+        if (currentLink && (currentLink.offsetParent === null || currentLink.closest('.toc-fade-1, .toc-fade-2'))) { openList(); }
+      }
       var shown = null;
       while (at >= 0 && !shown) {
         var a = linkOf(tracked[at]);
