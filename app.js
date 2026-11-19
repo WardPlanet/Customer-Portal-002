@@ -1756,7 +1756,7 @@
       }
       if (needVisibility && !state.visibility) {
         flagBlock(byId('visibility-field'), 'Choose a visibility to send this for review or publish it.');
-        missing.push({ label: 'visibility', target: byId('visibility-field').querySelector('.segment') });
+        missing.push({ label: 'visibility', target: byId('visibility') });
       }
 
       return missing;
@@ -1839,7 +1839,7 @@
       var facts = [];
       if (steps.length) { facts.push('~' + minutes + ' min read'); facts.push(steps.length + (steps.length === 1 ? ' step' : ' steps')); }
       if (warningCount) { facts.push(warningCount + (warningCount === 1 ? ' warning' : ' warnings')); }
-      byId('outline-meta').textContent = facts.length ? facts.join(' \u00b7 ') : 'No steps yet. Add a Step block to list steps here.';
+      byId('outline-meta').textContent = facts.length ? facts.join(' \u00b7 ') : '';
 
       updateSaveState();
       ensureSectionAiButtons();
@@ -2159,9 +2159,7 @@
 
     /* ---------- Page Setup: visibility ---------- */
     function renderVisibility() {
-      document.querySelectorAll('.segment').forEach(function (segment) {
-        segment.setAttribute('aria-pressed', String(!!state.visibility && segment.getAttribute('data-value') === state.visibility));
-      });
+      byId('visibility').value = state.visibility || '';
     }
 
     function renderSidebar(keepSecondaryOpen) {
@@ -4641,20 +4639,19 @@
         markDirty();
       }
     });
-    document.querySelectorAll('.segment').forEach(function (segment) {
-      segment.addEventListener('click', async function () {
-        var chosen = segment.getAttribute('data-value');
-        // Making a page readable by clients asks first. Switching back to internal-only does not.
-        if (chosen === 'Client-Safe' && state.visibility !== 'Client-Safe') {
-          var ok = await window.askConfirm('Clients will be able to read this page once it is live. Check that nothing in it is only for staff.', { title: 'Make this page public?', ok: 'Make public' });
-          if (!ok) { return; }
-        }
-        state.visibility = chosen;
-        renderVisibility();
-        clearBlockError(byId('visibility-field'));
-        markDirty();
-        updateSaveState();
-      });
+    byId('visibility').addEventListener('change', async function () {
+      var select = byId('visibility');
+      var chosen = select.value;
+      // Making a page readable by clients asks first. Switching back to internal-only does not.
+      if (chosen === 'Client-Safe' && state.visibility !== 'Client-Safe') {
+        var ok = await window.askConfirm('Clients will be able to read this page once it is live. Check that nothing in it is only for staff.', { title: 'Make this page public?', ok: 'Make public' });
+        if (!ok) { select.value = state.visibility || ''; return; }
+      }
+      state.visibility = chosen;
+      renderVisibility();
+      clearBlockError(byId('visibility-field'));
+      markDirty();
+      updateSaveState();
     });
 
     /* ---------- What the library uses to drive the editor ---------- */

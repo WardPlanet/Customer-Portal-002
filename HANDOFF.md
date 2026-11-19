@@ -1462,3 +1462,8 @@ The team lead and Admin no longer see a draft (or a sent-back page) that has nev
 ## Live page: where things sit now
 - **Public / Internal and "Updated N days ago"** are at the right of the department line (the eyebrow), for staff; a visitor sees neither.
 - **Export PDF and Copy link** are two buttons at the bottom of the left column, under Related pages. The fixed bottom bar now holds only Edit / Send for review / Publish page for the people allowed to use them, and is not drawn at all when there is none (a visitor, or a reader who cannot edit).
+
+## Editor: Visibility dropdown, quieter outline, Related pages card
+- **Visibility is a dropdown** ("Choose visibility", "Internal only", "Client-safe") in the Page setup bar. It is still required to submit or publish, and choosing Client-safe still asks "Make this page public?" (Cancel puts the old value back).
+- The outline's empty-state sentence ("No steps yet. Add a Step block…") is gone; the "~N min read · N steps" line only shows when there are steps.
+- **Related pages** is a card of its own under On this page, with a normal-size title, a "?" tooltip and a larger blue **+** that opens the search.

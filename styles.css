@@ -2922,3 +2922,15 @@ body.is-public .prop-bar { display: none; }
 .eyebrow-details .preview-updated { font-size: 13px; color: var(--text-muted); }
 .rail-tools { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
 .rail-tools .secondary-btn { width: 100%; justify-content: center; text-align: center; }
+
+/* Visibility is a dropdown; the empty outline note is gone; Related pages is a card of its own, easy to find */
+.prop-visibility { width: 230px; }
+.outline-meta:empty { display: none; }
+.outline-related { margin: 16px 0 0; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
+.outline-related .related-head { margin: 0; }
+.outline-related .related-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.outline-related .related-add { width: 26px; height: 26px; font-size: 18px; color: var(--icon-blue); border-color: var(--icon-blue); }
+.outline-related .related-add:hover { background: var(--brand-tint); }
+.outline-related .related-list { margin: 12px 0 0; }
+.outline-related .related-list li, .outline-related .related-list a { font-size: 13px; color: var(--text); }
+.outline-related .related-search { margin-top: 12px; height: 34px; font-size: 13px; }

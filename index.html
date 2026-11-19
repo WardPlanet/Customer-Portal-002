@@ -103,9 +103,13 @@
       <div class="prop prop-visibility" id="visibility-field">
         <span class="field-label">Visibility <span class="field-required" aria-hidden="true">*</span>
           <span class="hint-dot" tabindex="0" role="img" aria-label="Client-safe pages can be read by customers." title="Client-safe pages can be read by customers.">?</span></span>
-        <div class="segmented" role="group" aria-label="Visibility">
-          <button class="segment" type="button" data-value="Internal-Only" aria-pressed="false">Internal only</button>
-          <button class="segment" type="button" data-value="Client-Safe" aria-pressed="false">Client-safe</button>
+        <div class="select-wrap">
+          <select class="select-field" id="visibility" aria-label="Visibility">
+            <option value="">Choose visibility</option>
+            <option value="Internal-Only">Internal only</option>
+            <option value="Client-Safe">Client-safe</option>
+          </select>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </div>
       </div>
 
@@ -130,12 +134,13 @@
     <aside class="outline" aria-label="On this page">
       <div class="outline-sticky">
         <div id="outline-box"></div>
-        <p class="outline-meta" id="outline-meta">No steps yet. Add a Step block to list steps here.</p>
+        <p class="outline-meta" id="outline-meta"></p>
       </div>
       <!-- Related pages: quiet, under On this page. The + opens a search. -->
       <div class="outline-related" id="related-field">
         <div class="related-head">
-          <span class="related-title">Related pages</span>
+          <span class="related-title">Related pages
+            <span class="hint-dot" tabindex="0" role="img" aria-label="Appear at the top of the published page, in this order." title="Appear at the top of the published page, in this order.">?</span></span>
           <button type="button" class="related-add" id="related-add" aria-label="Add a related page" aria-expanded="false" title="Add a related page">+</button>
         </div>
         <ul class="related-list" id="related"></ul>
