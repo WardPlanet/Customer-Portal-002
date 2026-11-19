@@ -3025,3 +3025,6 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 .lib-row.is-live td:first-child { box-shadow: inset 4px 0 0 var(--live-border); }   /* live: green bar */
 
 .lib-bar.is-blue { background: var(--brand-tint); border-color: var(--icon-blue); color: var(--navy); }   /* waiting for review: blue, like In review */
+
+/* Two statuses stacked (In review over Live): a little air between the pills */
+td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
