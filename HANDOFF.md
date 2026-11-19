@@ -1556,3 +1556,4 @@ The Node server (`server.js`, `library.js`) now has the same rules and routes as
 - Tests: `tests/library-server.test.cjs` runs the real routes against a temporary folder.
 - **Still not on the server:** several departments (the server uses one team, `readTeam()`), Admin creating a draft in another department, the import example outlines, flag decisions, and backups including the trash (a backup holds the pages only). Real sign-in still replaces the `X-Acting-As` header.
 - A highlighted (linked) section is now exactly as wide as the section, with its padding inside; the text reflows to fit and the box no longer spills into the margins.
+- Linked section: the link icon stays in the same place as before the highlight (nudged back by the padding); the yellow starts where the text started and the text moves in by the padding.
