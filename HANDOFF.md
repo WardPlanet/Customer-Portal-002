@@ -1555,3 +1555,4 @@ The Node server (`server.js`, `library.js`) now has the same rules and routes as
 - **Emails** are written to `drafts/outbox/` (one JSON file each: to, subject, text, kind, pageId), never sent: submitted, sent back (also for live-page changes), deletion requested, deletion kept, owner republished, expiring, expired, leaving the trash. Wording to be matched to `notifications.md`.
 - Tests: `tests/library-server.test.cjs` runs the real routes against a temporary folder.
 - **Still not on the server:** several departments (the server uses one team, `readTeam()`), Admin creating a draft in another department, the import example outlines, flag decisions, and backups including the trash (a backup holds the pages only). Real sign-in still replaces the `X-Acting-As` header.
+- A highlighted (linked) section is now exactly as wide as the section, with its padding inside; the text reflows to fit and the box no longer spills into the margins.

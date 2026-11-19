@@ -3110,3 +3110,9 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 @media (max-width: 900px) { .lib-list { overflow-x: auto; } }
 @media (max-width: 900px) { .lib-list { min-width: 0; max-width: 100%; } .lib-main { min-width: 0; } }
 @media (max-width: 900px) { .lib-list { position: relative; } }
+
+/* A highlighted (linked) section stays exactly as wide as the section itself, with its padding inside, so the text reflows to fit
+   instead of the box spilling into the margins */
+.section-linked { margin: 0 0 12px; padding: 8px 16px 12px; box-shadow: none; background: var(--linked-bg); border-radius: 12px; }
+.section-linked > :last-child { margin-bottom: 0; }
+.section-linked > .preview-h:first-child { margin-top: 0; }
