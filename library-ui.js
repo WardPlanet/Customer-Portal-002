@@ -820,6 +820,40 @@
     return true;
   }
 
+  /* ---------- The edit lock (see workflow.cjs) ----------
+     Each browser window has its own id. The editor claims the page it opens under that id and renews the claim every 30 seconds; while someone else holds
+     it, Edit is greyed out with a note saying who is editing. */
+  var editSession = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  var heldLock = { id: null, timer: null };
+
+  // Is this page being edited by someone (or by this person in another window)? Returns the note to show, or ''
+  function lockNote(page) {
+    var lock = page && page.editing;
+    if (!lock || lock.session === editSession) { return ''; }
+    return lock.by === actor().name ? 'You are editing this in another window' : lock.by + ' is editing';
+  }
+
+  // Greys out an Edit button while the page is locked, and returns a small note to put under it (or null)
+  function lockEditButton(buttonEl, page) {
+    var note = lockNote(page);
+    if (!note) { return null; }
+    buttonEl.setAttribute('aria-disabled', 'true');
+    buttonEl.title = note;
+    var originalClick = buttonEl.onclick;
+    buttonEl.addEventListener('click', function (event) { event.stopImmediatePropagation(); event.preventDefault(); }, true);
+    var line = el('div', 'row-lock-note', note);
+    line.setAttribute('role', 'status');
+    return line;
+  }
+
+  function releaseEditLock() {
+    if (heldLock.timer) { clearInterval(heldLock.timer); }
+    var id = heldLock.id;
+    heldLock = { id: null, timer: null };
+    if (id && backend() && backend().releaseEdit) { try { backend().releaseEdit(id, editSession).catch(function () { /* it lapses by itself */ }); } catch (error) { /* it lapses by itself */ } }
+  }
+  window.addEventListener('pagehide', releaseEditLock);
+
   // Throws away the saved draft of a live page: the page goes back to being just the live version. Resolves to true when it was deleted.
   async function confirmAndDiscardDraft(id, n, title) {
     if (!(await window.askConfirm('This will revert to the live page. The changes you saved to \u201c' + title + '\u201d will be deleted, and the live page stays as it is.', { title: 'Delete this draft?', ok: 'Delete draft' }))) { return false; }
@@ -1340,10 +1374,11 @@
         var lead = actorIsLead();
         // Edit: opens the version being worked on, or starts a new draft from the live one (same as the page's own Edit button)
         var editButton = button('Edit', 'row-btn', async function () {
-          var result = await attempt(backend().edit(p.id));
+          var result = await attempt(backend().edit(p.id, editSession));
           if (result) { location.hash = '#/edit/' + p.id + '/' + result.version; }
         });
         editButton.setAttribute('aria-label', 'Edit ' + p.title);
+        var rowLockNote = lockEditButton(editButton, p);
         // Review is the main button for an expired page, and for a page just submitted (the team lead's to approve or send back)
         var submittedForLead = lead && p.workingVersion && isWaitingForReview(p);
         if (submittedForLead || (expiry && expiry.expired)) {
@@ -1403,6 +1438,15 @@
             if (await attempt(backend().unpublish(p.id))) { notice('Unpublished \u201c' + p.title + '\u201d.'); route(); }
           } });
         }
+        if (lead && rowLockNote) {
+          // The team lead can take over from an editor who has gone quiet; that person is told the next time their window checks in
+          moreItems.push({ label: 'Take over editing', onClick: async function () {
+            if (!(await window.askConfirm(p.editing.by + ' has this page open for editing. If you take over, their window can no longer save, so any changes they have not saved are lost.', { title: 'Take over editing?', ok: 'Take over' }))) { return; }
+            if (!(await attempt(backend().claimEdit(p.id, editSession, true)))) { return; }
+            var started = await attempt(backend().edit(p.id, editSession));
+            if (started) { location.hash = '#/edit/' + p.id + '/' + started.version; }
+          } });
+        }
         if (hasOwnEditInProgress(p)) {
           moreItems.push({ label: 'Delete draft', danger: true, onClick: async function () { if (await confirmAndDiscardDraft(p.id, p.workingVersion.n, p.title)) { route(); } } });
         }
@@ -1414,6 +1458,7 @@
           moreItems.push({ label: 'Request deletion', danger: true, onClick: async function () { if (await confirmAndRequestDelete(p)) { route(); } } });
         }
         deleteCell.appendChild(menuButton('\u22EF', 'row-btn', 'More actions for ' + p.title, moreItems));
+        if (rowLockNote) { deleteCell.appendChild(rowLockNote); }   // who is editing, under the buttons
         row.appendChild(deleteCell);
       }
       body.appendChild(row);
@@ -1696,6 +1741,29 @@
     if (mine !== routing) { return; }
     if (!data) { location.hash = '#/'; return; }
     if (data.actions.indexOf('edit') < 0) { location.hash = '#/view/' + id + '/' + n; return; }   // not editable: read it instead
+    // Claim the page for this window. If someone else has it open, read it instead (the note says who is editing).
+    if (backend().claimEdit) {
+      try { await backend().claimEdit(id, editSession); }
+      catch (error) {
+        notice(error && error.message ? error.message : 'Someone else is editing this page.');
+        location.hash = '#/view/' + id + '/' + n;
+        return;
+      }
+      if (mine !== routing) { return; }
+      releaseEditLock();
+      heldLock.id = id;
+      heldLock.timer = setInterval(async function () {
+        try { await backend().claimEdit(id, editSession); }
+        catch (error) {
+          // Someone (the team lead) took over, or the claim could not be renewed
+          clearInterval(heldLock.timer);
+          if (error && error.code === 'being_edited') {
+            current.lockLost = error.message;
+            notice(error.message + ' Your changes can no longer be saved here.');
+          }
+        }
+      }, 30000);
+    }
     showScreen('editor', false);
     setMainButtonLabel();
     var footerDelete = document.getElementById('delete-draft');
@@ -1933,7 +2001,7 @@
     var liveReview = !!(detail && detail.page && detail.page.liveVersion === Number(n) && !detail.page.workingVersion);
     var isOwner = !!(detail && detail.page && detail.page.owner && W.ownsKey(actor(), detail.page.owner)) || !!(detail && detail.page && detail.page.ownerDefault && actorIsLead());
     var editFromLive = async function () {
-      var started = await attempt(backend().edit(id));
+      var started = await attempt(backend().edit(id, editSession));
       if (started) { location.hash = '#/edit/' + id + '/' + started.version; }
     };
     if (liveReview && (actorIsLead() || actingAsAdmin())) {
@@ -1972,6 +2040,19 @@
         inReview.appendChild(document.createTextNode('In Review'));
         row.appendChild(inReview);
       }
+    }
+    var viewerNote = detail && detail.page ? lockNote(detail.page) : '';
+    if (viewerNote) {
+      // Someone is editing this page right now: Edit is greyed out, and the bar says who
+      Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) {
+        if (b.textContent !== 'Edit') { return; }
+        b.setAttribute('aria-disabled', 'true');
+        b.title = viewerNote;
+        b.addEventListener('click', function (event) { event.stopImmediatePropagation(); event.preventDefault(); }, true);
+      });
+      var viewerLine = el('p', 'row-lock-note', viewerNote + ' right now.');
+      viewerLine.setAttribute('role', 'status');
+      box.appendChild(viewerLine);
     }
     if (row.childNodes.length) { box.appendChild(row); }
     setBanner(box);
@@ -4332,10 +4413,13 @@
       var canSend = versionActions.indexOf('submit') >= 0;
       var canPublishNow = versionActions.indexOf('publish') >= 0;
       var editLabel = detail.page.workingVersion ? 'Continue editing' : 'Edit';
-      footerActions.appendChild(button(editLabel, canSend || canPublishNow ? 'secondary-btn' : 'primary-btn', async function () {
-        var result = await attempt(backend().edit(id));
+      var liveEditButton = button(editLabel, canSend || canPublishNow ? 'secondary-btn' : 'primary-btn', async function () {
+        var result = await attempt(backend().edit(id, editSession));
         if (result) { location.hash = '#/edit/' + id + '/' + result.version; }
-      }));
+      });
+      var liveLockNote = lockEditButton(liveEditButton, detail.page);
+      if (liveLockNote) { liveLockNote.className = 'footer-message'; footerActions.appendChild(liveLockNote); }
+      footerActions.appendChild(liveEditButton);
       if (canSend) {
         footerActions.appendChild(button('Send for review', canPublishNow ? 'secondary-btn' : 'primary-btn', function () {
           runAction(id, shownVersion, 'submit', 'Sent for review. ' + personFor(team.lead) + ' (' + team.lead + ') has been notified and can approve it or send it back.');
@@ -4385,6 +4469,7 @@
   /* ---------- What app.js calls when someone saves, submits or leaves ---------- */
   window.PageHost = {
     save: async function (text) {
+      if (current.lockLost) { throw new Error(current.lockLost + ' Your changes can no longer be saved here.'); }
       if (current.id === null) {
         var created = await backend().create(text);
         current = { id: created.page.id, n: created.version, backTo: '#/' };
@@ -4430,7 +4515,7 @@
     hasSavedDraftChanges: function () { return !!current.draftChanged; },   // the saved draft of this live page differs from the live version
     autosaveEnabled: function () { return !current.liveEdit; },   // a draft of a live page is saved only when the editor clicks Save draft
     autosave: async function (text) {
-      if (current.id === null || current.liveEdit) { return false; }
+      if (current.id === null || current.liveEdit || current.lockLost) { return false; }
       await backend().save(current.id, current.n, text);
       window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
       return true;
@@ -4478,6 +4563,8 @@
     if (!team) { return; }
     flushPendingSearch();   // a search still waiting to be logged is logged as the person leaves the screen
     routing += 1;
+    // Leaving the editor (or opening another page's) gives the edit lock back
+    if (heldLock.id && (location.hash || '').indexOf('#/edit/' + heldLock.id + '/') !== 0) { releaseEditLock(); }
     var hereNow = location.hash || '#/';
     if (hereNow !== routeHistory.current) { routeHistory.previous = routeHistory.current; routeHistory.current = hereNow; }
     refreshNotifications();   // the lead's bell (counts what is waiting)

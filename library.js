@@ -607,6 +607,7 @@ export function registerLibraryRoutes(app, draftsDir) {
 
   app.post('/api/library/pages/:id/edit', staff(async function (req, res, ctx) {
     var page = await openMine(req, ctx);
+    Workflow.assertNotLocked(page, ctx.actor, ctx.now, String((req.body && req.body.session) || ''));   // someone else has the page open for editing
     var version = Workflow.startEdit(page, ctx.actor, ctx.now);
     await savePage(draftsDir, ctx.team, page);
     res.json(Object.assign(detail(page, ctx), { version: version.n }));
@@ -678,6 +679,19 @@ export function registerLibraryRoutes(app, draftsDir) {
     await fs.rename(from, to);
     await fs.rm(path.join(to, 'trash.json'), { force: true });
     res.json({ restored: page.id });
+  }));
+
+  // The edit lock: the editor claims the page when it opens and renews the claim every 30 seconds; the team lead may take over
+  app.post('/api/library/pages/:id/editing', staff(async function (req, res, ctx) {
+    var page = await openMine(req, ctx);
+    var lock = Workflow.claimEditing(page, ctx.actor, String((req.body && req.body.session) || ''), ctx.now, !!(req.body && req.body.takeOver), ctx.team);
+    await savePage(draftsDir, ctx.team, page);
+    res.json({ editing: lock });
+  }));
+  app.post('/api/library/pages/:id/editing/release', staff(async function (req, res, ctx) {
+    var page = await openMine(req, ctx);
+    if (Workflow.releaseEditing(page, String((req.body && req.body.session) || ''))) { await savePage(draftsDir, ctx.team, page); }
+    res.json({ released: true });
   }));
 
   // Page setup changes saved in place (owner, linked people, visibility, owner republishing): no new version, no republish

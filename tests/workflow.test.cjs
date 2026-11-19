@@ -630,3 +630,25 @@ test('page setup changes are saved in place, without a new version', () => {
   assert.equal(page.ownerPublishes, false);
   assert.throws(() => W.updateSetup(page, { ownerPublishes: true }, mi, bigTeam, t(8)), /public/i);
 });
+
+test('the edit lock: one window edits at a time, it lapses, and the lead can take over', () => {
+  const page = livePage();
+  const at = (s) => new Date(Date.parse('2026-11-01T10:00:00.000Z') + s * 1000).toISOString();
+  W.claimEditing(page, scott, 'tab-1', at(0), false, team);
+  assert.equal(W.activeLock(page, at(1)).by, 'Scott Archer');
+  // Renewing from the same window is fine; another window of the same person is refused with its own wording
+  W.claimEditing(page, scott, 'tab-1', at(30), false, team);
+  assert.throws(() => W.claimEditing(page, scott, 'tab-2', at(40), false, team), /another window/);
+  assert.throws(() => W.claimEditing(page, micah, 'tab-9', at(40), false, team), /Scott Archer is editing/);
+  assert.throws(() => W.assertNotLocked(page, micah, at(40)), /Scott Archer is editing/);
+  // Only the lead can take over
+  assert.throws(() => W.claimEditing(page, molly, 'tab-3', at(50), true, team), /is editing/);
+  W.claimEditing(page, micah, 'tab-9', at(50), true, team);
+  assert.equal(page.editing.by, 'Micah');
+  // A claim that is not renewed lapses; releasing clears it
+  assert.equal(W.activeLock(page, at(50 + W.LOCK_SECONDS + 1)), null);
+  W.claimEditing(page, scott, 'tab-1', at(400), false, team);
+  assert.equal(W.releaseEditing(page, 'someone-else'), false);
+  assert.equal(W.releaseEditing(page, 'tab-1'), true);
+  assert.equal(W.activeLock(page, at(401)), null);
+});

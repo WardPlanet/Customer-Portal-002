@@ -216,7 +216,7 @@
     get: function (id) { return this.call('GET', '/api/library/pages/' + id); },
     getVersion: function (id, n) { return this.call('GET', '/api/library/pages/' + id + '/versions/' + n); },
     save: function (id, n, text) { return this.call('PUT', '/api/library/pages/' + id + '/versions/' + n, { text: text }); },
-    edit: function (id) { return this.call('POST', '/api/library/pages/' + id + '/edit'); },
+    edit: function (id, session) { return this.call('POST', '/api/library/pages/' + id + '/edit', { session: session || '' }); },
     act: function (id, n, action, body) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/' + action, body || {}); },
     unpublish: function (id) { return this.call('POST', '/api/library/pages/' + id + '/unpublish'); },
     remove: function (id) { return this.call('DELETE', '/api/library/pages/' + id); },
@@ -228,6 +228,8 @@
     getRoster: function () { return this.call('GET', '/api/library/roster'); },
     saveRoster: function (roles) { return this.call('PUT', '/api/library/roster', { roles: roles }); },
     // The owner is a person's email. opts.asDefault: the team lead has the page as a fallback, marked "(Default)" until it is reassigned.
+    claimEdit: function (id, session, takeOver) { return this.call('POST', '/api/library/pages/' + id + '/editing', { session: session, takeOver: !!takeOver }); },
+    releaseEdit: function (id, session) { return this.call('POST', '/api/library/pages/' + id + '/editing/release', { session: session }); },
     saveSetup: function (id, changes) { return this.call('POST', '/api/library/pages/' + id + '/setup', changes); },
     setOwnerPublishes: function (id, on) { return this.call('POST', '/api/library/pages/' + id + '/owner-publishes', { on: !!on }); },
     setVisibility: function (id, visibility) { return this.call('POST', '/api/library/pages/' + id + '/visibility', { visibility: visibility }); },
@@ -506,8 +508,25 @@
       save: async function (id, n, text) {
         return change(id, function (page, who, at, t) { W.saveDraft(page, n, text, who, at, t); });
       },
-      edit: async function (id) {
-        return change(id, function (page, who, at, t) { return { version: W.startEdit(page, who, at).n }; });
+      edit: async function (id, session) {
+        return change(id, function (page, who, at, t) { W.assertNotLocked(page, who, at, session); return { version: W.startEdit(page, who, at).n }; });
+      },
+      // The edit lock: the editor claims a page when it opens and renews the claim; see "The edit lock" in workflow.cjs
+      claimEdit: async function (id, session, takeOver) {
+        var data = readAll();
+        var page = find(data, id);
+        var t = teamOf(page);
+        var who = actorIn(t);
+        if (!who.name || !who.roles.length) { throw fail('not_on_team', 'Only people on the team can edit.'); }
+        var lock = guard(function () { return W.claimEditing(page, who, session, now(), takeOver, t); });
+        writeAll(data);
+        return { editing: lock };
+      },
+      releaseEdit: async function (id, session) {
+        var data = readAll();
+        var page = data.pages.filter(function (p) { return p.id === id; })[0];
+        if (page && W.releaseEditing(page, session)) { writeAll(data); }
+        return { released: true };
       },
       act: async function (id, n, action, body) {
         return change(id, function (page, who, at, t) {

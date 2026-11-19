@@ -3150,3 +3150,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* Save changes and Cancel, at the lower left of the Page setup box, when the setup of a live page has been changed */
 .setup-actions { flex-basis: 100%; display: flex; align-items: center; gap: 8px; margin-top: 4px; }   /* the buttons are row-btn, the same size as the blue bar's */
 .setup-actions[hidden] { display: none; }
+
+/* The small note under a greyed-out Edit: who is editing the page right now */
+.row-lock-note { display: block; width: 100%; margin-top: 6px; font-size: 12px; font-weight: 500; color: var(--text-muted); text-align: right; }
+.lib-row-actions { flex-wrap: wrap; }

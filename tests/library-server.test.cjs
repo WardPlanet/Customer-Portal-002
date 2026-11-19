@@ -73,6 +73,15 @@ test('server: opt-in republish, soft delete, restore, review routes and emails',
     assert.equal(published.status, 200);
     assert.ok((await s.outbox()).some((m) => m.kind === 'owner-republished'));
 
+    // The edit lock: Scott's window claims the page; Micah cannot start an edit or claim it, but can take over; releasing frees it
+    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/editing', { session: 'win-1' })).status, 200);
+    assert.equal((await s.call('Micah', 'POST', '/api/library/pages/' + id + '/edit')).status, 409);
+    assert.equal((await s.call('Micah', 'POST', '/api/library/pages/' + id + '/editing', { session: 'win-2' })).status, 409);
+    assert.equal((await s.call('Micah', 'GET', '/api/library/pages/' + id)).body.page.editing.by, 'Scott Archer');
+    assert.equal((await s.call('Micah', 'POST', '/api/library/pages/' + id + '/editing', { session: 'win-2', takeOver: true })).status, 200);
+    assert.equal((await s.call('Micah', 'POST', '/api/library/pages/' + id + '/editing/release', { session: 'win-2' })).status, 200);
+    assert.equal((await s.call('Micah', 'GET', '/api/library/pages/' + id)).body.page.editing, null);
+
     // Page setup saved in place: no new version. The owner may change linked people, only the lead the rest.
     const versionsBefore = (await s.call('Micah', 'GET', '/api/library/pages/' + id)).body.history.length;
     assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/setup', { visibility: 'Client-Safe' })).status, 403);

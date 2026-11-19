@@ -477,6 +477,42 @@
   }
 
   // Edit a page: reuse the version being worked on, or make a new draft copy of the live (or latest) one
+  /* ---------- The edit lock ----------
+     Only one person (and one browser window) edits a page's draft at a time. The editor claims the page when it opens and renews the claim every
+     30 seconds; a claim that has not been renewed for LOCK_SECONDS has lapsed (a closed tab, a lost connection) and the page is free again. The team
+     lead may take over a claim. The claim is kept on the page as page.editing = { by, session, at }. */
+  var LOCK_SECONDS = 120;
+  function activeLock(page, now) {
+    var lock = page && page.editing;
+    if (!lock || !lock.at) { return null; }
+    var at = Date.parse(lock.at);
+    var current = now ? Date.parse(now) : Date.now();
+    return !isNaN(at) && current - at < LOCK_SECONDS * 1000 ? lock : null;
+  }
+  function lockMessage(lock, actor) {
+    return lock.by === (actor && actor.name) ? 'You are editing this page in another window.' : lock.by + ' is editing this page.';
+  }
+  // Claims (or renews) the edit lock for this window. Someone else's live claim refuses it, unless the team lead takes over.
+  function claimEditing(page, actor, session, now, takeOver, team) {
+    requireActor(actor);
+    if (!session) { throw new WorkflowError('bad_request', 'Say which window is editing.', 400); }
+    var lock = activeLock(page, now);
+    if (lock && lock.session !== session && !(takeOver && isLead(actor, team))) {
+      throw new WorkflowError('being_edited', lockMessage(lock, actor), 409);
+    }
+    page.editing = { by: actor.name, session: String(session).slice(0, 64), at: now };
+    return page.editing;
+  }
+  function releaseEditing(page, session) {
+    if (page && page.editing && page.editing.session === session) { delete page.editing; return true; }
+    return false;
+  }
+  // Starting an edit from the library is refused while anyone has the page open for editing
+  function assertNotLocked(page, actor, now, session) {
+    var lock = activeLock(page, now);
+    if (lock && !(session && lock.session === session)) { throw new WorkflowError('being_edited', lockMessage(lock, actor), 409); }
+  }
+
   function startEdit(page, actor, now) {
     requireActor(actor);
     var working = workingVersion(page);
@@ -816,6 +852,8 @@
       workingVersion: working ? { n: working.n, status: working.status, author: working.author || '', changed: !!live && working.text !== live.text, submittedBy: working.submittedBy || '', submittedAt: working.submittedAt || '', decisionComment: working.status === STATUS.SENT_BACK ? (working.decisionComment || '') : '', decidedAt: working.decidedAt || '' } : null,
       versionCount: page.versions.length,
       ownerPublishes: !!page.ownerPublishes,
+      // Who has the page open for editing right now (null when nobody)
+      editing: activeLock(page) ? { by: page.editing.by, session: page.editing.session, at: page.editing.at } : null,
       // The live version was published by the owner without review (the lead is told for a week)
       ownerRepublished: live && live.ownerPublished ? { by: live.decidedBy, at: live.decidedAt } : null,
       releaseCount: page.versions.filter(isPublished).length,
@@ -1326,6 +1364,11 @@
     ownerMayPublish: ownerMayPublish,
     setOwnerPublishes: setOwnerPublishes,
     setLinked: setLinked,
+    LOCK_SECONDS: LOCK_SECONDS,
+    activeLock: activeLock,
+    claimEditing: claimEditing,
+    releaseEditing: releaseEditing,
+    assertNotLocked: assertNotLocked,
     updateSetup: updateSetup,
     withdraw: withdraw,
     approve: approve,
