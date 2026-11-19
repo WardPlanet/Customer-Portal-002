@@ -485,6 +485,23 @@
     return newVersion(page, base.text, actor, now, base === liveVersion(page) ? 'Started from the live version' : 'Started from the latest version');
   }
 
+  // Throws away the draft of a LIVE page (one that has not been submitted), so the page goes back to being just the live version. The person who is
+  // drafting it, the page's owner or the team lead may do it. A page that was never live is deleted instead (assertCanDelete).
+  function discardDraft(page, n, actor, team, now) {
+    requireActor(actor);
+    var version = versionOf(page, n);
+    if (!page.liveVersion) { throw new WorkflowError('not_live', 'This page is not live, so delete the whole page instead.', 409); }
+    if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK) {
+      throw new WorkflowError('not_editable', 'Only a draft that has not been submitted can be deleted.', 409);
+    }
+    if (!isLead(actor, team) && !isMine(page, actor) && version.author !== actor.name) {
+      throw new WorkflowError('not_yours', 'Only the person drafting it, the owner or the team lead can delete this draft.', 403);
+    }
+    page.versions = page.versions.filter(function (v) { return v !== version; });
+    page.updatedAt = page.updatedAt || now;
+    return true;
+  }
+
   // Restore an old version: it becomes a new draft (it still has to be approved like any edit)
   function restore(page, n, actor, now) {
     requireActor(actor);
@@ -817,7 +834,7 @@
     var actions = ['view'];
     if (!actor || !actor.name) { return actions; }
     var lead = isLead(actor, team);
-    if (v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK) { actions.push('edit', 'submit'); }
+    if (v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK) { actions.push('edit', 'submit'); if (page.liveVersion && (lead || isMine(page, actor) || v.author === actor.name)) { actions.push('discard'); } }
     if ((v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK || v.status === STATUS.SUBMITTED) && canPublishDirectly(actor, team, page)) { actions.push('publish'); }
     if (v.status === STATUS.SUBMITTED) {
       // Locked for its owner until the team lead decides: no edit, no withdraw. The lead can still edit it, take it back, publish it or send it back.
@@ -1276,6 +1293,7 @@
     unpublish: unpublish,
     assertCanDelete: assertCanDelete,
     isMine: isMine,
+    discardDraft: discardDraft,
     ownerMayDelete: ownerMayDelete,
     TRASH_DAYS: TRASH_DAYS,
     trashDaysLeft: trashDaysLeft,

@@ -493,6 +493,7 @@
           else if (action === 'restore') { return { version: W.restore(page, n, who, at).n }; }
           else if (action === 'renew-live') { W.renewLive(page, who, t, at); }
           else if (action === 'submit-live') { W.submitLive(page, who, t, at); }
+          else if (action === 'discard-draft') { W.discardDraft(page, n, who, t, at); }
           else if (action === 'request-changes-live') { W.requestChangesOnLive(page, body && body.comment, who, t, at); }
         });
       },

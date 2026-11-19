@@ -1570,3 +1570,6 @@ The Node server (`server.js`, `library.js`) now has the same rules and routes as
 - Starting an edit still creates the draft copy at once, so the summary now says whether the draft really differs from the live page (`workingVersion.changed`); the **Draft** pill and the Your drafts entry show only when it does, so leaving without saving leaves no false draft behind.
 - Not guarded: the browser's Back button (a hash change) inside the editor.
 - The first-publish prompt reads "Allow [name] to republish this document?" (the owner's name), with a tick box that must be ticked before **Allow** works ("I understand [name] will be able to publish changes to this document without my review.") and **Requires review** to decline. Also fixed: the tick box was showing, empty, on ordinary confirm dialogs (`.confirm-check[hidden]`).
+
+## Delete a saved draft of a live page
+- A live page with a saved draft offers **Delete draft** in the library row's "..." menu and as a button in the editor's blue bar. The prompt says "This will revert to the live page...". `Workflow.discardDraft` removes the unsubmitted draft (the person drafting it, the owner or the lead); a submitted edit cannot be thrown away, and a page that was never live is deleted instead. Store action `discard-draft`; Node route `versions/:n/discard-draft` (tested).

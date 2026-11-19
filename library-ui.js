@@ -813,6 +813,14 @@
     return true;
   }
 
+  // Throws away the saved draft of a live page: the page goes back to being just the live version. Resolves to true when it was deleted.
+  async function confirmAndDiscardDraft(id, n, title) {
+    if (!(await window.askConfirm('This will revert to the live page. The changes you saved to \u201c' + title + '\u201d will be deleted, and the live page stays as it is.', { title: 'Delete this draft?', ok: 'Delete draft' }))) { return false; }
+    if (!(await attempt(backend().act(id, n, 'discard-draft')))) { return false; }
+    notice('Draft deleted. \u201c' + title + '\u201d is back to the live page.');
+    return true;
+  }
+
   // Asks, then deletes a page and every version. `page` is a library row (title, versionCount, liveVersion).
   // Resolves to true when it was deleted. Used by the Delete button on a page and on each row of the library.
   async function confirmAndDelete(page) {
@@ -1388,6 +1396,9 @@
             if (await attempt(backend().unpublish(p.id))) { notice('Unpublished \u201c' + p.title + '\u201d.'); route(); }
           } });
         }
+        if (hasOwnEditInProgress(p)) {
+          moreItems.push({ label: 'Delete draft', danger: true, onClick: async function () { if (await confirmAndDiscardDraft(p.id, p.workingVersion.n, p.title)) { route(); } } });
+        }
         if (lead || (!p.liveVersion && !isWaitingForReview(p))) {   // an owner deletes their own draft; a live or in-review page needs a request
           moreItems.push({ label: 'Delete', danger: true, onClick: async function () { if (await confirmAndDelete(p)) { route(); } } });
         } else if (p.deleteRequest) {
@@ -1728,6 +1739,11 @@
       }
       location.hash = '#/view/' + id + '/' + n;
     }));
+    if (current.liveEdit && hist && hist.actions.indexOf('discard') >= 0) {
+      // A draft of a live page can be thrown away: the page goes back to the live version
+      var discardTitle = data.version.title || (detail && detail.page && detail.page.title) || 'this page';
+      actionsRow.appendChild(button('Delete draft', 'row-btn row-btn-danger', async function () { if (await confirmAndDiscardDraft(id, Number(n), discardTitle)) { location.hash = '#/'; } }));
+    }
     if (leadView && status === 'submitted') { actionsRow.appendChild(button('Request changes', 'row-btn', function () { sendBackWithComment(id, Number(n)); })); }
     box.appendChild(actionsRow);
     setBanner(box);

@@ -608,7 +608,7 @@ export function registerLibraryRoutes(app, draftsDir) {
   }));
 
   // submit | publish | withdraw | approve | send-back | restore, on one version
-  ['submit', 'publish', 'withdraw', 'approve', 'send-back', 'restore', 'renew-live', 'submit-live', 'request-changes-live'].forEach(function (action) {
+  ['submit', 'publish', 'withdraw', 'approve', 'send-back', 'restore', 'renew-live', 'submit-live', 'request-changes-live', 'discard-draft'].forEach(function (action) {
     app.post('/api/library/pages/:id/versions/:n/' + action, staff(async function (req, res, ctx) {
       var page = await openMine(req, ctx);
       var n = req.params.n;
@@ -620,6 +620,7 @@ export function registerLibraryRoutes(app, draftsDir) {
       else if (action === 'send-back') { Workflow.sendBack(page, n, req.body && req.body.comment, ctx.actor, ctx.team, ctx.now); }
       else if (action === 'renew-live') { Workflow.renewLive(page, ctx.actor, ctx.team, ctx.now); }
       else if (action === 'submit-live') { Workflow.submitLive(page, ctx.actor, ctx.team, ctx.now); }
+      else if (action === 'discard-draft') { Workflow.discardDraft(page, n, ctx.actor, ctx.team, ctx.now); }
       else if (action === 'request-changes-live') { Workflow.requestChangesOnLive(page, req.body && req.body.comment, ctx.actor, ctx.team, ctx.now); }
       else { made = Workflow.restore(page, n, ctx.actor, ctx.now); }
       await savePage(draftsDir, ctx.team, page);

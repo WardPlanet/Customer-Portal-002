@@ -80,6 +80,12 @@ test('server: opt-in republish, soft delete, restore, review routes and emails',
     assert.equal((await s.call('Micah', 'POST', '/api/library/pages/' + id + '/cancel-delete-request')).status, 200);
     assert.ok((await s.outbox()).some((m) => m.kind === 'deletion-kept'));
 
+    // A saved draft of a live page can be thrown away: the page is just live again
+    const again = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/edit');
+    assert.equal(again.body.page.state, 'live_edit_in_progress');
+    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/versions/' + again.body.version + '/discard-draft')).status, 200);
+    assert.equal((await s.call('Scott Archer', 'GET', '/api/library/pages/' + id)).body.page.state, 'live');
+
     // Live-page review routes exist (the lead asks for changes: the owner is emailed)
     const asked = await s.call('Micah', 'POST', '/api/library/pages/' + id + '/versions/0/request-changes-live', { comment: 'Update the prices.' });
     assert.equal(asked.status, 200);

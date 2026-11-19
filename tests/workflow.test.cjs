@@ -588,3 +588,19 @@ test('soft delete: a deleted page waits 30 days, then it expires', () => {
   assert.equal(W.trashExpired({ deletedAt: at }, '2026-11-30T10:00:00.000Z'), false);
   assert.equal(W.trashExpired({ deletedAt: at }, '2026-12-01T10:00:01.000Z'), true);
 });
+
+test('a draft of a live page can be thrown away, which reverts to the live page', () => {
+  const page = livePage();
+  const draft = W.startEdit(page, scott, t(5));
+  assert.ok(W.history(page, scott, team).find((h) => h.n === draft.n).actions.includes('discard'));
+  assert.throws(() => W.discardDraft(page, draft.n, molly, team, t(6)), /Only the person/);
+  W.discardDraft(page, draft.n, scott, team, t(6));
+  assert.equal(W.summary(page).state, 'live');
+  assert.equal(page.versions.length, 1);
+  // A submitted edit cannot be thrown away, and a page that was never live is deleted instead
+  const again = W.startEdit(page, scott, t(7));
+  W.submit(page, again.n, scott, team, t(8));
+  assert.throws(() => W.discardDraft(page, again.n, scott, team, t(9)), /not been submitted/);
+  const fresh = W.createPage(team, draftText('Other'), scott, t(1));
+  assert.throws(() => W.discardDraft(fresh, 1, scott, team, t(2)), /not live/);
+});
