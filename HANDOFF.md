@@ -1533,3 +1533,7 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - The team lead sees a red **"N pages with a deletion request"** bar under the search (like the other alert bars) listing who asked and when, with **Delete** and **Keep it**.
 - Every delete by the lead (the "..." menu, the bar, and the bulk Delete) asks first with a **tick box** ("I understand this permanently deletes ...") that has to be ticked before **Delete it** works. `window.askConfirm` has a new `checkbox` option for this.
 - A page with a deletion request shows a dark-red (maroon, not the expired red) **Deletion requested** pill with a bin icon under its status, and a maroon left bar, on every row in every tab for the owner and the lead. The lead's deletion bar is the same maroon.
+
+## Soft delete and notifications
+- **Soft delete:** a deleted page moves to **Recently deleted** (a tab that shows when something is in it) for 30 days, then it is gone for good. The lead restores any; an owner restores their own draft. `W.TRASH_DAYS`, `trashDaysLeft`, `trashExpired` in workflow.cjs; `listTrash` / `restoreDeleted` in store.js (browser store only; the Node server has no trash yet). Pages in the trash are invisible to the library, search and the public site (they are held apart from `pages`).
+- **Bell:** the lead is also told of deletion requests and, for 7 days, of pages an owner republished without review. Email copy and rules for every event are drafted in `notifications.md` (nothing is sent from the prototype).

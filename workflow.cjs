@@ -680,6 +680,15 @@
     }
   }
 
+  // Soft delete: a deleted page waits in "Recently deleted" for TRASH_DAYS days (the lead can restore it; an owner can restore their own
+  // draft), then it is gone for good. These two helpers are pure, so the browser store and a server can share them.
+  var TRASH_DAYS = 30;
+  function trashDaysLeft(deletedAt, now) {
+    var gone = Date.parse(deletedAt) + TRASH_DAYS * 86400000;
+    return Math.max(0, Math.ceil((gone - (Date.parse(now) || Date.now())) / 86400000));
+  }
+  function trashExpired(entry, now) { return trashDaysLeft(entry.deletedAt, now) <= 0; }
+
   // A page is "mine" when the person owns it (their sign-in email, or a role title they hold on an older page), or wrote its first version
   function isMine(page, actor) {
     if (!actor || !actor.name) { return false; }
@@ -790,6 +799,8 @@
       workingVersion: working ? { n: working.n, status: working.status, submittedBy: working.submittedBy || '', submittedAt: working.submittedAt || '', decisionComment: working.status === STATUS.SENT_BACK ? (working.decisionComment || '') : '', decidedAt: working.decidedAt || '' } : null,
       versionCount: page.versions.length,
       ownerPublishes: !!page.ownerPublishes,
+      // The live version was published by the owner without review (the lead is told for a week)
+      ownerRepublished: live && live.ownerPublished ? { by: live.decidedBy, at: live.decidedAt } : null,
       releaseCount: page.versions.filter(isPublished).length,
       liveRelease: live ? releaseNumber(page, live) : null,
       // "Updated" is when the live version went live (published or approved by the team lead). Changing the owner, moving pages between roles or
@@ -1265,6 +1276,10 @@
     unpublish: unpublish,
     assertCanDelete: assertCanDelete,
     isMine: isMine,
+    ownerMayDelete: ownerMayDelete,
+    TRASH_DAYS: TRASH_DAYS,
+    trashDaysLeft: trashDaysLeft,
+    trashExpired: trashExpired,
     canSeeInLibrary: canSeeInLibrary,
     isUnsubmittedDraft: isUnsubmittedDraft,
     canReadVersion: canReadVersion,

@@ -215,6 +215,8 @@
     act: function (id, n, action, body) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/' + action, body || {}); },
     unpublish: function (id) { return this.call('POST', '/api/library/pages/' + id + '/unpublish'); },
     remove: function (id) { return this.call('DELETE', '/api/library/pages/' + id); },
+    listTrash: function () { return this.call('GET', '/api/library/trash'); },
+    restoreDeleted: function (id) { return this.call('POST', '/api/library/trash/' + id + '/restore'); },
     requestDelete: function (id) { return this.call('POST', '/api/library/pages/' + id + '/request-delete'); },
     cancelDeleteRequest: function (id) { return this.call('POST', '/api/library/pages/' + id + '/cancel-delete-request'); },
     // Team lead only: who holds each role, how many pages use each, and changes to both
@@ -522,9 +524,42 @@
         var t = teamOf(page);
         var who = actorIn(t);
         guard(function () { W.assertCanDelete(who, t, page); });
+        // Soft delete: the page waits in "Recently deleted" for 30 days, then it is gone for good
+        data.trash = (data.trash || []).filter(function (e) { return !W.trashExpired(e, now()); });
+        data.trash.push({ page: page, deletedAt: now(), deletedBy: who.name });
         data.pages = data.pages.filter(function (p) { return p.id !== id; });
         writeAll(data);
         return { deleted: id };
+      },
+      // The pages deleted in the last 30 days that this person may see (the lead: the department's; an owner: their own)
+      listTrash: async function () {
+        var data = readAll();
+        var who = actor();
+        var kept = (data.trash || []).filter(function (e) { return !W.trashExpired(e, now()); });
+        if (kept.length !== (data.trash || []).length) { data.trash = kept; writeAll(data); }
+        var isAdmin = !!who.admin;
+        return { items: kept.filter(function (e) {
+          var t = teamOf(e.page);
+          if (!isAdmin && e.page.team && e.page.team !== team.slug) { return false; }
+          var a = isAdmin ? W.actorFor(actingAs, t) : who;
+          return W.isLead(a, t) || W.isMine(e.page, a);
+        }).map(function (e) {
+          var row = W.summary(e.page);
+          return { id: e.page.id, title: row.title, wasLive: !!e.page.liveVersion, deletedAt: e.deletedAt, deletedBy: e.deletedBy, daysLeft: W.trashDaysLeft(e.deletedAt, now()), canRestore: W.isLead(isAdmin ? W.actorFor(actingAs, teamOf(e.page)) : who, teamOf(e.page)) || W.ownerMayDelete(e.page) };
+        }).sort(function (a, b) { return String(b.deletedAt).localeCompare(String(a.deletedAt)); }) };
+      },
+      restoreDeleted: async function (id) {
+        var data = readAll();
+        var entry = (data.trash || []).filter(function (e) { return e.page.id === id; })[0];
+        if (!entry) { throw fail('no_page', 'That page is no longer in Recently deleted.'); }
+        var t = teamOf(entry.page);
+        var who = actorIn(t);
+        if (!W.isLead(who, t) && !(W.isMine(entry.page, who) && W.ownerMayDelete(entry.page))) { throw fail('not_lead', 'Only the team lead can restore that page.'); }
+        data.trash = data.trash.filter(function (e) { return e !== entry; });
+        delete entry.page.deleteRequest;
+        data.pages.push(entry.page);
+        writeAll(data);
+        return { restored: id };
       },
       getRoster: async function () {
         var who = actor();

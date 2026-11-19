@@ -326,10 +326,12 @@
     Array.prototype.forEach.call(document.querySelectorAll('.bell'), function (b) { b.setAttribute('aria-expanded', 'false'); });
   }
 
-  function renderBell(slot, waiting, expiring, sentBack) {
+  function renderBell(slot, waiting, expiring, sentBack, deletions, republished) {
     expiring = expiring || [];
     sentBack = sentBack || [];
-    var total = waiting.length + expiring.length + sentBack.length;
+    deletions = deletions || [];
+    republished = republished || [];
+    var total = waiting.length + expiring.length + sentBack.length + deletions.length + republished.length;
     slot.textContent = '';
     var bell = el('button', 'bell');
     bell.type = 'button';
@@ -355,6 +357,26 @@
         var item = link('', '#/view/' + p.id + '/' + p.workingVersion.n, 'notify-item');
         item.appendChild(el('strong', '', p.title));
         item.appendChild(el('span', 'notify-sub', (p.workingVersion.decisionComment ? '\u201c' + p.workingVersion.decisionComment + '\u201d' : 'Sent back for changes')));
+        item.addEventListener('click', closeNotifyPops);
+        pop.appendChild(item);
+      });
+    }
+    if (deletions.length) {
+      pop.appendChild(el('h2', 'notify-title', 'Deletion requests'));
+      deletions.forEach(function (p) {
+        var item = link('', '#/', 'notify-item');
+        item.appendChild(el('strong', '', p.title));
+        item.appendChild(el('span', 'notify-sub', p.deleteRequest.by + ' asked to delete it \u00b7 ' + formatDate(p.deleteRequest.at)));
+        item.addEventListener('click', closeNotifyPops);
+        pop.appendChild(item);
+      });
+    }
+    if (republished.length) {
+      pop.appendChild(el('h2', 'notify-title', 'Republished by the owner'));
+      republished.forEach(function (p) {
+        var item = link('', previewUrl(p.id), 'notify-item');
+        item.appendChild(el('strong', '', p.title));
+        item.appendChild(el('span', 'notify-sub', p.ownerRepublished.by + ' published an edit without review \u00b7 ' + W.daysAgo(p.ownerRepublished.at)));
         item.addEventListener('click', closeNotifyPops);
         pop.appendChild(item);
       });
@@ -398,7 +420,10 @@
     var sentBack = result.pages.filter(function (p) { return p.workingVersion && p.workingVersion.status === 'sent_back' && ((p.owner && W.ownsKey(me, p.owner)) || (p.ownerDefault && actorIsLead())); });
     var expiring = result.pages.filter(function (p) { return !!expiryOf(p); })
       .sort(function (a, b) { return String(a.updatedAt).localeCompare(String(b.updatedAt)); });
-    slots.forEach(function (slot) { renderBell(slot, waiting, expiring, sentBack); });
+    // The team lead is also told when someone asks to delete a page, and for a week when an owner republished a page without review
+    var deletions = actorIsLead() ? result.pages.filter(function (p) { return !!p.deleteRequest; }) : [];
+    var republished = actorIsLead() ? result.pages.filter(function (p) { return p.ownerRepublished && (Date.now() - Date.parse(p.ownerRepublished.at)) < 7 * 86400000; }) : [];
+    slots.forEach(function (slot) { renderBell(slot, waiting, expiring, sentBack, deletions, republished); });
   }
 
   document.addEventListener('click', function (event) { if (!event.target.closest || !event.target.closest('.notify-slot')) { closeNotifyPops(); } });
@@ -559,11 +584,12 @@
     main.appendChild(tabsBar);
     function tabDefs() {
       return reviewsFirstBar()
-        ? [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'For review'], ['live', 'Live']]   // a lead can write drafts too; For review is the pages waiting for the lead
-        : [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['live', 'Live']];
+        ? [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'For review'], ['live', 'Live'], ['trash', 'Recently deleted']]   // a lead can write drafts too; For review is the pages waiting for the lead
+        : [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['live', 'Live'], ['trash', 'Recently deleted']];
     }
     function inTab(p, key) {
       if (!key) { return true; }
+      if (key === 'trash') { return false; }   // counted from the deleted list instead
       if (key === 'live') { return STATE_LABELS[p.state][1] === 'live'; }
       if (key === 'sentback') { return p.state === 'sent_back'; }
       if (key === 'drafts') { return isOwnDraft(p); }
@@ -578,6 +604,7 @@
       var defs = tabDefs();
       var counts = {};
       defs.forEach(function (def) { counts[def[0]] = pages.filter(function (p) { return inTab(p, def[0]); }).length; });
+      counts.trash = trashItems.length;
       // A selected tab that has emptied (the last draft was submitted) goes back to All
       if (libraryFilters.status && !counts[libraryFilters.status] && defs.some(function (d) { return d[0] === libraryFilters.status; }) && libraryFilters.status !== 'live' && libraryFilters.status !== 'drafts' && libraryFilters.status !== 'inreview') { libraryFilters.status = ''; }
       if (!defs.some(function (d) { return d[0] === libraryFilters.status; })) { libraryFilters.status = ''; }
@@ -601,13 +628,15 @@
     var listBox = el('div', 'lib-list');
     main.appendChild(listBox);
 
+    var trashItems = [];
     async function refresh() {
       var result = await attempt(backend().list(libraryFilters.q));
       if (!result || mine !== routing) { return; }
+      try { var gone = backend().listTrash ? await backend().listTrash() : null; trashItems = gone && gone.items ? gone.items : []; } catch (error) { trashItems = []; }
       renderBackupLine(backupLine, result.pages);
       renderBars(result.pages);
       renderTabs(result.pages);
-      renderList(listBox, result.pages);
+      if (libraryFilters.status === 'trash') { renderTrash(listBox, trashItems, refresh); } else { renderList(listBox, result.pages); }
       var note = libraryFilters.q ? searchNote(result, function (word) { search.value = word; libraryFilters.q = word; refresh(); }) : null;
       if (note) { listBox.insertBefore(note, listBox.firstChild); }
     }
@@ -733,6 +762,42 @@
     }
   }
 
+  // "Recently deleted": pages deleted in the last 30 days, with who deleted them, how long is left, and Restore
+  function renderTrash(box, items, again) {
+    box.textContent = '';
+    box.appendChild(el('p', 'lib-hint', 'Deleted pages stay here for ' + W.TRASH_DAYS + ' days and can be restored. After that they are gone for good.'));
+    if (!items.length) { box.appendChild(el('p', 'lib-empty', 'Nothing was deleted in the last ' + W.TRASH_DAYS + ' days.')); return; }
+    var table = el('table', 'lib-table');
+    var head = el('tr');
+    ['Page', 'Deleted by', 'Deleted', 'Time left', ''].forEach(function (h) { head.appendChild(el('th', '', h)); });
+    var thead = el('thead');
+    thead.appendChild(head);
+    table.appendChild(thead);
+    var body = el('tbody');
+    items.forEach(function (item) {
+      var row = el('tr', 'lib-row');
+      var nameCell = el('td');
+      nameCell.appendChild(el('strong', '', item.title));
+      if (item.wasLive) { nameCell.appendChild(el('div', 'lib-row-sub', 'Was live')); }
+      row.appendChild(nameCell);
+      row.appendChild(el('td', '', item.deletedBy));
+      row.appendChild(el('td', 'lib-date', W.daysAgo(item.deletedAt)));
+      row.appendChild(el('td', '', item.daysLeft + (item.daysLeft === 1 ? ' day' : ' days')));
+      var act = el('td', 'lib-row-actions');
+      if (item.canRestore) {
+        var restore = button('Restore', 'row-btn row-btn-main', async function () {
+          if (await attempt(backend().restoreDeleted(item.id))) { notice('Restored \u201c' + item.title + '\u201d' + (item.wasLive ? ' (it is live again).' : '.')); again(); }
+        });
+        restore.setAttribute('aria-label', 'Restore ' + item.title);
+        act.appendChild(restore);
+      }
+      row.appendChild(act);
+      body.appendChild(row);
+    });
+    table.appendChild(body);
+    box.appendChild(table);
+  }
+
   // A person who is not the team lead asks for a live page to be deleted. It stays live until the lead agrees.
   async function confirmAndRequestDelete(page) {
     var question = 'Ask ' + personFor(team.lead) + ' (' + team.lead + ') to delete \u201c' + page.title + '\u201d? The page stays until they agree.';
@@ -753,10 +818,10 @@
   async function confirmAndDelete(page) {
     var live = page.liveVersion ? ' It is live now, so it will disappear from the library, search and the public site.' : '';
     var warn = 'This removes \u201c' + page.title + '\u201d and all ' + page.versionCount + (page.versionCount === 1 ? ' version' : ' versions') + '.' + live +
-      ' It cannot be undone, except from a backup you downloaded earlier.';
-    if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it', checkbox: actorIsLead() ? 'I understand this permanently deletes the page and every version.' : '' }))) { return false; }
+      ' It moves to Recently deleted, where it can be restored for ' + W.TRASH_DAYS + ' days. After that it is gone for good.';
+    if (!(await window.askConfirm(warn, { title: 'Delete this page?', ok: 'Delete it', checkbox: actorIsLead() ? 'I understand this removes the page and every version from the library.' : '' }))) { return false; }
     if (!(await attempt(backend().remove(page.id)))) { return false; }
-    notice('Deleted \u201c' + page.title + '\u201d.');
+    notice('Deleted \u201c' + page.title + '\u201d. It is in Recently deleted for ' + W.TRASH_DAYS + ' days.');
     return true;
   }
 
@@ -820,8 +885,8 @@
     var liveCount = list.filter(function (p) { return p.liveVersion; }).length;
     var question = 'This removes ' + list.length + (list.length === 1 ? ' page' : ' pages') + ' and every version of ' + (list.length === 1 ? 'it' : 'them') + '.' +
       (liveCount ? ' ' + liveCount + (liveCount === 1 ? ' is' : ' are') + ' live and will disappear from the library, search and the public site.' : '') +
-      ' It cannot be undone, except from a backup you downloaded earlier.';
-    if (!(await window.askConfirm(question, { title: 'Delete ' + list.length + (list.length === 1 ? ' page?' : ' pages?'), ok: 'Delete them', checkbox: 'I understand this permanently deletes ' + (list.length === 1 ? 'the page and every version.' : 'these pages and every version.') }))) { return; }
+      ' They move to Recently deleted, where they can be restored for ' + W.TRASH_DAYS + ' days.';
+    if (!(await window.askConfirm(question, { title: 'Delete ' + list.length + (list.length === 1 ? ' page?' : ' pages?'), ok: 'Delete them', checkbox: 'I understand this removes ' + (list.length === 1 ? 'the page and every version' : 'these pages and every version') + ' from the library.' }))) { return; }
     await runBulk(list, function (p) { return backend().remove(p.id); }, 'Deleted', 'could not be deleted');
   }
 

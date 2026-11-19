@@ -579,3 +579,12 @@ test('owner publishes edits only where the lead allowed that page', () => {
   assert.equal(page.ownerPublishes, false);
   assert.throws(() => W.setOwnerPublishes(page, true, lead, strict, t(9)), /public/i);
 });
+
+test('soft delete: a deleted page waits 30 days, then it expires', () => {
+  const at = '2026-11-01T10:00:00.000Z';
+  assert.equal(W.TRASH_DAYS, 30);
+  assert.equal(W.trashDaysLeft(at, at), 30);
+  assert.equal(W.trashDaysLeft(at, '2026-11-11T10:00:00.000Z'), 20);
+  assert.equal(W.trashExpired({ deletedAt: at }, '2026-11-30T10:00:00.000Z'), false);
+  assert.equal(W.trashExpired({ deletedAt: at }, '2026-12-01T10:00:01.000Z'), true);
+});
