@@ -325,9 +325,10 @@
     Array.prototype.forEach.call(document.querySelectorAll('.bell'), function (b) { b.setAttribute('aria-expanded', 'false'); });
   }
 
-  function renderBell(slot, waiting, expiring) {
+  function renderBell(slot, waiting, expiring, sentBack) {
     expiring = expiring || [];
-    var total = waiting.length + expiring.length;
+    sentBack = sentBack || [];
+    var total = waiting.length + expiring.length + sentBack.length;
     slot.textContent = '';
     var bell = el('button', 'bell');
     bell.type = 'button';
@@ -347,6 +348,16 @@
       item.addEventListener('click', closeNotifyPops);
       pop.appendChild(item);
     });
+    if (sentBack.length) {
+      pop.appendChild(el('h2', 'notify-title', 'Changes requested'));
+      sentBack.forEach(function (p) {
+        var item = link('', '#/view/' + p.id + '/' + p.workingVersion.n, 'notify-item');
+        item.appendChild(el('strong', '', p.title));
+        item.appendChild(el('span', 'notify-sub', (p.workingVersion.decisionComment ? '\u201c' + p.workingVersion.decisionComment + '\u201d' : 'Sent back for changes')));
+        item.addEventListener('click', closeNotifyPops);
+        pop.appendChild(item);
+      });
+    }
     if (expiring.length) {
       pop.appendChild(el('h2', 'notify-title', expiring.every(function (p) { return expiryOf(p).expired; }) ? 'Expired' : 'Expiring or expired'));
       expiring.forEach(function (p) {
@@ -381,9 +392,12 @@
     var waiting = (actorIsLead() ? result.pages : []).filter(function (p) { return p.workingVersion && p.workingVersion.status === 'submitted'; })
       .sort(function (a, b) { return String(a.workingVersion.submittedAt).localeCompare(String(b.workingVersion.submittedAt)); });
     // The owner is told when a live page is within 15 days of expiring (the library lists a person's own pages; the team lead sees the team's)
+    // Pages the team lead sent back to this person, with the lead's note
+    var me = actor();
+    var sentBack = result.pages.filter(function (p) { return p.workingVersion && p.workingVersion.status === 'sent_back' && ((p.owner && W.ownsKey(me, p.owner)) || (p.ownerDefault && actorIsLead())); });
     var expiring = result.pages.filter(function (p) { return !!expiryOf(p); })
       .sort(function (a, b) { return String(a.updatedAt).localeCompare(String(b.updatedAt)); });
-    slots.forEach(function (slot) { renderBell(slot, waiting, expiring); });
+    slots.forEach(function (slot) { renderBell(slot, waiting, expiring, sentBack); });
   }
 
   document.addEventListener('click', function (event) { if (!event.target.closest || !event.target.closest('.notify-slot')) { closeNotifyPops(); } });
@@ -1201,11 +1215,6 @@
         // Unpublish and the delete actions sit one step away, in the "..." menu. Each still asks before it does anything.
         var moreItems = [];
         if (lead && p.workingVersion) { moreItems.push({ label: 'Publish', onClick: publishFromRow }); }
-        if (lockedInReview) {
-          moreItems.push({ label: 'Withdraw from review', onClick: async function () {
-            if (await attempt(backend().act(p.id, p.workingVersion.n, 'withdraw'))) { notice('Withdrawn. \u201c' + p.title + '\u201d is a draft again.'); route(); }
-          } });
-        }
         if (lead && p.liveVersion) {
           moreItems.push({ label: 'Unpublish', onClick: async function () {
             if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }
@@ -1549,22 +1558,32 @@
     if (hist && hist.decisionComment) { box.appendChild(el('p', '', 'Review note: \u201c' + hist.decisionComment + '\u201d')); }
     var row = el('div', 'banner-actions');
     // (version history: hidden for now, see HANDOFF)
-    if (!actorIsLead() && !actingAsAdmin()) {
-      // The page's owner (not the team lead or Admin): Submit for review and Edit. Once it is sent, it reads "In Review" and can be withdrawn.
-      var ownerCan = function (action) { return data.actions.indexOf(action) >= 0; };
-      if (ownerCan('submit')) { row.appendChild(button('Submit for review', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'submit', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); })); }
-      if (ownerCan('edit')) { row.appendChild(button('Edit', 'row-btn', function () { location.hash = '#/edit/' + id + '/' + n; })); }
-      if (data.version.status === 'submitted') {
+    var can = function (action) { return data.actions.indexOf(action) >= 0; };
+    var waiting = data.version.status === 'submitted';
+    if (actingAsAdmin()) {
+      // Admin sees everything the review can do
+      versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
+    } else if (actorIsLead()) {
+      // The team lead: Publish, Edit, and Request changes (sends it back to the owner with a note that says what to change)
+      if (can('approve') || can('publish')) {
+        row.appendChild(button('Publish', 'row-btn row-btn-main', function () {
+          if (waiting && can('approve')) { runAction(id, Number(n), 'approve', 'Published. It is now live.'); } else { publishVersion(id, Number(n)); }
+        }));
+      }
+      if (can('edit')) { row.appendChild(button('Edit', 'row-btn', function () { location.hash = '#/edit/' + id + '/' + n; })); }
+      if (can('send_back')) { row.appendChild(button('Request changes', 'row-btn', function () { sendBackWithComment(id, Number(n)); })); }
+    } else {
+      // The owner: Submit (to the team lead) and Edit. Once it is sent, the page is locked and reads "In Review" until the lead publishes it or asks for changes.
+      if (can('submit')) { row.appendChild(button('Submit', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'submit', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); })); }
+      if (can('edit')) { row.appendChild(button('Edit', 'row-btn', function () { location.hash = '#/edit/' + id + '/' + n; })); }
+      if (waiting) {
         var inReview = el('span', 'row-locked');
         var lockSpan = el('span', 'row-locked-icon');
         lockSpan.innerHTML = LOCK_SVG;   // fixed markup, no page text
         inReview.appendChild(lockSpan);
         inReview.appendChild(document.createTextNode('In Review'));
         row.appendChild(inReview);
-        if (ownerCan('withdraw')) { row.appendChild(button('Withdraw', 'row-btn', function () { runAction(id, Number(n), 'withdraw', 'Withdrawn. It is a draft again.'); })); }
       }
-    } else {
-      versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
     }
     if (row.childNodes.length) { box.appendChild(row); }
     setBanner(box);

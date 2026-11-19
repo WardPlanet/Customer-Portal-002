@@ -459,7 +459,9 @@
   function saveDraft(page, n, text, actor, now, team) {
     requireActor(actor);
     var version = versionOf(page, n);
-    if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK) {
+    // A version waiting for review is locked for its owner; only the team lead can still change it (and it stays in review)
+    var leadEditingSubmitted = version.status === STATUS.SUBMITTED && isLead(actor, team);
+    if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK && !leadEditingSubmitted) {
       throw new WorkflowError('not_editable', 'Version ' + version.n + ' is ' + describeStatus(version.status) + ' and cannot be edited. Start a new edit from the page.', 409);
     }
     // Only the team lead changes who owns a page
@@ -703,7 +705,7 @@
       state: state,
       deleteRequest: page.deleteRequest ? { by: page.deleteRequest.by, at: page.deleteRequest.at } : null,
       liveVersion: page.liveVersion,
-      workingVersion: working ? { n: working.n, status: working.status, submittedBy: working.submittedBy || '', submittedAt: working.submittedAt || '' } : null,
+      workingVersion: working ? { n: working.n, status: working.status, submittedBy: working.submittedBy || '', submittedAt: working.submittedAt || '', decisionComment: working.status === STATUS.SENT_BACK ? (working.decisionComment || '') : '', decidedAt: working.decidedAt || '' } : null,
       versionCount: page.versions.length,
       releaseCount: page.versions.filter(isPublished).length,
       liveRelease: live ? releaseNumber(page, live) : null,
@@ -724,8 +726,8 @@
     if (v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK) { actions.push('edit', 'submit'); }
     if ((v.status === STATUS.DRAFT || v.status === STATUS.SENT_BACK || v.status === STATUS.SUBMITTED) && canPublishDirectly(actor, team)) { actions.push('publish'); }
     if (v.status === STATUS.SUBMITTED) {
-      if (v.submittedBy === actor.name || lead) { actions.push('withdraw'); }
-      if (lead) { actions.push('approve', 'send_back'); }
+      // Locked for its owner until the team lead decides: no edit, no withdraw. The lead can still edit it, take it back, publish it or send it back.
+      if (lead) { actions.push('edit', 'withdraw', 'approve', 'send_back'); }
     }
     var restorable = v.status === STATUS.SUPERSEDED || v.status === STATUS.UNPUBLISHED;
     if (restorable && !workingVersion(page)) { actions.push('restore'); }

@@ -194,8 +194,8 @@ test('the buttons each person is offered match the rules', () => {
   const page = W.createPage(team, draftText('Refunds'), scott, t(1));
   assert.deepEqual(W.history(page, scott, team)[0].actions, ['view', 'edit', 'submit', 'publish']);
   W.submit(page, 1, scott, team, t(2));
-  assert.deepEqual(W.history(page, scott, team)[0].actions, ['view', 'publish', 'withdraw']);
-  assert.deepEqual(W.history(page, micah, team)[0].actions, ['view', 'publish', 'withdraw', 'approve', 'send_back']);
+  assert.deepEqual(W.history(page, scott, team)[0].actions, ['view', 'publish']);   // locked for its owner while it waits
+  assert.deepEqual(W.history(page, micah, team)[0].actions, ['view', 'publish', 'edit', 'withdraw', 'approve', 'send_back']);
   W.approve(page, 1, micah, team, t(3));
   assert.deepEqual(W.pageActions(page, scott, team), ['edit', 'request_delete']);
   assert.deepEqual(W.pageActions(page, micah, team), ['edit', 'unpublish', 'delete']);
