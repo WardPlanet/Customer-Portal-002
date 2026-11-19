@@ -154,8 +154,8 @@
   }
 
   // The heading the page is scrolled to is highlighted (light blue) in the outline. Items need a `target` (the heading's element). A heading
-  // folded out of sight lends the highlight to the visible one above it. The line a heading must pass starts a third of the way down the
-  // window and slides to the window's bottom edge as the end of the page is reached, so short sections at the end each get their turn.
+  // folded out of sight lends the highlight to the visible one above it. A section becomes current when its heading reaches the height of
+  // its own link in the outline; near the end of the page that line slides to the window's bottom edge so short last sections each get their turn.
   function watchScroll(box, items) {
     var tracked = items.filter(function (item) { return item.target; });
     if (!tracked.length) { return; }
@@ -175,16 +175,23 @@
       var progress = room > 0 ? Math.min(1, Math.max(0, window.scrollY / room)) : 0;
       var start = Math.max(120, window.innerHeight * 0.33);
       var line = start + (window.innerHeight - start) * progress;
+      // A section becomes current when its heading (where its link symbol sits) reaches the height of its own link in the outline. Over the
+      // last 15% of the page the line slides down to the window's bottom edge, so the short sections at the end each get their turn.
+      var finish = Math.max(0, (progress - 0.85) / 0.15);
       var at = -1;
-      tracked.forEach(function (item, i) { var heading = item.target; if (heading && heading.getBoundingClientRect().top <= line) { at = i; } });
+      tracked.forEach(function (item, i) {
+        var heading = item.target;
+        if (!heading) { return; }
+        var a = linkOf(item);
+        var linkY = a && a.offsetParent !== null ? a.getBoundingClientRect().top : line;   // no visible link (folded away): the general line
+        var reach = linkY + (window.innerHeight - linkY) * finish;
+        if (heading.getBoundingClientRect().top <= reach) { at = i; }
+      });
       var shown = null;
       while (at >= 0 && !shown) {
         var a = linkOf(tracked[at]);
         if (a && a.offsetParent !== null && !a.closest('.toc-fade-1, .toc-fade-2')) { shown = a; break; }
-        var level = tracked[at].level;
-        var up = at - 1;
-        while (up >= 0 && tracked[up].level >= level) { up -= 1; }
-        at = up;
+        at -= 1;   // folded out of sight: the nearest visible heading above lends its highlight
       }
       links.forEach(function (a) { a.classList.toggle('is-current', a === shown); });
     }
