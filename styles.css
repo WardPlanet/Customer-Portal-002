@@ -3028,3 +3028,22 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 
 /* Two statuses stacked (In review over Live): a little air between the pills */
 td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
+.prop-ownerpub { width: 170px; }
+/* Six Page setup fields on one row at the content width */
+.prop-reviewer .setup-reviewer.is-na { width: 200px; }
+.prop-owner { width: 215px; }
+.prop-members { width: 200px; }
+.prop-ownerpub { width: 160px; }
+.prop-ownerpub .field-label { white-space: nowrap; }
+.prop-strip { gap: 12px 20px; }
+.prop-strip .prop-team { width: 170px; }
+.prop-strip .prop-reviewer, .prop-strip .prop-reviewer .setup-reviewer.is-na { width: 190px; }
+.prop-strip .prop-owner { width: 210px; }
+.prop-strip .prop-members { width: 180px; }
+.prop-strip .prop-visibility { width: 170px; }
+.prop-strip .prop-ownerpub { width: 160px; }
+.prop-strip #team-field.prop { width: 170px; }
+.prop-strip #owner-field { width: 210px; }
+.prop-strip #visibility-field { width: 170px; }
+.prop-strip #team-field.prop { width: 185px; }
+.prop-strip #owner-field { width: 245px; }

@@ -1424,6 +1424,25 @@
     return live ? 'v' + live + ' \u00b7 editing a draft' : 'Draft';
   }
 
+  // The Page setup field "Owner publishes edits" for a saved page: shown on a live page. The team lead (and Admin) change it in edit mode;
+  // in the review view, and for an owner, it is read-only. A public page cannot have it on.
+  function showOwnerPublishField(id, detail, editable) {
+    var page = detail && detail.page;
+    if (!page || !page.liveVersion) { window.PageEditor.setOwnerPublish(null); return; }
+    var canChange = editable && (actorIsLead() || actingAsAdmin()) && (page.visibility === 'Internal-Only' || page.ownerPublishes);
+    window.PageEditor.setOwnerPublish({
+      value: !!page.ownerPublishes,
+      editable: canChange,
+      note: page.visibility !== 'Internal-Only' ? 'A public page always needs review.' : (canChange ? '' : 'The team lead sets this. Open the page to edit to change it.'),
+      onChange: async function (on) {
+        var done = await attempt(backend().setOwnerPublishes(id, on));
+        if (!done) { return false; }
+        notice(on ? 'The owner can now publish edits to this page without review.' : 'Edits to this page need review again.');
+        return true;
+      }
+    });
+  }
+
   async function updateVersionLink(id) {
     var detail = await attempt(backend().get(id));
     if (detail) { window.PageEditor.setVersionLink(versionLinkText(detail), function () { openVersionsDialog(id); }); }
@@ -1577,6 +1596,7 @@
 
     // A small "v2" link in Page Setup opens the versions (restore, or view details). No long notice up here.
     window.PageEditor.setVersionLink(versionLinkText(detail), function () { openVersionsDialog(id); });
+    showOwnerPublishField(id, detail, true);
 
     // The banner appears only when there is something to act on: a sent-back note, or the points flagged by an import
     var lines = [];
@@ -1712,6 +1732,7 @@
     var detail = await attempt(backend().get(id));
     if (mine !== routing) { return; }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
+    showOwnerPublishField(id, detail, false);
     var name = versionName(hist).toLowerCase();   // "version 2" or "draft"
     window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · ' + name);
     var box = el('div', 'banner banner-info');

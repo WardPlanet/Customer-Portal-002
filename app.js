@@ -4676,6 +4676,25 @@
       updateSaveState();
     });
 
+    // "Owner publishes edits": a per-page setting the team lead (or Admin) controls. The library shows it for a live page, and gives it a
+    // function to call when it changes (it saves at once, not with the draft). Pass null to hide it.
+    var ownerPubChange = null;
+    function setOwnerPublish(config) {
+      var field = byId('ownerpub-field');
+      ownerPubChange = config ? config.onChange : null;
+      field.hidden = !config;
+      if (!config) { return; }
+      byId('ownerpub').value = config.value ? 'yes' : 'no';
+      byId('ownerpub').disabled = !config.editable;
+      byId('ownerpub').title = config.note || '';
+    }
+    byId('ownerpub').addEventListener('change', async function () {
+      var select = byId('ownerpub');
+      var wanted = select.value === 'yes';
+      var ok = ownerPubChange ? await ownerPubChange(wanted) : false;
+      if (!ok) { select.value = wanted ? 'no' : 'yes'; }
+    });
+
     /* ---------- What the library uses to drive the editor ---------- */
     // Locks every editable field (and the Page Setup panel) for reading, or unlocks them again
     function lockEditing(on) {
@@ -4776,7 +4795,8 @@
       errorMessage: importErrorMessage,
       // The people a page can be given to: [{ key (their email), label ("Name — Job title") }]
       people: function () { return choosablePeople('').map(function (role) { return { key: window.Workflow.keyFor(role), label: roleLabel(window.Workflow.keyFor(role)) }; }); },
-      reset: resetEditor,
+      reset: function () { setOwnerPublish(null); resetEditor.apply(null, arguments); },
+      setOwnerPublish: setOwnerPublish,
       // Fill the editor from a saved version's text (silently, unlike Import)
       load: function (text, readOnly) {
         clearOldWarnings();
