@@ -6,6 +6,7 @@
 //   a search: { k: 's', t: time, sid: visit, q: text, n: number of results, top: { id, title } | null }
 //   a click:  { k: 'c', t: time, sid: visit, q: text, id: page id, title: page title, pos: place in the results (0 = from the dropdown) }
 //   a view:   { k: 'v', t: time, sid: visit, id: page id, title: page title }   a live page was opened (for "most opened pages")
+//   a question: { k: 'a', t: time, sid: visit, q: the question, id: page id, title: page title, covered: true | false }   asked on a page; covered is false when the page did not answer it
 //
 // summarize() turns the events into the three lists on the Search review screen:
 //   nothing   searches that found no page
@@ -29,13 +30,17 @@
 
   // The event as it is stored: only the known fields, with limits, or null when it is not a usable event
   function cleanEvent(raw, nowIso) {
-    if (!raw || (raw.k !== 's' && raw.k !== 'c' && raw.k !== 'v')) { return null; }
+    if (!raw || (raw.k !== 's' && raw.k !== 'c' && raw.k !== 'v' && raw.k !== 'a')) { return null; }
     if (raw.k === 'v') {
       if (!raw.id) { return null; }
       return { k: 'v', t: String(raw.t || nowIso || new Date().toISOString()), sid: String(raw.sid || '').slice(0, 40), id: String(raw.id).slice(0, 60), title: String(raw.title || '').slice(0, 200) };
     }
     var query = String(raw.q || '').replace(/\s+/g, ' ').trim().slice(0, MAX_QUERY);
     if (!query) { return null; }
+    if (raw.k === 'a') {
+      if (!raw.id) { return null; }
+      return { k: 'a', t: String(raw.t || nowIso || new Date().toISOString()), sid: String(raw.sid || '').slice(0, 40), q: query, id: String(raw.id).slice(0, 60), title: String(raw.title || '').slice(0, 200), covered: raw.covered !== false };
+    }
     var event = { k: raw.k, t: String(raw.t || nowIso || new Date().toISOString()), sid: String(raw.sid || '').slice(0, 40), q: query };
     if (raw.k === 's') {
       event.n = Math.max(0, Math.floor(Number(raw.n) || 0));
@@ -138,6 +143,20 @@
     }).filter(function (row) { return row.count >= 2; })
       .sort(function (a, b) { return b.count - a.count || a.query.localeCompare(b.query); })
       .slice(0, 10);
+
+    // Questions asked on a page: how many, and the ones the page could not answer (one row per question and page)
+    var asked = recent.filter(function (event) { return event.k === 'a'; });
+    summary.asked = { total: asked.length, unanswered: [] };
+    var unansweredByKey = {};
+    asked.forEach(function (event) {
+      if (event.covered) { return; }
+      var key = keyOf(event.q) + '|' + event.id;
+      var row = unansweredByKey[key] = unansweredByKey[key] || { id: key, query: event.q, pageId: event.id, title: event.title, count: 0 };
+      row.count += 1;
+      row.query = event.q;
+    });
+    summary.asked.unanswered = Object.keys(unansweredByKey).map(function (key) { return unansweredByKey[key]; })
+      .sort(function (a, b) { return b.count - a.count || a.query.localeCompare(b.query); });
 
     return summary;
   }

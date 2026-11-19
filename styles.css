@@ -2938,3 +2938,19 @@ body.is-public .prop-bar { display: none; }
 /* Linked members: a field in the Page setup bar */
 .prop-members { width: 250px; }
 .prop-members .role-list { margin: 0 0 6px; }
+
+/* Ask a question about this page: a card just under the description */
+.ask-card { margin: 20px 0 8px; padding: 20px 24px; background: var(--brand-tint); border: 1px solid var(--accent-border, var(--border)); border-radius: var(--radius-card); }
+.ask-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+.ask-spark { display: inline-grid; color: var(--icon-blue); }
+.ask-card .ask-title { margin: 0; font-family: inherit; font-size: 18px; font-weight: 700; color: var(--navy); border: 0; padding: 0; }
+.ask-form { display: flex; gap: 8px; }
+.ask-input { flex: 1; min-width: 0; height: 44px; padding: 0 16px; font: inherit; font-size: 15px; color: var(--text); background: var(--white); border: 1px solid var(--border-strong); border-radius: 10px; }
+.ask-input:focus { outline: 2px solid var(--icon-blue); outline-offset: 0; }
+.ask-go { height: 44px; padding: 0 24px; }
+.ask-answer { margin-top: 12px; }
+.ask-answer:empty { display: none; }
+.ask-text { margin: 0; font-size: 15px; line-height: 1.55; color: var(--text); }
+.ask-working { margin: 0; font-size: 14px; color: var(--text-muted); }
+.ask-from, .ask-next { margin: 8px 0 0; font-size: 13px; color: var(--text-muted); }
+.ask-note { margin: 10px 0 0; font-size: 12px; color: var(--text-muted); }

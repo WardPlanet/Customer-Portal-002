@@ -90,3 +90,19 @@ test('top searches: found something, two separate visits, nothing personal, hidd
   assert.equal(digest.searches.length, 2);
   assert.deepEqual(Object.keys(digest.views), []);
 });
+
+test('questions asked on a page are logged, and the ones the page could not answer are listed', () => {
+  const ask = (q, id, covered, t) => Log.cleanEvent({ k: 'a', q, id, title: 'Transfer policy', covered, t, sid: 's1' }, NOW);
+  assert.equal(Log.cleanEvent({ k: 'a', q: '', id: 'p1', covered: false }, NOW), null);   // no question: not an event
+  assert.equal(Log.cleanEvent({ k: 'a', q: 'Who owns it?', covered: false }, NOW), null);   // no page: not an event
+  const events = [
+    ask('Who owns the domain?', 'p1', false, '2026-11-04T10:00:00.000Z'),
+    ask('who owns the domain?', 'p1', false, '2026-11-04T11:00:00.000Z'),
+    ask('How much does it cost?', 'p1', true, '2026-11-04T12:00:00.000Z')
+  ];
+  const summary = Log.summarize(events, { now: NOW });
+  assert.equal(summary.asked.total, 3);
+  assert.equal(summary.asked.unanswered.length, 1);
+  assert.equal(summary.asked.unanswered[0].count, 2);
+  assert.equal(summary.totals.searches, 0);   // questions are not searches
+});

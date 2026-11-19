@@ -1480,3 +1480,9 @@ Landing page: the Popular pages tiles are white (light mode) with a light grey b
 - The **+ beside Owner** now stores a **secondary owner** of its own (`[SECONDARY OWNER]`, one person's email) instead of borrowing the linked-people list. The secondary owner shares the page: it shows in their library (`isMine`), is a contact right after the owner on the live page, and (like the owner) only the team lead can change it.
 
 Page setup order, left to right: Team, Reviewer, Owner, Linked members, Visibility.
+
+## Ask a question about this page (AI)
+- A card, **"Ask a question about this page"**, sits just under the description of every live page (staff and the public view). The AI (the same `PageEditor.aiJson` the import uses: Claude in the artifact, the key on the server) is given **only this page's text as numbered sections**, the text the reader may see (a visitor's copy already has the staff-only parts removed), and told to answer only from it, never invent anything and say when the page does not cover the question. It replies with JSON (`covered`, `answer`, `sections`); the answer is shown as plain text with links to the sections it came from. A page over 24,000 characters is cut evenly and the AI is told so. A short note says answers can be wrong.
+- **Not covered:** "This page does not cover that." with "Search the wiki for it" (the results page for the question) and, for staff, the owner's email and Teams (the public view offers Contact support when it is set).
+- **Logged** without names (`k: 'a'`, the question, page and whether it was covered; see `search-log.cjs`). The Search review screen has a new list, **"Questions a page could not answer"**, so owners can see what a page is missing.
+- Scope for now: this page only (not the whole wiki). Tested here with stand-in answers only, because the real AI is not available in the preview; the prompt and answer handling are what to check with the real AI. Cost: one AI request per question.

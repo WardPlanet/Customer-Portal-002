@@ -212,7 +212,7 @@
       var done = decidedIds();
       var summary = window.SearchLog.summarize(events);
 
-      var hasData = summary.totals.searches > 0;
+      var hasData = summary.totals.searches > 0 || (summary.asked && summary.asked.total > 0);
       var head = el('div', 'lib-head');
       var titles = el('div');
       titles.appendChild(el('h1', 'lib-title', 'Search review'));
@@ -240,7 +240,7 @@
       var stats = el('div', 'review-stats');
       [
         [summary.totals.searches, 'searches'],
-        [summary.totals.found + ' (' + Math.round(summary.totals.found / summary.totals.searches * 100) + '%)', 'found a result'],
+        [summary.totals.searches ? summary.totals.found + ' (' + Math.round(summary.totals.found / summary.totals.searches * 100) + '%)' : '0', 'found a result'],
         [summary.totals.nothing, 'found nothing'],
         [summary.totals.repeated, 'repeated straight away']
       ].forEach(function (pair) {
@@ -259,6 +259,23 @@
         if (!nothing.length) { nothingBox.appendChild(el('p', 'review-empty', 'Nothing here to review.')); }
         nothing.forEach(function (item) { nothingBox.appendChild(nothingCard(item)); });
         main.appendChild(nothingBox);
+      }
+
+      // Questions asked on a page that the page could not answer: the page may be missing something
+      var unanswered = summary.asked ? summary.asked.unanswered : [];
+      if (unanswered.length) {
+        var askedBox = section('Questions a page could not answer', 'Asked with "Ask a question" on a page. The page may be missing something.', unanswered.length);
+        unanswered.forEach(function (item) {
+          var row = el('div', 'review-card');
+          row.appendChild(el('div', 'review-query', '\u201c' + item.query + '\u201d'));
+          var sub = el('div', 'review-sub', item.count + (item.count === 1 ? ' time' : ' times') + ' \u00B7 on ');
+          var pageLink = el('a', '', item.title || 'a page');
+          pageLink.href = '#/preview/' + item.pageId;
+          sub.appendChild(pageLink);
+          row.appendChild(sub);
+          askedBox.appendChild(row);
+        });
+        main.appendChild(askedBox);
       }
 
       var repeated = pending(summary.repeated, 'repeated');
