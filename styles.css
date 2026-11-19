@@ -2967,6 +2967,18 @@ body.is-readonly .outline-related { opacity: 0.6; background: var(--surface-mute
 body.is-readonly .outline-related .related-add { cursor: not-allowed; border-color: var(--border); color: var(--text-faint); }
 
 /* One content width for every screen: the library, the landing results, a live page, the editor, its banner and Page setup bar all use it */
-:root { --content-max: 1400px; }
+:root { --content-max: 1350px; }   /* the one content width */
 .lib-main.has-rail { max-width: var(--content-max); }
 .preview-layout > .preview, .preview-layout .preview { max-width: 880px; }
+
+/* Page setup at 1350px: the five fields fit on one row */
+.prop-strip { gap: 12px 24px; }
+.prop-team { width: 190px; }
+.prop-reviewer .setup-reviewer.is-na { width: 210px; }
+.prop-owner { width: 230px; }
+.prop-members { width: 230px; }
+.prop-visibility { width: 200px; }
+.prop-reviewer .setup-reviewer.is-na { width: 240px; }
+.prop-members { width: 220px; }
+.prop-visibility { width: 190px; }
+.prop-team { width: 180px; }
