@@ -669,6 +669,15 @@
   function seedSupportDemo(teams) {
     var W = window.Workflow;
     var support = (teams || []).filter(function (candidate) { return candidate.slug === 'support'; })[0];
+    if (!support && W) {
+      // The Support team is parked (teams-parked/support.json): its demo pages made earlier in this browser are removed too
+      var parked = readAll();
+      var titles = SUPPORT_DEMO.map(function (doc) { return doc.title; });
+      var kept = parked.pages.filter(function (page) { return !(page.team === 'support' && titles.indexOf(((page.versions[page.versions.length - 1]) || {}).title) >= 0); });
+      if (kept.length !== parked.pages.length) { parked.pages = kept; writeAll(parked); }
+      try { localStorage.removeItem(SEED_KEY); } catch (error) { /* nothing to forget */ }
+      return;
+    }
     if (!support || !W) { return; }
     // The titles already made are remembered, so pages added to the demo later are made once and a page that was deleted stays deleted
     // (older copies kept just "1": the first nine pages)

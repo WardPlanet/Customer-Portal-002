@@ -1404,3 +1404,7 @@ The Review button on an expired page opens the live version with the same blue-b
 ## The blue bar stays in the editor; On this page links
 - Clicking **Edit** in the review view opens the editor with the **same blue bar**, where Edit has become **Review** (it saves what was typed, then goes back to the read-only review view). Owner: **Submit** and **Review**. Team lead / Admin: **Publish**, **Review**, and **Request changes** when the page is waiting for review.
 - **On this page links** did not scroll after another page had been opened: the list is only redrawn when the headings change, and it kept the heading elements of the earlier page. Each item now looks its heading up when clicked (and for the highlight), so the links work after opening any page.
+
+## Support team and its documentation: removed for now
+- The Support department file moved from `teams/support.json` to `teams-parked/support.json` (nothing reads that folder), so the build has only the Legwork Web Team. With one team there is no Department picker and no Support demo pages. The demo pages (`SUPPORT_DEMO` in `store.js`) stay in the code but are not made without a Support team, and a browser that already had them has them removed (and `pageEditor.seededSupport.v1` forgotten) the next time the page opens.
+- **To bring Support back:** `git mv teams-parked/support.json teams/support.json`, restore the `['legwork-web-team', 'support']` expectation in `tests/teams.test.cjs`, rebuild. The demo pages are made again the first time it starts.
