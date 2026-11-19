@@ -4,7 +4,7 @@ The current state of the wiki prototype: what it does, how it is built, what is 
 `docs/HANDOFF-history.md` (some of it is out of date; this file wins). Hosting notes for IT are in `README.md`.
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
-- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 328, private).
+- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 329, private).
 - **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 26).
 - **Tests:** `npm test`, 123 passing (rules, search, import, admin, photos, and the Node server's library routes).
 
@@ -63,7 +63,7 @@ and earlier is the only acceptable AutoMapper range (neither is used).
 - **Statuses:** Draft, In review, Sent back, Live, Unpublished. A page that is live and has an edit shows **Live** with **Draft** beneath
   (owner only), or **In review** over **Live** once the edit is submitted.
 - **Review:** the owner submits, the lead approves or sends back with a note. After submit the page is locked for the owner. The lead publishes their own work directly.
-- **Live pages:** an edit starts as a copy; it is **never autosaved**. Save draft turns on with the first change, Delete draft turns on once a draft is saved, and leaving with unsaved changes asks Save draft / Leave without saving. Deleting a saved draft "reverts to the live page".
+- **Live pages:** an edit starts as a copy; it is **never autosaved**. Save draft and Submit for review (or Publish) both turn on with the first change (a draft does not have to be saved to be submitted), Delete draft turns on once a draft is saved, and leaving with unsaved changes asks Save draft / Leave without saving. Deleting a saved draft "reverts to the live page".
 - **Owner republishing:** a lead can allow the owner of one live, internal page to republish without review (the **Allow owner to republish** toggle in Page setup, edit mode, lead and Admin only; also asked once when the lead first publishes an internal page). It never applies to public pages and the owner cannot change owner or visibility that way. The lead is told in the bell for a week.
 - **Expiry:** 180 days from going live. "Expiring soon" from day 165 (owner only), "Expired" for everyone. The lead can renew, or ask for changes.
 - **Deleting:** owners delete their own drafts; live or in-review pages need a deletion request that the lead keeps or accepts. Every delete moves the page to **Recently deleted** for **30 days** (restorable), then it is gone. The lead confirms every delete with a tick box.

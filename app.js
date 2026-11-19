@@ -197,7 +197,9 @@
       var del = byId('delete-draft');
       var save = byId('save-draft');
       var live = !!(host && host.isLiveEdit && host.isLiveEdit());
+      var main = byId('submit-draft');
       save.removeAttribute('data-nochange');
+      main.removeAttribute('data-nochange');
       if (!live) { del.removeAttribute('aria-disabled'); return; }
       var changed = byId('save-status').classList.contains('is-unsaved') && pageHasContent();
       if (!changed) {
@@ -210,8 +212,19 @@
         save.setAttribute('aria-disabled', String(!fieldsOk));
         save.title = fieldsOk ? '' : 'Fill in the required fields (*) first';
       }
+      // Submit for review (or Publish) waits for a change too, but the draft does not have to be saved first: a change just made, or one saved earlier, counts
+      var savedDraft = !!(host.hasSavedDraftChanges && host.hasSavedDraftChanges());
+      if (!changed && !savedDraft) {
+        main.setAttribute('aria-disabled', 'true');
+        main.setAttribute('data-nochange', 'true');
+        main.title = 'Change something on the page first';
+      } else {
+        var mainReady = isDraftComplete() && !!state.visibility;
+        main.setAttribute('aria-disabled', String(!mainReady));
+        main.title = mainReady ? '' : isDraftComplete() ? 'Choose a visibility first (Page setup)' : 'Fill in the required fields (*) first';
+      }
       // Delete draft waits until a draft has been saved: there is nothing to delete before that (unsaved changes go when the editor leaves without saving)
-      var deletable = !!(host.hasSavedDraftChanges && host.hasSavedDraftChanges());
+      var deletable = savedDraft;
       del.setAttribute('aria-disabled', String(!deletable));
       del.title = deletable ? '' : 'Save a draft first. There is no saved draft to delete yet';
     }
