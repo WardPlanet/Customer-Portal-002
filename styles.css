@@ -2888,3 +2888,11 @@ body.is-public .prop-bar { display: none; }
 .text-block:focus-within:hover > .block-handle { opacity: 1; }
 .table-tools { display: none; position: absolute; top: -18px; right: 56px; z-index: 4; margin: 0; padding: 4px; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-popover); }
 .text-block:focus-within > .table-tools, .text-block:focus-within .table-tools { display: flex; }
+
+/* Import document(s): one or several */
+.import-kind-dialog { width: 460px; max-width: 92vw; }
+.import-kind-choices { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+.import-kind-choice { display: flex; flex-direction: column; gap: 4px; padding: 16px; text-align: left; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 12px; font: inherit; color: var(--text); cursor: pointer; }
+.import-kind-choice strong { font-size: 16px; color: var(--navy); }
+.import-kind-choice span { font-size: 13px; color: var(--text-muted); }
+.import-kind-choice:hover, .import-kind-choice:focus-visible { border-color: var(--icon-blue); background: var(--brand-tint); outline: none; }

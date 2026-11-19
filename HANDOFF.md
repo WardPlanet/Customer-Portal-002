@@ -1448,3 +1448,6 @@ Still to do (not asked yet): the properties-above-the-title alternative (Conflue
 - The page's properties (Owner, Visibility, Reviewer, Team for Admin) are a separate bar **above the two columns** again; the bottom bar keeps only **Save draft** and **Submit for review**.
 - The left column is wider (270px). **Related pages** under On this page is a small quiet title with a **+** that opens the search (it closes again if left empty, or on Escape).
 - **Move handle (≡) and table controls only show for the selected section:** the handle sits in the margin level with the section's first line; Add row / Add column / Remove row / Remove column float above the selected table instead of taking a row of space.
+
+## Import document(s) (library)
+The library's "Batch import" link is now one button, **Import document(s)**. It asks "Are you importing one document or several?": **One document** opens a new page and opens the editor's own import window at once (choose a file or paste text; the page is filled and can be edited straight away); **Several documents** goes to the batch import screen. The batch screen's own heading still says "Batch import". Contradicts the text-revision list only in that the list names the old link "Batch import" (the list has no change for it).

@@ -460,7 +460,12 @@
     titles.appendChild(el('p', 'lib-sub', actingAsAdmin() ? 'Admin · every department\u2019s pages and drafts' : team.name + ' · ' + (team.locations || []).join(', ') + (actorIsLead() ? '' : ' · showing your pages and drafts')));
     head.appendChild(titles);
     var headActions = el('div', 'lib-actions');
-    headActions.appendChild(link('Batch import', '#/batch', 'secondary-link'));
+    // One button for importing: it asks whether it is one document (the editor's own import) or several (batch import)
+    headActions.appendChild(button('Import document(s)', 'secondary-link', async function () {
+      var kind = await askImportKind();
+      if (kind === 'one') { importOnNewPage = true; location.hash = '#/new'; }
+      else if (kind === 'many') { location.hash = '#/batch'; }
+    }));
     if (actorIsLead()) { headActions.appendChild(button('Team and roles', 'secondary-link', function () { openTeamDialog(); })); }
     // Backups cover the whole team's pages, so only the team lead sees them. They live in a "More" menu so they do not compete with
     // New page; the menu also says when the last backup was made.
@@ -1546,6 +1551,38 @@
     picker.appendChild(wrap);
   }
 
+  // Set when someone chose "One document" from Import document(s): the editor opens on a new page and its import window opens at once
+  var importOnNewPage = false;
+
+  // "Are you importing one document or several?" Resolves to 'one', 'many' or null (closed)
+  function askImportKind() {
+    return new Promise(function (resolve) {
+      var dialog = el('dialog', 'draft-dialog import-kind-dialog');
+      dialog.setAttribute('aria-label', 'Import document(s)');
+      dialog.appendChild(el('h2', 'dialog-title', 'Import document(s)'));
+      dialog.appendChild(el('p', 'dialog-hint', 'Are you importing one document or several?'));
+      var answer = null;
+      var choices = el('div', 'import-kind-choices');
+      function choice(title, text, value) {
+        var b = el('button', 'import-kind-choice');
+        b.type = 'button';
+        b.appendChild(el('strong', '', title));
+        b.appendChild(el('span', '', text));
+        b.addEventListener('click', function () { answer = value; dialog.close(); });
+        return b;
+      }
+      choices.appendChild(choice('One document', 'Opens a new page and imports the file there, so you can edit it straight away.', 'one'));
+      choices.appendChild(choice('Several documents', 'Batch import: one file that holds several, or many files at once, saved as drafts.', 'many'));
+      dialog.appendChild(choices);
+      var actions = el('div', 'dialog-actions');
+      actions.appendChild(button('Cancel', 'secondary-link', function () { dialog.close(); }));
+      dialog.appendChild(actions);
+      dialog.addEventListener('close', function () { dialog.remove(); resolve(answer); });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
   function openNewPage() {
     showScreen('editor', false);
     window.PageEditor.reset();
@@ -1553,6 +1590,10 @@
     setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length >= 1);
     current = { id: null, n: null, backTo: '#/' };
     setBanner(null);
+    if (importOnNewPage) {
+      importOnNewPage = false;
+      setTimeout(function () { document.getElementById('import-doc').click(); }, 150);   // the editor's own import window
+    }
   }
 
   /* ---------- The editor, locked for reading ---------- */
