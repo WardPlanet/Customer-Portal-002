@@ -4684,15 +4684,18 @@
       ownerPubChange = config ? config.onChange : null;
       field.hidden = !config;
       if (!config) { return; }
-      byId('ownerpub').value = config.value ? 'yes' : 'no';
+      byId('ownerpub').checked = !!config.value;
       byId('ownerpub').disabled = !config.editable;
-      byId('ownerpub').title = config.note || '';
+      byId('ownerpub-toggle').title = config.note || '';
+      byId('ownerpub-toggle').classList.toggle('is-disabled', !config.editable);
+      byId('ownerpub-text').textContent = config.value ? 'No review' : 'Needs review';
     }
     byId('ownerpub').addEventListener('change', async function () {
-      var select = byId('ownerpub');
-      var wanted = select.value === 'yes';
+      var box = byId('ownerpub');
+      var wanted = box.checked;
       var ok = ownerPubChange ? await ownerPubChange(wanted) : false;
-      if (!ok) { select.value = wanted ? 'no' : 'yes'; }
+      if (!ok) { box.checked = !wanted; }
+      byId('ownerpub-text').textContent = box.checked ? 'No review' : 'Needs review';
     });
 
     /* ---------- What the library uses to drive the editor ---------- */
