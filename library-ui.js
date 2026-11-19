@@ -240,7 +240,8 @@
       slot.textContent = '';
       // Department (only when there is more than one, as in the Claude artifact): switching reloads the page as that department
       var departments = window.Store.teams ? window.Store.teams() : [];
-      if (departments.length > 1) {
+      // (In the artifact it is always there, even with one team, because Admin and Public are chosen from it.)
+      if (departments.length > 1 || (window.TEAMS && window.TEAMS.length)) {
         var deptLabel = el('label', 'acting-label', 'Department ');
         var deptSelect = el('select', 'acting-select department-select');
         deptSelect.setAttribute('aria-label', 'Department');
@@ -1549,7 +1550,7 @@
     showScreen('editor', false);
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
-    setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length > 1);
+    setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length >= 1);
     current = { id: null, n: null, backTo: '#/' };
     setBanner(null);
   }
@@ -1649,7 +1650,7 @@
     box.appendChild(el('p', 'dialog-hint', 'Pages belong to a person, not a job title. To replace someone, choose Replace person on their row: the new person takes over their pages. Remove hands a person’s pages to someone you choose, or to the team lead (marked Default).'));
 
     // Admin has every team and every role: a department picker switches this window to another team's people and pages
-    if (actingAsAdmin() && window.Store.teams().length > 1) {
+    if (actingAsAdmin() && window.Store.teams().length >= 1) {
       var switcher = el('label', 'team-switcher', 'Department ');
       var switchSelect = el('select', 'acting-select');
       switchSelect.setAttribute('aria-label', 'Department to manage');
@@ -1671,7 +1672,7 @@
       switcher.appendChild(button('Manage team', 'secondary-link', function () { openManageTeamDialog(); }));
       box.appendChild(switcher);
     }
-    if (actingAsAdmin() && teamAllView && window.Store.teams().length > 1) { renderAllPeople(); return; }
+    if (actingAsAdmin() && teamAllView && window.Store.teams().length >= 1) { renderAllPeople(); return; }
     if (!actorIsLead()) {
       box.appendChild(el('p', 'lib-empty', 'Only the team lead (' + team.lead + ') can change the team.'));
       return;

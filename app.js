@@ -3607,7 +3607,6 @@
       var missing = validateRequired(verb !== 'save');
       if (!missing.length) { return false; }
       showNotice('Can\u2019t ' + verb + ' yet. Still needed: ' + missing.map(function (item) { return item.label; }).join(', ') + '.');
-      if (missing[0].target.closest && missing[0].target.closest('#editor-setup') && setupIsDrawer()) { setSetupOpen(true); }   // what is missing is in Page setup: show it
       missing[0].target.focus();
       return true;
     }
@@ -3619,18 +3618,12 @@
     });
     byId('leave-btn').addEventListener('click', function () { window.PageHost.leave(); });
 
-    // Page setup as a slide-over on narrower windows (the panel is beside the page above 1300px): a button opens it, the scrim or × closes it
-    function setSetupOpen(open) {
-      byId('editor-setup').classList.toggle('is-open', open);
-      byId('setup-scrim').hidden = !open;
-      byId('setup-toggle').setAttribute('aria-expanded', String(open));
-    }
-    function setupIsDrawer() { return window.getComputedStyle(byId('setup-toggle')).display !== 'none'; }
-    byId('setup-toggle').addEventListener('click', function () { setSetupOpen(!byId('editor-setup').classList.contains('is-open')); });
-    byId('setup-close').addEventListener('click', function () { setSetupOpen(false); });
-    byId('setup-scrim').addEventListener('click', function () { setSetupOpen(false); });
-    document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && byId('editor-setup').classList.contains('is-open')) { setSetupOpen(false); } });
-    window.addEventListener('resize', function () { if (!setupIsDrawer()) { setSetupOpen(false); } });
+    // "More" (linked people, related pages) opens a small panel under the strip; a click anywhere else, or Escape, closes it
+    document.addEventListener('click', function (event) {
+      var more = byId('setup-more');
+      if (more && more.open && !more.contains(event.target)) { more.open = false; }
+    });
+    document.addEventListener('keydown', function (event) { var more = byId('setup-more'); if (event.key === 'Escape' && more && more.open) { more.open = false; } });
 
     /* ---------- Import an existing document ----------
        The server reads the file and asks the AI to restructure it following
@@ -4660,6 +4653,7 @@
       state.ownerDefault = false;
       state.roles = [];
       state.related = [];
+      state.visibility = '';   // a new page has none chosen: the author has to pick one
       state.keywords = [];
       state.source = '';
       layoutContent([], 0);   // a new page starts with no blocks: the person adds what they need

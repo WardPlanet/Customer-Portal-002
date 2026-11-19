@@ -1416,3 +1416,8 @@ The Review button on an expired page opens the live version with the same blue-b
 4. **More room:** 24px between groups, thin dividers, "Page setup" in sentence case; columns are now 210px (On this page) | the page | 290px (Page setup).
 5. **Narrower windows (under 1300px):** Page setup becomes a slide-over opened from a "Page setup" button in the top bar (× or a click outside closes it, Escape too). If something required is missing, it opens by itself. Under 1100px the page is a single column.
 Still to do (not asked yet): the properties-above-the-title alternative (Confluence/Notion style); the editor toolbar's "AI assist" button still wraps onto a second row at 1440px.
+
+## Page properties are now a bar of their own (replaces the right-hand Page setup column)
+- **A separate white bar above the page** (not inside the editor): Team (Admin only), Owner, Visibility, Reviewer (text), and a **More** button that opens a small panel with Linked people and Related pages. The right column is gone, so the page has the room (the toolbar fits on one row) and the layout is "On this page | the page". Errors for a missing Owner or Visibility show under their field.
+- Fixed while doing it: with Support removed there was only one team, which hid the Department picker, so **Admin and Public could not be chosen**. In the artifact the picker now always shows (and Admin's team tools work with one team). Also fixed: a **new page started with the previous page's visibility**; it now starts with none chosen.
+- The slide-over version of Page setup from the previous step was removed with the column.
