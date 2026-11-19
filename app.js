@@ -4688,7 +4688,8 @@
         }
       });
       document.body.classList.toggle('is-readonly', on);
-      byId('editor-setup').inert = on;
+      byId('editor-setup').inert = on;   // Page setup can only be changed in edit mode
+      byId('related-field').inert = on;   // nor the related pages
     }
 
     // A blank page, as when someone starts a new one

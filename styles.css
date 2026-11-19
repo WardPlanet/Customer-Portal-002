@@ -2958,3 +2958,10 @@ body.is-public .prop-bar { display: none; }
 .rail-tools .primary-btn { width: 100%; justify-content: center; text-align: center; }
 
 .rail-tools .secondary-btn { width: 100%; justify-content: center; text-align: center; }
+
+/* Reviewing (read-only): Page setup and Related pages are greyed out; they can only be changed in edit mode */
+body.is-readonly .prop-strip { background: var(--surface-muted); }
+body.is-readonly .prop-strip .prop, body.is-readonly .prop-strip #members-field { opacity: 0.6; }
+body.is-readonly .prop-strip .select-field, body.is-readonly .prop-strip .owner-add { background: var(--surface-muted); color: var(--text-muted); border-color: var(--border); cursor: not-allowed; }
+body.is-readonly .outline-related { opacity: 0.6; background: var(--surface-muted); }
+body.is-readonly .outline-related .related-add { cursor: not-allowed; border-color: var(--border); color: var(--text-faint); }

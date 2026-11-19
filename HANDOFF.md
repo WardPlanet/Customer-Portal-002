@@ -1490,3 +1490,5 @@ Page setup order, left to right: Team, Reviewer, Owner, Linked members, Visibili
 Live page left column: **Copy link** is above **Export PDF**, and both are the standard blue primary buttons.
 
 Live page left column: **Copy link** is the blue primary button and **Export PDF** the white secondary button, under it.
+
+Reviewing (the read-only view): the Page setup bar and the Related pages card are greyed out and cannot be used (`inert`); they only change in edit mode.
