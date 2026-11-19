@@ -1734,7 +1734,7 @@
     var actionsRow = el('div', 'banner-actions');
     var leadView = actorIsLead() || actingAsAdmin();
     // The blue bar repeats the footer's choices, in the same order, with the same labels and the same greyed-out states (they follow the footer
-    // buttons: see syncBarButtons in app.js). Then Review (not for the team lead, who needs no review of their own edits).
+    // buttons: see syncBarButtons in app.js).
     function mirrorOf(footerId, className) {
       var b = button('', className, function () { document.getElementById(footerId).click(); });
       b.setAttribute('data-mirror', footerId);
@@ -1744,19 +1744,6 @@
     mirrorOf('delete-draft', 'row-btn row-btn-danger');
     mirrorOf('save-draft', 'row-btn');
     mirrorOf('submit-draft', 'row-btn row-btn-main');
-    if (!leadView) actionsRow.appendChild(button('Review', 'row-btn', async function () {
-      // Save what was typed first, so the review shows it
-      if (window.PageEditor.isDirty()) {
-        if (current.liveEdit) {
-          var choice = await askSaveOrLeave();
-          if (!choice) { return; }
-          if (choice === 'save') { try { await window.PageHost.save(window.PageEditor.getText()); } catch (error) { notice(error && error.message ? error.message : 'That could not be saved yet.'); return; } }
-        } else {
-          try { await window.PageHost.autosave(window.PageEditor.getText()); } catch (error) { notice(error && error.message ? error.message : 'That could not be saved yet.'); return; }
-        }
-      }
-      location.hash = '#/view/' + id + '/' + n;
-    }));
     if (current.liveEdit && hist && hist.actions.indexOf('discard') >= 0) {
       // A draft of a live page can be thrown away: the page goes back to the live version (the footer button and its copy in the blue bar)
       var discardTitle = data.version.title || (detail && detail.page && detail.page.title) || 'this page';

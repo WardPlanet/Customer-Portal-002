@@ -4,7 +4,7 @@ The current state of the wiki prototype: what it does, how it is built, what is 
 `docs/HANDOFF-history.md` (some of it is out of date; this file wins). Hosting notes for IT are in `README.md`.
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
-- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 327, private).
+- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 328, private).
 - **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 26).
 - **Tests:** `npm test`, 123 passing (rules, search, import, admin, photos, and the Node server's library routes).
 
@@ -75,7 +75,7 @@ and earlier is the only acceptable AutoMapper range (neither is used).
 
 **Status colour standard** (also in the style guide): red error or expired, yellow or orange warning, green Live, blue information and in review and the primary action, grey inactive or not live. Colour is never the only signal.
 
-**Page setup bar:** Team, Reviewer, Owner, Linked members, Visibility, Allow owner to republish (live pages). Greyed while reviewing. Footer: Delete draft (live drafts), Save draft, and Submit for review (Publish for the lead or an owner allowed to republish). The blue bar above the page repeats those same three, in the same order, with the same labels and greyed-out states (they copy the footer buttons, `syncBarButtons` in `app.js`), then Review for owners. A greyed-out Delete draft is neutral grey, not red.
+**Page setup bar:** Team, Reviewer, Owner, Linked members, Visibility, Allow owner to republish (live pages). Greyed while reviewing. Footer: Delete draft (live drafts), Save draft, and Submit for review (Publish for the lead or an owner allowed to republish). The blue bar above the page repeats those same three, in the same order, with the same labels and greyed-out states (they copy the footer buttons, `syncBarButtons` in `app.js`). There is no Review button in the editor. A greyed-out Delete draft is neutral grey, not red.
 
 **Live page:** left column (logo, search, On this page, Related pages, Copy link, Export PDF), owner and contacts under the title, **Ask a question about this page** (employees only). "On this page" tracks scroll from worked-out positions (the last sections share the end of the scroll), and a clicked link overrides the highlight until the reader scrolls. Clicking an outline link highlights the section in light blue until the next click, then fades; the link icon gives the yellow, shareable highlight.
 
