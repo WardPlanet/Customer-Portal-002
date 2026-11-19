@@ -3142,3 +3142,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .danger-btn[hidden] { display: none; }
 
 .row-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+
+/* A greyed-out Delete draft is neutral grey, not red: it only looks like a warning when it can be used */
+.danger-btn[aria-disabled="true"], .row-btn-danger[aria-disabled="true"] { color: var(--text-faint); border-color: var(--border); background: var(--surface-muted); }
+.banner-actions [hidden] { display: none; }

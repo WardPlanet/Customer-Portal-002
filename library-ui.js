@@ -1708,6 +1708,7 @@
     current.ownerPublishes = !!(detail && detail.page && detail.page.ownerPublishes && !actorIsLead() && !actingAsAdmin());
     current.liveEdit = !!(detail && detail.page && detail.page.liveVersion);   // changes to a live page are saved only by hand
     current.draftChanged = !!(current.liveEdit && detail.page.workingVersion && detail.page.workingVersion.changed);
+    setMainButtonLabel();          // Publish, when this person may publish this page without review
     window.PageEditor.refresh();   // greys Save draft and Delete draft until there is something to save or delete
     if (mine !== routing) { return; }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
@@ -1732,13 +1733,18 @@
     var box = editorBanner(lines, tone === 'warn' ? 'info' : tone);
     var actionsRow = el('div', 'banner-actions');
     var leadView = actorIsLead() || actingAsAdmin();
-    var ownerPublishes = !leadView && !!(detail && detail.page && detail.page.ownerPublishes) && !!(hist && hist.actions.indexOf('publish') >= 0);
-    if (leadView || ownerPublishes) {
-      actionsRow.appendChild(button('Publish', 'row-btn row-btn-main', function () { document.getElementById('publish-draft').click(); }));
-    } else {
-      actionsRow.appendChild(button('Submit', 'row-btn row-btn-main', function () { document.getElementById('submit-draft').click(); }));
+    // The blue bar repeats the footer's choices, in the same order, with the same labels and the same greyed-out states (they follow the footer
+    // buttons: see syncBarButtons in app.js). Then Review (not for the team lead, who needs no review of their own edits).
+    function mirrorOf(footerId, className) {
+      var b = button('', className, function () { document.getElementById(footerId).click(); });
+      b.setAttribute('data-mirror', footerId);
+      actionsRow.appendChild(b);
+      return b;
     }
-    if (!leadView) actionsRow.appendChild(button('Review', 'row-btn', async function () {   // the team lead needs no review of their own edits
+    mirrorOf('delete-draft', 'row-btn row-btn-danger');
+    mirrorOf('save-draft', 'row-btn');
+    mirrorOf('submit-draft', 'row-btn row-btn-main');
+    if (!leadView) actionsRow.appendChild(button('Review', 'row-btn', async function () {
       // Save what was typed first, so the review shows it
       if (window.PageEditor.isDirty()) {
         if (current.liveEdit) {
@@ -1752,18 +1758,16 @@
       location.hash = '#/view/' + id + '/' + n;
     }));
     if (current.liveEdit && hist && hist.actions.indexOf('discard') >= 0) {
-      // A draft of a live page can be thrown away: the page goes back to the live version (in the blue bar and in the footer)
+      // A draft of a live page can be thrown away: the page goes back to the live version (the footer button and its copy in the blue bar)
       var discardTitle = data.version.title || (detail && detail.page && detail.page.title) || 'this page';
       var discardNow = async function () { if (document.getElementById('delete-draft').getAttribute('aria-disabled') === 'true') { return; } if (await confirmAndDiscardDraft(id, Number(n), discardTitle)) { location.hash = '#/'; } };
-      var barDiscard = button('Delete draft', 'row-btn row-btn-danger', discardNow);
-      barDiscard.setAttribute('data-delete-draft', '1');
-      actionsRow.appendChild(barDiscard);
       footerDelete.hidden = false;
       footerDelete.onclick = discardNow;
     }
     if (leadView && status === 'submitted') { actionsRow.appendChild(button('Request changes', 'row-btn', function () { sendBackWithComment(id, Number(n)); })); }
     box.appendChild(actionsRow);
     setBanner(box);
+    window.PageEditor.refresh();   // the blue bar's buttons copy the footer's labels and states
   }
 
   // Admin starting a page chooses its team. The editor works as one department (its roles are the choices for Owner), so choosing
@@ -4382,7 +4386,7 @@
 
   // The editor's main button: "Publish" for the team lead (and Admin), who need no review, "Submit for review" for everyone else
   function setMainButtonLabel() {
-    if (window.PageEditor && window.PageEditor.setSubmitLabel) { window.PageEditor.setSubmitLabel(actorIsLead() || actingAsAdmin() ? 'Publish' : 'Submit for review'); }
+    if (window.PageEditor && window.PageEditor.setSubmitLabel) { window.PageEditor.setSubmitLabel(actorIsLead() || actingAsAdmin() || current.ownerPublishes ? 'Publish' : 'Submit for review'); }
   }
 
   /* ---------- What app.js calls when someone saves, submits or leaves ---------- */
@@ -4401,7 +4405,7 @@
     },
     submit: async function (text) {
       // The team lead (and Admin) do not send their own work for review: the main button publishes
-      if (actorIsLead() || actingAsAdmin()) { return this.publish(text); }
+      if (actorIsLead() || actingAsAdmin() || current.ownerPublishes) { return this.publish(text); }
       await this.save(text);
       await backend().act(current.id, current.n, 'submit');
       var id = current.id;

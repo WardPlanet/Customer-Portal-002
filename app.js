@@ -176,7 +176,23 @@
 
     // Editing a draft of a LIVE page: Save draft stays greyed out until something has been changed, and Delete draft until a draft has been
     // saved. Other pages are not affected.
+    // The blue bar above the page repeats Delete draft, Save draft and the main button; each copy shows what its footer button shows
+    function syncBarButtons() {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-mirror]'), function (copy) {
+        var source = byId(copy.getAttribute('data-mirror'));
+        if (!source) { return; }
+        copy.hidden = source.hidden;
+        copy.textContent = source.textContent;
+        copy.title = source.title || '';
+        if (source.getAttribute('aria-disabled') === 'true') { copy.setAttribute('aria-disabled', 'true'); } else { copy.removeAttribute('aria-disabled'); }
+      });
+    }
+
     function updateLiveEditButtons() {
+      updateLiveEditButtonsNow();
+      syncBarButtons();
+    }
+    function updateLiveEditButtonsNow() {
       var host = window.PageHost;
       var del = byId('delete-draft');
       var save = byId('save-draft');
@@ -198,7 +214,6 @@
       var deletable = !!(host.hasSavedDraftChanges && host.hasSavedDraftChanges());
       del.setAttribute('aria-disabled', String(!deletable));
       del.title = deletable ? '' : 'Save a draft first. There is no saved draft to delete yet';
-      Array.prototype.forEach.call(document.querySelectorAll('[data-delete-draft]'), function (b) { b.setAttribute('aria-disabled', String(!deletable)); b.title = del.title; });   // the blue bar's copy of the button follows
     }
 
     var editCount = 0;   // goes up on every edit, so a save can tell whether anything changed while it ran
@@ -4899,7 +4914,7 @@
       // The people a page can be given to: [{ key (their email), label ("Name — Job title") }]
       people: function () { return choosablePeople('').map(function (role) { return { key: window.Workflow.keyFor(role), label: roleLabel(window.Workflow.keyFor(role)) }; }); },
       reset: function () { setOwnerPublish(null); resetEditor.apply(null, arguments); },
-      setSubmitLabel: function (text) { byId('submit-draft').textContent = text; },
+      setSubmitLabel: function (text) { byId('submit-draft').textContent = text; syncBarButtons(); },
       setOwnerPublish: setOwnerPublish,
       // Fill the editor from a saved version's text (silently, unlike Import)
       load: function (text, readOnly) {
