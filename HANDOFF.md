@@ -1478,3 +1478,5 @@ Landing page: the Popular pages tiles are white (light mode) with a light grey b
 ## Linked members back in Page setup; the secondary owner is its own field
 - **Linked members** is a field in the Page setup bar again: any number of people (chips with an x, and an "Add a person" dropdown). They show as contacts after the owner. (The draft file still calls them `[LINKED PEOPLE]`.)
 - The **+ beside Owner** now stores a **secondary owner** of its own (`[SECONDARY OWNER]`, one person's email) instead of borrowing the linked-people list. The secondary owner shares the page: it shows in their library (`isMine`), is a contact right after the owner on the live page, and (like the owner) only the team lead can change it.
+
+Page setup order, left to right: Team, Reviewer, Owner, Linked members, Visibility.
