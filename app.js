@@ -1796,8 +1796,14 @@
           });
         } else if (block.type === 'header') {
           allText.push(block.text);
-          var target = elements[index];
-          items.push({ level: block.level || 2, text: block.text || 'Untitled header', target: target, go: function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+          // The heading's element is looked up when it is needed, not now: the list is only redrawn when the headings change, and by then
+          // the page may have been rebuilt (another page opened, a draft loaded) so an element kept here could be gone
+          items.push({
+            level: block.level || 2,
+            text: block.text || 'Untitled header',
+            get target() { return contentBlocks()[index]; },
+            go: function () { var now = contentBlocks()[index]; if (now) { now.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }
+          });
         } else {
           allText.push(block.text);
           if (block.type === 'warning') { warningCount += 1; }

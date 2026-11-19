@@ -1483,7 +1483,28 @@
       tone = 'warn';
     }
     if (hist && /^Imported from /.test(hist.note || '')) { lines.push(hist.note); }
-    setBanner(lines.length ? editorBanner(lines, tone) : null);
+    // The blue bar stays while the page is edited, with the same buttons as the review view, except that Edit has become Review (it goes back to
+    // reading the page). The owner: Submit and Review. The team lead (and Admin): Publish, Review, and Request changes when the page is waiting for review.
+    var status = hist ? hist.status : 'draft';
+    lines.unshift('Editing ' + (hist && hist.release ? versionName(hist).toLowerCase() : 'a draft') + (status === 'submitted' ? ' \u2014 waiting for review' : '') + '.');
+    var box = editorBanner(lines, tone === 'warn' ? 'info' : tone);
+    var actionsRow = el('div', 'banner-actions');
+    var leadView = actorIsLead() || actingAsAdmin();
+    if (leadView) {
+      actionsRow.appendChild(button('Publish', 'row-btn row-btn-main', function () { document.getElementById('publish-draft').click(); }));
+    } else {
+      actionsRow.appendChild(button('Submit', 'row-btn row-btn-main', function () { document.getElementById('submit-draft').click(); }));
+    }
+    actionsRow.appendChild(button('Review', 'row-btn', async function () {
+      // Save what was typed first, so the review shows it
+      if (window.PageEditor.isDirty()) {
+        try { await window.PageHost.autosave(window.PageEditor.getText()); } catch (error) { notice(error && error.message ? error.message : 'That could not be saved yet.'); return; }
+      }
+      location.hash = '#/view/' + id + '/' + n;
+    }));
+    if (leadView && status === 'submitted') { actionsRow.appendChild(button('Request changes', 'row-btn', function () { sendBackWithComment(id, Number(n)); })); }
+    box.appendChild(actionsRow);
+    setBanner(box);
   }
 
   // Admin starting a page chooses its team. The editor works as one department (its roles are the choices for Owner), so choosing

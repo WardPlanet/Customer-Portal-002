@@ -176,7 +176,7 @@
       var start = Math.max(120, window.innerHeight * 0.33);
       var line = start + (window.innerHeight - start) * progress;
       var at = -1;
-      tracked.forEach(function (item, i) { if (item.target.getBoundingClientRect().top <= line) { at = i; } });
+      tracked.forEach(function (item, i) { var heading = item.target; if (heading && heading.getBoundingClientRect().top <= line) { at = i; } });
       var shown = null;
       while (at >= 0 && !shown) {
         var a = linkOf(tracked[at]);

@@ -1400,3 +1400,7 @@ The Review button on an expired page opens the live version with the same blue-b
 - **Team lead (and Admin):** **Publish** (the page is fine: a copy of the live text is published at once, so it stays live and its 180 days start again; version note "Reviewed by ...: no changes needed"), **Edit** (starts a draft from the live version and opens the editor) and **Request changes** (needs a note; a draft goes back to the owner as "Sent back" with the note, and the live page stays up).
 - **Owner:** **Submit** (it is still correct: a copy is sent to the team lead to approve again) and **Edit**.
 - Added to the workflow: `renewLive`, `submitLive`, `requestChangesOnLive` (store actions `renew-live`, `submit-live`, `request-changes-live`; the browser store only, the Node server does not have them yet). The owner's bell shows the requested changes; the email is still to be drafted.
+
+## The blue bar stays in the editor; On this page links
+- Clicking **Edit** in the review view opens the editor with the **same blue bar**, where Edit has become **Review** (it saves what was typed, then goes back to the read-only review view). Owner: **Submit** and **Review**. Team lead / Admin: **Publish**, **Review**, and **Request changes** when the page is waiting for review.
+- **On this page links** did not scroll after another page had been opened: the list is only redrawn when the headings change, and it kept the heading elements of the earlier page. Each item now looks its heading up when clicked (and for the highlight), so the links work after opening any page.
