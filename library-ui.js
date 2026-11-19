@@ -827,8 +827,8 @@
 
   // Sorts a copy of the rows by the chosen heading. Ties keep the newest page first.
   function isOwnDraft(p) { return p.state === 'draft' || p.state === 'sent_back'; }
-  // A live page whose owner has changes being drafted (not submitted): seen only by the owner (and a lead who owns the page)
-  function hasOwnEditInProgress(p) { return p.state === 'live_edit_in_progress' && !!p.workingVersion && ((p.owner && W.ownsKey(actor(), p.owner)) || (p.ownerDefault && actorIsLead())); }
+  // A live page with changes being drafted (not submitted): seen only by the person who is drafting them or owns the page (a lead who edits someone else's live page sees their own draft too)
+  function hasOwnEditInProgress(p) { return p.state === 'live_edit_in_progress' && !!p.workingVersion && ((p.owner && W.ownsKey(actor(), p.owner)) || (p.ownerDefault && actorIsLead()) || (!!p.workingVersion.author && p.workingVersion.author === actor().name)); }
   // What the Your drafts tab lists: drafts, and live pages with changes being drafted
   function inYourDrafts(p) { return isOwnDraft(p) || hasOwnEditInProgress(p); }
   function isWaitingForReview(p) { return !!(p.workingVersion && p.workingVersion.status === 'submitted') || p.state === 'in_review' || p.state === 'live_edit_in_review'; }
