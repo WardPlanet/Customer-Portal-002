@@ -162,12 +162,17 @@
     var links = [];
     Array.prototype.forEach.call(box.querySelectorAll('.toc-row a'), function (a) { if (a._item) { links.push(a); } });
     var waiting = false;
+    // A link the reader clicked wins over the worked-out position: it stays highlighted (even for a short section at the end that the page
+    // cannot scroll up to the reading line) until the reader scrolls for themselves (wheel, touch or keys), then the page takes over again.
+    var pinned = null;
+    function unpin() { if (pinned) { pinned = null; schedule(); } }
     function linkOf(item) { return links.filter(function (a) { return a._item === item; })[0]; }
     function mark() {
       waiting = false;
       if (!document.body.contains(box)) {
         window.removeEventListener('scroll', schedule, true);
         window.removeEventListener('resize', schedule);
+        ['wheel', 'touchstart'].forEach(function (name) { window.removeEventListener(name, unpin); });
         return;
       }
       var root = document.documentElement;
@@ -186,6 +191,7 @@
       }
       var at = -1;
       triggers.forEach(function (t, i) { if (window.scrollY >= t - 1) { at = i; } });
+      if (pinned && tracked.indexOf(pinned) >= 0) { at = tracked.indexOf(pinned); }
       // The current section's link is folded away or faded (the list is shown short): open the list so the highlight is on the right link
       if (at >= 0 && openList) {
         var currentLink = linkOf(tracked[at]);
@@ -202,7 +208,13 @@
     function schedule() { if (!waiting) { waiting = true; window.requestAnimationFrame(mark); } }
     window.addEventListener('scroll', schedule, true);
     window.addEventListener('resize', schedule);
-    box.addEventListener('click', schedule);
+    box.addEventListener('click', function (event) {
+      var link = event.target.closest ? event.target.closest('a') : null;
+      if (link && link._item && tracked.indexOf(link._item) >= 0) { pinned = link._item; }
+      schedule();
+    });
+    ['wheel', 'touchstart'].forEach(function (name) { window.addEventListener(name, unpin, { passive: true }); });
+    window.addEventListener('keydown', function (event) { if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].indexOf(event.key) >= 0 && !/^(INPUT|TEXTAREA|SELECT)$/.test((event.target || {}).tagName || '')) { unpin(); } });
     window.requestAnimationFrame(mark);
   }
 
