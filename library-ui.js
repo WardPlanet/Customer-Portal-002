@@ -593,7 +593,7 @@
       if (key === 'trash') { return false; }   // counted from the deleted list instead
       if (key === 'live') { return STATE_LABELS[p.state][1] === 'live'; }
       if (key === 'sentback') { return p.state === 'sent_back'; }
-      if (key === 'drafts') { return isOwnDraft(p); }
+      if (key === 'drafts') { return inYourDrafts(p); }
       if (key === 'inreview') { return isWaitingForReview(p); }
       if (key === 'waiting') { return isWaitingForReview(p); }
       var due = expiryOf(p);
@@ -827,6 +827,10 @@
 
   // Sorts a copy of the rows by the chosen heading. Ties keep the newest page first.
   function isOwnDraft(p) { return p.state === 'draft' || p.state === 'sent_back'; }
+  // A live page whose owner has changes being drafted (not submitted): seen only by the owner (and a lead who owns the page)
+  function hasOwnEditInProgress(p) { return p.state === 'live_edit_in_progress' && !!p.workingVersion && ((p.owner && W.ownsKey(actor(), p.owner)) || (p.ownerDefault && actorIsLead())); }
+  // What the Your drafts tab lists: drafts, and live pages with changes being drafted
+  function inYourDrafts(p) { return isOwnDraft(p) || hasOwnEditInProgress(p); }
   function isWaitingForReview(p) { return !!(p.workingVersion && p.workingVersion.status === 'submitted') || p.state === 'in_review' || p.state === 'live_edit_in_review'; }
   function sortRows(rows) {
     return sortRowsBy(rows);   // drafts are not pinned to the top: they have their own tab
@@ -912,7 +916,7 @@
         return !!(due && due.expired === (libraryFilters.status === 'expired'));
       }
       if (libraryFilters.status === 'sentback') { return p.state === 'sent_back'; }
-      if (libraryFilters.status === 'drafts') { return isOwnDraft(p); }
+      if (libraryFilters.status === 'drafts') { return inYourDrafts(p); }
       if (libraryFilters.status === 'inreview') { return isWaitingForReview(p); }
       return !libraryFilters.status || STATE_LABELS[p.state][1] === libraryFilters.status;
     });
@@ -1206,8 +1210,7 @@
         statusCell.appendChild(badge(STATE_LABELS[p.state]));
         // A live page that also has changes being drafted (not submitted): a Draft pill under Live, shown only to the people who can see that draft
         // (the owner), not to a team lead who is not the owner. If the lead sent those changes back it says so instead.
-        var editInProgress = p.state === 'live_edit_in_progress' && p.workingVersion && ((p.owner && W.ownsKey(actor(), p.owner)) || (p.ownerDefault && actorIsLead()));
-        if (editInProgress) {
+        if (hasOwnEditInProgress(p)) {
           var draftWrap = el('div', 'lib-row-sub');
           draftWrap.appendChild(badge(p.workingVersion.status === 'sent_back' ? VERSION_LABELS.sent_back : VERSION_LABELS.draft));
           statusCell.appendChild(draftWrap);
