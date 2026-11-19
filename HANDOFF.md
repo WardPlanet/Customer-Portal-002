@@ -1469,3 +1469,8 @@ The team lead and Admin no longer see a draft (or a sent-back page) that has nev
 - **Related pages** is a card of its own under On this page, with a normal-size title, a "?" tooltip and a larger blue **+** that opens the search.
 
 Landing page: the Popular pages tiles are white (light mode) with a light grey border and a pale grey hover; dark mode is unchanged (`--tile-*` in `styles.css`). The design reference showed them pale blue.
+
+## Search is its own page; nothing is searched until Enter (replaces the earlier "suggestions open the article")
+- **Results are a page of their own:** `#/search/<words>` (the landing band with the box filled in, the filters, and the results). The landing page (`#/public`) shows only the box and the Popular pages: **typing no longer changes anything but the suggestion list**. Enter, the search button, or choosing a suggestion starts a search and opens the results page; Back returns to the landing page, and from an article the back link returns to those results (filters and scroll place kept).
+- **Suggestions are suggested searches again**, as before: page titles, keywords and headings, bold for the part not typed yet. Choosing one searches for it (the results page); it does not open an article. The same holds for the search box in the left column of a live page. An empty Enter on a results page goes back to the landing page.
+- Works in the Public view too. Not changed: the library's own "Search published pages" box (it filters the library list as you type).

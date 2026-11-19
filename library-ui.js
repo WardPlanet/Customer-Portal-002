@@ -2583,7 +2583,9 @@
     sendLog({ k: 'c', q: q, id: page.id, title: page.title, pos: position });
   }
 
-  async function showPublic() {
+  // options.query: a search's results page (#/search/<words>); without it this is the landing page, where nothing is searched until Enter
+  async function showPublic(options) {
+    var routeQuery = options && typeof options.query === 'string' ? options.query : null;
     var mine = routing;
     showScreen('library', true);
     main.textContent = '';
@@ -2944,13 +2946,16 @@
       });
       if (index < 0) { search.removeAttribute('aria-activedescendant'); }
     }
-    // Choosing a suggestion opens that article. Coming back brings the search that was typed back, at the same place.
+    // Choosing a suggestion searches for it: it opens the results page for those words (not the article itself)
     function chooseSuggestion(item) {
-      var typed = typedBeforeArrows !== null ? typedBeforeArrows : search.value;
       cancelSuggestions();
-      savedSearch = { q: typed, y: window.scrollY, filters: Object.assign({}, filters) };
-      if (typed.trim()) { logClick(typed, { id: item.id, title: item.title }, 0); }
-      location.hash = '#/public/' + item.id;
+      search.value = item.text;
+      goToResults(item.text);
+    }
+    // A search is its own page: #/search/<words>. Nothing is searched while typing; only Enter, the search button or a suggestion starts one.
+    function goToResults(words) {
+      var target = '#/search/' + encodeURIComponent(String(words).trim());
+      if (location.hash === target) { refresh(); } else { location.hash = target; }
     }
     // Stops the list: closes it and throws away any answer still on its way, so it cannot pop open again after a search
     function cancelSuggestions() {
@@ -2959,18 +2964,12 @@
       typedBeforeArrows = null;
       closeSuggestions();
     }
-    // Search now (no waiting for a pause in typing); from the bar, bring the page back to where the bar takes over
-    async function runSearch() {
+    // Enter, or the search button: the results page for what is in the box. An empty box on a results page goes back to the landing page.
+    function runSearch() {
       clearTimeout(timer);
-      var fromBar = barShown;
-      if (fromBar && !search.value.trim()) { return; }   // an empty box in the bar is not a new search: the results stay
-      // From the bar the page keeps its height while the results change, so the smooth scroll starts from where the person is
-      await refresh(fromBar ? { keepHeight: true } : undefined);
-      if (!fromBar) { return; }
-      scrollToResults();
-      setTimeout(function () {
-        if (mine === routing && search.value.trim()) { listBox.style.minHeight = 'calc(100vh - ' + barHeight + 'px)'; }
-      }, 800);   // once the scroll has arrived, the results area goes back to one screen tall
+      var words = search.value.trim();
+      if (!words) { if (routeQuery !== null) { location.hash = '#/public'; } return; }
+      goToResults(words);
     }
     // Like Google: the part you typed is plain and the rest of the suggestion is bold
     var SEARCH_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
@@ -2992,8 +2991,6 @@
     }
     function showSuggestions(list) {
       closeSuggestions();
-      if (!list.length) { return; }
-      list = articleSuggestions(list);
       if (!list.length) { return; }
       suggestions = list;
       var typed = search.value;
@@ -3032,9 +3029,7 @@
     search.addEventListener('input', function () {
       typedBeforeArrows = null;
       clearTimeout(timer);
-      // In the bar, the search that is showing stays, whatever is typed or deleted, until Enter or a suggestion starts a new one.
-      // In the full band the results follow the typing.
-      if (!barShown) { timer = setTimeout(function () { refresh({ keepHeight: true }); }, 200); }
+      // Typing only brings up suggestions; the results do not change until Enter, the search button or a suggestion.
       clearTimeout(suggestTimer);
       if (!search.value.trim()) { suggestToken += 1; closeSuggestions(); return; }
       suggestTimer = setTimeout(askForSuggestions, 80);
@@ -3052,8 +3047,6 @@
     search.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         event.preventDefault();
-        // An article picked with the arrow keys opens; otherwise Enter runs the search
-        if (active >= 0 && suggestions[active]) { chooseSuggestion(suggestions[active]); return; }
         cancelSuggestions();
         runSearch();
         return;
@@ -3073,6 +3066,18 @@
     search.addEventListener('blur', function () { if (moving) { return; } cancelSuggestions(); });
     // Clicking into the box with text in it shows the suggestions again. Moving the box into the bar is not the person clicking.
     search.addEventListener('focus', function () { if (!moving && search.value.trim()) { askForSuggestions(); } });
+    // A results page (#/search/<words>): the words are put in the box and searched once. Back from an article brings the filters and the place on the page back.
+    if (routeQuery !== null) {
+      search.value = routeQuery;
+      var back = savedSearch && savedSearch.q === routeQuery ? savedSearch : null;
+      savedSearch = null;
+      if (back && back.filters) { filters = Object.assign({ team: '', location: '', visibility: '', updated: '', sort: 'best' }, back.filters); updateFilterUi(); }
+      refresh({ restoring: !!back }).then(function () {
+        if (mine !== routing) { return; }
+        if (back) { window.scrollTo(0, back.y); }
+        updateBar();
+      });
+    } else
     // Back from a live page: the search that was showing is shown again, at the same place on the page
     if (savedSearch) {
       var saved = savedSearch;
@@ -3144,13 +3149,11 @@
     function go(text) {
       var q = String(text || '').trim();
       if (!q) { return; }
-      savedSearch = { q: q, y: 0, filters: {}, fresh: true };
       close();
-      location.hash = '#/public';
+      location.hash = '#/search/' + encodeURIComponent(q);
     }
     function open(item) {
-      close();
-      location.hash = '#/public/' + item.id;
+      go(item.text);   // a suggestion searches for those words: the results page
     }
     var items = [];
     var active = -1;
@@ -3168,7 +3171,7 @@
           if (ticket !== token || document.activeElement !== input) { return; }
           list.textContent = '';
           active = -1;
-          items = articleSuggestions((answer && answer.suggestions) || []).slice(0, 6);
+          items = ((answer && answer.suggestions) || []).slice(0, 6);
           items.forEach(function (item) {
             var row = el('li', 'suggest-item');
             row.setAttribute('role', 'option');
@@ -3681,7 +3684,7 @@
     // The back link follows where you came from: the batch import's results, the library, or the search page
     var backRow = el('div', 'back-row');
     var cameFromBatch = fromLibrary && /^#\/batch/.test(routeHistory.previous);
-    backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : '#/public', 'back-link'));
+    backRow.appendChild(link(cameFromBatch ? '← Batch import' : fromLibrary ? '← Back to library' : '← Back to search', cameFromBatch ? '#/batch' : fromLibrary ? '#/' : (savedSearch && savedSearch.q ? '#/search/' + encodeURIComponent(savedSearch.q) : '#/public'), 'back-link'));
     main.appendChild(backRow);
     var bar = el('div', 'preview-bar');
     var publicMode = !!(window.Store.isPublicMode && window.Store.isPublicMode());
@@ -3970,7 +3973,7 @@
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
     // The public view is the site a signed-out visitor sees: the search page and the Client-Safe pages, nothing else
-    if ((window.Store.isPublicMode && window.Store.isPublicMode()) && screen !== 'public') { screen = 'public'; parts = ['public']; if (location.hash !== '#/public') { history.replaceState(null, '', '#/public'); } }
+    if ((window.Store.isPublicMode && window.Store.isPublicMode()) && screen !== 'public' && screen !== 'search') { screen = 'public'; parts = ['public']; if (location.hash !== '#/public') { history.replaceState(null, '', '#/public'); } }
     setBanner(null);
     removeTopSearch();   // only a live page has the search box in the Wiki bar
     if (screen !== 'admin' && window.Admin) { window.Admin.leave(); }   // the Admin tools page lets go of its listeners
@@ -3990,6 +3993,7 @@
       document.getElementById('nav-library').classList.remove('is-current');
       window.SearchReview.show(main, { el: el, button: button, backend: backend });
     }
+    else if (screen === 'search') { await showPublic({ query: decodeURIComponent(parts.slice(1).join('/')) }); }
     else if (screen === 'public') { await showPublic(); }
     else { await showLibrary(); }
     // Search review is for the team lead only for now
