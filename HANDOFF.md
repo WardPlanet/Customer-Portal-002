@@ -1518,3 +1518,4 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - The first time the lead (or Admin) publishes or approves an internal-only page, a prompt asks "Allow the owner to publish edits?" (Allow owner to publish / Keep review). Not asked for bulk publishing or public pages.
 - Page setup has an **Owner publishes edits** toggle (Allow / Requires review) for a live page: the lead and Admin change it in edit mode (saved at once, not with the draft); it is read-only in the review view and for owners, and greyed on a public page. Same setting as the library menu.
 - Wording: the setting is **Allow owner to republish** (toggle: Allow / Requires review); library menu: Allow owner to republish / Require review for edits.
+- The **+** next to Owner (secondary owner) is no longer shown: Linked members covers it. A page that already has a secondary owner still shows it.

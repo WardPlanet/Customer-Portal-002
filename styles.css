@@ -3066,3 +3066,4 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .prop-strip .prop-members { width: 170px; }
 .prop-strip #visibility-field { width: 160px; }
 .prop-strip .prop-ownerpub { width: 200px; }
+.owner-add[hidden] { display: none; }
