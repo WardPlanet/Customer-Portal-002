@@ -1,0 +1,132 @@
+// The Node server's library routes: owner republishing, soft delete and Recently deleted, the live-page review routes and the queued emails.
+// Runs the real routes against a temporary drafts folder (the real team roster is only read).
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+
+function draftText(title) {
+  return [
+    '[TITLE]', title, '', '[DESCRIPTION]', 'A description.', '',
+    '[BLOCK 1 STEP NUMBER]', '1', '', '[BLOCK 1 STEP TITLE]', 'Do the thing', '', '[BLOCK 1 STEP TEXT]', 'plain detail', '',
+    '[OWNER ROLE]', 'Website Editor', '', '[WHERE THIS LIVES]', 'Websites', '', '[VISIBILITY]', 'Internal-Only', ''
+  ].join('\n');
+}
+
+async function start() {
+  const express = (await import('express')).default;
+  const library = await import('../library.js');
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wiki-lib-'));
+  const app = express();
+  app.use(express.json({ limit: '1mb' }));
+  library.registerLibraryRoutes(app, dir);
+  const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
+  const base = 'http://127.0.0.1:' + server.address().port;
+  async function call(as, method, url, body) {
+    const res = await fetch(base + url, { method, headers: { 'Content-Type': 'application/json', 'X-Acting-As': encodeURIComponent(as) }, body: body ? JSON.stringify(body) : undefined });
+    const json = await res.json().catch(() => ({}));
+    return { status: res.status, body: json };
+  }
+  async function outbox() {
+    const names = await fs.readdir(path.join(dir, 'outbox')).catch(() => []);
+    const list = [];
+    for (const n of names.sort()) { list.push(JSON.parse(await fs.readFile(path.join(dir, 'outbox', n), 'utf8'))); }
+    return list;
+  }
+  return { dir, call, outbox, library, close: () => new Promise((r) => server.close(r)) };
+}
+
+test('server: opt-in republish, soft delete, restore, review routes and emails', async () => {
+  const s = await start();
+  try {
+    const made = await s.call('Scott Archer', 'POST', '/api/library/pages', { text: draftText('Refunds') });
+    assert.equal(made.status, 200);
+    const id = made.body.page.id;
+
+    // An owner can delete a plain draft, but it goes to Recently deleted and can be restored
+    const draft = await s.call('Scott Archer', 'POST', '/api/library/pages', { text: draftText('Old idea') });
+    assert.equal((await s.call('Scott Archer', 'DELETE', '/api/library/pages/' + draft.body.page.id)).status, 200);
+    let listed = await s.call('Scott Archer', 'GET', '/api/library/pages');
+    assert.deepEqual(listed.body.pages.map((p) => p.title), ['Refunds']);
+    let trash = await s.call('Scott Archer', 'GET', '/api/library/trash');
+    assert.equal(trash.body.items.length, 1);
+    assert.equal(trash.body.items[0].daysLeft, 30);
+    assert.equal(trash.body.items[0].canRestore, true);
+    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/trash/' + draft.body.page.id + '/restore')).status, 200);
+    assert.equal((await s.call('Scott Archer', 'GET', '/api/library/trash')).body.items.length, 0);
+
+    // Submit, approve (emails the lead)
+    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/versions/1/submit')).status, 200);
+    assert.equal((await s.call('Micah', 'POST', '/api/library/pages/' + id + '/versions/1/approve')).status, 200);
+    assert.ok((await s.outbox()).some((m) => /Approval needed/.test(m.subject)));
+
+    // Without the opt-in an owner cannot publish an edit
+    const edit = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/edit');
+    const n = edit.body.version;
+    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/versions/' + n + '/publish')).status, 403);
+    // Only the lead can allow it
+    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/owner-publishes', { on: true })).status, 403);
+    const on = await s.call('Micah', 'POST', '/api/library/pages/' + id + '/owner-publishes', { on: true });
+    assert.equal(on.body.page.ownerPublishes, true);
+    const published = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/versions/' + n + '/publish');
+    assert.equal(published.status, 200);
+    assert.ok((await s.outbox()).some((m) => m.kind === 'owner-republished'));
+
+    // A live page: the owner can only ask for deletion; the lead is emailed; keeping it emails the owner
+    assert.equal((await s.call('Scott Archer', 'DELETE', '/api/library/pages/' + id)).status, 403);
+    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/request-delete')).status, 200);
+    assert.ok((await s.outbox()).some((m) => m.kind === 'deletion-requested'));
+    assert.equal((await s.call('Micah', 'POST', '/api/library/pages/' + id + '/cancel-delete-request')).status, 200);
+    assert.ok((await s.outbox()).some((m) => m.kind === 'deletion-kept'));
+
+    // Live-page review routes exist (the lead asks for changes: the owner is emailed)
+    const asked = await s.call('Micah', 'POST', '/api/library/pages/' + id + '/versions/0/request-changes-live', { comment: 'Update the prices.' });
+    assert.equal(asked.status, 200);
+    assert.ok((await s.outbox()).some((m) => m.kind === 'sent-back' && /Update the prices/.test(m.text)));
+
+    // The lead deletes the live page: it leaves the library and the public list, and comes back on restore
+    assert.equal((await s.call('Micah', 'DELETE', '/api/library/pages/' + id)).status, 200);
+    assert.equal((await s.call('Micah', 'GET', '/api/library/pages')).body.pages.length, 0);   // the lead does not see Scott's unsubmitted draft
+    assert.equal((await s.call('Micah', 'GET', '/api/library/trash')).body.items[0].wasLive, true);
+    assert.equal((await s.call('Micah', 'POST', '/api/library/trash/' + id + '/restore')).status, 200);
+    assert.equal((await s.call('Micah', 'GET', '/api/library/pages')).body.pages.length, 1);
+  } finally { await s.close(); await fs.rm(s.dir, { recursive: true, force: true }); }
+});
+
+test('server: housekeeping purges the old trash and queues expiry emails once', async () => {
+  const s = await start();
+  try {
+    const { readTeam } = await import('../teams.js');
+    const team = await readTeam();
+    const made = await s.call('Scott Archer', 'POST', '/api/library/pages', { text: draftText('Hosting') });
+    const id = made.body.page.id;
+    await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/versions/1/submit');
+    await s.call('Micah', 'POST', '/api/library/pages/' + id + '/versions/1/approve');
+
+    // 170 days since it went live: 10 days to go, so the owner is told once
+    const file = path.join(s.dir, team.slug, 'pages', id, 'page.json');
+    const meta = JSON.parse(await fs.readFile(file, 'utf8'));
+    const old = new Date(Date.now() - 170 * 86400000).toISOString();
+    meta.versions[0].decidedAt = old;
+    await fs.writeFile(file, JSON.stringify(meta), 'utf8');
+    const now = new Date().toISOString();
+    assert.equal(await s.library.queueExpiryEmails(s.dir, team, now), 1);
+    assert.equal(await s.library.queueExpiryEmails(s.dir, team, now), 0);   // not again
+    assert.ok((await s.outbox()).some((m) => m.kind === 'expiring'));
+
+    // Deleted 29 days ago: the lead is warned once; at 31 days it is gone
+    await s.call('Micah', 'DELETE', '/api/library/pages/' + id);
+    const tfile = path.join(s.dir, team.slug, 'trash', id, 'trash.json');
+    const tmeta = JSON.parse(await fs.readFile(tfile, 'utf8'));
+    tmeta.deletedAt = new Date(Date.now() - 29 * 86400000).toISOString();
+    await fs.writeFile(tfile, JSON.stringify(tmeta), 'utf8');
+    assert.equal(await s.library.queueTrashWarnings(s.dir, team, now), 1);
+    assert.equal(await s.library.queueTrashWarnings(s.dir, team, now), 0);
+    assert.equal(await s.library.purgeTrash(s.dir, team, now), 0);
+    tmeta.deletedAt = new Date(Date.now() - 31 * 86400000).toISOString();
+    await fs.writeFile(tfile, JSON.stringify(tmeta), 'utf8');
+    assert.equal(await s.library.purgeTrash(s.dir, team, now), 1);
+    assert.equal((await s.call('Micah', 'GET', '/api/library/trash')).body.items.length, 0);
+  } finally { await s.close(); await fs.rm(s.dir, { recursive: true, force: true }); }
+});

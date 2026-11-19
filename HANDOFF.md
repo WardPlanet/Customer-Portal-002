@@ -1516,7 +1516,7 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - Lead/Admin tab is **For review** (owners keep In review). The waiting-for-review bar lists each page with its owner and when it was submitted.
 - Drafts are no longer pinned to the top of the list and the "Your drafts" heading row is gone (the Your drafts tab covers it). Draft rows keep a grey bar, sent-back an orange bar. A live page with an edit in review reads **In review** with **Live** beneath it and a blue bar. Lead can let the owner publish edits to a live internal page without review ("..." menu: Let owner publish edits / Require review for edits); never on a public page; browser store only (not the Node server yet); the lead is not notified yet.
 - The first time the lead (or Admin) publishes or approves an internal-only page, a prompt asks "Allow the owner to publish edits?" (Allow owner to publish / Keep review). Not asked for bulk publishing or public pages.
-- Page setup has an **Owner publishes edits** toggle (Allow / Requires review) for a live page: the lead and Admin change it in edit mode (saved at once, not with the draft); it is read-only in the review view and for owners, and greyed on a public page. Same setting as the library menu.
+- Page setup has an **Owner publishes edits** toggle (Allow / Requires review) for a live page: the lead and Admin change it in edit mode (saved at once, not with the draft); it is read-only in the review view and for owners, and greyed on a public page. It lives only on the page (it is no longer in the library "..." menu).
 - Wording: the setting is **Allow owner to republish** (toggle: Allow / Requires review); library menu: Allow owner to republish / Require review for edits.
 - The **+** next to Owner (secondary owner) is no longer shown: Linked members covers it. A page that already has a secondary owner still shows it.
 
@@ -1535,7 +1535,7 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - A page with a deletion request shows a dark-red (maroon, not the expired red) **Deletion requested** pill with a bin icon under its status, and a maroon left bar, on every row in every tab for the owner and the lead. The lead's deletion bar is the same maroon.
 
 ## Soft delete and notifications
-- **Soft delete:** a deleted page moves to **Recently deleted** (a tab that shows when something is in it) for 30 days, then it is gone for good. The lead restores any; an owner restores their own draft. `W.TRASH_DAYS`, `trashDaysLeft`, `trashExpired` in workflow.cjs; `listTrash` / `restoreDeleted` in store.js (browser store only; the Node server has no trash yet). Pages in the trash are invisible to the library, search and the public site (they are held apart from `pages`).
+- **Soft delete:** a deleted page moves to **Recently deleted** (a tab that shows when something is in it) for 30 days, then it is gone for good. The lead restores any; an owner restores their own draft. `W.TRASH_DAYS`, `trashDaysLeft`, `trashExpired` in workflow.cjs; `listTrash` / `restoreDeleted` in store.js (also in the Node server, see below). Pages in the trash are invisible to the library, search and the public site (they are held apart from `pages`).
 - **Bell:** the lead is also told of deletion requests and, for 7 days, of pages an owner republished without review. Email copy and rules for every event are drafted in `notifications.md` (nothing is sent from the prototype).
 
 ## Accessibility pass
@@ -1544,3 +1544,14 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - Keyboard: tab order through the top bar, search, bars, filters and table is logical, every stop shows a focus indicator, the bell opens with Enter and closes with Esc (focus returns to it), and the confirm dialog takes focus (on its tick box when it has one) and closes with Esc.
 - Phones: the top bar wraps and the table scrolls inside its own box. No sideways page scroll at 390px or 768px on the library, landing, live page or editor.
 - **Not checked:** a real screen reader, touch use, zoom to 200 to 400%, reduced motion, the Admin and Search review screens, the batch import screens, and every dialog. Automated checks catch roughly a third of the problems, so a manual pass with a screen reader is still needed before launch.
+- "Allow owner to republish" is no longer in the library's "..." menu: it lives on each page (Page setup toggle, plus the first-publish prompt). The row still shows "owner can republish" under the title.
+
+## Node server brought up to date
+The Node server (`server.js`, `library.js`) now has the same rules and routes as the browser store for everything in this stretch. The rules live in `workflow.cjs`, which both use, so they cannot drift.
+- `POST /api/library/pages/:id/owner-publishes` ({ on }): the lead lets the owner republish a live internal page without review. The existing `publish` route then accepts the owner.
+- **Soft delete:** `DELETE /api/library/pages/:id` moves the page to `drafts/<team>/trash/<id>/` (with `trash.json`: deletedAt, deletedBy). `GET /api/library/trash` lists what the person may see; `POST /api/library/trash/:id/restore` brings a page back. Nothing in the trash is read by the library, search or the public routes.
+- The live-page review actions are routed: `versions/:n/renew-live`, `submit-live`, `request-changes-live` (the version number is ignored).
+- **Housekeeping** (`housekeeping()` in `server.js`, at start-up and every 6 hours): removes trash older than 30 days, queues a warning to the lead 3 days before a page leaves it, and queues the expiry emails (owner at 15 days, owner and lead on expiry), each once; what was sent is remembered on the page (`expiryNotified`).
+- **Emails** are written to `drafts/outbox/` (one JSON file each: to, subject, text, kind, pageId), never sent: submitted, sent back (also for live-page changes), deletion requested, deletion kept, owner republished, expiring, expired, leaving the trash. Wording to be matched to `notifications.md`.
+- Tests: `tests/library-server.test.cjs` runs the real routes against a temporary folder.
+- **Still not on the server:** several departments (the server uses one team, `readTeam()`), Admin creating a draft in another department, the import example outlines, flag decisions, and backups including the trash (a backup holds the pages only). Real sign-in still replaces the `X-Acting-As` header.

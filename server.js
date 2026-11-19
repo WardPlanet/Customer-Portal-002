@@ -15,7 +15,7 @@ import { AiError, askForJson, hasApiKey } from './ai.js';
 import { importDocument } from './importer.js';
 import { readStyleGuide, stylePreamble } from './guidelines.js';
 import { readTeam } from './teams.js';
-import { migrateFlatDrafts, registerLibraryRoutes } from './library.js';
+import { migrateFlatDrafts, registerLibraryRoutes, purgeTrash, queueExpiryEmails, queueTrashWarnings } from './library.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -159,6 +159,20 @@ app.post('/api/import', express.raw({ type: () => true, limit: '25mb' }), async 
 await moveLooseDrafts().catch(function (error) { console.error('Could not move older drafts under the team:', error.message); });
 await migrateFlatDrafts(DRAFTS_DIR).catch(function (error) { console.error('Could not turn older drafts into pages:', error.message); });
 registerLibraryRoutes(app, DRAFTS_DIR);
+
+// Housekeeping, at start-up and then every six hours: remove what has been in Recently deleted for 30 days, and queue the emails that
+// are due by date (a page 15 days from expiring or expired, a deleted page about to go for good). They are written to drafts/outbox/.
+async function housekeeping() {
+  try {
+    var team = await readTeam();
+    var now = new Date().toISOString();
+    await purgeTrash(DRAFTS_DIR, team, now);
+    await queueTrashWarnings(DRAFTS_DIR, team, now);
+    await queueExpiryEmails(DRAFTS_DIR, team, now);
+  } catch (error) { console.error('Housekeeping failed:', error.message); }
+}
+await housekeeping();
+setInterval(housekeeping, 6 * 60 * 60 * 1000).unref();
 
 app.listen(PORT, function () {
   console.log('Page editor running at http://localhost:' + PORT);

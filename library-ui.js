@@ -1376,14 +1376,6 @@
             if (!(await window.askConfirm('It will no longer be live or searchable until a version is approved again.', { title: 'Take this page down now?', ok: 'Unpublish' }))) { return; }
             if (await attempt(backend().unpublish(p.id))) { notice('Unpublished \u201c' + p.title + '\u201d.'); route(); }
           } });
-          // Per-page opt-in: the owner publishes edits to this page without review (internal-only pages only)
-          if (p.ownerPublishes || p.visibility === 'Internal-Only') {
-            moreItems.push({ label: p.ownerPublishes ? 'Require review for edits' : 'Allow owner to republish', onClick: async function () {
-              var turnOn = !p.ownerPublishes;
-              if (turnOn && !(await window.askConfirm('The owner will be able to republish changes to \u201c' + p.title + '\u201d without your review. Every version stays in the history. It stops if the page becomes public.', { title: 'Allow owner to republish?', ok: 'Allow' }))) { return; }
-              if (await attempt(backend().setOwnerPublishes(p.id, turnOn))) { notice(turnOn ? 'The owner can now publish edits to \u201c' + p.title + '\u201d.' : 'Edits to \u201c' + p.title + '\u201d need review again.'); route(); }
-            } });
-          }
         }
         if (lead || (!p.liveVersion && !isWaitingForReview(p))) {   // an owner deletes their own draft; a live or in-review page needs a request
           moreItems.push({ label: 'Delete', danger: true, onClick: async function () { if (await confirmAndDelete(p)) { route(); } } });
@@ -1601,7 +1593,7 @@
   }
   async function offerOwnerPublishing(id, title) {
     if (!title) { try { title = (await backend().get(id)).page.title; } catch (error) { title = ''; } }
-    if (!(await window.askConfirm('Once it is live, the owner can republish changes to \u201c' + (title || 'this page') + '\u201d without your review. Every version stays in the history, and you can turn it off any time from the page\u2019s menu.', { title: 'Allow owner to republish?', ok: 'Allow', cancel: 'Requires review' }))) { return; }
+    if (!(await window.askConfirm('Once it is live, the owner can republish changes to \u201c' + (title || 'this page') + '\u201d without your review. Every version stays in the history, and you can turn it off any time in the page\u2019s setup.', { title: 'Allow owner to republish?', ok: 'Allow', cancel: 'Requires review' }))) { return; }
     await attempt(backend().setOwnerPublishes(id, true));
   }
 
