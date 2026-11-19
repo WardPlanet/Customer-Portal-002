@@ -2914,3 +2914,11 @@ body.is-public .prop-bar { display: none; }
 .prop-reviewer .setup-reviewer.is-na { display: flex; align-items: center; width: 240px; height: 38px; margin: 0; padding: 0 12px; box-sizing: border-box; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; line-height: 1; color: var(--text-faint); cursor: not-allowed; }
 .prop-reviewer .setup-reviewer.is-na strong { color: var(--text-faint); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prop-reviewer .field-label { color: var(--text-faint); }
+
+/* Live page: visibility and last updated at the right of the department line; Export PDF and Copy link under Related pages */
+.preview-eyebrow-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0 0 8px; }
+.preview-eyebrow-row .preview-eyebrow { margin: 0; }
+.eyebrow-details { display: inline-flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-muted); }
+.eyebrow-details .preview-updated { font-size: 13px; color: var(--text-muted); }
+.rail-tools { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
+.rail-tools .secondary-btn { width: 100%; justify-content: center; text-align: center; }

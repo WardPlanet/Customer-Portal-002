@@ -3766,7 +3766,20 @@
         var eyebrowIcon = teamIcon({ team: ownerTeam.slug });
         if (eyebrowIcon) { eyebrow.appendChild(eyebrowIcon); }
         eyebrow.appendChild(el('span', '', ownerTeam.name));
-        pageTitle.parentNode.insertBefore(eyebrow, pageTitle);
+        // Staff: whether the page is Public or Internal, and when it was last updated, at the right of the same line (a visitor sees neither)
+        var eyebrowRow = el('div', 'preview-eyebrow-row');
+        eyebrowRow.appendChild(eyebrow);
+        if (!publicMode) {
+          var eyebrowDetails = el('span', 'eyebrow-details');
+          eyebrowDetails.appendChild(visibilityPill(detail.page.visibility));
+          if (detail.page.updatedAt) {
+            var eyebrowUpdated = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
+            eyebrowUpdated.title = formatDate(detail.page.updatedAt);
+            eyebrowDetails.appendChild(eyebrowUpdated);
+          }
+          eyebrowRow.appendChild(eyebrowDetails);
+        }
+        pageTitle.parentNode.insertBefore(eyebrowRow, pageTitle);
       }
       // Who to ask, as a quiet byline under the title (staff; a visitor sees the support link in the column instead)
       if (pageTitle && !asPublic) {
@@ -3804,6 +3817,7 @@
       var related = await relatedPages(id, W.fields(data.text), asPublic);
       if (mine !== routing) { return; }
       if (related) { sideBody.appendChild(related); }
+      sideBody.appendChild(railTools);   // Export PDF and Copy link come last, under Related pages
       // "On this page" is last and follows you down the page. If it is taller than the window it scrolls inside its own
       // box, so none of it is ever cut off.
       var followBox = null;
@@ -3823,22 +3837,11 @@
     var footerMessage = el('span', 'preview-footer-message');
     footerMessage.id = 'preview-message';
     footerMessage.setAttribute('role', 'status');
-    // Staff see the page's visibility and when it was last updated at the left of the bar (a visitor sees neither)
-    if (!publicMode) {
-      var footerDetails = el('span', 'footer-details');
-      footerDetails.appendChild(visibilityPill(detail.page.visibility));
-      if (detail.page.updatedAt) {
-        var footerUpdated = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
-        footerUpdated.title = formatDate(detail.page.updatedAt);
-        footerDetails.appendChild(footerUpdated);
-      }
-      footer.appendChild(footerDetails);
-    }
     footer.appendChild(footerMessage);
     var footerActions = el('div', 'preview-footer-actions');
     footer.appendChild(footerActions);
-    main.classList.add('has-preview-footer');
-    main.appendChild(footer);
+    // Export PDF and Copy link sit in the left column, under Related pages
+    var railTools = el('div', 'rail-tools');
 
     var who = actor();
     var ownDepartment = !detail.page.team || detail.page.team === team.slug || window.Store.getActor().toLowerCase() === 'admin';   // another department's page can only be read from here (Admin can open it: the editor then switches department)
@@ -3863,6 +3866,12 @@
       }
     }
 
+    // The bottom bar is only drawn when there is something to put in it (Edit, Send for review, Publish)
+    if (footerActions.children.length) {
+      main.classList.add('has-preview-footer');
+      main.appendChild(footer);
+    }
+
     // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)
     var asPublicNow = (window.Store.isPublicMode && window.Store.isPublicMode());   // the public view always reads as the public sees it
     var exportButton = button('Export PDF', 'secondary-btn', async function () {
@@ -3877,12 +3886,12 @@
         exportButton.disabled = false;
       }
     });
-    footerActions.appendChild(exportButton);
+    railTools.appendChild(exportButton);
     var copyButton = button('Copy link', 'secondary-btn', async function () {
       var pageUrl = location.href.split('#')[0] + (fromLibrary ? '#/preview/' : '#/public/') + id;
       await copyLinkWithNotice(pageUrl, 'Page link ready.');
     });
-    footerActions.appendChild(copyButton);
+    railTools.appendChild(copyButton);
 
     await draw(asPublicNow);
   }
