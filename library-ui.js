@@ -574,13 +574,13 @@
       var counts = {};
       defs.forEach(function (def) { counts[def[0]] = pages.filter(function (p) { return inTab(p, def[0]); }).length; });
       // A selected tab that has emptied (the last draft was submitted) goes back to All
-      if (libraryFilters.status && !counts[libraryFilters.status] && defs.some(function (d) { return d[0] === libraryFilters.status; }) && libraryFilters.status !== 'live') { libraryFilters.status = ''; }
+      if (libraryFilters.status && !counts[libraryFilters.status] && defs.some(function (d) { return d[0] === libraryFilters.status; }) && libraryFilters.status !== 'live' && libraryFilters.status !== 'drafts' && libraryFilters.status !== 'inreview') { libraryFilters.status = ''; }
       if (!defs.some(function (d) { return d[0] === libraryFilters.status; })) { libraryFilters.status = ''; }
       tabsBar.textContent = '';
       defs.forEach(function (def) {
         var key = def[0];
         var special = key !== '' && key !== 'live';
-        if (special && !counts[key]) { return; }
+        if (special && !counts[key] && key !== 'drafts' && key !== 'inreview') { return; }   // Your drafts and In review always show, with 0 when empty
         var selected = libraryFilters.status === key;
         var tab = el('button', 'lib-tab' + (selected ? ' is-selected' : '') + (special ? ' lib-tab-' + key : ''));
         tab.type = 'button';
