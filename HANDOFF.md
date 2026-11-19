@@ -1428,3 +1428,8 @@ Still to do (not asked yet): the properties-above-the-title alternative (Conflue
 - **Import document** moved into the editor's toolbar, next to AI assist.
 - **On this page (editor and review view):** more padding and row spacing; **Related pages** moved under it, small and quiet.
 - **Description:** it was capped at 62 characters wide (about half the box); it now fills the box. Warnings and the footer message from a previous page no longer carry over when another page is opened.
+
+## Back to a properties bar above the two columns
+- The page's properties (Owner, Visibility, Reviewer, Team for Admin) are a separate bar **above the two columns** again; the bottom bar keeps only **Save draft** and **Submit for review**.
+- The left column is wider (270px). **Related pages** under On this page is a small quiet title with a **+** that opens the search (it closes again if left empty, or on Escape).
+- **Move handle (≡) and table controls only show for the selected section:** the handle sits in the margin level with the section's first line; Add row / Add column / Remove row / Remove column float above the selected table instead of taking a row of space.

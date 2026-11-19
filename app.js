@@ -3618,6 +3618,22 @@
     });
     byId('leave-btn').addEventListener('click', function () { window.PageHost.leave(); });
 
+    // Related pages: the + opens the search; it closes again when it is left empty
+    (function () {
+      var add = byId('related-add');
+      var box = byId('related-search');
+      if (!add || !box) { return; }
+      function show(open) {
+        box.hidden = !open;
+        add.setAttribute('aria-expanded', String(open));
+        add.textContent = open ? '\u2212' : '+';
+        if (open) { box.focus(); }
+      }
+      add.addEventListener('click', function () { show(box.hidden); });
+      box.addEventListener('blur', function () { setTimeout(function () { if (!box.value.trim() && document.activeElement !== box) { show(false); } }, 200); });
+      box.addEventListener('keydown', function (event) { if (event.key === 'Escape') { box.value = ''; show(false); } });
+    }());
+
     // "More" (linked people, related pages) opens a small panel under the strip; a click anywhere else, or Escape, closes it
     document.addEventListener('click', function (event) {
       var more = byId('setup-more');

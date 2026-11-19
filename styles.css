@@ -184,7 +184,7 @@
   .workspace {
    flex: 1;
    display: grid;
-   grid-template-columns: 210px minmax(0, 1fr);   /* On this page | the page (its properties are a strip along the top of the page) */
+   grid-template-columns: 270px minmax(0, 1fr);   /* On this page | the page (its properties are a strip along the top of the page) */
    gap: 24px;
    align-items: start;
    padding: 32px;
@@ -2869,3 +2869,22 @@ body.is-public .prop-bar { display: none; }
 .outline-related .related-suggestions { font-size: 12px; }
 
 .footer-prop[hidden], .footer-props [hidden] { display: none !important; }
+
+/* ---------- Properties bar above the two columns (as before); the footer keeps only Save draft and Submit ---------- */
+.footer { justify-content: flex-end; }
+.footer .footer-message { text-align: right; }
+.prop-bar .hint-dot { margin-left: 6px; }
+/* Related pages: small and quiet; the + opens the search */
+.related-head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
+.related-title { font-size: 12px; font-weight: 500; color: var(--text-faint); }
+.related-add { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; background: none; border: 1px solid var(--border); border-radius: 50%; color: var(--text-muted); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+.related-add:hover, .related-add:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.related-search[hidden] { display: none; }
+/* The move handle (and the table's controls) only show for the section that is selected, and sit in the margin beside it, level with its first line */
+.block-handle { opacity: 0; pointer-events: none; left: -24px; top: 7px; width: 20px; height: 24px; }
+.block-handle svg { width: 16px; height: 16px; }
+.text-block:focus-within > .block-handle, .text-block.is-dragging > .block-handle { opacity: 1; pointer-events: auto; }
+.text-block:hover > .block-handle { opacity: 0; }
+.text-block:focus-within:hover > .block-handle { opacity: 1; }
+.table-tools { display: none; position: absolute; top: -18px; right: 56px; z-index: 4; margin: 0; padding: 4px; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-popover); }
+.text-block:focus-within > .table-tools, .text-block:focus-within .table-tools { display: flex; }
