@@ -2992,3 +2992,15 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 .lib-row.is-sent-back td:first-child { box-shadow: inset 4px 0 0 var(--warn-icon); }
 .lib-row.is-locked td { background: var(--surface-muted); color: var(--text-muted); }
 .lib-row.is-locked a.lib-page-link, .lib-row.is-locked .lib-row-sub { color: var(--text-muted); }
+
+/* Status tabs under the search */
+.lib-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 16px; border-bottom: 1px solid var(--border); }
+.lib-tab { display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; margin-bottom: -1px; background: none; border: 0; border-bottom: 2px solid transparent; font: inherit; font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.lib-tab:hover { color: var(--text); }
+.lib-tab.is-selected { color: var(--navy); border-bottom-color: var(--icon-blue); }
+.lib-tab:focus-visible { outline: 2px solid var(--icon-blue); outline-offset: -2px; border-radius: 6px; }
+.lib-tab-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--text); background: var(--surface-muted); border: 1px solid var(--border); }
+.lib-tab-drafts .lib-tab-count { color: #fff; background: var(--icon-blue); border-color: transparent; }
+.lib-tab-waiting .lib-tab-count { color: var(--live-ink); background: var(--live-bg); border-color: var(--live-border); }
+.lib-tab-expiring .lib-tab-count { color: var(--warn-ink); background: var(--caution-tint); border-color: var(--warn-border); }
+.lib-tab-expired .lib-tab-count { color: var(--danger); background: var(--danger-soft); border-color: var(--danger-border); }
