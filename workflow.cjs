@@ -654,9 +654,18 @@
     return !!page.versions.length && page.versions[0].author === actor.name;
   }
 
-  // The team lead sees every page; everyone else sees their own, and may read any page that is live
+  // A page that was never published and whose latest version is still a draft (or was sent back): the author has not submitted it for review
+  function isUnsubmittedDraft(page) {
+    if (page.liveVersion) { return false; }
+    var working = workingVersion(page);
+    return !!working && (working.status === STATUS.DRAFT || working.status === STATUS.SENT_BACK);
+  }
+
+  // The team lead (and Admin) see every page except other people's drafts that have not been submitted for review yet; everyone else sees
+  // their own, and may read any page that is live
   function canSeeInLibrary(page, actor, team) {
-    return isLead(actor, team) || isMine(page, actor);
+    if (isMine(page, actor)) { return true; }
+    return isLead(actor, team) && !isUnsubmittedDraft(page);
   }
 
   function canReadVersion(page, version, actor, team) {
@@ -1218,6 +1227,7 @@
     assertCanDelete: assertCanDelete,
     isMine: isMine,
     canSeeInLibrary: canSeeInLibrary,
+    isUnsubmittedDraft: isUnsubmittedDraft,
     canReadVersion: canReadVersion,
     requestDelete: requestDelete,
     cancelDeleteRequest: cancelDeleteRequest,

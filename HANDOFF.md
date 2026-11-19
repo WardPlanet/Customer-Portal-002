@@ -1455,3 +1455,6 @@ The library's "Batch import" link is now one button, **Import document(s)**. It 
 ## Page setup bar: title, Team back, secondary owner
 - The bar is titled **Page setup**. **Team** is back for everyone as a dropdown like Owner: Admin can choose it on a new page; for everyone else (and on a saved page) it is **greyed out**. **Reviewer** is a greyed box too (the team lead always reviews).
 - A **+** beside **Owner** opens **Secondary owner**: one person, chosen from the team's people (it is the page's "linked people" list, limited to one in the picker; a page that already has several shows them all, each with an x). It stays open while there is one; it starts closed on a page without one. This brings back "Linked roles / Select a role" from the text-revision list, now as "Secondary owner".
+
+## Unsubmitted drafts are private to their author
+The team lead and Admin no longer see a draft (or a sent-back page) that has never been published and has not been submitted for review, unless it is theirs (they own it or wrote it). It appears for the lead the moment its author submits it (`Workflow.canSeeInLibrary`, `isUnsubmittedDraft`; the library list, the bell and opening the page all follow it; the Node server uses the same rule). A live page with a draft edit in progress still shows as live. Download backup still contains every page.

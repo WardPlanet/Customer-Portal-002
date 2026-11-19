@@ -352,11 +352,15 @@ test('every role needs a plausible contact email', () => {
 const sam = { name: 'Sam', roles: [] };
 const molly = W.actorFor('Molly', Object.assign({}, team, { roles: team.roles.concat([{ title: 'Web Designer', person: 'Molly' }]) }));
 
-test('the library shows the lead every page and everyone else only their own', () => {
+test('the library shows the lead every page except unsubmitted drafts, and everyone else only their own', () => {
   const page = W.createPage(team, draftText('Refunds'), scott, t(1));   // owned by the Website Editor, Scott
   assert.equal(W.canSeeInLibrary(page, scott, team), true);
-  assert.equal(W.canSeeInLibrary(page, micah, team), true);
+  assert.equal(W.canSeeInLibrary(page, micah, team), false);   // a draft Scott has not submitted is not the lead's to see yet
+  assert.equal(W.canSeeInLibrary(page, W.actorFor('Admin', team), team), false);   // nor Admin's
   assert.equal(W.canSeeInLibrary(page, molly, team), false);
+  W.submit(page, 1, scott, team, t(2));
+  assert.equal(W.canSeeInLibrary(page, micah, team), true);   // submitted: it is waiting for the lead
+  assert.equal(W.canSeeInLibrary(page, W.actorFor('Admin', team), team), true);
   // a page the lead wrote for another role belongs to that role, not to Scott
   const forMolly = W.createPage(team, draftText('Colors').replace('Website Editor', 'Web Designer'), micah, t(1));
   assert.equal(W.canSeeInLibrary(forMolly, scott, team), false);

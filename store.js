@@ -383,7 +383,7 @@
         // (Admin sees every department's pages and drafts in the library.)
         var isAdmin = !!who.admin;
         var pages = (liveOnly || isAdmin ? readAll().pages : teamPages()).filter(function (page) {
-          return liveOnly ? !!page.liveVersion : (isAdmin || W.canSeeInLibrary(page, who, team));
+          return liveOnly ? !!page.liveVersion : W.canSeeInLibrary(page, who, isAdmin ? teamOf(page) : team);
         });
         var rows = pages.map(W.summary);
         if (q) {
