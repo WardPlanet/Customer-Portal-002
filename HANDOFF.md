@@ -1451,3 +1451,7 @@ Still to do (not asked yet): the properties-above-the-title alternative (Conflue
 
 ## Import document(s) (library)
 The library's "Batch import" link is now one button, **Import document(s)**. It asks "Are you importing one document or several?": **One document** opens a new page and opens the editor's own import window at once (choose a file or paste text; the page is filled and can be edited straight away); **Several documents** goes to the batch import screen. The batch screen's own heading still says "Batch import". Contradicts the text-revision list only in that the list names the old link "Batch import" (the list has no change for it).
+
+## Page setup bar: title, Team back, secondary owner
+- The bar is titled **Page setup**. **Team** is back for everyone as a dropdown like Owner: Admin can choose it on a new page; for everyone else (and on a saved page) it is **greyed out**. **Reviewer** is a greyed box too (the team lead always reviews).
+- A **+** beside **Owner** opens **Secondary owner**: one person, chosen from the team's people (it is the page's "linked people" list, limited to one in the picker; a page that already has several shows them all, each with an x). It stays open while there is one; it starts closed on a page without one. This brings back "Linked roles / Select a role" from the text-revision list, now as "Secondary owner".

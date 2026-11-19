@@ -2896,3 +2896,21 @@ body.is-public .prop-bar { display: none; }
 .import-kind-choice strong { font-size: 16px; color: var(--navy); }
 .import-kind-choice span { font-size: 13px; color: var(--text-muted); }
 .import-kind-choice:hover, .import-kind-choice:focus-visible { border-color: var(--icon-blue); background: var(--brand-tint); outline: none; }
+
+/* Page setup bar: a title, Team (greyed out unless Admin on a new page), a + beside Owner for a secondary owner, a greyed Reviewer */
+.prop-title { flex-basis: 100%; margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+.prop-strip { gap: 12px 32px; }
+.prop-team { width: 220px; }
+.prop-team.is-na .select-field { background: var(--surface-muted); color: var(--text-faint); border-color: var(--border); cursor: not-allowed; }
+.prop-team.is-na .field-label { color: var(--text-faint); }
+.owner-label-row { display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
+.owner-label-row .field-label { margin: 0; }
+.owner-add { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; background: none; border: 1px solid var(--border-strong); border-radius: 50%; color: var(--text-muted); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+.owner-add:hover, .owner-add:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.secondary-owner { margin-top: 10px; }
+.secondary-owner[hidden] { display: none; }
+.secondary-label { display: block; margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.secondary-owner .role-list { margin: 0 0 6px; }
+.prop-reviewer .setup-reviewer.is-na { display: flex; align-items: center; width: 240px; height: 38px; margin: 0; padding: 0 12px; box-sizing: border-box; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; line-height: 1; color: var(--text-faint); cursor: not-allowed; }
+.prop-reviewer .setup-reviewer.is-na strong { color: var(--text-faint); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prop-reviewer .field-label { color: var(--text-faint); }

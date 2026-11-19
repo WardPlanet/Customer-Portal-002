@@ -2125,12 +2125,20 @@
 
       var addSelect = byId('role-add');
       addSelect.textContent = '';
-      addOption(addSelect, '', 'Select a person');
+      addOption(addSelect, '', 'Choose a person');
       choosablePeople('').forEach(function (role) {
         var key = window.Workflow.keyFor(role);
         if (state.roles.indexOf(key) < 0 && key !== state.owner) { addOption(addSelect, key, roleLabel(key)); }
       });
-      byId('role-add-wrap').hidden = addSelect.options.length < 2;
+      // One secondary owner: once there is one, the choice is hidden (remove it with the x to pick someone else). A page that already has
+      // several linked people shows them all.
+      byId('role-add-wrap').hidden = addSelect.options.length < 2 || state.roles.length >= 1;
+      // The + opens the secondary owner; it stays open while there is one
+      var secondary = byId('secondary-owner');
+      var plus = byId('owner-add');
+      if (state.roles.length) { secondary.hidden = false; }
+      plus.setAttribute('aria-expanded', String(!secondary.hidden));
+      plus.textContent = secondary.hidden ? '+' : '\u2212';
     }
 
     function renderReviewer() {
@@ -2156,7 +2164,8 @@
       });
     }
 
-    function renderSidebar() {
+    function renderSidebar(keepSecondaryOpen) {
+      if (!keepSecondaryOpen) { byId('secondary-owner').hidden = !state.roles.length; }   // a page without a secondary owner starts with it closed
       renderChips();
       renderTeam();
       renderOwner();
@@ -3617,6 +3626,13 @@
       });
     });
     byId('leave-btn').addEventListener('click', function () { window.PageHost.leave(); });
+
+    // Owner +: show or hide the secondary owner (it cannot be hidden while there is one)
+    byId('owner-add').addEventListener('click', function () {
+      var secondary = byId('secondary-owner');
+      if (secondary.hidden) { secondary.hidden = false; } else if (!state.roles.length) { secondary.hidden = true; }
+      renderRoles();
+    });
 
     // Related pages: the + opens the search; it closes again when it is left empty
     (function () {

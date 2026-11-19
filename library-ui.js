@@ -1520,22 +1520,24 @@
     var picker = document.getElementById('team-picker');
     picker.textContent = '';
     picker.hidden = false;
-    // Only Admin sees Team (anyone else's pages belong to their own team). It is drawn like Owner and Linked people: a dropdown. On a new page it
-    // can be changed; on a saved page it is shown, not changed.
+    field.hidden = false;
+    // Team shows for everyone, as a dropdown like Owner. Admin can choose it on a new page; otherwise it is greyed out (it cannot be changed here).
     var admin = actingAsAdmin();
-    field.hidden = !admin;
-    if (!admin) { return; }
-    document.getElementById('team-hint').textContent = show ? 'Admin: choose the team this page belongs to.' : 'The team this page belongs to.';
+    var editable = admin && !!show;
+    field.classList.toggle('is-na', !editable);
+    field.title = editable ? '' : (admin ? 'The team this page belongs to.' : 'Pages you save belong to your team. Only Admin can change it.');
+    document.getElementById('team-hint').textContent = '';
     var wrap = el('div', 'select-wrap');
     var select = el('select', 'select-field team-select');
     select.setAttribute('aria-label', 'Team for this page');
-    window.Store.teams().forEach(function (department) {
+    var departments = window.Store.teams();
+    departments.forEach(function (department) {
       var option = el('option', '', department.name);
       option.value = department.slug;
       select.appendChild(option);
     });
     select.value = team.slug;
-    select.disabled = !show;
+    select.disabled = !editable;
     wrap.appendChild(select);
     var chevron = el('span', 'select-chevron');
     chevron.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';   // fixed markup
