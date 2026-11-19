@@ -1492,3 +1492,6 @@ Live page left column: **Copy link** is above **Export PDF**, and both are the s
 Live page left column: **Copy link** is the blue primary button and **Export PDF** the white secondary button, under it.
 
 Reviewing (the read-only view): the Page setup bar and the Related pages card are greyed out and cannot be used (`inert`); they only change in edit mode.
+
+## One content width
+Every screen now uses `--content-max` (1400px, with 32px of padding) in `styles.css`: the library and the other library screens (Search review, Batch import, Admin), the search results, a live page, the editor and review view, the blue bar and the Page setup bar. Before, the library, results and live page were 1080px, the editor 1400px and its blue bar narrower than its page. Measured at 1440px wide, all of them now span the same 52 to 1388px (and 292 to 1628px at 1920px). The landing page's dark band stays full width on purpose. A live page's article is up to 880px wide inside that width.
