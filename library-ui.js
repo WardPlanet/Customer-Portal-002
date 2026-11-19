@@ -3803,14 +3803,22 @@
       node = next;
     }
     if (tone === 'jump') {
-      // The light-blue jump highlight fades away (see jump-fade in styles.css); once it has, only this box is taken off, putting the section back as it was
+      // The light-blue jump highlight stays until the reader clicks anywhere; then it fades out (jump-fade in styles.css) and only this box is taken off,
+      // putting the section back as it was. The click that started it (on the outline link) is not counted.
       var release = function () {
         if (!wrapper.isConnected) { return; }
         while (wrapper.firstChild) { wrapper.parentNode.insertBefore(wrapper.firstChild, wrapper); }
         wrapper.remove();
       };
-      wrapper.addEventListener('animationend', release);
-      setTimeout(release, 3400);   // also when motion is turned down and nothing animates
+      var leave = function () {
+        document.removeEventListener('mousedown', leave, true);
+        if (!wrapper.isConnected) { return; }
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { release(); return; }
+        wrapper.addEventListener('animationend', release);
+        wrapper.classList.add('is-leaving');
+        setTimeout(release, 600);   // in case the animation never reports back
+      };
+      setTimeout(function () { document.addEventListener('mousedown', leave, true); }, 0);
     }
     if (scroll !== false) { wrapper.scrollIntoView(tone === 'jump' ? { behavior: 'smooth', block: 'start' } : { block: 'start' }); }
   }
