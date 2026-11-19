@@ -533,7 +533,7 @@
             var t = link(p.title, previewUrl(p.id), 'lib-page-link');
             li.appendChild(t);
             var info = expiryOf(p);
-            li.appendChild(el('span', 'lib-bar-sub', def[0] === 'expiring' || def[0] === 'expired' ? (info ? info.text : '') : (def[0] === 'sentback' ? 'changes requested' : 'submitted')));
+            li.appendChild(el('span', 'lib-bar-sub', def[0] === 'expiring' || def[0] === 'expired' ? (info ? info.text : '') : (def[0] === 'sentback' ? 'changes requested' : ownerShown(p, teamFor(p.team) || team).name + ' \u00b7 submitted ' + (p.workingVersion && p.workingVersion.submittedAt ? W.daysAgo(p.workingVersion.submittedAt) : 'for review'))));
             var go = button(def[0] === 'sentback' ? 'Edit' : 'Review', 'row-btn' + (def[0] === 'sentback' ? '' : ' row-btn-main'), function () {
               if (def[0] === 'sentback') { location.hash = '#/edit/' + p.id + '/' + p.workingVersion.n; return; }
               var n = isWaitingForReview(p) && p.workingVersion ? p.workingVersion.n : (p.liveVersion && p.liveVersion.n ? p.liveVersion.n : p.liveVersion);
@@ -554,7 +554,7 @@
     main.appendChild(tabsBar);
     function tabDefs() {
       return reviewsFirstBar()
-        ? [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['live', 'Live']]   // a lead can write drafts too; In review is the pages waiting for the lead
+        ? [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'For review'], ['live', 'Live']]   // a lead can write drafts too; For review is the pages waiting for the lead
         : [['', 'All'], ['drafts', 'Your drafts'], ['inreview', 'In review'], ['live', 'Live']];
     }
     function inTab(p, key) {

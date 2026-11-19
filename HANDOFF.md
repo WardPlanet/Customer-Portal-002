@@ -1513,3 +1513,4 @@ Landing: the three Popular pages tiles share the full content width (three equal
 - Review (the row's main button) is the standard primary blue, not green. Green stays for the Live and waiting-for-review colours only.
 - Team leads now have Your drafts and In review tabs too (All, Your drafts, In review, Live); In review is the pages waiting for the lead. The lead's waiting-for-review bar and row tint are blue (In review), no longer green.
 - Your drafts and In review tabs always show, with a 0 count when empty. The lead's waiting-for-review row is a blue left bar (same as the owner's In Review row), not a tint.
+- Lead/Admin tab is **For review** (owners keep In review). The waiting-for-review bar lists each page with its owner and when it was submitted.
