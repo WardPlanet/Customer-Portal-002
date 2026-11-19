@@ -502,7 +502,7 @@
       var defs = [];
       if (lead) { defs.push(['waiting', 'is-blue', function (p) { return isWaitingForReview(p); }, ' waiting for your review']); }
       else { defs.push(['sentback', 'is-orange', function (p) { return p.state === 'sent_back'; }, ' sent back with changes requested']); }
-      if (lead) { defs.push(['deletion', 'is-red', function (p) { return !!p.deleteRequest; }, ' with a deletion request']); }
+      if (lead) { defs.push(['deletion', 'is-delete', function (p) { return !!p.deleteRequest; }, ' with a deletion request']); }
       defs.push(['expiring', 'is-yellow', function (p) { var d = expiryOf(p); return !!(d && !d.expired); }, ' expiring soon']);
       defs.push(['expired', 'is-red', function (p) { var d = expiryOf(p); return !!(d && d.expired); }, ' expired']);
       return defs;
@@ -1097,6 +1097,7 @@
       // page locked in review is grey.
       var row = el('tr', 'lib-row');
       var expiry = expiryOf(p);
+      if (p.deleteRequest) { row.classList.add('is-delete-requested'); }
       if (isOwnDraft(p)) { row.classList.add(p.state === 'sent_back' ? 'is-sent-back' : 'is-draft'); }   // a blue bar; an orange one when changes were requested
       if (reviewsFirstBar() && isWaitingForReview(p)) { row.classList.add('is-waiting'); }   // light green, for the lead
       if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // light yellow; red once expired
@@ -1126,7 +1127,7 @@
         snippet.appendChild(markedNodes(p.search.snippetParts));
         nameCell.appendChild(snippet);
       }
-      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.deleteRequest ? ' · deletion requested' : '') + (p.ownerPublishes ? ' · owner can republish' : '')));
+      nameCell.appendChild(el('div', 'lib-row-sub', (p.location || '') + (p.releaseCount > 1 ? ' · ' + p.releaseCount + ' versions' : '') + (p.ownerPublishes ? ' · owner can republish' : '')));
       row.appendChild(nameCell);
       if (actingAsAdmin()) { row.appendChild(el('td', 'lib-dept', (teamFor(p.team) || team).name)); }
       var statusCell = el('td');
@@ -1138,6 +1139,18 @@
         statusCell.appendChild(stillLive);
       } else {
         statusCell.appendChild(badge(STATE_LABELS[p.state]));
+      }
+      if (p.deleteRequest) {
+        // A deletion request is shown on every row, in every tab, for the owner and the lead alike (its own dark red, not the expired red)
+        var delWrap = el('div', 'lib-row-sub');
+        var delBadge = el('span', 'badge badge-delete');
+        var trash = el('span', 'badge-delete-icon');
+        trash.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';   // fixed markup, no page text
+        delBadge.appendChild(trash);
+        delBadge.appendChild(document.createTextNode('Deletion requested'));
+        delBadge.title = p.deleteRequest.by + ' asked ' + formatDate(p.deleteRequest.at);
+        delWrap.appendChild(delBadge);
+        statusCell.appendChild(delWrap);
       }
       row.appendChild(statusCell);
       var ownerCell = el('td');
