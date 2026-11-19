@@ -3942,7 +3942,8 @@
       // Ask a question: a card of its own just under the description, where it is seen first
       var descriptions = article.querySelectorAll('.preview-description');
       var askAfter = descriptions.length ? descriptions[descriptions.length - 1] : pageTitle;
-      if (askAfter && !article.querySelector('.ask-card')) {
+      // Ask a question is for employees: a visitor (the Public view) does not see it
+      if (askAfter && !asPublic && !article.querySelector('.ask-card')) {
         var askOwner = (function () { var f = W.fields(data.text); return W.effectiveOwner(ownerTeam, { owner: f.owner, ownerDefault: f.ownerDefault }).entry; }());
         askAfter.parentNode.insertBefore(buildAskCard(article, id, data.version.title || (detail.page && detail.page.title) || 'This page', askOwner, asPublic), askAfter.nextSibling);
       }
@@ -4023,7 +4024,7 @@
 
     // Export PDF: the page as it reads in this view (the public view leaves out nothing the public does not see)
     var asPublicNow = (window.Store.isPublicMode && window.Store.isPublicMode());   // the public view always reads as the public sees it
-    var exportButton = button('Export PDF', 'primary-btn', async function () {
+    var exportButton = button('Export PDF', 'secondary-btn', async function () {
       exportButton.disabled = true;
       try {
         var name = await window.PageEditor.exportPdfFromText(asPublicNow ? W.publicText(data.text) : data.text);
