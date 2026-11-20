@@ -117,9 +117,11 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 
 **Decision: the shared-draft work is frozen.** The edit lock, the change list with undo, protected sections with approval, the yellow "not seen" box and Save changes for page setup are built and tested, but they cover a rare case (two people editing the same live draft) and add many states to learn. Do not add to them until real use shows what is needed. If it proves too heavy, the first thing to remove is the protected-sections approval (keep the lock, the change list and undo).
 
+**Alpha scope: one team.** The alpha is a user test with a single team, so several departments on the Node server, a company-wide related-pages search and Admin creating drafts in another department are **deferred** until after the alpha. The artifact already carries several departments for demonstration.
+
 **Build next (suggested order):**
 1. Send the emails (connect the company mail account to `drafts/outbox/`); add the "owner kept" and "restored" ones if wanted.
-2. Several departments on the server, and a company-wide related-pages and search across teams.
+2. (After the alpha) Several departments on the server, and a company-wide related-pages and search across teams.
 3. Manual accessibility pass (screen reader, touch, zoom) and a committed Playwright suite (the browser checks used so far were throwaway scripts).
 
 **Decisions still open:**
