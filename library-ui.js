@@ -388,6 +388,14 @@
     try { var seen = republishSeen(); seen[p.id] = p.ownerRepublished.at; localStorage.setItem(republishKey(), JSON.stringify(seen)); } catch (error) { /* it comes back next time */ }
     refreshNotifications();
   }
+  // A bell item for expiring, expired or deletion pages opens that coloured bar in the library (its list of pages), not a page
+  function openLibraryBar(key) {
+    closeNotifyPops();
+    libraryFilters.barOpen = libraryFilters.barOpen || {};
+    libraryFilters.barOpen[key] = true;
+    if (location.hash === '#/' || location.hash === '' || location.hash === '#') { route(); } else { location.hash = '#/'; }
+    setTimeout(function () { var bar = document.querySelector('.lib-bars'); if (bar && bar.scrollIntoView) { bar.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } }, 200);
+  }
   function renderBell(slot, waiting, expiring, sentBack, deletions, republished) {
     expiring = expiring || [];
     sentBack = sentBack || [];
@@ -429,7 +437,7 @@
         var item = link('', '#/', 'notify-item');
         item.appendChild(el('strong', '', p.title));
         item.appendChild(el('span', 'notify-sub', p.deleteRequest.by + ' asked to delete it \u00b7 ' + formatDate(p.deleteRequest.at)));
-        item.addEventListener('click', closeNotifyPops);
+        item.addEventListener('click', function (event) { event.preventDefault(); openLibraryBar('deletion'); });
         pop.appendChild(item);
       });
     }
@@ -447,13 +455,13 @@
       pop.appendChild(el('h2', 'notify-title', expiring.every(function (p) { return expiryOf(p).expired; }) ? 'Expired' : 'Expiring or expired'));
       expiring.forEach(function (p) {
         var info = expiryOf(p);
-        var item = link('', previewUrl(p.id), 'notify-item');
+        var item = link('', '#/', 'notify-item');
         var line = el('strong', '');
         line.appendChild(cautionIcon(info.expired));
         line.appendChild(document.createTextNode(p.title));
         item.appendChild(line);
         item.appendChild(el('span', 'notify-sub' + (info.expired ? ' is-expired' : ''), info.text + ' \u00b7 last updated ' + W.daysAgo(p.updatedAt)));
-        item.addEventListener('click', closeNotifyPops);
+        item.addEventListener('click', function (event) { event.preventDefault(); openLibraryBar(info.expired ? 'expired' : 'expiring'); });
         pop.appendChild(item);
       });
     }
