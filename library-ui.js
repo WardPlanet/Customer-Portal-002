@@ -676,7 +676,7 @@
         tab.type = 'button';
         tab.setAttribute('aria-pressed', String(selected));
         tab.appendChild(document.createTextNode(def[1]));
-        if (special) { tab.appendChild(el('span', 'lib-tab-count', String(counts[key]))); }
+        if (special || key === 'live') { tab.appendChild(el('span', 'lib-tab-count', String(counts[key]))); }   // every tab but All shows how many it holds
         tab.addEventListener('click', function () { libraryFilters.status = key; refresh(); });
         tabsBar.appendChild(tab);
       });
@@ -819,27 +819,49 @@
     }
   }
 
-  // "Recently deleted": pages deleted in the last 30 days, with who deleted them, how long is left, and Restore
+  // "Recently deleted": the same table as the other pages, with the date deleted (and who deleted it) in place of Updated, and who asked for the deletion
   function renderTrash(box, items, again) {
     box.textContent = '';
     box.appendChild(el('p', 'lib-hint', 'Deleted pages stay here for ' + W.TRASH_DAYS + ' days and can be restored. After that they are gone for good.'));
     if (!items.length) { box.appendChild(el('p', 'lib-empty', 'Nothing was deleted in the last ' + W.TRASH_DAYS + ' days.')); return; }
     var table = el('table', 'lib-table');
     var head = el('tr');
-    ['Page', 'Deleted by', 'Deleted', 'Time left', 'Actions'].forEach(function (h, i) { var th = el('th'); th.appendChild(el('span', i === 4 ? 'sr-only' : '', h)); head.appendChild(th); });
+    ['Page', 'Status', 'Owner', 'Visibility', 'Date deleted', 'Actions'].forEach(function (h, i) { var th = el('th'); th.appendChild(el('span', i === 5 ? 'sr-only' : '', h)); head.appendChild(th); });
     var thead = el('thead');
     thead.appendChild(head);
     table.appendChild(thead);
     var body = el('tbody');
     items.forEach(function (item) {
-      var row = el('tr', 'lib-row');
+      var row = el('tr', 'lib-row ' + (item.wasLive ? 'is-live' : 'is-draft'));   // the bar shows what it was
       var nameCell = el('td');
-      nameCell.appendChild(el('strong', '', item.title));
-      if (item.wasLive) { nameCell.appendChild(el('div', 'lib-row-sub', 'Was live')); }
+      nameCell.appendChild(el('strong', 'lib-page-title', item.title));
+      nameCell.appendChild(el('div', 'lib-row-sub', (item.location || '') + (item.releaseCount > 1 ? ' \u00B7 ' + item.releaseCount + ' versions' : '')));
       row.appendChild(nameCell);
-      row.appendChild(el('td', '', item.deletedBy));
-      row.appendChild(el('td', 'lib-date', W.daysAgo(item.deletedAt)));
-      row.appendChild(el('td', '', item.daysLeft + (item.daysLeft === 1 ? ' day' : ' days')));
+      var statusCell = el('td');
+      statusCell.appendChild(badge(item.wasLive ? STATE_LABELS.live : STATE_LABELS.draft));
+      if (item.requestedBy) {
+        // The owner (or someone else) had asked for it to be deleted: the same dark red mark as on the other rows
+        var asked = el('div', 'lib-row-sub');
+        var askedBadge = el('span', 'badge badge-delete');
+        askedBadge.appendChild(document.createTextNode('Deletion requested'));
+        asked.appendChild(askedBadge);
+        asked.appendChild(document.createTextNode(' by ' + item.requestedBy));
+        statusCell.appendChild(asked);
+      }
+      row.appendChild(statusCell);
+      var ownerCell = el('td');
+      appendOwnerLines(ownerCell, ownerShown(item, teamFor(item.team) || team));
+      row.appendChild(ownerCell);
+      var visCell = el('td');
+      visCell.appendChild(visibilityPill(item.visibility));
+      row.appendChild(visCell);
+      var dateCell = el('td', 'lib-date');
+      var when = el('div', 'lib-when', W.daysAgo(item.deletedAt));
+      when.title = formatDate(item.deletedAt);
+      dateCell.appendChild(when);
+      dateCell.appendChild(el('div', 'lib-row-sub', 'by ' + item.deletedBy));
+      dateCell.appendChild(el('div', 'lib-row-sub', item.daysLeft + (item.daysLeft === 1 ? ' day' : ' days') + ' left'));
+      row.appendChild(dateCell);
       var act = el('td', 'lib-row-actions');
       if (item.canRestore) {
         var restore = button('Restore', 'row-btn row-btn-main', async function () {
@@ -1332,8 +1354,9 @@
       if (p.deleteRequest) { row.classList.add('is-delete-requested'); }
       if (isOwnDraft(p)) { row.classList.add(p.state === 'sent_back' ? 'is-sent-back' : 'is-draft'); }   // a blue bar; an orange one when changes were requested
       if (reviewsFirstBar() && isWaitingForReview(p)) { row.classList.add('is-waiting'); }   // light green, for the lead
-      if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // light yellow; red once expired
-      else if (STATE_LABELS[p.state][1] === 'live' && p.state !== 'live_edit_in_review') { row.classList.add('is-live'); }   // a green bar: live
+      if (expiry && expiry.soon) { row.classList.add(expiry.expired ? 'is-expired' : 'is-expiring'); }   // the row tint: light yellow; red once expired
+      // The left bar follows the status only (green for live), also when the row is tinted for expiring or expired
+      if (STATE_LABELS[p.state][1] === 'live' && p.state !== 'live_edit_in_review') { row.classList.add('is-live'); }
       if (canBulk) {
         var tickCell = el('td', 'lib-select-cell');
         var tick = el('input');

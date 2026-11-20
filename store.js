@@ -588,7 +588,7 @@
         guard(function () { W.assertCanDelete(who, t, page); });
         // Soft delete: the page waits in "Recently deleted" for 30 days, then it is gone for good
         data.trash = (data.trash || []).filter(function (e) { return !W.trashExpired(e, now()); });
-        data.trash.push({ page: page, deletedAt: now(), deletedBy: who.name });
+        data.trash.push({ page: page, deletedAt: now(), deletedBy: who.name, requestedBy: page.deleteRequest ? page.deleteRequest.by : '' });
         data.pages = data.pages.filter(function (p) { return p.id !== id; });
         writeAll(data);
         return { deleted: id };
@@ -607,7 +607,7 @@
           return W.isLead(a, t) || W.isMine(e.page, a);
         }).map(function (e) {
           var row = W.summary(e.page);
-          return { id: e.page.id, title: row.title, wasLive: !!e.page.liveVersion, deletedAt: e.deletedAt, deletedBy: e.deletedBy, daysLeft: W.trashDaysLeft(e.deletedAt, now()), canRestore: W.isLead(isAdmin ? W.actorFor(actingAs, teamOf(e.page)) : who, teamOf(e.page)) || W.ownerMayDelete(e.page) };
+          return { id: e.page.id, title: row.title, wasLive: !!e.page.liveVersion, deletedAt: e.deletedAt, deletedBy: e.deletedBy, requestedBy: e.requestedBy || '', owner: row.owner, ownerDefault: row.ownerDefault, visibility: row.visibility, location: row.location, releaseCount: row.releaseCount, team: row.team, daysLeft: W.trashDaysLeft(e.deletedAt, now()), canRestore: W.isLead(isAdmin ? W.actorFor(actingAs, teamOf(e.page)) : who, teamOf(e.page)) || W.ownerMayDelete(e.page) };
         }).sort(function (a, b) { return String(b.deletedAt).localeCompare(String(a.deletedAt)); }) };
       },
       restoreDeleted: async function (id) {

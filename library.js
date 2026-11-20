@@ -163,9 +163,10 @@ async function moveToTrash(draftsDir, team, page, actor, now) {
   var to = path.join(trashFolder(draftsDir, team), page.id);
   await fs.mkdir(trashFolder(draftsDir, team), { recursive: true });
   await fs.rm(to, { recursive: true, force: true });
+  var requestedBy = page.deleteRequest ? page.deleteRequest.by : '';   // who asked for it to be deleted, kept for the Recently deleted list
   delete page.deleteRequest;
   await fs.rename(from, to);
-  await fs.writeFile(path.join(to, 'trash.json'), JSON.stringify({ deletedAt: now, deletedBy: actor.name }, null, 2), 'utf8');
+  await fs.writeFile(path.join(to, 'trash.json'), JSON.stringify({ deletedAt: now, deletedBy: actor.name, requestedBy: requestedBy }, null, 2), 'utf8');
 }
 
 async function readTrash(draftsDir, team) {
@@ -669,8 +670,10 @@ export function registerLibraryRoutes(app, draftsDir) {
     await purgeTrash(draftsDir, ctx.team, ctx.now);
     var lead = Workflow.isLead(ctx.actor, ctx.team);
     var items = (await readTrash(draftsDir, ctx.team)).filter(function (entry) { return lead || Workflow.isMine(entry.page, ctx.actor); }).map(function (entry) {
+      var row = Workflow.summary(entry.page);
       return {
-        id: entry.id, title: Workflow.summary(entry.page).title, wasLive: !!entry.page.liveVersion, deletedAt: entry.meta.deletedAt, deletedBy: entry.meta.deletedBy,
+        id: entry.id, title: row.title, wasLive: !!entry.page.liveVersion, deletedAt: entry.meta.deletedAt, deletedBy: entry.meta.deletedBy, requestedBy: entry.meta.requestedBy || '',
+        owner: row.owner, ownerDefault: row.ownerDefault, visibility: row.visibility, location: row.location, releaseCount: row.releaseCount, team: row.team,
         daysLeft: Workflow.trashDaysLeft(entry.meta.deletedAt, ctx.now), canRestore: lead || Workflow.ownerMayDelete(entry.page)
       };
     }).sort(function (a, b) { return String(b.deletedAt).localeCompare(String(a.deletedAt)); });

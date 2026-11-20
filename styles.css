@@ -3295,8 +3295,6 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .viewer-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 .viewer-actions:empty { display: none; }
 
-/* Left bars in the library: Live is a strong green (the light one looked like the grey draft bar), and a page that is expiring soon or expired keeps a bar of its own
-   (yellow, red) on top of its tint. A draft that was never live has no expiry at all. */
+/* Left bars in the library follow the status only: Live is a strong green (the light one looked like the grey draft bar). A page that is expiring soon or
+   expired keeps its green bar; its tint says the rest. A draft that was never live has no expiry at all. */
 .lib-row.is-live td:first-child { box-shadow: inset 4px 0 0 var(--success); }
-.lib-row.is-expiring td:first-child { box-shadow: inset 4px 0 0 #e0a800; }
-.lib-row.is-expired td:first-child { box-shadow: inset 4px 0 0 var(--danger); }
