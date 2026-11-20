@@ -3251,3 +3251,12 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .import-record-heading { margin: 12px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
 .import-record-text { margin-top: 2px; color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
 .preview-flag-standing { align-self: center; font-size: 13px; color: var(--text-muted); }
+
+/* Import notes inside a version's details */
+.import-note-point { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 4px 0; }
+.import-note-text { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.import-note-standing { font-size: 13px; color: var(--text-muted); }
+.import-note-point .row-btn[aria-pressed="true"] { color: #fff; border-color: transparent; }
+.import-note-point .row-btn[data-value="approved"][aria-pressed="true"] { background: var(--icon-blue); }
+.import-note-point .row-btn[data-value="denied"][aria-pressed="true"] { background: var(--danger, #B42318); }
+.import-notes { margin: 8px 0; }
