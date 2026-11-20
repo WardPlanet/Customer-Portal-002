@@ -4249,7 +4249,7 @@
       'You help a support person write an email reply to a CLIENT, using only the page text below. The support person will read and edit it before sending.',
       'Rules:',
       '- Answer the client\u2019s question using only the page. Never invent facts, numbers, names, dates, links, promises or timelines.',
-      '- Write to the client in a friendly, clear, professional voice. Plain text, no markdown. Do not write a greeting or a subject line: the support person adds those. Start with the first sentence of the reply itself, and end with a short sign-off and "[Your name]".',
+      '- Write to the client in a friendly, clear, professional voice. Plain text, no markdown. Do not write a greeting, a sign-off or a subject line: the support person adds those. Start with the first sentence of the reply itself and end with its last sentence.',
       '- Keep it short: a sentence of thanks or context, the answer (short steps as lines starting with "1. " if the page gives steps), and an offer to help further.',
       '- Leave out anything that is only for internal staff: internal tools, team or people names, internal procedures and links. If a part of the answer depends on that, write a short line such as "I\u2019m checking on that and will get back to you" in square brackets for the support person to settle.',
       '- Put anything the support person must fill in or check in [square brackets].',
@@ -4283,11 +4283,30 @@
     close.addEventListener('click', function () { area.textContent = ''; area.appendChild(draftButton); });
     top.appendChild(close);
     box.appendChild(top);
+    // The text is edited in a plain box; a copy of it sits behind, with anything in [square brackets] highlighted, so the parts to fill in or check stand out
+    var wrap = el('div', 'ask-email-wrap');
+    var mirror = el('div', 'ask-email-mirror');
+    mirror.setAttribute('aria-hidden', 'true');
     var bodyInput = el('textarea', 'ask-email-body');
     bodyInput.value = body.slice(0, 4000);
     bodyInput.rows = 8;
     bodyInput.setAttribute('aria-label', 'Reply text');
-    box.appendChild(bodyInput);
+    function paintMirror() {
+      mirror.textContent = '';
+      bodyInput.value.split(/(\[[^\]\n]*\])/).forEach(function (part) {
+        if (!part) { return; }
+        if (/^\[[^\]\n]*\]$/.test(part)) { mirror.appendChild(el('mark', 'ask-email-fill', part)); }
+        else { mirror.appendChild(document.createTextNode(part)); }
+      });
+      mirror.appendChild(document.createTextNode('\n'));   // a last empty line keeps the two boxes the same height
+      mirror.scrollTop = bodyInput.scrollTop;
+    }
+    bodyInput.addEventListener('input', paintMirror);
+    bodyInput.addEventListener('scroll', function () { mirror.scrollTop = bodyInput.scrollTop; });
+    wrap.appendChild(mirror);
+    wrap.appendChild(bodyInput);
+    box.appendChild(wrap);
+    paintMirror();
     var actions = el('div', 'ask-email-actions');
     actions.appendChild(button('Copy', 'row-btn row-btn-main', async function () {
       var done = await copyText(bodyInput.value);
