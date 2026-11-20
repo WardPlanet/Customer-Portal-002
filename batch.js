@@ -263,6 +263,11 @@
      the progress and takes you back to the screen; when the work is done it says "Complete" and goes away after a few
      seconds. `active` is the import the screen belongs to; the screen is drawn again from its state when you return. */
   var active = null;
+  // What the library shows while drafts are being made: the documents still to be built (greyed, with a moving green bar), and a check mark beside
+  // each draft built in this run until the person leaves the library page.
+  var builtChecks = {};
+  var failedCleared = false;
+  function notifyProgress() { try { window.dispatchEvent(new Event('batch-progress')); } catch (error) { /* an old browser: the library refreshes on its next visit */ } }
   var widget = null;
   var widgetTimer = null;
   var WIDGET_SECONDS = 8;
@@ -275,7 +280,7 @@
 
   function updateWidget() {
     var state = active && active.snapshot ? active.snapshot() : null;
-    var onBatchScreen = /^#\/batch/.test(location.hash);
+    var onBatchScreen = /^#\/batch/.test(location.hash) || location.hash === '' || location.hash === '#/' || location.hash === '#';   // the library shows the progress itself
     if (!state || onBatchScreen || (state.stage !== 'creating' && state.stage !== 'done') || (state.stage === 'done' && state.seen)) { hideWidget(); return; }
 
     if (!widget) {
@@ -346,6 +351,20 @@
         var finished = c.chosen.filter(function (d) { return session.results[d.first + '-' + d.last]; }).length;
         var failed = c.chosen.filter(function (d) { var r = session.results[d.first + '-' + d.last]; return r && r.error; }).length;
         return { stage: this.stage, seen: this.seen, total: c.chosen.length, finished: finished, failed: failed };
+      },
+      // The documents not built yet (waiting or being built) and the ones that failed, for the library's list
+      building: function () {
+        var c = session && session.creation;
+        if (!c) { return []; }
+        var out = [];
+        c.chosen.forEach(function (d) {
+          var key = d.first + '-' + d.last;
+          var r = session.results[key];
+          if (r && r.id) { return; }
+          if (r && r.error) { if (!failedCleared) { out.push({ key: key, title: d.title, state: 'failed', error: r.error }); } return; }
+          out.push({ key: key, title: d.title, state: key === c.current ? 'working' : 'waiting' });
+        });
+        return out;
       },
       attach: function (newMain, newUi) {
         main = newMain;
@@ -865,7 +884,10 @@
       session.creation = { chosen: chosen, current: null, currentTitle: '' };
       self.stage = 'creating';
       self.seen = false;
-      function refresh() { drawCreating(); updateWidget(); }
+      failedCleared = false;
+      function refresh() { drawCreating(); updateWidget(); notifyProgress(); }
+      // The upload has started: back to the library, where the drafts show up as they are built
+      if (/^#\/batch/.test(location.hash)) { location.hash = '#/'; }
       refresh();
 
       for (var i = 0; i < jobs.length && !session.cancelled; i += 1) {
@@ -876,6 +898,7 @@
         refresh();
         try {
           session.results[key] = await createOne(job);
+          if (session.results[key] && session.results[key].id) { builtChecks[session.results[key].id] = true; }
         } catch (error) {
           session.results[key] = { error: window.PageEditor.errorMessage(error) };
         }
@@ -971,5 +994,12 @@
     stepChoose();
   }
 
-  window.Batch = { show: show, htmlToSegments: htmlToSegments, textToSegments: textToSegments };
+  window.Batch = {
+    show: show,
+    htmlToSegments: htmlToSegments,
+    textToSegments: textToSegments,
+    building: function () { return active && active.building ? active.building() : []; },   // for the library's list
+    isChecked: function (id) { return !!builtChecks[id]; },                                   // built in this run, and the library page has not been left since
+    clearChecks: function () { builtChecks = {}; failedCleared = true; }                      // called when the person leaves the library page
+  };
 })();

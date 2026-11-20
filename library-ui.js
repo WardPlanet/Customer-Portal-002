@@ -687,6 +687,7 @@
 
     var trashItems = [];
     async function refresh() {
+      libraryRefreshHook = refresh;   // a batch import in progress redraws the list as each draft is built
       var result = await attempt(backend().list(libraryFilters.q));
       if (!result || mine !== routing) { return; }
       try { var gone = backend().listTrash ? await backend().listTrash() : null; trashItems = gone && gone.items ? gone.items : []; } catch (error) { trashItems = []; }
@@ -1118,7 +1119,9 @@
     pickDefs.push({ key: 'review', title: 'Expiry', valueOf: function (p) { var r = expiryOf(p); return r ? (r.expired ? 'Expired' : 'Expiring soon') : ''; } });
     var activeDefs = canBulk ? pickDefs.filter(function (d) { return Object.keys(pick[d.key] || {}).length; }) : [];
     var shown = pool.filter(function (p) { return activeDefs.every(function (d) { return pick[d.key][d.valueOf(p)]; }); });
-    if (!pool.length) {
+    // Drafts being made by a batch import: shown (greyed) in All and Your drafts until they are built
+    var building = (!libraryFilters.q && (libraryFilters.status === '' || libraryFilters.status === 'drafts') && window.Batch && window.Batch.building) ? window.Batch.building() : [];
+    if (!pool.length && !building.length) {
       box.appendChild(el('p', 'lib-empty', pages.length ? 'No pages match that filter.' : 'No pages yet. Choose New page to write the first one.'));
       return;
     }
@@ -1303,7 +1306,7 @@
         setTimeout(function () { var again = box.querySelector('[data-pick="' + libraryFilters.pickOpen + '"]'); if (again) { again.focus(); } }, 0);
       }
     }
-    if (!shown.length) { box.appendChild(el('p', 'lib-empty', 'No pages match those choices.')); return; }
+    if (!shown.length && !building.length) { box.appendChild(el('p', 'lib-empty', 'No pages match those choices.')); return; }
     var table = el('table', 'lib-table');
     var headRow = el('tr');
     if (canBulk) {
@@ -1345,6 +1348,30 @@
     thead.appendChild(headRow);
     table.appendChild(thead);
     var body = el('tbody');
+    building.forEach(function (item) {
+      var made = el('tr', 'lib-row is-building' + (item.state === 'failed' ? ' is-build-failed' : ''));
+      if (canBulk) { made.appendChild(el('td', 'lib-select-cell')); }
+      var madeName = el('td');
+      madeName.appendChild(el('strong', 'lib-page-title', item.title || 'Untitled page'));
+      madeName.appendChild(el('div', 'lib-row-sub', item.state === 'failed' ? item.error : item.state === 'working' ? 'Building this draft\u2026' : 'Waiting to be built'));
+      made.appendChild(madeName);
+      if (actingAsAdmin()) { made.appendChild(el('td')); }
+      var madeStatus = el('td');
+      if (item.state === 'failed') {
+        madeStatus.appendChild(el('span', 'build-failed', 'Could not be built'));
+      } else {
+        // A moving green bar while it is being built; a still, empty one while it waits
+        var track = el('div', 'bar-track build-track' + (item.state === 'working' ? ' is-busy' : ''));
+        track.setAttribute('role', 'img');
+        track.setAttribute('aria-label', item.state === 'working' ? 'Being built' : 'Waiting');
+        track.appendChild(el('div', 'bar-fill'));
+        madeStatus.appendChild(track);
+        madeStatus.appendChild(el('div', 'lib-row-sub', item.state === 'working' ? 'Building' : 'Waiting'));
+      }
+      made.appendChild(madeStatus);
+      ['td', 'td', 'td', 'td'].forEach(function () { made.appendChild(el('td')); });   // owner, visibility, updated, actions
+      body.appendChild(made);
+    });
     sortRows(shown).forEach(function (p) {
       // Status colours follow the standard (see HANDOFF.md): a tint only for expiring (yellow), expired (red) and, for the team
       // lead, waiting for review (green); the owner's own drafts have a "Your drafts" heading and a blue bar, a sent-back page an orange bar, and a
@@ -1377,6 +1404,13 @@
       var titleLink = link('', previewUrl(p.id), 'lib-page-link');
       titleLink.appendChild(markedNodes(libraryFilters.q && p.search ? p.search.titleParts : null, p.title));
       nameCell.appendChild(titleLink);
+      if (window.Batch && window.Batch.isChecked && window.Batch.isChecked(p.id)) {
+        // Built by the batch import that has just run; the mark goes when the library page is left
+        var built = el('span', 'build-check', '\u2713');
+        built.title = 'Built from your import';
+        built.setAttribute('aria-label', 'Built from your import');
+        nameCell.appendChild(built);
+      }
       if (libraryFilters.q && p.search && p.search.snippetParts && p.search.snippetParts.length) {
         var snippet = el('div', 'lib-snippet');
         snippet.appendChild(markedNodes(p.search.snippetParts));
@@ -5006,8 +5040,15 @@
   };
 
   /* ---------- Router ---------- */
+  // The library list's own refresh while it is on screen (null on any other screen), and the batch import's progress events that call it
+  var libraryRefreshHook = null;
+  window.addEventListener('batch-progress', function () { if (libraryRefreshHook) { libraryRefreshHook(); } });
+
   async function route() {
     if (!team) { return; }
+    libraryRefreshHook = null;
+    // The check marks beside freshly built drafts go when the library page is left
+    if (location.hash !== '' && location.hash !== '#' && location.hash !== '#/' && window.Batch && window.Batch.clearChecks) { window.Batch.clearChecks(); }
     flushPendingSearch();   // a search still waiting to be logged is logged as the person leaves the screen
     routing += 1;
     // Leaving the editor (or opening another page's) gives the edit lock back
