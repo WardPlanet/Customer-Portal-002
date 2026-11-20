@@ -2030,7 +2030,7 @@
     button.onclick = async function () {
       if (button.getAttribute('aria-disabled') === 'true' || current.id === null) { return; }
       var detail = await attempt(backend().get(current.id));
-      if (detail && await confirmAndDelete(detail.page)) { location.hash = '#/'; }
+      if (detail && await confirmAndDelete(detail.page)) { guardBypass = true; location.hash = '#/'; }
     };
   }
 
@@ -5097,7 +5097,7 @@
       importOnNewPage = true;
       if (location.hash === '#/new') { route(); } else { location.hash = '#/new'; }
     },
-    leave: async function () {
+    leave: async function (target) {
       // Page setup changes (owner, linked member, visibility) are kept only with Save changes: ask before they are lost
       if (window.PageEditor.hasPendingSetup && window.PageEditor.hasPendingSetup()) {
         var setupChoice = await askSaveSetup();
@@ -5114,7 +5114,8 @@
           }
         } else if (!(await window.askConfirm('Your changes will be lost.', { title: 'Leave without saving?', ok: 'Leave' }))) { return; }
       }
-      location.hash = current.backTo || '#/';
+      guardBypass = true;
+      location.hash = typeof target === 'string' && target ? target : (current.backTo || '#/');
     }
   };
 
@@ -5123,8 +5124,24 @@
   var libraryRefreshHook = null;
   window.addEventListener('batch-progress', function () { if (libraryRefreshHook) { libraryRefreshHook(); } });
 
+  // The browser's Back button (or any link) leaving the editor with unsaved work asks first, the same as the page's own back button
+  var guardBypass = false;   // set when the person has already answered the prompt
+  var guardAsking = false;
+  function stillInEditor(hash) { return current.id ? hash.indexOf('#/edit/' + current.id + '/') === 0 : hash === '#/new'; }
+  var onEditorScreen = false;
   async function route() {
     if (!team) { return; }
+    if (onEditorScreen && !guardBypass && !stillInEditor(location.hash || '') && window.PageEditor && window.PageEditor.isDirty) {
+      var unsaved = window.PageEditor.isDirty() || (window.PageEditor.hasPendingSetup && window.PageEditor.hasPendingSetup());
+      if (unsaved) {
+        var wanted = location.hash || '#/';
+        history.pushState(null, '', current.id ? '#/edit/' + current.id + '/' + current.n : '#/new');   // put the editor's address back without reloading it
+        if (!guardAsking) { guardAsking = true; try { await window.PageHost.leave(wanted); } finally { guardAsking = false; } }
+        return;
+      }
+    }
+    guardBypass = false;
+    onEditorScreen = /^#\/(new|edit\/)/.test(location.hash || '');
     libraryRefreshHook = null;
     // The check marks beside freshly built drafts go when the library page is left
     if (location.hash !== '' && location.hash !== '#' && location.hash !== '#/' && window.Batch && window.Batch.clearChecks) { window.Batch.clearChecks(); }
