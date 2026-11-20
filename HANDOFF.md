@@ -170,3 +170,10 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 **Reviewer per page:** the team lead reviews every page by default. Only Admin can choose another reviewer in Page setup (greyed out for everyone else; the server refuses anyone else's change, `reviewer_locked`). The named reviewer can approve and send back that page, sees it in the library once it is submitted, and gets it in their bell. The team lead can always review too. The lead is still told (bell for a week, plus an email on the server) whenever an owner who was allowed to republish changes a live page; the bell notice goes after a week or when the lead clicks it (remembered per person in the browser).
 
 **Browser Back in the editor:** leaving the editor by any route (Back button, a link) with unsaved work now asks the same Leave / Save question as the page's own back button; the editor's address is put back first, so Cancel keeps you where you were. Delete draft and saved/published pages leave without asking. Phone width was checked for the results page: no sideways scroll, filters wrap into two columns (the header stays sticky only on wider screens, on purpose, as open filters would fill the screen).
+
+## For the move to IT's hosting (not needed for the demo or the first alpha)
+1. Build the Docker image and run it on a test server (never done).
+2. Decide the sign-in with IT: real Entra token checking is not built; only the trusted-header mode (`TRUSTED_EMAIL_HEADER`) exists. Do not host it anywhere reachable except behind that proxy until this is done.
+3. Run `docs/AI-first-run-check.md` once an API key exists (the demo uses Claude's built-in AI; the server AI has only been tested with stand-in replies).
+4. Email is queued in the outbox only; nothing is sent. Needed only if the alpha team wants emails.
+5. Several teams on one server is not supported yet (one team for the alpha).
