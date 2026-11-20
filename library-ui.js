@@ -1944,7 +1944,6 @@
     current.liveEdit = !!(detail && detail.page && detail.page.liveVersion);   // changes to a live page are saved only by hand
     current.draftChanged = !!(current.liveEdit && detail.page.workingVersion && detail.page.workingVersion.changed);
     renderChanges(current.liveEdit ? data.changes : [], id, Number(n));
-    document.getElementById('save-note').hidden = !current.liveEdit;
     setMainButtonLabel();          // Publish, when this person may publish this page without review
     window.PageEditor.refresh();   // greys Save draft and Delete draft until there is something to save or delete
     if (mine !== routing) { return; }
@@ -2131,7 +2130,6 @@
     setMainButtonLabel();
     document.getElementById('delete-draft').hidden = false;   // greyed out until the page is saved
     document.getElementById('delete-draft').onclick = null;
-    document.getElementById('save-note').hidden = true;
     renderChanges([], null, null);
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
@@ -2164,7 +2162,6 @@
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
     showOwnerPublishField(id, detail, false);
     renderChanges(data.changes || [], id, Number(n), true);   // read-only here: the list and the yellow box, without Undo or Approve
-    document.getElementById('save-note').hidden = true;
     var name = versionName(hist).toLowerCase();   // "version 2" or "draft"
     window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · ' + name);
     var box = el('div', 'banner banner-info');
@@ -4641,9 +4638,8 @@
         wireDeleteDraft();               // and Delete draft works
         window.PageEditor.refresh();
       } else {
-        var noteBox = document.getElementById('save-note');
-        var reply = await backend().save(current.id, current.n, text, current.liveEdit ? noteBox.value : '');
-        if (current.liveEdit) { current.draftChanged = true; noteBox.value = ''; }   // there is now a saved draft that differs from the live page
+        var reply = await backend().save(current.id, current.n, text);
+        if (current.liveEdit) { current.draftChanged = true; }   // there is now a saved draft that differs from the live page
         if (reply && reply.changes) { renderChanges(reply.changes, current.id, current.n); }
         // A change to a section the team lead holds was not applied: the draft keeps the lead's version, which the editor now shows
         if (reply && reply.savedText && reply.savedText !== text && current.liveEdit) {
