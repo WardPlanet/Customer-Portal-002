@@ -4,7 +4,7 @@ The current state of the wiki prototype: what it does, how it is built, what is 
 `docs/HANDOFF-history.md` (some of it is out of date; this file wins). Hosting notes for IT are in `README.md`.
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
-- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 337, private).
+- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 338, private).
 - **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 26).
 - **Tests:** `npm test`, 132 passing (rules, search, import, admin, photos, and the Node server's library routes).
 
@@ -45,6 +45,8 @@ and earlier is the only acceptable AutoMapper range (neither is used).
 | `search.cjs`, `search-log.cjs`, `search-review.js` | Search ranking, the search log, and the lead's Search review screen. |
 | `batch.js`, `batch-core.cjs`, `importer.js`, `ai.js` | Import (one document, or batch of several), AI calls. |
 | `admin.js`, `admin-core.cjs`, `teams.js`, `teams/*.json` | Admin tools and the team rosters. `teams-parked/support.json` holds the removed Support team. |
+| `Dockerfile`, `.dockerignore` | The container for IT (production packages only, non-root, health check, data on a `/data` volume). Written but not built here (no Docker daemon in the build environment); the same steps were run by hand. |
+| `fonts/` | The two typefaces as files (Inter, Source Serif 4; SIL Open Font License) so no page asks Google for them. The artifact build drops the `@font-face` block and links Google Fonts instead. |
 | `guidelines/` | The style guide and import rules the AI follows. Editable text. |
 | `notifications.md` | The email copy and the rules for when each is sent (not sent yet, see section 8). |
 | `docs/HANDOFF-history.md` | The old running log. |

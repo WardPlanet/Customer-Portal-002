@@ -8,7 +8,7 @@ This file is for whoever hosts it. `HANDOFF.md` has the product behavior, who ca
 ## What it needs
 
 - Node.js 20.12 or later. No build step, no database.
-- Outbound HTTPS to `api.anthropic.com` (only for the AI features).
+- Outbound HTTPS to `api.anthropic.com` (only for the AI features). Nothing else: the typefaces are served from the `fonts/` folder.
 - A folder it can write to, for saved drafts.
 - An Anthropic API key (optional: without one everything works except the AI features).
 
@@ -73,6 +73,22 @@ variables take priority). `.env.example` documents each one.
 | `/vendor/mammoth.browser.min.js` | The Word reader the browser loads when a Word file is chosen. |
 | `/api/library/backup`, `/api/library/restore` | Download every page and version as one file; restore from one (team lead only). |
 | `/api/public/pages`, `/api/public/pages/:id` | The public side: no login, only live Client-Safe pages, no ownership details. |
+
+## Run it as a container
+
+A `Dockerfile` is included: one container, one Node process, no database.
+
+```
+docker build -t planetdds-wiki .
+docker run -d --name wiki -p 3000:3000 -v wiki-data:/data --env-file .env planetdds-wiki
+```
+
+- Pages are files under `/data/drafts` (set by `DRAFTS_DIR`). **Mount a persistent, backed-up volume at `/data`**; without one, pages are lost when the container is replaced.
+- Run **exactly one** copy (pages are local files).
+- The image installs production packages only, runs as the non-root `node` user and has a health check on `/healthz`.
+- Put it behind the company's sign-in proxy and set `TRUSTED_EMAIL_HEADER` (see "Sign-in").
+- The typefaces (Inter and Source Serif 4, SIL Open Font License, licences in `fonts/`) are served from the container, so no page makes a request to Google.
+- Outbound access is needed only to `api.anthropic.com`, and only for the AI features.
 
 ## Sign-in (for the alpha)
 

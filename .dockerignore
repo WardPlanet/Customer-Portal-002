@@ -1,0 +1,15 @@
+node_modules
+dist
+drafts
+.git
+.gitignore
+.env
+docs
+tests
+scripts
+teams-parked
+*.docx
+*.md
+!README.md
+Dockerfile
+.dockerignore

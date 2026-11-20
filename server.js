@@ -89,6 +89,13 @@ async function moveLooseDrafts() {
   });
 });
 
+// The typefaces (Inter and Source Serif 4, both under the SIL Open Font License, see fonts/LICENSE-*.txt), served from here so no page asks Google for them
+app.get('/fonts/:name', function (req, res) {
+  if (!/^[a-z0-9-]+\.woff2$/.test(req.params.name)) { return sendError(res, 404, 'not_found', 'No such font.'); }
+  res.set('Cache-Control', 'public, max-age=31536000, immutable');
+  res.sendFile(path.join(here, 'fonts', req.params.name), function (error) { if (error && !res.headersSent) { sendError(res, 404, 'not_found', 'No such font.'); } });
+});
+
 // The PDF library, loaded by app.js only when someone clicks Export PDF
 // Word files are read in the browser too (batch import), with mammoth's browser build
 app.get('/vendor/mammoth.browser.min.js', function (req, res) {

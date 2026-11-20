@@ -24,7 +24,12 @@ function safeForScript(text) {
 const html = await read('index.html');
 // The single-file build carries no other files, so the landing page's background picture is embedded in the stylesheet
 const landingPicture = (await fs.readFile(path.join(here, 'landing-bg.webp'))).toString('base64');
-const css = (await read('styles.css')).replace('url("landing-bg.webp")', () => 'url("data:image/webp;base64,' + landingPicture + '")');
+// The server serves the typefaces from the fonts folder; a single file cannot, so the artifact drops those rules and links Google Fonts instead
+const css = (await read('styles.css'))
+  .replace(/\/\* FONTS-START[\s\S]*?\/\* FONTS-END \*\/\n*/, '')
+  .replace('url("landing-bg.webp")', () => 'url("data:image/webp;base64,' + landingPicture + '")');
+const googleFonts = '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n' +
+  '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@500;600&display=swap" rel="stylesheet">\n';
 const app = await read('app.js');
 const workflow = await read('workflow.cjs');
 const search = await read('search.cjs');
@@ -69,12 +74,14 @@ const instructions =
   'window.TEAM_ROSTER = ' + safeForScript(JSON.stringify(team)) + ';';
 
 const linkTag = '<link rel="stylesheet" href="styles.css">';
+const preloadTag = '<link rel="preload" href="fonts/inter-latin-400.woff2" as="font" type="font/woff2" crossorigin>\n';
 const scriptTag = ['<script src="brand.js"></script>', '<script src="workflow.cjs"></script>', '<script src="search.cjs"></script>', '<script src="search-log.cjs"></script>', '<script src="admin-core.cjs"></script>', '<script src="batch-core.cjs"></script>', '<script src="outline.js"></script>', '<script src="store.js"></script>', '<script src="app.js"></script>', '<script src="batch.js"></script>', '<script src="search-review.js"></script>', '<script src="admin.js"></script>', '<script src="library-ui.js"></script>'].join('\n');
 if (!html.includes(linkTag) || !html.includes(scriptTag)) {
   throw new Error('index.html no longer has the stylesheet and script tags this build looks for.');
 }
 
 const output = html
+  .replace(preloadTag, () => googleFonts)
   .replace(linkTag, () => '<style>\n' + css + '\n</style>')
   .replace(scriptTag, () => pdfLibrary + '<script>\n' + instructions + '\n</script>\n' +
     // The rules and the store first, then the editor, then the library screens (the same order as index.html)
