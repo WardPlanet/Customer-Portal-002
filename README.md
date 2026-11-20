@@ -3,7 +3,7 @@
 A web editor for process-documentation pages. A small Node server hosts the page, stores drafts as
 text files, and forwards the AI features to the Anthropic API so the API key never reaches the browser.
 
-This file is for whoever hosts it. `HANDOFF.md` has the product behavior, who can do what, and what is still open; `docs/HANDOFF-history.md` is the older change log.
+This file is for whoever hosts it. `HANDOFF.md` has the product behavior, who can do what, and what is still open. Hosting summary for IT: `docs/IT-summary.md`.
 
 ## What it needs
 

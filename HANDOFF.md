@@ -1,7 +1,6 @@
 # Planet DDS Wiki: handoff
 
-The current state of the wiki prototype: what it does, how it is built, what is still open. The older, change-by-change log is in
-`docs/HANDOFF-history.md` (some of it is out of date; this file wins). Hosting notes for IT are in `README.md`.
+The current state of the wiki prototype: what it does, how it is built, what is still open. Hosting: `docs/IT-summary.md` (one page for IT) and `README.md` (detail). The old change log was removed; it is in git history.
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
 - **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 337, private).
@@ -49,7 +48,6 @@ and earlier is the only acceptable AutoMapper range (neither is used).
 | `fonts/` | The two typefaces as files (Inter, Source Serif 4; SIL Open Font License) so no page asks Google for them. The artifact build drops the `@font-face` block and links Google Fonts instead. |
 | `guidelines/` | The style guide and import rules the AI follows. Editable text. |
 | `notifications.md` | The email copy and the rules for when each is sent (not sent yet, see section 8). |
-| `docs/HANDOFF-history.md` | The old running log. |
 
 ## 4. Who can do what
 
@@ -137,6 +135,6 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 
 **Unverified:** the AI paths (import labelling, Ask a question, assist) were only tested with stand-in answers because no AI is available in the preview. Dark mode and narrow windows were checked on the main screens only. The Node server's `X-Acting-As` header is unauthenticated.
 
-**Ideas noted for later** (none built; detail in `docs/HANDOFF-history.md`): review reminders and "still accurate", search that learns, Teams integration, one source for staff and customers, policy acknowledgement and audit trail, guided page types, change notes and follow a page, health checks, context help from the products.
+**Ideas noted for later** (none built): review reminders and "still accurate", search that learns, Teams integration, one source for staff and customers, policy acknowledgement and audit trail, guided page types, change notes and follow a page, health checks, context help from the products.
 
 **Documents:** the management summary (`Planet DDS Wiki - what has been built.docx`) predates ownership by person, soft delete, the owner-republish setting and the no-team access; it needs a refresh.

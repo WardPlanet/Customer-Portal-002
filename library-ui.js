@@ -1291,7 +1291,7 @@
     table.appendChild(thead);
     var body = el('tbody');
     sortRows(shown).forEach(function (p) {
-      // Status colours follow the standard (see "Status colours" in docs/HANDOFF-history.md): a tint only for expiring (yellow), expired (red) and, for the team
+      // Status colours follow the standard (see HANDOFF.md): a tint only for expiring (yellow), expired (red) and, for the team
       // lead, waiting for review (green); the owner's own drafts have a "Your drafts" heading and a blue bar, a sent-back page an orange bar, and a
       // page locked in review is grey.
       var row = el('tr', 'lib-row');
