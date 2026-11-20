@@ -4367,7 +4367,7 @@
     box.appendChild(actions);
     if (check.length) {
       var notes = el('div', 'ask-email-check');
-      notes.appendChild(el('p', 'ask-email-check-title', 'Check before you send (not part of the reply)'));
+      notes.appendChild(el('p', 'ask-email-check-title', 'Check before you send'));
       var list = el('ul', 'ask-email-check-list');
       check.forEach(function (note) { list.appendChild(el('li', '', note)); });
       notes.appendChild(list);
