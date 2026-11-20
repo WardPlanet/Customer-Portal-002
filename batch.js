@@ -439,7 +439,7 @@
     function stepChoose(message) {
       self.stage = 'choose';
       clear();
-      head('Batch import', 'Add several pages at once. Upload a file for each page (each one is imported as a single document), or tick the box for one file that holds several. Imported pages are saved as drafts.');
+      head('Batch import', 'Add several pages at once. Upload a file for each page (each one is imported as a single document), and mark any file that holds several. Imported pages are saved as drafts.');
       if (message) { root.appendChild(el('p', 'batch-problem', message)); }
       // The limitation is a visible warning above the form, not small grey text inside it
       var warning = el('p', 'batch-warning', 'Images and pictures are not imported. Add them back by hand after the page is created.');
@@ -450,18 +450,9 @@
       card.appendChild(el('h2', 'lib-h2', '1. Upload files'));
       card.appendChild(el('p', 'lib-hint', 'Supported formats: Word (.docx), PDF, OpenDocument (.odt), RTF, HTML, text, and Markdown. You’ll review everything before any pages are created.'));
 
-      // Each file is ONE document unless this is ticked: then the AI looks for where each separate document starts (one file only)
-      var splitBox = el('label', 'batch-split');
-      var splitCheck = el('input');
-      splitCheck.type = 'checkbox';
-      splitBox.appendChild(splitCheck);
-      splitBox.appendChild(el('span', '', 'This file holds several documents. Find where each one starts.'));
-      card.appendChild(splitBox);
-      card.appendChild(el('p', 'lib-hint', 'Left unticked, every file you choose is imported as a single document, exactly as written. The ticked option works on one file at a time.'));
-
+      // Each file is ONE document unless it is marked on the next step as holding several (then the AI looks for where each one starts)
       function chooseFiles(files) {
-        if (files.length > 1 || (files[0] && !splitCheck.checked)) { loadSeveral(files); }   // every file is its own document, so straight to the review
-        else if (files[0]) { load(files[0]); }
+        if (files.length) { stepFiles(files); }
       }
 
       // A real drop zone. The file input inside it is hidden from the eye but still takes the keyboard focus (the zone shows the focus ring).
@@ -500,6 +491,64 @@
       }));
       card.appendChild(pasteBox);
       root.appendChild(card);
+    }
+
+    /* ----- 1b. Mark the files that hold several documents (before the AI looks at anything) ----- */
+    function fileSize(bytes) { return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB'; }
+
+    function stepFiles(files) {
+      self.stage = 'choose';
+      clear();
+      head('Batch import', files.length === 1 ? files[0].name : files.length + ' files');
+      var card = el('section', 'batch-card');
+      card.appendChild(el('h2', 'lib-h2', '2. Does any file hold several documents?'));
+      card.appendChild(el('p', 'lib-hint', 'Every file is imported as one document, exactly as written. Mark a file that holds several documents and the AI will find where each one starts. Nothing is read by the AI until you continue.'));
+      var marked = files.map(function () { return false; });
+      var list = el('div', 'batch-files');
+      files.forEach(function (file, i) {
+        var row = el('div', 'batch-file-row');
+        var text = el('div', 'batch-file-text');
+        text.appendChild(el('strong', '', file.name));
+        text.appendChild(el('div', 'lib-row-sub', fileSize(file.size || 0)));
+        row.appendChild(text);
+        var split = el('label', 'batch-file-split');
+        var box = el('input');
+        box.type = 'checkbox';
+        box.setAttribute('aria-label', file.name + ' holds several documents');
+        box.addEventListener('change', function () { marked[i] = box.checked; row.classList.toggle('is-multi', box.checked); });
+        split.appendChild(box);
+        split.appendChild(document.createTextNode('Holds several documents'));
+        row.appendChild(split);
+        list.appendChild(row);
+      });
+      card.appendChild(list);
+      var bar = el('div', 'batch-bar');
+      bar.appendChild(ui.button('Continue', 'primary-btn', function () {
+        if (!marked.some(Boolean)) { loadSeveral(files, marked); }
+        else if (files.length === 1) { load(files[0]); }   // one file with several documents: the usual scan
+        else { loadSeveral(files, marked); }
+      }));
+      bar.appendChild(ui.button('Choose other files', 'quiet-link', function () { stepChoose(); }));
+      card.appendChild(bar);
+      root.appendChild(card);
+    }
+
+    // Finds the documents in one file that was marked as holding several: the AI when it is available, else the file's headings
+    async function planFor(segments, fileName) {
+      var plan = null;
+      var note = '';
+      if (segments.length > Core.MAX_SEGMENTS) { return { plan: Core.splitByHeadings(segments, fileName), note: fileName + ' is long (' + segments.length + ' sections), so it was split at its headings.' }; }
+      if (await window.PageEditor.aiAvailable()) {
+        try {
+          plan = Core.normalizePlan(await window.PageEditor.aiJson(Core.buildScanPrompt(segments, fileName)), segments.length);
+          if (!plan.documents.length) { plan = null; note = 'The AI did not find any documents in ' + fileName + ', so it was split at its headings instead.'; }
+        } catch (error) {
+          note = 'The AI could not scan ' + fileName + ' (' + window.PageEditor.errorMessage(error) + '), so it was split at its headings instead.';
+        }
+      } else {
+        note = 'The AI is not available, so ' + fileName + ' was split at its headings.';
+      }
+      return { plan: plan || Core.splitByHeadings(segments, fileName), note: note };
     }
 
     function plainError(message) {
@@ -553,7 +602,8 @@
     // Several files at once: every file is its own document, so there is nothing to scan for. They go
     // straight to the review.
     var MAX_FILES = 40;
-    async function loadSeveral(files) {
+    async function loadSeveral(files, flags) {
+      flags = flags || [];
       if (files.length > MAX_FILES) { stepChoose('That is ' + files.length + ' files. Choose up to ' + MAX_FILES + ' at a time.'); return; }
       clear();
       head('Batch import', files.length === 1 ? files[0].name : files.length + ' files');
@@ -571,7 +621,9 @@
 
       var segments = [];
       var documents = [];
+      var skipped = [];
       var notes = [];
+      var fileList = [];
       var images = 0;
       for (var i = 0; i < files.length; i += 1) {
         bar.set(i / files.length, 'Reading ' + (i + 1) + ' of ' + files.length + ': ' + files[i].name);
@@ -581,11 +633,21 @@
           if (!read.segments.length) { throw plainError(files[i].name + ' has no text.'); }
           var first = segments.length + 1;
           read.segments.forEach(function (piece) { segments.push(piece); });
-          // The title is the document's own: found from the whole file (Word's Title style, else a first line that reads like a title), else the file name
-          var fileLines = linesFromSegments(read.segments);
-          var fileLabels = Core.labelByRules(fileLines);
-          var titleLine = fileLines.filter(function (line, n) { return fileLabels[n].role === 'title'; })[0];
-          documents.push({ title: (titleLine ? titleLine.text : files[i].name.replace(/\.[^.]+$/, '')).slice(0, 150), first: first, last: segments.length, fileName: files[i].name });
+          fileList.push({ name: files[i].name, first: first, last: segments.length, multi: !!flags[i] });
+          if (flags[i]) {
+            // Marked as holding several documents: found by the AI (or the file's headings), kept in this file's range of sections
+            var found = await planFor(read.segments, files[i].name);
+            found.plan.documents.forEach(function (d) { documents.push({ title: d.title, first: d.first + first - 1, last: d.last + first - 1 }); });
+            (found.plan.skipped || []).forEach(function (g) { skipped.push({ first: g.first + first - 1, last: g.last + first - 1, reason: g.reason }); });
+            if (found.note) { notes.push(found.note); }
+            (found.plan.problems || []).forEach(function (p) { notes.push(p); });
+          } else {
+            // The title is the document's own: found from the whole file (Word's Title style, else a first line that reads like a title), else the file name
+            var fileLines = linesFromSegments(read.segments);
+            var fileLabels = Core.labelByRules(fileLines);
+            var titleLine = fileLines.filter(function (line, n) { return fileLabels[n].role === 'title'; })[0];
+            documents.push({ title: (titleLine ? titleLine.text : files[i].name.replace(/\.[^.]+$/, '')).slice(0, 150), first: first, last: segments.length, fileName: files[i].name });
+          }
           images += read.images;
           setMark(marks[i], 'done');
         } catch (error) {
@@ -596,7 +658,7 @@
       }
       bar.set(1, 'Done reading');
       if (!documents.length) { stepChoose('None of those files could be read. ' + notes.join(' ')); return; }
-      session = { fileName: files.length === 1 ? files[0].name : files.length + ' files', segments: segments, imageCount: images, plan: { documents: documents, skipped: [], problems: [] }, notes: [files.length === 1 ? 'This file is imported as one document.' : 'Each file is treated as one separate document.'].concat(notes), multiFile: true, edited: {} };
+      session = { fileName: files.length === 1 ? files[0].name : files.length + ' files', segments: segments, imageCount: images, plan: { documents: documents, skipped: skipped, problems: [] }, files: fileList, notes: [flags.some(Boolean) ? 'Files marked as holding several documents were split; every other file is one document.' : (files.length === 1 ? 'This file is imported as one document.' : 'Each file is treated as one separate document.')].concat(notes), multiFile: true, edited: {} };
       session.aiOk = await window.PageEditor.aiAvailable();
       if (!session.aiOk) { session.notes.push('The AI is not available, so the layout is worked out by rules alone.'); }
       var pages = await ui.backend().list('').catch(function () { return { pages: [] }; });
@@ -781,6 +843,16 @@
       root.appendChild(bar);
     }
 
+    // The file a document comes from (when several files were read together) and whether it was marked as holding several documents
+    function fileOf(doc) { return (session.files || []).filter(function (f) { return doc.first >= f.first && doc.first <= f.last; })[0] || null; }
+    // A document is joined to the one above when both come from one file that holds several documents
+    function isJoined(index) {
+      if (index < 1) { return false; }
+      if (!session.files) { return !session.multiFile; }   // one file scanned for documents
+      var here = fileOf(session.plan.documents[index]);
+      return !!(here && here.multi && here === fileOf(session.plan.documents[index - 1]));
+    }
+
     function documentRow(doc, index) {
       var row = el('div', 'batch-doc');
       var include = el('input');
@@ -819,7 +891,7 @@
 
       // Only for one file that holds several documents: the parts are joined (a dotted line connects them) and can be merged back together.
       // Separate files are separate documents, so there is nothing to merge.
-      if (index > 0 && !session.multiFile) {
+      if (isJoined(index)) {
         row.classList.add('is-joined');
         row.appendChild(ui.button('Merge with the one above', 'row-btn', function () {
           session.plan = Core.mergeIntoPrevious(session.plan, index);
@@ -932,7 +1004,12 @@
       }
       var result = Core.buildPage(lines, labels, { title: doc.edited ? doc.title : (doc.title || '') });
       if (aiNote) { result.review_notes.push(aiNote); }
+      var splitFile = fileOf(doc);
       var source = doc.fileName ? doc.fileName : session.fileName + ' (document ' + job.number + ' of ' + job.of + ')';
+      if (!doc.fileName && splitFile && splitFile.multi) {
+        var inFile = session.plan.documents.filter(function (d) { return d.include !== false && fileOf(d) === splitFile; });
+        source = splitFile.name + ' (document ' + (inFile.indexOf(doc) + 1) + ' of ' + inFile.length + ')';
+      }
       result.source = source;
       if (!String(result.title || '').trim()) { result.title = String(doc.title || '').trim(); }
       var ownerTeam = ui.teamOfOwner ? ui.teamOfOwner(ownerFor(doc)) : null;   // admin: the draft belongs to its owner's department
