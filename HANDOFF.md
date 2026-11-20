@@ -22,7 +22,7 @@ It runs two ways with the same code:
 ## 2. Run, build, test
 
 ```
-npm install
+npm install                                # on a server: npm ci --omit=dev (no known vulnerabilities; pdfjs-dist is build-time only)
 ANTHROPIC_API_KEY=... npm start        # http://localhost:3000, no key: AI buttons are greyed out
 npm run build:artifact                 # writes dist/page-editor-artifact.html
 npm test                               # node --test tests/*.test.cjs

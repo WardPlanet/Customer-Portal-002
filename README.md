@@ -15,10 +15,12 @@ This file is for whoever hosts it. `HANDOFF.md` has the product behavior, who ca
 ## Run it
 
 ```
-npm install
+npm ci --omit=dev         # or npm install --omit=dev: only what the server needs to run
 cp .env.example .env      # then fill in ANTHROPIC_API_KEY
 npm start                 # http://localhost:3000
 ```
+
+A production install has no known vulnerabilities (`npm audit --omit=dev` reports none). `pdfjs-dist` is a build-time dependency only: it is embedded in the single-file Claude artifact (`npm run build:artifact`) and the server never loads it, so a hosted copy does not install it.
 
 ## Configuration
 
