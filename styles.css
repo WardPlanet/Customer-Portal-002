@@ -5,8 +5,8 @@
     --surface-muted: #fafafa;
     --icon-blue: #0069DC;    /* every icon: the light blue of the logo bars */
     --table-head: #d3e6f5;   /* header row of a table in a page: the light blue (brand tint), with dark blue text */
-    --table-alt: #f1f1f5;    /* every second row: grey */
-    --table-line: #e0e0e6;   /* the lines between rows and columns */
+    --table-alt: #f2f2f2;    /* every second row: a plain grey (no blue or purple in it) */
+    --table-line: #e2e2e2;   /* the lines between rows and columns */
     --border: #e4e4e7;
     --border-strong: #d4d4d8;
     --text: #18181b;
