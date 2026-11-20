@@ -259,73 +259,15 @@
   /* ---------- The screen ---------- */
 
   /* ---------- A creation that keeps going when you leave the screen ----------
-     While drafts are being made, leaving the Batch import screen does not stop them. A small button in the corner shows
-     the progress and takes you back to the screen; when the work is done it says "Complete" and goes away after a few
-     seconds. `active` is the import the screen belongs to; the screen is drawn again from its state when you return. */
+     While drafts are being made, leaving the Batch import screen does not stop them: pressing Create goes back to the library, which shows
+     the drafts being built (see window.Batch.building). `active` is the import the screen belongs to; the screen is drawn again from its
+     state if you come back to it. */
   var active = null;
   // What the library shows while drafts are being made: the documents still to be built (greyed, with a moving green bar), and a check mark beside
   // each draft built in this run until the person leaves the library page.
   var builtChecks = {};
   var failedCleared = false;
   function notifyProgress() { try { window.dispatchEvent(new Event('batch-progress')); } catch (error) { /* an old browser: the library refreshes on its next visit */ } }
-  var widget = null;
-  var widgetTimer = null;
-  var WIDGET_SECONDS = 8;
-
-  function hideWidget() {
-    if (widget) { widget.hidden = true; }
-    clearTimeout(widgetTimer);
-    widgetTimer = null;
-  }
-
-  function updateWidget() {
-    var state = active && active.snapshot ? active.snapshot() : null;
-    var onBatchScreen = /^#\/batch/.test(location.hash) || location.hash === '' || location.hash === '#/' || location.hash === '#';   // the library shows the progress itself
-    if (!state || onBatchScreen || (state.stage !== 'creating' && state.stage !== 'done') || (state.stage === 'done' && state.seen)) { hideWidget(); return; }
-
-    if (!widget) {
-      widget = document.createElement('button');
-      widget.type = 'button';
-      widget.className = 'batch-widget';
-      widget.setAttribute('role', 'status');
-      widget.addEventListener('click', function () { location.hash = '#/batch'; });
-      document.body.appendChild(widget);
-    }
-    widget.hidden = false;
-    widget.textContent = '';
-    var label = document.createElement('span');
-    label.className = 'batch-widget-label';
-    var track = document.createElement('span');
-    track.className = 'batch-widget-track';
-    var fill = document.createElement('span');
-    fill.className = 'batch-widget-fill';
-    track.appendChild(fill);
-    if (state.stage === 'creating') {
-      widget.classList.remove('is-complete');
-      label.textContent = 'Creating drafts \u00b7 ' + (state.finished) + ' of ' + state.total;
-      fill.style.width = Math.round(100 * (state.total ? state.finished / state.total : 0)) + '%';
-      widget.title = 'Back to the import';
-      clearTimeout(widgetTimer);
-      widgetTimer = null;
-    } else {
-      widget.classList.add('is-complete');
-      label.textContent = '\u2713 Complete' + (state.failed ? ' \u00b7 ' + state.failed + ' did not finish' : '');
-      fill.style.width = '100%';
-      widget.title = 'See the results';
-      if (!widgetTimer) {
-        // Goes away on its own. The drafts are in the library either way.
-        widgetTimer = setTimeout(function () {
-          widgetTimer = null;
-          if (active) { active.seen = true; }
-          hideWidget();
-        }, WIDGET_SECONDS * 1000);
-      }
-    }
-    widget.appendChild(label);
-    widget.appendChild(track);
-  }
-
-  window.addEventListener('hashchange', updateWidget);
 
   function show(main, ui) {
     // Coming back while drafts are still being made (or have just finished): show that, not a new upload page
@@ -373,7 +315,6 @@
         root = el('div', 'batch');
         main.appendChild(root);
         if (self.stage === 'creating') { drawCreating(); } else { summary(session.creation.chosen); }
-        updateWidget();
       }
     };
     active = self;
@@ -961,7 +902,7 @@
       self.stage = 'creating';
       self.seen = false;
       failedCleared = false;
-      function refresh() { drawCreating(); updateWidget(); notifyProgress(); }
+      function refresh() { drawCreating(); notifyProgress(); }
       // The upload has started: back to the library, where the drafts show up as they are built
       if (/^#\/batch/.test(location.hash)) { location.hash = '#/'; }
       refresh();
@@ -983,7 +924,6 @@
       }
       self.stage = 'done';
       summary(chosen);   // drawn only if you are still on this screen
-      updateWidget();    // otherwise the corner button says "Complete"
     }
 
     // Converts one document and saves it as a draft. One retry if the AI says it is busy.
