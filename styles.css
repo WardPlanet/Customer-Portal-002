@@ -1991,7 +1991,7 @@ mark.search-hit { background: var(--mark-bg); color: inherit; border-radius: 3px
 .demo-bar .acting-select { padding: 4px 8px; font-size: 13px; }
 
 /* A page with no owner to contact: red selector (library row and Page Setup), and the team lead's batch-assign list */
-.owner-select.is-unassigned, #owner.is-unassigned { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+.owner-select.is-unassigned, #owner.is-unassigned, #visibility.is-unassigned { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
 .owner-unassigned { color: var(--danger); font-weight: 600; }
 .team-orphans { margin-top: 24px; padding: 16px 16px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; }
 .team-subtitle { margin: 0 0 4px; font-size: 14px; }

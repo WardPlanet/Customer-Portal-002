@@ -702,9 +702,9 @@
   function setOwnerPublishes(page, on, actor, team, now) {
     requireLead(actor, team, 'let the owner publish edits');
     if (on) {
+      // Can be chosen before the page is live (the page is new); a live page must be internal only
       var live = liveVersion(page);
-      if (!live) { throw new WorkflowError('not_live', 'Only a live page can let its owner publish edits.', 409); }
-      if (fields(live.text).visibility !== 'Internal-Only') { throw new WorkflowError('public_page', 'A public page always needs review. Make it internal only first.', 409); }
+      if (live && fields(live.text).visibility !== 'Internal-Only') { throw new WorkflowError('public_page', 'A public page always needs review. Make it internal only first.', 409); }
     }
     page.ownerPublishes = !!on;
     page.updatedAt = page.updatedAt || now;

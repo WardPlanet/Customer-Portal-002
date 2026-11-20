@@ -1806,15 +1806,22 @@
   function showOwnerPublishField(id, detail, editable, override) {
     ownerPubContext = { id: id, detail: detail, editable: editable };
     var page = detail && detail.page;
-    if (page && override) { page = Object.assign({}, page, override); }
+    if (override) { page = Object.assign({}, page || {}, override); }
     var lead = actorIsLead() || actingAsAdmin();
     var live = !!(page && page.liveVersion);
+    var isNew = !id && !detail;   // a page that has not been saved yet
     // The team lead owns the page (or it has no owner yet and the lead is the default): there is nobody to allow, so the toggle is greyed out. It
     // becomes available as soon as the owner is someone else.
     var leadOwns = pageOwnedByLead(page);
     var note = '';
     var canChange = false;
-    if (!live) { note = 'Available once the page is live. The team lead is asked when first publishing an internal page.'; }
+    if (isNew) {
+      // A new page: the lead or Admin can allow it once someone other than the lead is chosen as owner
+      if (!lead) { note = 'The team lead sets this.'; }
+      else if (leadOwns || !page || !page.owner) { note = 'Choose an owner other than the team lead to allow them to republish.'; }
+      else { canChange = true; }
+    }
+    else if (!live) { note = 'Available once the page is live. The team lead is asked when first publishing an internal page.'; }
     else if (leadOwns) { note = 'The team lead owns this page and publishes without review. When another person owns it, this starts as Requires review and the team lead can allow it.'; }
     else if (page.visibility !== 'Internal-Only' && !page.ownerPublishes) { note = 'A public page always needs review.'; }
     else if (!lead) { note = 'The team lead sets this.'; }
@@ -1822,10 +1829,11 @@
     else if (page.ownerPending) { note = 'Save or cancel the change of owner first, then you can allow the new owner to republish.'; }
     else { canChange = true; }
     window.PageEditor.setOwnerPublish({
-      value: leadOwns && live ? true : !!(page && page.ownerPublishes),   // a page the lead owns reads Allow (greyed): the lead publishes without review
+      value: leadOwns && (live || isNew) ? true : !!(page && page.ownerPublishes),   // a page the lead owns reads Allow (greyed): the lead publishes without review
       editable: canChange,
       note: note,
       onChange: async function (on) {
+        if (isNew) { pendingOwnerPublishes = !!on; return true; }   // saved with the page the first time it is saved
         var done = await attempt(backend().setOwnerPublishes(id, on));
         if (!done) { return false; }
         notice(on ? 'The owner can now publish edits to this page without review.' : 'Edits to this page need review again.');
@@ -1834,7 +1842,13 @@
     });
   }
   // The editor's Owner was changed (not saved yet): a new owner starts as "not allowed", and the toggle is available when that owner is not the team lead
+  var pendingOwnerPublishes = false;   // chosen on a page that has not been saved yet
   function ownerPublishOwnerChanged(ownerKey, value) {
+    if (ownerPubContext && !ownerPubContext.id && !ownerPubContext.detail) {
+      pendingOwnerPublishes = false;   // a new owner starts as not allowed
+      showOwnerPublishField(null, null, true, { owner: ownerKey, ownerDefault: false, ownerPublishes: !!value });
+      return;
+    }
     if (!ownerPubContext || !ownerPubContext.detail) { return; }
     var saved = ownerPubContext.detail.page;
     var pending = String(ownerKey || '') !== String(saved.owner || '');   // a different owner chosen but not saved yet
@@ -2270,9 +2284,11 @@
     document.getElementById('delete-draft').hidden = false;   // greyed out until the page is saved
     document.getElementById('delete-draft').onclick = null;
     renderUnseen(null);
+    current = { id: null, n: null, backTo: '#/' };   // set first: the owner default depends on it being a new page
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
-    showOwnerPublishField(null, null, true);   // greyed out: it needs a live page
+    pendingOwnerPublishes = false;
+    showOwnerPublishField(null, null, true, actorIsLead() && !actingAsAdmin() ? { owner: (actor().emails || [])[0] || '', ownerDefault: false } : undefined);   // greyed out until the lead or Admin chooses an owner other than the lead
     setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length >= 1);
     current = { id: null, n: null, backTo: '#/' };
     setBanner(null);
@@ -4974,6 +4990,7 @@
       if (current.id === null) {
         var created = await backend().create(text);
         current = { id: created.page.id, n: created.version, backTo: '#/' };
+        if (pendingOwnerPublishes) { pendingOwnerPublishes = false; await attempt(backend().setOwnerPublishes(current.id, true)); }   // the choice made on the new page
         history.replaceState(null, '', '#/edit/' + current.id + '/' + current.n);   // no reload of the editor
         updateVersionLink(current.id);   // the Version history link appears now that the page is saved
         wireDeleteDraft();               // and Delete draft works
@@ -5004,7 +5021,9 @@
     // Who may choose a page's owner: the team lead. Anyone else owns what they create, shown greyed out in Page Setup.
     ownerLock: function () {
       var who = actor();
-      return W.isLead(who, team) ? { locked: false } : { locked: true, key: (who.emails || [])[0] || '' };
+      // The team lead starts a new page as its owner (Admin has to choose, shown in red)
+      if (W.isLead(who, team)) { return { locked: false, defaultKey: !current.id && !actingAsAdmin() ? (who.emails || [])[0] || '' : '' }; }
+      return { locked: true, key: (who.emails || [])[0] || '' };
     },
     // The related-pages box: the best five live pages for what was typed, titles that match first. The same search
     // as everywhere else (live pages only).

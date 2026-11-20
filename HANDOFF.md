@@ -163,3 +163,6 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 **Ideas noted for later** (none built): review reminders and "still accurate", search that learns, Teams integration, one source for staff and customers, policy acknowledgement and audit trail, guided page types, change notes and follow a page, context help from the products.
 
 **Documents:** the management summary (`Planet DDS Wiki - what has been built.docx`) predates ownership by person, soft delete, the owner-republish setting and the no-team access; it needs a refresh.
+
+
+**New page setup:** a team lead starts a new page as its owner; Admin must choose (red). Visibility is red until chosen on every page. On a new page the lead or Admin can switch on *Allow owner to republish* once an owner other than the lead is chosen (it asks first, and is saved with the page the first time it is saved; `setOwnerPublishes` no longer needs a live page).

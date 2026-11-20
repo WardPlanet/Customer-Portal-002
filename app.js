@@ -2217,6 +2217,7 @@
     function renderOwner() {
       var lock = window.PageHost && window.PageHost.ownerLock ? window.PageHost.ownerLock() : { locked: false };
       if (lock.locked && !state.owner && lock.key) { state.owner = lock.key; }
+      if (!lock.locked && !state.owner && lock.defaultKey) { state.owner = lock.defaultKey; }   // a lead starting a new page owns it
       var select = byId('owner');
       fillPersonSelect(select, 'Select an owner', state.owner);
       select.disabled = !!lock.locked;
@@ -2319,6 +2320,7 @@
     /* ---------- Page Setup: visibility ---------- */
     function renderVisibility() {
       byId('visibility').value = state.visibility || '';
+      byId('visibility').classList.toggle('is-unassigned', !state.visibility);   // red until one is chosen
     }
 
     function renderSidebar(keepSecondaryOpen) {
