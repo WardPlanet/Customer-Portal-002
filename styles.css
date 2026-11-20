@@ -4,7 +4,7 @@
     --surface: #ffffff;
     --surface-muted: #fafafa;
     --icon-blue: #0069DC;    /* every icon: the light blue of the logo bars */
-    --table-head: #000F60;   /* header row of a table in a page: the logo's dark blue, with white text */
+    --table-head: #d3e6f5;   /* header row of a table in a page: the light blue (brand tint), with dark blue text */
     --table-alt: #f1f1f5;    /* every second row: grey */
     --table-line: #e0e0e6;   /* the lines between rows and columns */
     --border: #e4e4e7;
@@ -50,7 +50,7 @@
       --icon-blue: #4d94f0;
       --live-bg: #12301f; --live-ink: #6fd29a; --live-border: #1f5a37;
       --mark-bg: #5a4c10;
-      --table-head: #1b2a78;
+      --table-head: #14304f;
       --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
       --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.4);
       --table-alt: #1e2024;
@@ -80,7 +80,7 @@
     --icon-blue: #4d94f0;
     --live-bg: #12301f; --live-ink: #6fd29a; --live-border: #1f5a37;
     --mark-bg: #5a4c10;
-    --table-head: #1b2a78;
+    --table-head: #14304f;
     --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
     --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.4);
     --table-alt: #1e2024;
@@ -2556,11 +2556,11 @@ dialog { position: fixed; }
 .preview-table th, .preview-table td { padding: 12px 16px; border: 0; border-top: 1px solid var(--table-line); border-left: 1px solid var(--table-line); }
 .preview-table th:first-child, .preview-table td:first-child { border-left: 0; }
 .preview-table thead tr:first-child th { border-top: 0; }
-.preview-table th { background: var(--table-head); color: var(--white); font-size: 14px; font-weight: 700; }
-.preview-table th + th { border-left-color: rgba(255, 255, 255, 0.3); }
-.preview-table td { color: var(--navy); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .preview-table td { color: var(--text); } }
-:root[data-theme="dark"] .preview-table td { color: var(--text); }
+/* Quiet, not bold: a light blue header with dark blue text, plain text in the rows, every second row grey */
+.preview-table th { background: var(--table-head); color: var(--navy); font-size: 14px; font-weight: 700; }
+.preview-table td { color: var(--text); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .preview-table th { color: var(--text); } }
+:root[data-theme="dark"] .preview-table th { color: var(--text); }
 .preview-table tbody tr:nth-child(even) td { background: var(--table-alt); }
 
 /* Every icon is the light blue of the logo (the status icons for notes and warnings keep their own colours) */
