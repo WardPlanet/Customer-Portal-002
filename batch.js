@@ -722,6 +722,11 @@
 
     /* ----- 3. Review the proposed split ----- */
     function review() {
+      // The team lead (or Admin) is the owner of every document unless another owner is chosen
+      if (needsOwner() && ui.defaultOwner && session.plan) {
+        var fallback = ui.defaultOwner();
+        session.plan.documents.forEach(function (d) { if (d.owner === undefined && fallback) { d.owner = fallback; } });
+      }
       self.stage = 'review';
       clear();
       var plan = session.plan;
@@ -742,8 +747,8 @@
       // A shortcut, like the owner one: sets every document at once. Each document can still be changed on its own card.
       var visLabel = el('label', 'batch-field', 'Set the visibility of every document to ');
       var vis = el('select', 'acting-select');
-      [['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; vis.appendChild(o); });
-      vis.value = session.visibility || 'Internal-Only';
+      [['', '-'], ['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; vis.appendChild(o); });
+      vis.value = session.visibility || '';
       vis.addEventListener('change', function () {
         session.visibility = vis.value;
         plan.documents.forEach(function (doc) { doc.visibility = vis.value; });
@@ -833,8 +838,8 @@
       var visRow = el('label', 'batch-field', 'Visibility ');
       var docVis = el('select', 'acting-select');
       docVis.setAttribute('aria-label', 'Visibility of ' + doc.title);
-      [['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; docVis.appendChild(o); });
-      docVis.value = doc.visibility || session.visibility || 'Internal-Only';
+      [['', '-'], ['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; docVis.appendChild(o); });
+      docVis.value = doc.visibility || session.visibility || '';
       docVis.addEventListener('change', function () { doc.visibility = docVis.value; });
       visRow.appendChild(docVis);
       choices.appendChild(visRow);
@@ -974,7 +979,7 @@
       result.source = source;
       if (!String(result.title || '').trim()) { result.title = String(doc.title || '').trim(); }
       var ownerTeam = ui.teamOfOwner ? ui.teamOfOwner(ownerFor(doc)) : null;   // admin: the draft belongs to its owner's department
-      var text = window.PageEditor.draftTextFromResult(result, { owner: ownerFor(doc), visibility: doc.visibility || session.visibility, source: source, teamName: ownerTeam ? ownerTeam.name : '' });
+      var text = window.PageEditor.draftTextFromResult(result, { owner: ownerFor(doc), visibility: doc.visibility || session.visibility || '', source: source, teamName: ownerTeam ? ownerTeam.name : '' });
       var notes = [];
       notes = notes.concat(result.review_notes);
       if (session.imageCount) { notes.push('Images in the original file were not imported.'); }

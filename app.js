@@ -5411,7 +5411,7 @@
       chosen['WHERE THIS LIVES'] = [locationFromValue('')];
       chosen['LINKED PEOPLE'] = [];
       chosen['REVIEWER'] = [leadRole()];
-      chosen['VISIBILITY'] = [options.visibility === 'Client-Safe' ? 'Client-Safe' : 'Internal-Only'];
+      chosen['VISIBILITY'] = [options.visibility === 'Client-Safe' ? 'Client-Safe' : options.visibility === 'Internal-Only' ? 'Internal-Only' : ''];   // not chosen ("-"): it is only needed to submit or publish
       chosen['SOURCE FILE'] = [options.source || result.source || ''];
 
       var out = ['PAGE EDITOR DRAFT', 'FORMAT: ' + FORMAT_VERSION, 'SAVED: ' + new Date().toISOString(), ''];

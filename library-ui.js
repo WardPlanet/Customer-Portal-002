@@ -517,6 +517,14 @@
     return out;
   }
   // Admin only: the department an owner belongs to, when it is not the one the import is working as ('' otherwise)
+  // Who a batch import's documents belong to unless another owner is chosen: the person importing (the team lead), and for Admin the lead of this department
+  function batchDefaultOwner() {
+    if (actingAsAdmin()) {
+      var leadRole = team.roles.filter(function (role) { return role.title === team.lead && role.person; })[0];
+      return leadRole ? W.keyFor(leadRole) : '';
+    }
+    return (actor().emails || [])[0] || '';
+  }
   function batchTeamOfOwner(key) {
     if (!actingAsAdmin() || !key) { return null; }
     var found = batchOwners().filter(function (p) { return p.key === key; })[0];
@@ -5075,7 +5083,7 @@
     else if (screen === 'view' && parts[1] && parts[2]) { await openViewer(parts[1], parts[2]); }
     else if (screen === 'public' && parts[1]) { await openPublicPage(parts[1], false, parts[2]); }
     else if (screen === 'preview' && parts[1]) { await openPublicPage(parts[1], !(window.Store.isEmployeeMode && window.Store.isEmployeeMode()), parts[2]); }   // no library to go back to for someone on no team
-    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return (actor().emails || [])[0] || ''; }, destination: batchDestination, owners: batchOwners, teamOfOwner: batchTeamOfOwner }); }
+    else if (screen === 'batch') { showScreen('library', false); window.Batch.show(main, { el: el, button: button, link: link, backend: backend, isLead: actorIsLead, myRole: function () { return (actor().emails || [])[0] || ''; }, destination: batchDestination, owners: batchOwners, defaultOwner: batchDefaultOwner, teamOfOwner: batchTeamOfOwner }); }
     else if (screen === 'admin' && window.Store.isAdminMode && window.Store.isAdminMode()) {
       showScreen('library', false);
       document.getElementById('nav-library').classList.remove('is-current');
