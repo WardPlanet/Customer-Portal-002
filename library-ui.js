@@ -3329,6 +3329,13 @@
     main.classList.add('is-landing');
     var hero = el('section', 'landing-hero');
     var logo = el('div', 'landing-logo');
+    if (routeQuery !== null) {
+      // A results page: a slim header with the logo (it goes back to the start page) and the search box beside it
+      hero.classList.add('is-results');
+      main.classList.add('is-results');
+      logo.classList.add('is-link');
+      logo.addEventListener('click', function () { location.hash = '#/public'; });
+    }
     logo.setAttribute('role', 'img');
     logo.setAttribute('aria-label', 'Planet DDS');
     logo.innerHTML = window.Brand.logoSvg;   // the supplied logo: fixed markup, no page text
@@ -3682,11 +3689,12 @@
       });
       if (index < 0) { search.removeAttribute('aria-activedescendant'); }
     }
-    // Choosing a suggestion searches for it: it opens the results page for those words (not the article itself)
+    // Choosing a suggestion only fills the search box. The search itself starts with Enter or the search button.
     function chooseSuggestion(item) {
       cancelSuggestions();
       search.value = item.text;
-      goToResults(item.text);
+      search.focus({ preventScroll: true });
+      try { search.setSelectionRange(search.value.length, search.value.length); } catch (error) { /* the caret stays where it was */ }
     }
     // A search is its own page: #/search/<words>. Nothing is searched while typing; only Enter, the search button or a suggestion starts one.
     function goToResults(words) {
@@ -5066,7 +5074,7 @@
     if (hereNow !== routeHistory.current) { routeHistory.previous = routeHistory.current; routeHistory.current = hereNow; }
     refreshNotifications();   // the lead's bell (counts what is waiting)
     main.classList.remove('has-preview-footer');   // only a page's preview has the fixed bottom bar
-    main.classList.remove('is-landing');           // only the landing search page runs edge to edge
+    main.classList.remove('is-landing'); main.classList.remove('is-results');           // only the landing search page runs edge to edge
     var parts = (location.hash || '#/').replace(/^#\/?/, '').split('/');
     var screen = parts[0];
     // The public view is the site a signed-out visitor sees: the search page and the Client-Safe pages, nothing else

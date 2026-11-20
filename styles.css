@@ -3320,3 +3320,14 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .batch-doc-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
 .batch-doc-choices .batch-field { margin: 0; }
 .batch-file-choices { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 20px; }
+
+/* A results page: not the big start page, but a slim header with the logo and the search box next to it, then the filters, then the results */
+.landing-hero.is-results { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 12px 28px; padding: 18px 32px; text-align: left; }
+.landing-hero.is-results .landing-title { display: none; }
+.landing-hero.is-results .landing-logo { width: 130px; flex: none; }
+.landing-hero.is-results .landing-logo.is-link { cursor: pointer; }
+.landing-hero.is-results .landing-search-slot { flex: 1 1 360px; max-width: 680px; justify-content: flex-start; }
+.landing-hero.is-results .landing-search-wrap { max-width: 640px; }
+.landing-hero.is-results .landing-filters { flex: 1 1 100%; max-width: none; }
+.lib-main.is-results .landing-bar-slot { justify-content: flex-start; }
+@media (max-width: 640px) { .landing-hero.is-results { padding: 14px 16px; } }
