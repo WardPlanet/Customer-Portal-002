@@ -3265,7 +3265,10 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* "Draft as response for client" under an answer */
 .ask-draft { margin-top: 12px; }
 .ask-email { padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-.ask-email-label { margin: 0 0 8px; font-size: 13px; font-weight: 700; }
-.ask-email-subject { width: 100%; margin: 0 0 8px; box-sizing: border-box; }
+.ask-email-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; }
+.ask-email-label { margin: 0; font-size: 13px; font-weight: 700; }
+.ask-email-close { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; background: none; border: 0; border-radius: 4px; color: var(--text); cursor: pointer; }
+.ask-email-close:hover { background: var(--surface-muted); }
+.ask-email-close:focus-visible { outline: 2px solid var(--icon-blue); outline-offset: 1px; }
 .ask-email-body { width: 100%; box-sizing: border-box; padding: 8px 12px; font: inherit; font-size: 14px; line-height: 1.5; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; resize: vertical; }
 .ask-email-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
