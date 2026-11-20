@@ -4376,6 +4376,11 @@
       isImporting = true;
       importButton.setAttribute('aria-disabled', 'true');
       importButton.textContent = 'Importing\u2026';
+      // A moving bar at the top of the page while the AI works (the page below is held still: the import replaces it)
+      byId('import-loading-text').textContent = 'Importing ' + file.name + '\u2026 the AI is laying out the page. This can take up to a minute.';
+      byId('import-loading').hidden = false;
+      document.querySelector('.canvas').classList.add('is-importing');
+      byId('import-loading').scrollIntoView({ block: 'center' });
       try {
         var result = aiMode === 'server' ? await importViaServer(file) : await importViaClaude(file, sample);
         applyDraft(importResultToSections(result));
@@ -4388,6 +4393,8 @@
         return false;
       } finally {
         isImporting = false;
+        byId('import-loading').hidden = true;
+        document.querySelector('.canvas').classList.remove('is-importing');
         importButton.textContent = 'Import document';
         updateSaveState();
       }

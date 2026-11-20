@@ -240,6 +240,11 @@
 
         <!-- Canvas -->
         <article class="canvas">
+          <!-- Shown while a document is being imported -->
+          <div class="import-loading" id="import-loading" role="status" aria-live="polite" hidden>
+            <span class="import-loading-text" id="import-loading-text"></span>
+            <div class="bar-track is-busy" aria-hidden="true"><div class="bar-fill"></div></div>
+          </div>
           <!-- After an import: two expandable bars at the top. AI suggestions (each approved or denied) and the points the AI flagged to check. -->
           <div class="import-bars">
             <div class="lib-bar is-blue" id="import-suggestions" hidden>

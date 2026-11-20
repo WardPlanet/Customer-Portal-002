@@ -3234,3 +3234,10 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .import-suggestion-choices .row-btn.is-remove { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 :root[data-theme="dark"] .import-suggestion-choices .row-btn.is-add { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .import-suggestion-choices .row-btn.is-add { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-text); } }
+
+/* While a single document is being imported */
+.import-loading { margin: 0 0 16px; padding: 12px 16px; background: var(--brand-tint); border: 1px solid var(--icon-blue); border-radius: 8px; color: var(--navy); }
+.import-loading[hidden] { display: none; }
+.import-loading-text { display: block; margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+.canvas.is-importing > :not(.import-loading) { opacity: 0.45; pointer-events: none; }
+.canvas.is-importing > .import-loading { opacity: 1; }
