@@ -3496,6 +3496,8 @@
       pendingSuggestions = [];
       var importBox = byId('import-suggestions');
       if (importBox) { importBox.hidden = true; byId('import-suggestions-list').textContent = ''; }
+      var pointsBox = byId('import-points');
+      if (pointsBox) { pointsBox.hidden = true; byId('import-points-list').textContent = ''; }
     }
 
     // Shows one suggestion card inside its section, replacing any card that section already has
@@ -3832,7 +3834,6 @@
        The server reads the file and asks the AI to restructure it following
        guidelines/import-guidelines.md. The result is loaded like an opened draft, then a person
        reviews it and saves it. Nothing is saved automatically. */
-    var importDialog = byId('import-dialog');
     var importButton = byId('import-doc');
     var isImporting = false;
 
@@ -3872,20 +3873,32 @@
       return sections;
     }
 
-    function showImportReview(result) {
-      byId('import-dialog-title').textContent = 'Imported ' + result.source;
-      byId('import-dialog-hint').textContent = result.review_notes.length
-        ? 'The AI restructured this document using the house guidelines. Check these points before saving:'
-        : 'The AI flagged nothing, but read the page through before saving. Nothing has been saved yet.';
-      var list = byId('import-notes');
-      list.innerHTML = '';
-      result.review_notes.forEach(function (note) {
+    // The points the AI flagged, as an expandable bar at the top of the page
+    function showImportPoints(notes) {
+      var bar = byId('import-points');
+      var list = byId('import-points-list');
+      list.textContent = '';
+      (notes || []).forEach(function (note) {
         var item = document.createElement('li');
         item.textContent = note;
         list.appendChild(item);
       });
-      importDialog.showModal();
+      byId('import-points-title').textContent = notes && notes.length
+        ? notes.length + (notes.length === 1 ? ' point' : ' points') + ' to check, flagged by the AI'
+        : '';
+      bar.hidden = !(notes && notes.length);
+      setBarOpen('import-points', true);
     }
+
+    // Opens or closes one of the bars (an accordion, like the library's)
+    function setBarOpen(id, open) {
+      byId(id + '-head').setAttribute('aria-expanded', String(open));
+      byId(id + '-head').querySelector('.lib-bar-chevron').textContent = open ? '\u25B4' : '\u25BE';
+      byId(id + '-body').hidden = !open;
+    }
+    ['import-suggestions', 'import-points'].forEach(function (id) {
+      byId(id + '-head').addEventListener('click', function () { setBarOpen(id, byId(id + '-head').getAttribute('aria-expanded') !== 'true'); });
+    });
 
     // ---------- AI suggestions after an import ----------
     // The import never changes wording. Whatever the AI would improve comes back as suggestions, listed at the top of the page with Approve
@@ -4060,6 +4073,7 @@
 
       updateTitle();
       box.hidden = false;
+      setBarOpen('import-suggestions', true);
       return rows.length;
     }
 
@@ -4314,9 +4328,8 @@
         var result = aiMode === 'server' ? await importViaServer(file) : await importViaClaude(file, sample);
         applyDraft(importResultToSections(result));
         setStatus('Imported, not saved yet', false);
-        var suggested = showImportSuggestions(result);
-        if (suggested) { result.review_notes.unshift(suggested + (suggested === 1 ? ' suggestion is' : ' suggestions are') + ' listed at the top of the page for you to approve or deny.'); }
-        showImportReview(result);
+        showImportSuggestions(result);
+        showImportPoints(result.review_notes);
         return true;
       } catch (error) {
         showNotice(error instanceof TypeError ? 'Couldn\u2019t reach the server to import that file.' : importErrorMessage(error));
@@ -4431,7 +4444,6 @@
       input.value = '';
       if (file) { importDocumentFile(file); }
     });
-    byId('import-dialog-close').addEventListener('click', function () { importDialog.close(); });
 
     /* ---------- Export PDF ----------
        Builds a clean copy of the page (title, description and content only) in #print-view and opens

@@ -3199,10 +3199,14 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .trusted-sign-in .demo-bar { display: none; }
 
 /* ---------- AI suggestions after an import: approve or deny each ---------- */
-.import-suggestions { margin: 0 0 24px; padding: 12px 16px; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 12px; }
-.import-suggestions-title { margin: 0 0 2px; font-size: 16px; }
+.import-bars { display: grid; gap: 8px; margin: 0 0 24px; }
+.import-bars .lib-bar[hidden] { display: none; }
+.import-bar-body { padding: 0 16px 12px; }
+.import-bar-body[hidden] { display: none; }
 .import-suggestions-hint { margin: 0 0 8px; color: var(--text-muted); font-size: 13px; }
-.import-suggestions-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.import-points-list { margin: 0; padding-left: 20px; font-size: 14px; }
+.import-points-list li { margin: 2px 0; }
+.import-suggestions-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .import-suggestion { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
 .import-suggestion-body { flex: 1; min-width: 0; }
 .import-suggestion-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-bottom: 4px; font-size: 13px; }

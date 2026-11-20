@@ -240,12 +240,26 @@
 
         <!-- Canvas -->
         <article class="canvas">
-          <!-- AI suggestions after an import: each one is approved (applied) or denied (the text stays as it is) -->
-          <section class="import-suggestions" id="import-suggestions" aria-labelledby="import-suggestions-title" hidden>
-            <h2 class="import-suggestions-title" id="import-suggestions-title"></h2>
-            <p class="import-suggestions-hint">The page keeps the document’s own wording. These are the AI’s ideas for formatting and copy: approve one to apply it, or deny it to leave the text as it is.</p>
-            <ul class="import-suggestions-list" id="import-suggestions-list"></ul>
-          </section>
+          <!-- After an import: two expandable bars at the top. AI suggestions (each approved or denied) and the points the AI flagged to check. -->
+          <div class="import-bars">
+            <div class="lib-bar is-blue" id="import-suggestions" hidden>
+              <button type="button" class="lib-bar-head" id="import-suggestions-head" aria-expanded="true" aria-controls="import-suggestions-body">
+                <span class="lib-bar-text" id="import-suggestions-title"></span><span class="lib-bar-chevron" aria-hidden="true">▴</span>
+              </button>
+              <div class="import-bar-body" id="import-suggestions-body">
+                <p class="import-suggestions-hint">The page keeps the document’s own wording. These are the AI’s ideas for formatting and copy: approve one to apply it, or deny it to leave the text as it is.</p>
+                <ul class="import-suggestions-list" id="import-suggestions-list"></ul>
+              </div>
+            </div>
+            <div class="lib-bar is-yellow" id="import-points" hidden>
+              <button type="button" class="lib-bar-head" id="import-points-head" aria-expanded="true" aria-controls="import-points-body">
+                <span class="lib-bar-text" id="import-points-title"></span><span class="lib-bar-chevron" aria-hidden="true">▴</span>
+              </button>
+              <div class="import-bar-body" id="import-points-body">
+                <ul class="import-points-list" id="import-points-list"></ul>
+              </div>
+            </div>
+          </div>
           <p class="required-legend"><span>*</span> Required to save a draft</p>
           <div class="blocks">
             <div class="text-block">
@@ -391,14 +405,6 @@
   </div>
 </dialog>
 
-<dialog id="import-dialog" class="draft-dialog" aria-labelledby="import-dialog-title">
-  <h2 id="import-dialog-title" class="dialog-title">Imported</h2>
-  <p class="dialog-hint" id="import-dialog-hint"></p>
-  <ul class="review-list" id="import-notes"></ul>
-  <div class="dialog-actions">
-    <button class="submit-btn" type="button" id="import-dialog-close">Review the page</button>
-  </div>
-</dialog>
 
 <script src="brand.js"></script>
 <script src="workflow.cjs"></script>
