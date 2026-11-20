@@ -51,6 +51,8 @@
     return a;
   }
 
+  var menuOpenedAt = 0;   // opening a menu can scroll the page a little (the button comes into view): that must not close it again
+
   // A small menu that opens from a button. It is a <details> element, so it opens with Enter or Space; a click anywhere else, or
   // Escape, closes it. items: [{ label, onClick, danger }]. note: a line of plain text at the bottom (or a function that gives it,
   // asked each time the menu opens).
@@ -58,6 +60,7 @@
     var menu = el('details', 'menu');
     var summary = el('summary', summaryClass + ' menu-summary', summaryLabel);
     summary.setAttribute('aria-label', ariaLabel);
+    summary.addEventListener('click', function () { menuOpenedAt = Date.now(); });
     menu.appendChild(summary);
     var list = el('div', 'menu-list');
     items.forEach(function (item) {
@@ -69,9 +72,27 @@
     var noteLine = null;
     if (note) { noteLine = el('p', 'menu-note', typeof note === 'function' ? note() : note); list.appendChild(noteLine); }
     menu.appendChild(list);
+    // The list is placed against the window, not its parent, so a table or box that clips its contents cannot cut it off. It opens downward from
+    // the button, or upward when there is no room below.
+    function place() {
+      var rect = summary.getBoundingClientRect();
+      list.style.position = 'fixed';
+      list.style.right = 'auto';
+      list.style.maxHeight = (window.innerHeight - 16) + 'px';
+      list.style.overflowY = 'auto';
+      var width = list.offsetWidth;
+      var height = list.offsetHeight;
+      var left = Math.min(Math.max(8, rect.right - width), Math.max(8, window.innerWidth - width - 8));
+      var top = rect.bottom + 6;
+      if (top + height > window.innerHeight - 8) { top = Math.max(8, rect.top - height - 6); }
+      list.style.left = left + 'px';
+      list.style.top = top + 'px';
+    }
     menu.addEventListener('toggle', function () {
       if (!menu.open) { return; }
       if (typeof note === 'function') { noteLine.textContent = note(); }
+      menuOpenedAt = Date.now();
+      place();
       // Only one menu is open at a time
       Array.prototype.forEach.call(document.querySelectorAll('details.menu[open]'), function (other) { if (other !== menu) { other.open = false; } });
     });
@@ -80,6 +101,10 @@
   document.addEventListener('click', function (event) {
     Array.prototype.forEach.call(document.querySelectorAll('details.menu[open]'), function (menu) { if (!menu.contains(event.target)) { menu.open = false; } });
   });
+  // A menu is placed against the window, so it closes when the page scrolls or resizes instead of drifting away from its button
+  function closeMenus() { Array.prototype.forEach.call(document.querySelectorAll('details.menu[open]'), function (menu) { menu.open = false; }); }
+  window.addEventListener('scroll', function (event) { if (Date.now() - menuOpenedAt > 400 && !(event.target && event.target.closest && event.target.closest('.menu-list'))) { closeMenus(); } }, true);
+  window.addEventListener('resize', closeMenus);
   document.addEventListener('keydown', function (event) {
     if (event.key !== 'Escape') { return; }
     var open = document.querySelector('details.menu[open]');
@@ -837,69 +862,52 @@
   }
   var OP_WORDS = { edit: 'Changed', add: 'Added', remove: 'Removed' };
 
-  // The yellow box under the blue bar: what other people changed since this person last looked, with Got it
-  function renderChangesNotice(list, id, n) {
+  // The yellow line under the blue bar: someone else saved this draft since this person last looked. Got it clears it; on a draft of a live page
+  // Show what changed compares the draft with the live page.
+  function renderUnseen(unseen, id, n, liveEdit) {
     var box = document.getElementById('changes-notice');
     box.textContent = '';
-    var fresh = (list || []).filter(function (c) { return c.unseen; }).reverse();   // oldest first
-    box.hidden = !fresh.length;
-    if (!fresh.length) { return; }
-    box.appendChild(el('strong', 'changes-notice-title', fresh.length === 1 ? 'There is 1 change you have not seen' : 'There are ' + fresh.length + ' changes you have not seen'));
-    var ul = el('ul', 'changes-notice-list');
-    fresh.forEach(function (c) {
-      var line = el('li', '');
-      line.appendChild(el('strong', '', c.by + (c.byLead ? ' (team lead)' : '')));
-      line.appendChild(document.createTextNode(' ' + (c.status === 'pending' ? 'proposed a change to ' : { edit: 'changed ', add: 'added ', remove: 'removed ' }[c.op] || 'changed ') + '\u201c' + c.label + '\u201d \u00b7 ' + changeTime(c.at) + (c.note ? ' \u00b7 \u201c' + c.note + '\u201d' : '')));
-      ul.appendChild(line);
-    });
-    box.appendChild(ul);
-    box.appendChild(button('Got it', 'row-btn', async function () {
-      var reply = await attempt(backend().markChangesSeen(id, n));
-      if (reply) { renderChanges(reply.changes, id, n, box.getAttribute('data-readonly') === '1'); }
+    box.hidden = !unseen;
+    if (!unseen) { return; }
+    box.appendChild(el('strong', 'changes-notice-title', (unseen.by === actor().name ? 'You' : unseen.by) + ' saved changes to this draft on ' + formatDate(unseen.at) + '.'));
+    var actions = el('div', 'changes-notice-actions');
+    if (liveEdit) { actions.appendChild(button('Show what changed', 'row-btn', function () { openComparison(id, n); })); }
+    actions.appendChild(button('Got it', 'row-btn', async function () {
+      if (await attempt(backend().markSeen(id, n))) { renderUnseen(null); }
     }));
+    box.appendChild(actions);
   }
 
-  function renderChanges(list, id, n, readOnly) {
-    var card = document.getElementById('changes-card');
-    var ul = document.getElementById('changes-list');
-    ul.textContent = '';
-    list = list || [];
-    document.getElementById('changes-notice').setAttribute('data-readonly', readOnly ? '1' : '');
-    renderChangesNotice(list, id, n);
-    card.hidden = !list.length;
-    list.forEach(function (c) {
-      var li = el('li', 'change-item is-' + c.status);
-      var head = el('div', 'change-head');
-      head.appendChild(el('strong', '', (OP_WORDS[c.op] || 'Changed') + ': ' + c.label));
-      li.appendChild(head);
-      var who = c.by === actor().name ? 'you' : c.by;
-      li.appendChild(el('div', 'change-meta', 'by ' + who + (c.byLead ? ' (team lead)' : '') + ' \u00b7 ' + changeTime(c.at)));
-      if (c.note) { li.appendChild(el('div', 'change-note', '\u201c' + c.note + '\u201d')); }
-      var actions = el('div', 'change-actions');
-      if (c.status === 'pending') {
-        li.appendChild(el('div', 'change-state', c.canDecide ? 'Waiting for your decision' : 'Waiting for the team lead'));
-      } else if (c.status !== 'applied') {
-        li.appendChild(el('div', 'change-state', { undone: 'Undone', approved: 'Approved by the team lead', rejected: 'Rejected by the team lead', withdrawn: 'Withdrawn' }[c.status] || c.status));
-      }
-      function run(label, className, work) {
-        actions.appendChild(button(label, 'row-btn ' + className, async function () {
-          if (window.PageEditor.isDirty()) { notice('Save your draft first. Undoing or deciding on a change reloads the draft.'); return; }
-          var reply = await attempt(work());
-          if (!reply) { return; }
-          window.PageEditor.load(reply.savedText, false);
-          renderChanges(reply.changes, id, n);
-          window.PageEditor.refresh();
-        }));
-      }
-      if (c.canUndo && !readOnly) { run('Undo', '', function () { return backend().undoChange(id, n, c.id); }); }
-      if (c.canDecide && !readOnly) {
-        run('Approve', 'row-btn-main', function () { return backend().resolveChange(id, n, c.id, 'approve'); });
-        run('Reject', '', function () { return backend().resolveChange(id, n, c.id, 'reject'); });
-      }
-      if (c.canWithdraw && !c.canDecide && !readOnly) { run('Withdraw', '', function () { return backend().resolveChange(id, n, c.id, 'withdraw'); }); }
-      if (actions.childNodes.length) { li.appendChild(actions); }
-      ul.appendChild(li);
+  // What a draft changes in the live page, section by section (nothing is recorded per save: the two texts are compared when this is opened)
+  async function openComparison(id, n) {
+    var detail = await attempt(backend().get(id));
+    if (!detail || !detail.page.liveVersion) { return; }
+    var live = await attempt(backend().getVersion(id, detail.page.liveVersion));
+    var draft = await attempt(backend().getVersion(id, n));
+    if (!live || !draft) { return; }
+    function plain(raw) {
+      return String(raw || '').split('\n').filter(function (line) { return !/^\[[A-Z0-9 \-]+\]$/.test(line); }).join('\n').trim();
+    }
+    var ops = W.diffContent(live.text, draft.text);
+    var dialog = el('dialog', 'draft-dialog versions-dialog');
+    dialog.setAttribute('aria-label', 'What changed');
+    dialog.appendChild(el('h2', 'dialog-title', 'What this draft changes in the live page'));
+    if (!ops.length) { dialog.appendChild(el('p', 'dialog-hint', 'The page\u2019s content is the same as the live page. Only the page setup may differ.')); }
+    var list = el('ul', 'compare-list');
+    ops.forEach(function (op) {
+      var li = el('li', 'compare-item is-' + op.op);
+      li.appendChild(el('strong', '', (OP_WORDS[op.op] || 'Changed') + ': ' + op.label));
+      if (op.before) { li.appendChild(el('div', 'import-record-text', 'Was: ' + plain(op.before))); }
+      if (op.after) { li.appendChild(el('div', 'import-record-text', 'Now: ' + plain(op.after))); }
+      list.appendChild(li);
     });
+    dialog.appendChild(list);
+    var actions = el('div', 'dialog-actions');
+    actions.appendChild(button('Close', 'primary-btn', function () { dialog.close(); }));
+    dialog.appendChild(actions);
+    dialog.addEventListener('close', function () { dialog.remove(); });
+    document.body.appendChild(dialog);
+    dialog.showModal();
   }
 
   /* ---------- The edit lock (see workflow.cjs) ----------
@@ -1928,7 +1936,7 @@
     current.ownerPublishes = !!(detail && detail.page && detail.page.ownerPublishes && !actorIsLead() && !actingAsAdmin());
     current.liveEdit = !!(detail && detail.page && detail.page.liveVersion);   // changes to a live page are saved only by hand
     current.draftChanged = !!(current.liveEdit && detail.page.workingVersion && detail.page.workingVersion.changed);
-    renderChanges(current.liveEdit ? data.changes : [], id, Number(n));
+    renderUnseen(data.unseen, id, Number(n), current.liveEdit);
     setMainButtonLabel();          // Publish, when this person may publish this page without review
     window.PageEditor.refresh();   // greys Save draft and Delete draft until there is something to save or delete
     if (mine !== routing) { return; }
@@ -2115,7 +2123,7 @@
     setMainButtonLabel();
     document.getElementById('delete-draft').hidden = false;   // greyed out until the page is saved
     document.getElementById('delete-draft').onclick = null;
-    renderChanges([], null, null);
+    renderUnseen(null);
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
     showOwnerPublishField(null, null, true);   // greyed out: it needs a live page
@@ -2146,7 +2154,7 @@
     if (mine !== routing) { return; }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
     showOwnerPublishField(id, detail, false);
-    renderChanges(data.changes || [], id, Number(n), true);   // read-only here: the list and the yellow box, without Undo or Approve
+    renderUnseen(data.unseen, id, Number(n), !!(detail && detail.page && detail.page.liveVersion));
     var name = versionName(hist).toLowerCase();   // "version 2" or "draft"
     window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · ' + name);
     var box = el('div', 'banner banner-info');
@@ -2237,6 +2245,10 @@
       var viewerLine = el('p', 'row-lock-note', viewerNote + ' right now.');
       viewerLine.setAttribute('role', 'status');
       box.appendChild(viewerLine);
+    }
+    // A draft or an edit waiting for review on a live page: what does it change in the live page?
+    if (detail && detail.page && detail.page.liveVersion && Number(n) !== detail.page.liveVersion && ['draft', 'submitted', 'sent_back'].indexOf(data.version.status) >= 0) {
+      row.appendChild(button('What changed', 'row-btn', function () { openComparison(id, Number(n)); }));
     }
     if (row.childNodes.length) { box.appendChild(row); }
     setBanner(box);
@@ -4623,16 +4635,9 @@
         wireDeleteDraft();               // and Delete draft works
         window.PageEditor.refresh();
       } else {
-        var reply = await backend().save(current.id, current.n, text);
+        await backend().save(current.id, current.n, text);
         if (current.liveEdit) { current.draftChanged = true; }   // there is now a saved draft that differs from the live page
-        if (reply && reply.changes) { renderChanges(reply.changes, current.id, current.n); }
-        // A change to a section the team lead holds was not applied: the draft keeps the lead's version, which the editor now shows
-        if (reply && reply.savedText && reply.savedText !== text && current.liveEdit) {
-          window.PageEditor.load(reply.savedText, false);
-          window.PageEditor.setStatus('Saved just now', true);
-          notice('Some of your changes are in sections the team lead changed. They are waiting for the lead\u2019s approval and are listed under Changes in this draft.');
-          window.PageEditor.refresh();
-        }
+        renderUnseen(null);                                      // saving on top of the draft means having seen it
       }
       window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
       await this.keepImportRecord();

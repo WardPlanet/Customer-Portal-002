@@ -54,7 +54,7 @@
   <!-- Says what state this version is in and, when reading, what the reviewer can do -->
   <div class="editor-banner" id="editor-banner" role="region" aria-label="Page status and actions" hidden></div>
 
-  <!-- Yellow: changes other people made to this draft since the viewer last looked (filled in by library-ui.js) -->
+  <!-- Yellow: someone else saved this draft since the viewer last looked (filled in by library-ui.js) -->
   <div class="changes-notice" id="changes-notice" role="region" aria-label="New changes in this draft" hidden></div>
 
   <!-- The page's properties: a bar above the two columns -->
@@ -174,11 +174,6 @@
         <input type="search" class="related-search" id="related-search" placeholder="Search pages" aria-label="Search for a related page" autocomplete="off" hidden>
         <ul class="related-suggestions" id="related-suggestions"></ul>
       </div>
-      <!-- Changes in this draft of a live page: who changed what, with Undo (see "Changes in a draft of a live page" in workflow.cjs) -->
-      <section class="changes-card" id="changes-card" aria-label="Changes in this draft" hidden>
-        <h2 class="changes-title">Changes in this draft</h2>
-        <ul class="changes-list" id="changes-list"></ul>
-      </section>
     </aside>
 
     <!-- Editor -->

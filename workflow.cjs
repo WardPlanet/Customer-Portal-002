@@ -470,20 +470,17 @@
     if (!isLead(actor, team) && (resolveKey(team, fields(text).owner) !== resolveKey(team, fields(version.text).owner) || resolveKey(team, fields(text).secondaryOwner) !== resolveKey(team, fields(version.text).secondaryOwner))) {
       throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can change the owner.', 403);
     }
-    version.text = recordSave(page, version, text, actor, team, now, note);
+    version.text = text;
     copyFields(version);
     touch(page, version, actor, now);
+    markSeen(page, version.n, actor);   // saving on top of the draft means having seen what is in it
     return version;
   }
 
 
-  /* ---------- Changes in a draft of a live page ----------
-     A draft of a live page is shared: the owner and the team lead take turns editing it (the edit lock makes it one at a time). Each save records what
-     changed, section by section: version.changes = [{ id, by, byLead, at, note, op ('edit'|'add'|'remove'), label, unit ('title'|'description'|'block'),
-     before, after, anchor, status }]. The editor lists them. A person can undo their own changes (the team lead anyone's).
-     Sections the team lead changed are protected: when someone else changes one of them, the draft keeps the lead's version and the change waits as
-     'pending' for the lead to approve or reject. The lead's own changes count as approved when the owner submits the draft.
-     status: applied | pending | undone | approved | rejected | withdrawn. Only the page's content is tracked (title, description, blocks), not its setup. */
+  /* ---------- Comparing a draft with the live page ----------
+     diffContent(before, after) lists what changed between two saved texts, section by section (title, description, each block). The review screen and
+     the editor use it to show what a draft changes in the live page. Nothing is recorded per save. */
 
   // The draft text split into its [SECTION] parts, in order; text before the first one is the head
   function splitSections(text) {
@@ -534,25 +531,6 @@
     return String(raw || '').replace(/^\[BLOCK \d+ STEP NUMBER\]\n.*\n?/gm, '').replace(/^\[BLOCK \d+ /gm, '[BLOCK ').replace(/\s+$/, '');
   }
 
-  function buildDraftText(head, items) {
-    var number = 0;
-    var lines = head.slice();
-    items.forEach(function (item) {
-      var raw = item.raw;
-      if (item.kind === 'block') { number += 1; raw = raw.replace(/^\[BLOCK \d+ /gm, '[BLOCK ' + number + ' '); }
-      lines.push(raw);
-    });
-    return lines.join('\n');
-  }
-
-  // A unit made from raw text (for a block that is put back or added)
-  function unitFromRaw(kind, raw) {
-    var item = { kind: kind, sections: [], raw: raw };
-    item.norm = normOf(raw);
-    item.label = kind;
-    return item;
-  }
-
   // What changed between two saved texts: a list of { op, unit, label, before, after, anchor }
   function diffContent(beforeText, afterText) {
     var a = contentUnits(beforeText).items;
@@ -595,141 +573,24 @@
     return ops;
   }
 
-  function changeId(version) {
-    return 'c' + ((version.changes || []).reduce(function (m, c) { return Math.max(m, Number(String(c.id).slice(1)) || 0); }, 0) + 1);
+  /* ---------- Has someone else saved this draft since I last looked? ----------
+     A draft keeps who saved it last and when (version.updatedBy, version.updatedAt). version.seen = { name: the save that person has seen } lets the
+     editor say "Micah saved changes to this draft on ..." until the person clicks Got it (or saves, which counts as having seen it). */
+  function unseenSave(page, n, actor) {
+    var version = versionOf(page, n);
+    if (!actor || !actor.name || !version.updatedBy || version.updatedBy === actor.name) { return null; }
+    if (version.status !== STATUS.DRAFT && version.status !== STATUS.SENT_BACK) { return null; }
+    var seen = version.seen && version.seen[actor.name];
+    if (typeof seen === 'string' && seen >= version.updatedAt) { return null; }
+    return { by: version.updatedBy, at: version.updatedAt };
   }
-
-  // Is this unit still holding a team lead's change that has not been undone? Then it is protected from other people's changes.
-  function leadHolds(version, unitKind, normText) {
-    return (version.changes || []).some(function (c) { return c.byLead && c.status === 'applied' && c.op !== 'remove' && c.unit === unitKind && normOf(c.after) === normText; });
-  }
-
-  // Works out what a save changes and records it. A change by someone other than the lead to a section the lead holds is not applied: the draft
-  // keeps the lead's version and the change waits as 'pending'. Returns the text to store.
-  function recordSave(page, version, text, actor, team, now, note) {
-    if (!page.liveVersion) { return text; }   // a page that was never live is edited freely, there is nothing to compare with
-    var lead = isLead(actor, team);
-    var ops = diffContent(version.text, text);
-    if (!ops.length) { return text; }
-    version.changes = version.changes || [];
-    var finalText = text;
-    ops.forEach(function (op) {
-      var entry = { id: changeId(version), by: actor.name, byLead: lead, at: now, note: String(note || '').slice(0, 300), op: op.op, unit: op.unit, label: op.label, before: op.before, after: op.after, anchor: op.anchor, status: 'applied' };
-      if (!lead && op.op !== 'add' && leadHolds(version, op.unit, normOf(op.before))) {
-        // Put the lead's version back in the text that is stored, and keep the other person's version as a proposal
-        var doc = contentUnits(finalText);
-        if (op.op === 'edit') {
-          var theirs = doc.items.filter(function (i) { return i.kind === op.unit && (op.unit !== 'block' || i.norm === normOf(op.after)); })[0];
-          if (theirs) { theirs.raw = op.before; }
-        } else {
-          var at = -1;
-          doc.items.forEach(function (i, idx) { if (i.kind === 'block' && i.norm === op.anchor) { at = idx; } });
-          doc.items.splice(at + 1, 0, unitFromRaw('block', op.before));
-        }
-        finalText = buildDraftText(doc.head, doc.items);
-        entry.status = 'pending';
-      }
-      version.changes.push(entry);
-    });
-    markChangesSeen(page, version.n, actor);   // saving on top of the draft means having seen what is in it
-    return finalText;
-  }
-
-  // Throws away one change (the person's own, or anyone's for the team lead): the section goes back to how it was before that change
-  function undoChange(page, n, id, actor, team, now) {
+  function markSeen(page, n, actor) {
     requireActor(actor);
     var version = versionOf(page, n);
-    var entry = (version.changes || []).filter(function (c) { return c.id === id; })[0];
-    if (!entry) { throw new WorkflowError('no_change', 'That change is not in this draft.', 404); }
-    if (entry.status !== 'applied') { throw new WorkflowError('not_applied', 'That change is not in the draft, so there is nothing to undo.', 409); }
-    if (!isLead(actor, team) && (entry.by !== actor.name || entry.byLead)) { throw new WorkflowError('not_yours', 'You can undo your own changes. The team lead can undo anyone\'s.', 403); }
-    var doc = contentUnits(version.text);
-    var changedSince = new WorkflowError('changed_since', 'That section was changed again afterwards, so this change cannot be undone on its own.', 409);
-    var current = doc.items.filter(function (i) { return i.kind === entry.unit && (entry.unit !== 'block' || i.norm === normOf(entry.after)); })[0];
-    if (entry.op === 'edit') {
-      if (!current) { throw changedSince; }
-      current.raw = entry.before;
-    } else if (entry.op === 'add') {
-      if (!current) { throw changedSince; }
-      doc.items.splice(doc.items.indexOf(current), 1);
-    } else {
-      var position = -1;
-      if (entry.anchor) {
-        doc.items.forEach(function (i, idx) { if (i.kind === 'block' && i.norm === entry.anchor) { position = idx; } });
-        if (position < 0) { throw changedSince; }
-      } else {
-        doc.items.forEach(function (i, idx) { if (i.kind === 'description') { position = idx; } });
-      }
-      doc.items.splice(position + 1, 0, unitFromRaw('block', entry.before));
-    }
-    version.text = buildDraftText(doc.head, doc.items);
-    copyFields(version);
-    entry.status = 'undone';
-    entry.resolvedBy = actor.name;
-    entry.resolvedAt = now;
-    page.updatedAt = now;
-    return entry;
-  }
-
-  // The team lead approves or rejects a change that was waiting (the person who made it may withdraw it)
-  function resolveChange(page, n, id, decision, actor, team, now) {
-    requireActor(actor);
-    var version = versionOf(page, n);
-    var entry = (version.changes || []).filter(function (c) { return c.id === id; })[0];
-    if (!entry) { throw new WorkflowError('no_change', 'That change is not in this draft.', 404); }
-    if (entry.status !== 'pending') { throw new WorkflowError('not_pending', 'That change is not waiting for a decision.', 409); }
-    if (decision === 'withdraw') {
-      if (entry.by !== actor.name && !isLead(actor, team)) { throw new WorkflowError('not_yours', 'Only the person who made the change can withdraw it.', 403); }
-      entry.status = 'withdrawn';
-    } else {
-      requireLead(actor, team, 'decide on a change to a section you changed');
-      if (decision === 'approve') {
-        var doc = contentUnits(version.text);
-        var heldNorm = normOf(entry.before);
-        var held = doc.items.filter(function (i) { return i.kind === entry.unit && (entry.unit !== 'block' || i.norm === heldNorm); })[0];
-        if (!held) { throw new WorkflowError('changed_since', 'The section was changed again, so this change cannot be applied as it is. Reject it and ask for it again.', 409); }
-        if (entry.op === 'edit') { held.raw = entry.after; }
-        else { doc.items.splice(doc.items.indexOf(held), 1); }
-        version.text = buildDraftText(doc.head, doc.items);
-        copyFields(version);
-        entry.status = 'approved';
-      } else if (decision === 'reject') {
-        entry.status = 'rejected';
-      } else {
-        throw new WorkflowError('bad_request', 'Choose approve, reject or withdraw.', 400);
-      }
-    }
-    entry.resolvedBy = actor.name;
-    entry.resolvedAt = now;
-    page.updatedAt = now;
-    return entry;
-  }
-
-  // Which change a person has seen up to: version.seen = { name: highest change number seen }. The person who saves has seen everything in the draft.
-  function changeNumber(c) { return Number(String(c.id).slice(1)) || 0; }
-  function markChangesSeen(page, n, actor) {
-    requireActor(actor);
-    var version = versionOf(page, n);
-    var top = (version.changes || []).reduce(function (m, c) { return Math.max(m, changeNumber(c)); }, 0);
     version.seen = version.seen || {};
-    if ((version.seen[actor.name] || 0) < top) { version.seen[actor.name] = top; return true; }
-    return false;
-  }
-
-  // The list the editor shows: each change without the section texts, whether this person may undo or decide on it, and whether it is new to them
-  function changeList(page, n, actor, team) {
-    var version = versionOf(page, n);
-    var lead = isLead(actor, team);
-    var seen = (version.seen && actor && version.seen[actor.name]) || 0;
-    return (version.changes || []).map(function (c) {
-      return {
-        unseen: c.by !== (actor && actor.name) && changeNumber(c) > seen,
-        id: c.id, by: c.by, byLead: !!c.byLead, at: c.at, note: c.note || '', op: c.op, label: c.label, status: c.status,
-        canUndo: c.status === 'applied' && (lead || (c.by === (actor && actor.name) && !c.byLead)),
-        canDecide: c.status === 'pending' && lead,
-        canWithdraw: c.status === 'pending' && c.by === (actor && actor.name)
-      };
-    }).reverse();
+    if (version.seen[actor.name] === version.updatedAt) { return false; }
+    version.seen[actor.name] = version.updatedAt;
+    return true;
   }
 
   // Edit a page: reuse the version being worked on, or make a new draft copy of the live (or latest) one
@@ -1680,10 +1541,8 @@
     cleanImportRecord: cleanImportRecord,
     setImportRecord: setImportRecord,
     diffContent: diffContent,
-    undoChange: undoChange,
-    resolveChange: resolveChange,
-    changeList: changeList,
-    markChangesSeen: markChangesSeen,
+    unseenSave: unseenSave,
+    markSeen: markSeen,
     LOCK_SECONDS: LOCK_SECONDS,
     activeLock: activeLock,
     claimEditing: claimEditing,

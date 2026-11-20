@@ -216,9 +216,7 @@
     get: function (id) { return this.call('GET', '/api/library/pages/' + id); },
     getVersion: function (id, n) { return this.call('GET', '/api/library/pages/' + id + '/versions/' + n); },
     save: function (id, n, text, note) { return this.call('PUT', '/api/library/pages/' + id + '/versions/' + n, { text: text, note: note || '' }); },
-    markChangesSeen: function (id, n) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/changes-seen'); },
-    undoChange: function (id, n, changeId) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/changes/' + changeId + '/undo'); },
-    resolveChange: function (id, n, changeId, decision) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/changes/' + changeId + '/' + decision); },
+    markSeen: function (id, n) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/seen'); },
     edit: function (id, session) { return this.call('POST', '/api/library/pages/' + id + '/edit', { session: session || '' }); },
     act: function (id, n, action, body) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/' + action, body || {}); },
     unpublish: function (id) { return this.call('POST', '/api/library/pages/' + id + '/unpublish'); },
@@ -507,36 +505,24 @@
         var version = guard(function () { return W.versionOf(page, n); });
         if (!W.canReadVersion(page, version, who, t)) { throw fail('not_yours', 'That version belongs to someone else.'); }
         var mine = W.history(page, who, t).filter(function (h) { return h.n === version.n; })[0];
-        return { version: { n: version.n, status: version.status, title: version.title }, text: version.text, actions: mine.actions, changes: guard(function () { return W.changeList(page, version.n, who, t); }) };
+        return { version: { n: version.n, status: version.status, title: version.title }, text: version.text, actions: mine.actions, unseen: guard(function () { return W.unseenSave(page, version.n, who); }) };
       },
-      // Saves the draft. The reply says what was actually stored (a change to a section the team lead holds waits instead) and the change list.
+      // Saves the draft
       save: async function (id, n, text, note) {
         return change(id, function (page, who, at, t) {
           var version = W.saveDraft(page, n, text, who, at, t, note);
-          return { savedText: version.text, changes: W.changeList(page, version.n, who, t) };
+          return { savedText: version.text };
         });
       },
-      markChangesSeen: async function (id, n) {
+      // "Got it" on the notice that someone else saved this draft
+      markSeen: async function (id, n) {
         var data = readAll();
         var page = find(data, id);
         var t = teamOf(page);
         var who = actorIn(t);
-        if (!who.name || !who.roles.length) { return { changes: [] }; }
-        if (guard(function () { return W.markChangesSeen(page, n, who); })) { writeAll(data); }
-        return { changes: guard(function () { return W.changeList(page, n, who, t); }) };
-      },
-      // Undo one change in a draft; approve, reject or withdraw one that is waiting. The reply has the draft's text as it now is.
-      undoChange: async function (id, n, changeId) {
-        return change(id, function (page, who, at, t) {
-          W.undoChange(page, n, changeId, who, t, at);
-          return { savedText: W.versionOf(page, n).text, changes: W.changeList(page, n, who, t) };
-        });
-      },
-      resolveChange: async function (id, n, changeId, decision) {
-        return change(id, function (page, who, at, t) {
-          W.resolveChange(page, n, changeId, decision, who, t, at);
-          return { savedText: W.versionOf(page, n).text, changes: W.changeList(page, n, who, t) };
-        });
+        if (!who.name || !who.roles.length) { return { unseen: null }; }
+        if (guard(function () { return W.markSeen(page, n, who); })) { writeAll(data); }
+        return { unseen: null };
       },
       edit: async function (id, session) {
         return change(id, function (page, who, at, t) { W.assertNotLocked(page, who, at, session); return { version: W.startEdit(page, who, at).n }; });
