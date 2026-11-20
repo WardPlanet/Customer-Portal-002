@@ -3939,19 +3939,53 @@
       var rows = [];
 
       (result.suggestions || []).forEach(function (raw) {
+        var action = String(raw.action || 'replace').toLowerCase();
+        var original = typeof raw.original === 'string' ? raw.original : '';
+        var reason = oneLine(raw.reason, 160);
+
+        if (action === 'remove') {
+          // Any block can be proposed for removal (a revision table, a "last updated" line), found by its number or by the text the AI quotes
+          var removeMatch = /^block\s*#?\s*([0-9]+)\b/.exec(String(raw.target || '').toLowerCase().trim());
+          var wantedText = wordsOf(original);
+          function blockWords(block) {
+            // The block's own words, without its label, buttons and handles
+            var copy = block.cloneNode(true);
+            Array.prototype.forEach.call(copy.querySelectorAll('.block-tag, button, .block-handle, .required-mark'), function (node) { node.remove(); });
+            Array.prototype.forEach.call(copy.querySelectorAll('*'), function (node) { node.append(' '); });   // keep table cells and paragraphs apart
+            return wordsOf(copy.textContent || '');
+          }
+          var target = removeMatch ? blocks[Number(removeMatch[1]) - 1] : null;
+          if (!(target && (!wantedText || blockWords(target).indexOf(wantedText) >= 0))) {
+            target = wantedText ? blocks.filter(function (block) { return blockWords(block).indexOf(wantedText) >= 0; })[0] : null;
+          }
+          if (!target) { return; }
+          var shown = blockWords(target);
+          rows.push({ action: 'remove', suggestion: { target: 'block', title: '', text: '', reason: reason }, host: target, now: shown.length > 300 ? shown.slice(0, 300) + '\u2026' : shown, proposed: 'Remove this from the page', kind: 'Remove', decision: '' });
+          return;
+        }
+
+        if (action === 'add') {
+          // Only a description, and only when the page has none
+          var addText = typeof raw.text === 'string' ? raw.text.trim().slice(0, 2000) : '';
+          var descriptionHost = descriptionEl.closest('.text-block');
+          if (String(raw.target || '').toLowerCase().trim() !== 'description' || !addText || readText(descriptionEl)) { return; }
+          rows.push({ action: 'add', suggestion: { target: 'description', title: '', text: addText, reason: reason }, host: descriptionHost, now: '', proposed: addText, kind: 'Add', decision: '' });
+          return;
+        }
+
         var suggestion = cleanSuggestion(raw);
-        var host = suggestion ? importSuggestionHost(suggestion, typeof raw.original === 'string' ? raw.original : '', blocks) : null;
+        var host = suggestion ? importSuggestionHost(suggestion, original, blocks) : null;
         if (!host || changesNothing(suggestion, host)) { return; }
         var now = hostTexts(host).join(NL);
         var proposed = [suggestion.title, suggestion.text].filter(Boolean).join(NL);
         var layoutOnly = raw.kind === 'format' && wordsOf(now) === wordsOf(proposed);
-        rows.push({ suggestion: suggestion, host: host, now: now, proposed: proposed, kind: layoutOnly ? 'Format' : 'Copy', decision: '' });
+        rows.push({ action: 'replace', suggestion: suggestion, host: host, now: now, proposed: proposed, kind: layoutOnly ? 'Format' : 'Copy', decision: '' });
       });
 
       if (!rows.length) { box.hidden = true; pendingSuggestions = []; return 0; }
       function syncPending() {
         pendingSuggestions = rows.filter(function (row) { return !row.decision && !row.removed; }).map(function (row) {
-          return { target: row.suggestion.target, original: row.now, title: row.suggestion.title, text: row.suggestion.text, kind: row.kind.toLowerCase(), reason: row.suggestion.reason };
+          return { action: row.action, target: row.action === 'remove' ? 'block ' + (contentBlocks().indexOf(row.host) + 1) : row.suggestion.target, original: row.action === 'add' ? '' : row.now, title: row.suggestion.title, text: row.suggestion.text, kind: row.kind.toLowerCase(), reason: row.suggestion.reason };
         });
       }
       syncPending();
@@ -3989,7 +4023,7 @@
         }
         body.appendChild(head);
 
-        [['Now', row.now], ['Suggested', row.proposed]].forEach(function (pair) {
+        [['Now', row.action === 'add' ? '(no description)' : row.now], ['Suggested', row.proposed]].forEach(function (pair) {
           var line = document.createElement('div');
           line.className = 'import-suggestion-line';
           var label = document.createElement('span');
@@ -3998,7 +4032,7 @@
           var text = document.createElement('span');
           text.className = 'import-suggestion-text';
           // Text that can carry formatting is shown formatted, so a "format" suggestion looks like what approving it will give
-          if (row.host.querySelector('[data-rich]')) { text.innerHTML = markdownToHtml(pair[1]); text.classList.add('is-rich'); } else { text.textContent = pair[1]; }
+          if (row.action !== 'remove' && row.host.querySelector('[data-rich]')) { text.innerHTML = markdownToHtml(pair[1]); text.classList.add('is-rich'); } else { text.textContent = pair[1]; }
           line.appendChild(label);
           line.appendChild(text);
           body.appendChild(line);
@@ -4040,18 +4074,34 @@
         function decide(value) {
           if (value === 'approved') {
             if (!document.body.contains(row.host)) { row.decision = 'denied'; showChoices(); changed(); return; }
-            // What the section said before, so Undo can put it back
-            row.before = row.host.classList.contains('step-block')
-              ? { title: readText(row.host.querySelector('.step-title')), text: readText(row.host.querySelector('.step-text')) }
-              : { text: readText(row.host.querySelector('[contenteditable]')) };
-            applySuggestion(row.suggestion, row.host);
+            if (row.action === 'remove') {
+              // Keep every node of the editor as it was, so Undo can put the block back where it was
+              row.snapshot = Array.prototype.slice.call(contentEl.children);
+              removeBlockAndLines(row.host);
+              refreshBlocks();
+              markDirty();
+            } else {
+              // What the section said before, so Undo can put it back
+              row.before = row.host.classList.contains('step-block')
+                ? { title: readText(row.host.querySelector('.step-title')), text: readText(row.host.querySelector('.step-text')) }
+                : { text: readText(row.host.querySelector('[contenteditable]')) };
+              applySuggestion(row.suggestion, row.host);
+            }
           }
           row.decision = value;
           showChoices();
           changed();
         }
         function undo() {
-          if (row.decision === 'approved' && row.before && document.body.contains(row.host)) {
+          if (row.decision === 'approved' && row.action === 'remove' && row.snapshot) {
+            row.snapshot.forEach(function (node, i) {
+              if (node.parentNode === contentEl) { return; }
+              var before = null;
+              for (var j = i - 1; j >= 0; j -= 1) { if (row.snapshot[j].parentNode === contentEl) { before = row.snapshot[j]; break; } }
+              if (before) { before.after(node); } else { contentEl.insertBefore(node, contentEl.firstChild); }
+            });
+            refreshBlocks();
+          } else if (row.decision === 'approved' && row.before && document.body.contains(row.host)) {
             if (row.host.classList.contains('step-block')) {
               setFieldText(row.host.querySelector('.step-title'), row.before.title);
               setFieldText(row.host.querySelector('.step-text'), row.before.text);

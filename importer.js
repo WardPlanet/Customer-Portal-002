@@ -33,7 +33,7 @@ const OUTPUT_FORMAT = [
   '    { "type": "code", "text": "a command, query, file path list, configuration or code snippet, copied exactly with its line breaks and indentation" }',
   '  ],',
   '  "review_notes": ["short notes for the person reviewing this import"],',
-  '  "suggestions": [{ "target": "title | description | block N", "original": "the section\u2019s text exactly as you put it in the page", "title": "step blocks only: the proposed step title", "text": "the proposed full text for that section", "kind": "format | copy", "reason": "under 120 characters: why" }]',
+  '  "suggestions": [{ "action": "replace | add | remove", "target": "title | description | block N", "original": "the section\u2019s text exactly as you put it in the page (empty for add)", "title": "step blocks only: the proposed step title", "text": "the proposed full text (not used for remove)", "kind": "format | copy", "reason": "under 120 characters: why" }]',
   '}',
   '',
   'Rules for the format:',
@@ -42,7 +42,12 @@ const OUTPUT_FORMAT = [
   '- A "table" block is for real rows and columns of data. The first row of "rows" is the header row. Every row has the same number of cells, and a cell is one line of plain text (no lists or line breaks inside a cell; use "; " between items). Keep an empty cell as an empty string.',
   '- If the text itself needs a literal * _ [ ] < > or backslash, put a backslash in front of it. Do not do this inside a "code" block: its text is plain and copied exactly.',
   '- "review_notes" lists the flagged points: things a person should look at (gaps, contradictions, omitted images, personal contact details left as written, anything out of date, anything you were unsure how to lay out). A flagged point only describes; it never changes the page. Use an empty array only if there is genuinely nothing to check.',
-  '- "suggestions" are the ONLY place wording may be improved. The page you build above must still contain the source text unchanged; a suggestion never changes the page until a person approves it. Use kind "format" when the proposal keeps every word and only adds layout inside the text (bold, italic, a bulleted or numbered list, a link written as [text](address)); use kind "copy" when any word would change (unclear wording, typos, tone, missing detail). Target only title, description or a paragraph, note, warning, header or step block (N is the block\u2019s position in "blocks", counting from 1), never a table or code. Do not invent facts. At most 12 suggestions; use an empty array if there is nothing worth suggesting.'
+  '- "suggestions" are the ONLY place the page may be improved. The page you build above must still contain the source text unchanged; a suggestion never changes the page until a person approves it. Kinds of suggestion (use an empty array if nothing is worth suggesting; at most 12, the most useful first):',
+  '  1. action "replace", kind "format": keeps every word and only adds layout inside the text (bold, italic, a bulleted or numbered list, a link written as [text](address)).',
+  '  2. action "replace", kind "copy": changes words. Use it for typos and unclear wording, and above all for copy that is especially jarring against the style guide below (name the rule in "reason"). Do not suggest small taste edits.',
+  '  3. action "add", target "description": only when the page has no description (the document did not open with a paragraph). Write one or two sentences that say what the page is for, using only what the document says. Never invent facts.',
+  '  4. action "remove", target "block N" (give the block\u2019s text in "original"): content that looks ancillary or left over from an older system or process, for example a document date or "last updated" line, an owner or author line, a version or revision table, page numbers, a confidentiality banner, a table of contents. Never remove steps or anything a reader needs to do the work.',
+  '  Targets: title, description, or a block (N is its position in "blocks", counting from 1). Do not suggest changes to code. Keep the author\u2019s voice and do not invent facts.'
 ].join('\n');
 
 function extensionOf(filename) {
@@ -114,7 +119,7 @@ async function readDocument(buffer, filename) {
 
 // Also used by scripts/build-artifact.mjs, so the Claude artifact gets exactly the same instructions
 export function buildInstructions(guidelines, styleGuide, team) {
-  // The style guide and the job-title rules are for writing new pages. An import does not edit the document, so neither is sent.
+  // The job-title rules are for writing new pages and are not sent. The style guide is sent for one purpose only: judging the AI\u2019s suggestions.
   return [
     'You put an existing document into the page layout of a company wiki, following the house guidelines below.',
     'You are a converter, not an editor: you change the layout and never the wording. Copy the document\u2019s text exactly.',
@@ -123,6 +128,12 @@ export function buildInstructions(guidelines, styleGuide, team) {
     '## House guidelines for imports',
     '',
     guidelines.trim(),
+    '',
+    '## Style guide (only for judging suggestions)',
+    '',
+    'The company style guide below is NOT applied to the page: the page keeps the document\u2019s own wording. Use it only to decide which copy is worth a "copy" suggestion, and write every suggested replacement so it follows it.',
+    '',
+    String(styleGuide || '').trim(),
     '',
     '## Output format',
     '',

@@ -3226,3 +3226,6 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .import-suggestion-choices { align-items: flex-start; }
 .import-suggestion-status { align-self: center; }
 .import-suggestion-remove { min-width: 32px; padding-left: 0; padding-right: 0; font-size: 18px; line-height: 1; }
+.import-suggestion-kind.is-remove { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.import-suggestion-kind.is-add { background: var(--brand-tint); border-color: var(--icon-blue); color: var(--navy); }
+.import-suggestion { color: var(--text); }
