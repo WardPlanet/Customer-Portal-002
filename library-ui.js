@@ -1577,10 +1577,11 @@
     data.history.forEach(function (v) {
       var row = el('tr', 'lib-row');
       var versionCell = el('td');
-      versionCell.appendChild(el('strong', '', (v.release ? 'v' + v.release : 'Draft') + (v.live ? ' (live)' : '')));
+      var isImport = !!(data.page.importRecord && v.n === 1);   // the version an import created reads "Import", never "Draft"
+      versionCell.appendChild(el('strong', '', (v.release ? 'v' + v.release + (isImport ? ' \u00B7 Import' : '') : isImport ? 'Import' : 'Draft') + (v.live ? ' (live)' : '')));
       row.appendChild(versionCell);
       var statusCell = el('td');
-      statusCell.appendChild(badge(VERSION_LABELS[v.status]));
+      statusCell.appendChild(badge(isImport && v.status === 'draft' ? ['Import', 'draft'] : VERSION_LABELS[v.status]));
       row.appendChild(statusCell);
       row.appendChild(el('td', '', v.author || ''));
       row.appendChild(el('td', 'lib-date', formatDate(v.updatedAt)));
@@ -1601,7 +1602,7 @@
       notesCell.colSpan = actingAsAdmin() ? 6 : 5;
       notes.forEach(function (line) { notesCell.appendChild(el('p', 'lib-row-sub', line)); });
       // What the AI flagged and suggested when the document was imported belongs to the version the import created
-      if (data.page.importRecord && v.n === 1) { notesCell.appendChild(buildImportNotes(id, data.page.importRecord)); }
+      if (data.page.importRecord && v.n === 1) { notesCell.appendChild(buildImportNotes(data.page.importRecord)); }
       notesCell.appendChild(link('Read this version', '#/view/' + id + '/' + v.n, 'row-link'));
       notesRow.appendChild(notesCell);
       var detailsLink = el('button', 'row-btn', 'View details');
@@ -1654,59 +1655,43 @@
     dialog.showModal();
   }
 
-  // The import notes shown inside a version's details: what the AI flagged (the team lead approves or denies each point) and what it suggested
-  function buildImportNotes(id, record) {
+  // The import notes shown inside a version's details, colour-coded like the bars at the top of the editor: the points the AI flagged in yellow,
+  // its suggestions in blue (each tagged Add, Replace or Remove in that button's colour)
+  function buildImportNotes(record) {
     var wrap = el('div', 'import-notes');
     var head = 'Import notes \u00B7 ' + (record.source || 'imported document') + (record.importedBy ? ' \u00B7 imported by ' + record.importedBy : '') + (record.importedAt ? ' on ' + formatDate(record.importedAt) : '');
     wrap.appendChild(el('h3', 'import-record-heading', head));
-    var mayDecide = actorIsLead() || actingAsAdmin();
     if (record.points.length) {
-      wrap.appendChild(el('p', 'lib-row-sub', 'Points the AI flagged' + (mayDecide ? ': approve a point if it is fine, deny it if it needs fixing.' : ':')));
+      var yellow = el('div', 'lib-bar is-yellow');
+      yellow.appendChild(el('p', 'import-note-title', record.points.length + (record.points.length === 1 ? ' point' : ' points') + ' flagged by the AI'));
       var pointList = el('ul', 'import-points-list');
-      record.points.forEach(function (point, i) {
-        var li = el('li', 'import-note-point');
-        li.appendChild(el('span', 'import-note-text', point.text));
-        var standing = el('span', 'import-note-standing');
-        function showStanding() {
-          standing.textContent = point.decision === 'approved' ? 'Approved' + (point.by ? ' by ' + point.by : '') : point.decision === 'denied' ? 'Denied, needs fixing' + (point.by ? ' (' + point.by + ')' : '') : 'Not reviewed';
-        }
-        showStanding();
-        li.appendChild(standing);
-        if (mayDecide) {
-          [['approved', 'Approve'], ['denied', 'Deny']].forEach(function (pair) {
-            var b = button(pair[1], 'row-btn', async function () {
-              var next = point.decision === pair[0] ? '' : pair[0];
-              var reply = await attempt(backend().decideImportPoint(id, i, next));
-              if (reply && reply.page && reply.page.importRecord && reply.page.importRecord.points[i]) {
-                point.decision = reply.page.importRecord.points[i].decision;
-                point.by = reply.page.importRecord.points[i].by;
-                showStanding();
-                li.querySelectorAll('button').forEach(function (other) { other.setAttribute('aria-pressed', String(other.getAttribute('data-value') === point.decision)); });
-              }
-            });
-            b.setAttribute('data-value', pair[0]);
-            b.setAttribute('aria-pressed', String(point.decision === pair[0]));
-            b.setAttribute('aria-label', pair[1] + ': ' + point.text);
-            li.appendChild(b);
-          });
-        }
-        pointList.appendChild(li);
-      });
-      wrap.appendChild(pointList);
+      record.points.forEach(function (point) { pointList.appendChild(el('li', '', point.text)); });
+      var yellowBody = el('div', 'import-bar-body');
+      yellowBody.appendChild(pointList);
+      yellow.appendChild(yellowBody);
+      wrap.appendChild(yellow);
     }
     if (record.suggestions.length) {
       function count(outcome) { return record.suggestions.filter(function (x) { return x.outcome === outcome; }).length; }
-      wrap.appendChild(el('p', 'lib-row-sub', 'Suggestions the AI made: ' + count('applied') + ' applied, ' + count('dismissed') + ' dismissed, ' + count('open') + ' not decided.'));
-      var suggestionList = el('ul', 'import-points-list');
+      var blue = el('div', 'lib-bar is-blue');
+      blue.appendChild(el('p', 'import-note-title', record.suggestions.length + (record.suggestions.length === 1 ? ' suggestion' : ' suggestions') + ' \u00B7 ' + count('applied') + ' applied, ' + count('dismissed') + ' dismissed, ' + count('open') + ' not decided'));
+      var blueBody = el('div', 'import-bar-body');
+      var suggestionList = el('ul', 'import-points-list import-suggestion-notes');
       record.suggestions.forEach(function (item) {
-        var what = item.action === 'add' ? 'Add to ' + item.section : item.action === 'remove' ? 'Remove from ' + item.section : 'Replace in ' + item.section;
-        var outcome = item.outcome === 'applied' ? 'applied' : item.outcome === 'dismissed' ? 'dismissed' : 'not decided';
-        var li = el('li', '', what + (item.reason ? ' (' + item.reason + ')' : '') + ' \u2014 ' + outcome + (item.by ? ' (' + item.by + (item.at ? ', ' + formatDate(item.at) : '') + ')' : ''));
+        var li = el('li', 'import-note-suggestion');
+        var top = el('div', 'import-note-line');
+        top.appendChild(el('span', 'import-pill is-' + item.action, item.action === 'add' ? 'Add' : item.action === 'remove' ? 'Remove' : 'Replace'));
+        top.appendChild(el('strong', '', item.section));
+        if (item.reason) { top.appendChild(el('span', 'import-record-text', item.reason)); }
+        top.appendChild(el('span', 'import-note-outcome', (item.outcome === 'applied' ? 'Applied' : item.outcome === 'dismissed' ? 'Dismissed' : 'Not decided') + (item.by ? ' by ' + item.by : '') + (item.at ? ', ' + formatDate(item.at) : '')));
+        li.appendChild(top);
         if (item.before) { li.appendChild(el('div', 'import-record-text', 'Was: ' + item.before)); }
         if (item.after) { li.appendChild(el('div', 'import-record-text', 'Suggested: ' + item.after)); }
         suggestionList.appendChild(li);
       });
-      wrap.appendChild(suggestionList);
+      blueBody.appendChild(suggestionList);
+      blue.appendChild(blueBody);
+      wrap.appendChild(blue);
     }
     return wrap;
   }
@@ -1969,7 +1954,7 @@
     // The blue bar stays while the page is edited, with the same buttons as the review view, except that Edit has become Review (it goes back to
     // reading the page). The owner: Submit and Review. The team lead (and Admin): Publish, Review, and Request changes when the page is waiting for review.
     var status = hist ? hist.status : 'draft';
-    lines.unshift('Editing ' + (hist && hist.release ? versionName(hist).toLowerCase() : 'a draft') + (status === 'submitted' ? ' \u2014 waiting for review' : '') + '.');
+    lines.unshift('Editing ' + (hist && hist.release ? versionName(hist).toLowerCase() : (detail && detail.page && detail.page.importRecord && Number(n) === 1 ? 'the import' : 'a draft')) + (status === 'submitted' ? ' \u2014 waiting for review' : '') + '.');
     if (current.liveEdit && status !== 'submitted') { lines.push('This page is live, so your changes are not saved automatically. Click Save draft to keep them.'); }
     var box = editorBanner(lines, tone === 'warn' ? 'info' : tone);
     var actionsRow = el('div', 'banner-actions');
@@ -2165,7 +2150,7 @@
     var name = versionName(hist).toLowerCase();   // "version 2" or "draft"
     window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · ' + name);
     var box = el('div', 'banner banner-info');
-    var reading = hist && hist.release ? name : 'a draft';
+    var reading = hist && hist.release ? name : (detail && detail.page && detail.page.importRecord && Number(n) === 1 ? 'the import' : 'a draft');
     var statusWords = describe(data.version.status);
     box.appendChild(el('p', '', 'Reading ' + reading + (statusWords === reading ? '' : ' \u2014 ' + statusWords) + '.'));
     if (hist && hist.decisionComment) { box.appendChild(el('p', '', 'Review note: \u201c' + hist.decisionComment + '\u201d')); }

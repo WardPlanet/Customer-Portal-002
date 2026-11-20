@@ -234,7 +234,6 @@
     claimEdit: function (id, session, takeOver) { return this.call('POST', '/api/library/pages/' + id + '/editing', { session: session, takeOver: !!takeOver }); },
     releaseEdit: function (id, session) { return this.call('POST', '/api/library/pages/' + id + '/editing/release', { session: session }); },
     saveImportRecord: function (id, record) { return this.call('POST', '/api/library/pages/' + id + '/import-record', { record: record }); },
-    decideImportPoint: function (id, index, decision) { return this.call('POST', '/api/library/pages/' + id + '/import-record/points/' + index, { decision: decision }); },
     saveSetup: function (id, changes) { return this.call('POST', '/api/library/pages/' + id + '/setup', changes); },
     setOwnerPublishes: function (id, on) { return this.call('POST', '/api/library/pages/' + id + '/owner-publishes', { on: !!on }); },
     setVisibility: function (id, visibility) { return this.call('POST', '/api/library/pages/' + id + '/visibility', { visibility: visibility }); },
@@ -666,14 +665,6 @@
         var page = find(data, id);
         var t = teamOf(page);
         if (guard(function () { return W.setImportRecord(page, record, actorIn(t), t, now()); })) { writeAll(data); }
-        return detail(page);
-      },
-      decideImportPoint: async function (id, index, decision) {
-        var data = readAll();
-        var page = find(data, id);
-        var t = teamOf(page);
-        guard(function () { W.decideImportPoint(page, Number(index), decision, actorIn(t), t, now()); });
-        writeAll(data);
         return detail(page);
       },
       saveSetup: async function (id, changes) {

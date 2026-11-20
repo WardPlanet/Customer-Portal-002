@@ -1375,7 +1375,7 @@
   // Sets the people linked to a page as contacts (emails), on its live and in-progress versions. The team lead, or a person who owns the page, may.
   /* ---------- The import record ----------
      What the AI did and said when a document was imported: where it came from, the points it flagged for checking (each approved or
-     denied by the team lead) and the changes it suggested (each applied, dismissed or left undecided). It belongs to the page, not to
+     listed for reference) and the changes it suggested (each applied, dismissed or left undecided). It belongs to the page, not to
      its text, so it never reaches the live page, the search or a diff. Shown to the page's team under the import's first draft. */
   var IMPORT_OUTCOMES = ['open', 'applied', 'dismissed'];
   function cleanImportRecord(raw) {
@@ -1386,9 +1386,7 @@
       importedAt: text(raw.importedAt, 40),
       importedBy: text(raw.importedBy, 200),
       points: (Array.isArray(raw.points) ? raw.points : []).slice(0, 50).map(function (point) {
-        point = point && typeof point === 'object' ? point : { text: point };
-        var decision = point.decision === 'approved' || point.decision === 'denied' ? point.decision : '';
-        return { text: text(point.text, 1000), decision: decision, by: decision ? text(point.by, 200) : '', at: decision ? text(point.at, 40) : '' };
+        return { text: text(point && typeof point === 'object' ? point.text : point, 1000) };
       }).filter(function (point) { return point.text; }),
       suggestions: (Array.isArray(raw.suggestions) ? raw.suggestions : []).slice(0, 30).map(function (item) {
         item = item && typeof item === 'object' ? item : {};
@@ -1410,7 +1408,7 @@
   }
 
   // Keeps the record from the editor (the person who owns the page or the lead). The first record sticks to the page; later saves from the
-  // same import update the suggestions' outcomes and never undo a decision the lead made on a point.
+  // same import update the suggestions' outcomes.
   function setImportRecord(page, raw, actor, team, now) {
     requireActor(actor);
     if (!isLead(actor, team) && !isMine(page, actor)) { throw new WorkflowError('not_yours', 'Only the owner or the team lead can keep the import record.', 403); }
@@ -1418,9 +1416,6 @@
     if (!record.points.length && !record.suggestions.length) { return false; }
     var existing = page.importRecord;
     if (existing && existing.importedAt !== record.importedAt) { return false; }   // an earlier import's record stays as it was
-    if (existing) {
-      record.points = record.points.map(function (point, i) { return existing.points[i] && existing.points[i].text === point.text ? existing.points[i] : point; });
-    }
     // Who decided and when is set here, not taken from the browser
     record.suggestions.forEach(function (item, i) {
       var before = existing && existing.suggestions[i];
@@ -1433,19 +1428,6 @@
     record.importedAt = record.importedAt || now;
     page.importRecord = record;
     return true;
-  }
-
-  // The team lead approves a flagged point (it is fine as it is) or denies it (it has to be fixed); '' takes the decision back
-  function decideImportPoint(page, index, decision, actor, team, now) {
-    requireLead(actor, team, 'decide on an import point');
-    var record = page.importRecord;
-    var point = record && record.points[index];
-    if (!point) { throw new WorkflowError('no_point', 'That point is not on this page.', 404); }
-    if (decision !== 'approved' && decision !== 'denied' && decision !== '') { throw new WorkflowError('bad_decision', 'A point is approved or denied.', 400); }
-    point.decision = decision;
-    point.by = decision ? actor.name : '';
-    point.at = decision ? now : '';
-    return record;
   }
 
   function setLinked(page, keys, actor, team, now) {
@@ -1697,7 +1679,6 @@
     setLinked: setLinked,
     cleanImportRecord: cleanImportRecord,
     setImportRecord: setImportRecord,
-    decideImportPoint: decideImportPoint,
     diffContent: diffContent,
     undoChange: undoChange,
     resolveChange: resolveChange,

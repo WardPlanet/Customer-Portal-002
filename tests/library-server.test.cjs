@@ -93,19 +93,14 @@ test('server: opt-in republish, soft delete, restore, review routes and emails',
     assert.deepEqual(leadSetup.body.page.linkedRoles, []);
     assert.equal(leadSetup.body.history.length, versionsBefore);
 
-    // The import record: the owner keeps what the AI flagged and suggested; only the lead decides on a point
+    // The import record: the owner keeps what the AI flagged and suggested
     const record = { source: 'refunds.docx', importedAt: '2026-01-01T10:00:00.000Z', points: [{ text: 'Check the dates' }, { text: 'Image omitted' }], suggestions: [{ action: 'remove', kind: 'remove', section: 'Text', before: 'Last updated 2019', after: '', reason: 'Old date', outcome: 'applied' }, { action: 'add', kind: 'add', section: 'Description', before: '', after: 'How to refund.', outcome: 'open' }] };
     const kept = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/import-record', { record: record });
     assert.equal(kept.status, 200);
     assert.equal(kept.body.page.importRecord.points.length, 2);
     assert.equal(kept.body.page.importRecord.suggestions[0].by, 'Scott Archer');   // who applied it is set by the server
-    assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/import-record/points/0', { decision: 'approved' })).status, 403);
-    const decided = await s.call('Micah', 'POST', '/api/library/pages/' + id + '/import-record/points/0', { decision: 'denied' });
-    assert.equal(decided.body.page.importRecord.points[0].decision, 'denied');
-    assert.equal(decided.body.page.importRecord.points[0].by, 'Micah');
-    // A later save from the same import keeps the lead's decision; a record from a different import does not replace it
+    // A later save from the same import updates the outcomes; a record from a different import does not replace it
     const resent = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/import-record', { record: Object.assign({}, record, { suggestions: [Object.assign({}, record.suggestions[0], { outcome: 'dismissed' }), record.suggestions[1]] }) });
-    assert.equal(resent.body.page.importRecord.points[0].decision, 'denied');
     assert.equal(resent.body.page.importRecord.suggestions[0].outcome, 'dismissed');
     const other = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/import-record', { record: Object.assign({}, record, { importedAt: '2026-02-02T10:00:00.000Z', points: [{ text: 'Different' }] }) });
     assert.equal(other.body.page.importRecord.points[0].text, 'Check the dates');
