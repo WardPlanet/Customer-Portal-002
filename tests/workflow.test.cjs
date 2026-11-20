@@ -553,6 +553,21 @@ test('reviewing a live page: the lead can renew it, the owner can send it back f
   assert.equal(p3.liveVersion, 2);
   assert.equal(W.workingVersion(p3), null);
   assert.equal(W.expiryStatus(W.liveVersion(p3).updatedAt, Date.parse(at(201))).soon, false);   // its 180 days started again
+  // Opening Edit and leaving without a change leaves an unchanged copy; it does not stop the owner approving the page as it is
+  const p4 = W.createPage(team, text, sam, at(1));
+  W.publish(p4, 1, lee, team, at(2));
+  W.startEdit(p4, sam, at(150));
+  assert.equal(p4.versions.length, 2);
+  const renewed4 = W.renewLive(p4, sam, team, at(200));
+  assert.equal(renewed4.status, 'approved');
+  assert.equal(p4.versions.length, 2);   // the unchanged copy was replaced by the approved version, not kept beside it
+  assert.equal(p4.liveVersion, 2);
+  // A real draft (with changes) still blocks it
+  const p5 = W.createPage(team, text, sam, at(1));
+  W.publish(p5, 1, lee, team, at(2));
+  const real = W.startEdit(p5, sam, at(150));
+  W.saveDraft(p5, real.n, text.replace('A page', 'A changed page'), sam, at(151), team);
+  assert.throws(() => W.renewLive(p5, sam, team, at(200)), (e) => e.code === 'edit_in_progress');
   W.submitLive(page, sam, team, at(300));
   assert.equal(W.workingVersion(page).status, 'submitted');
   const p2 = W.createPage(team, text, sam, at(1));

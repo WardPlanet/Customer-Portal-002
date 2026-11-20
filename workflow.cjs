@@ -809,8 +809,16 @@
   }
   // "Approve, no changes" on a page that is expiring soon or has expired: it stays as it is and its 180 days start again. The team lead can do it
   // for any page. The page's owner can do it for their own page once it is due, with no approval from the team lead (the lead is told).
+  // Opening Edit on a live page and leaving without changing anything leaves a draft that is an exact copy of the live page. It is not worth keeping.
+  function untouchedDraft(page) {
+    var wv = workingVersion(page);
+    var live = liveVersion(page);
+    return wv && live && wv.status === STATUS.DRAFT && wv.text === live.text ? wv : null;
+  }
   function renewLive(page, actor, team, now) {
     requireActor(actor);
+    var untouched = untouchedDraft(page);
+    if (untouched && page.versions[page.versions.length - 1] === untouched) { page.versions.pop(); }   // an unchanged copy does not block approving the page as it is
     var lead = isLead(actor, team);
     var live = liveFor(page);
     if (!lead) {

@@ -2280,7 +2280,8 @@
     }
     var waiting = data.version.status === 'submitted';
     // Reading the live version of a page that nobody is working on (how a page that is expiring or expired is reviewed)
-    var liveReview = !!(detail && detail.page && detail.page.liveVersion === Number(n) && !detail.page.workingVersion);
+    // (an unchanged copy left by opening Edit and leaving does not count as work in progress)
+    var liveReview = !!(detail && detail.page && detail.page.liveVersion === Number(n) && (!detail.page.workingVersion || detail.page.workingVersion.changed === false));
     // Submit for review (owner) and Publish as it is (lead) are only for a live page that is expiring soon or has expired; a healthy live page can only be edited
     var liveExpiry = liveReview ? W.expiryStatus(detail.page.updatedAt) : null;
     var liveDue = !!(liveExpiry && liveExpiry.soon);
