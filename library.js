@@ -606,6 +606,12 @@ export function registerLibraryRoutes(app, draftsDir) {
     res.json(Object.assign(detail(page, ctx), { savedText: saved.text, changes: Workflow.changeList(page, saved.n, ctx.actor, ctx.team) }));
   }));
 
+  app.post('/api/library/pages/:id/versions/:n/changes-seen', staff(async function (req, res, ctx) {
+    var page = await openMine(req, ctx);
+    if (Workflow.markChangesSeen(page, req.params.n, ctx.actor)) { await savePage(draftsDir, ctx.team, page); }
+    res.json({ changes: Workflow.changeList(page, req.params.n, ctx.actor, ctx.team) });
+  }));
+
   // The change list of a draft of a live page: undo a change; approve, reject or withdraw one that is waiting
   app.post('/api/library/pages/:id/versions/:n/changes/:cid/:action', staff(async function (req, res, ctx) {
     var page = await openMine(req, ctx);

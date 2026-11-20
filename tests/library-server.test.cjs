@@ -212,6 +212,11 @@ test('server: the change list of a live page\'s draft records saves, protects th
     assert.equal(save1.body.changes[0].note, 'fixed alpha');
     assert.equal(save1.body.changes[0].canUndo, true);
     await s.call('Micah', 'PUT', url, { text: blockText(['Alpha edited', 'Beta by lead']) });
+    // What Scott has not seen yet (Micah's change) is flagged until he marks it seen
+    const before = await s.call('Scott Archer', 'GET', url);
+    assert.deepEqual(before.body.changes.filter((c) => c.unseen).map((c) => c.by), ['Micah']);
+    const seen = await s.call('Scott Archer', 'POST', url + '/changes-seen');
+    assert.equal(seen.body.changes.filter((c) => c.unseen).length, 0);
     // Scott changes the lead's block: the lead's version is kept and the change waits
     const save2 = await s.call('Scott Archer', 'PUT', url, { text: blockText(['Alpha edited', 'Beta by scott']) });
     assert.ok(/Beta by lead/.test(save2.body.savedText) && !/Beta by scott/.test(save2.body.savedText));

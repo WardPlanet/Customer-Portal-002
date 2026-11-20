@@ -216,6 +216,7 @@
     get: function (id) { return this.call('GET', '/api/library/pages/' + id); },
     getVersion: function (id, n) { return this.call('GET', '/api/library/pages/' + id + '/versions/' + n); },
     save: function (id, n, text, note) { return this.call('PUT', '/api/library/pages/' + id + '/versions/' + n, { text: text, note: note || '' }); },
+    markChangesSeen: function (id, n) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/changes-seen'); },
     undoChange: function (id, n, changeId) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/changes/' + changeId + '/undo'); },
     resolveChange: function (id, n, changeId, decision) { return this.call('POST', '/api/library/pages/' + id + '/versions/' + n + '/changes/' + changeId + '/' + decision); },
     edit: function (id, session) { return this.call('POST', '/api/library/pages/' + id + '/edit', { session: session || '' }); },
@@ -513,6 +514,15 @@
           var version = W.saveDraft(page, n, text, who, at, t, note);
           return { savedText: version.text, changes: W.changeList(page, version.n, who, t) };
         });
+      },
+      markChangesSeen: async function (id, n) {
+        var data = readAll();
+        var page = find(data, id);
+        var t = teamOf(page);
+        var who = actorIn(t);
+        if (!who.name || !who.roles.length) { return { changes: [] }; }
+        if (guard(function () { return W.markChangesSeen(page, n, who); })) { writeAll(data); }
+        return { changes: guard(function () { return W.changeList(page, n, who, t); }) };
       },
       // Undo one change in a draft; approve, reject or withdraw one that is waiting. The reply has the draft's text as it now is.
       undoChange: async function (id, n, changeId) {

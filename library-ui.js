@@ -836,11 +836,35 @@
   }
   var OP_WORDS = { edit: 'Changed', add: 'Added', remove: 'Removed' };
 
-  function renderChanges(list, id, n) {
+  // The yellow box under the blue bar: what other people changed since this person last looked, with Got it
+  function renderChangesNotice(list, id, n) {
+    var box = document.getElementById('changes-notice');
+    box.textContent = '';
+    var fresh = (list || []).filter(function (c) { return c.unseen; }).reverse();   // oldest first
+    box.hidden = !fresh.length;
+    if (!fresh.length) { return; }
+    box.appendChild(el('strong', 'changes-notice-title', fresh.length === 1 ? 'There is 1 change you have not seen' : 'There are ' + fresh.length + ' changes you have not seen'));
+    var ul = el('ul', 'changes-notice-list');
+    fresh.forEach(function (c) {
+      var line = el('li', '');
+      line.appendChild(el('strong', '', c.by + (c.byLead ? ' (team lead)' : '')));
+      line.appendChild(document.createTextNode(' ' + (c.status === 'pending' ? 'proposed a change to ' : { edit: 'changed ', add: 'added ', remove: 'removed ' }[c.op] || 'changed ') + '\u201c' + c.label + '\u201d \u00b7 ' + changeTime(c.at) + (c.note ? ' \u00b7 \u201c' + c.note + '\u201d' : '')));
+      ul.appendChild(line);
+    });
+    box.appendChild(ul);
+    box.appendChild(button('Got it', 'row-btn', async function () {
+      var reply = await attempt(backend().markChangesSeen(id, n));
+      if (reply) { renderChanges(reply.changes, id, n, box.getAttribute('data-readonly') === '1'); }
+    }));
+  }
+
+  function renderChanges(list, id, n, readOnly) {
     var card = document.getElementById('changes-card');
     var ul = document.getElementById('changes-list');
     ul.textContent = '';
     list = list || [];
+    document.getElementById('changes-notice').setAttribute('data-readonly', readOnly ? '1' : '');
+    renderChangesNotice(list, id, n);
     card.hidden = !list.length;
     list.forEach(function (c) {
       var li = el('li', 'change-item is-' + c.status);
@@ -866,12 +890,12 @@
           window.PageEditor.refresh();
         }));
       }
-      if (c.canUndo) { run('Undo', '', function () { return backend().undoChange(id, n, c.id); }); }
-      if (c.canDecide) {
+      if (c.canUndo && !readOnly) { run('Undo', '', function () { return backend().undoChange(id, n, c.id); }); }
+      if (c.canDecide && !readOnly) {
         run('Approve', 'row-btn-main', function () { return backend().resolveChange(id, n, c.id, 'approve'); });
         run('Reject', '', function () { return backend().resolveChange(id, n, c.id, 'reject'); });
       }
-      if (c.canWithdraw && !c.canDecide) { run('Withdraw', '', function () { return backend().resolveChange(id, n, c.id, 'withdraw'); }); }
+      if (c.canWithdraw && !c.canDecide && !readOnly) { run('Withdraw', '', function () { return backend().resolveChange(id, n, c.id, 'withdraw'); }); }
       if (actions.childNodes.length) { li.appendChild(actions); }
       ul.appendChild(li);
     });
@@ -2048,6 +2072,8 @@
     if (mine !== routing) { return; }
     var hist = detail && detail.history.filter(function (h) { return h.n === Number(n); })[0];
     showOwnerPublishField(id, detail, false);
+    renderChanges(data.changes || [], id, Number(n), true);   // read-only here: the list and the yellow box, without Undo or Approve
+    document.getElementById('save-note').hidden = true;
     var name = versionName(hist).toLowerCase();   // "version 2" or "draft"
     window.PageEditor.setLabel((data.version.title || 'Untitled page') + ' · ' + name);
     var box = el('div', 'banner banner-info');

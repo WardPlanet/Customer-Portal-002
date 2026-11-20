@@ -631,6 +631,7 @@
       }
       version.changes.push(entry);
     });
+    markChangesSeen(page, version.n, actor);   // saving on top of the draft means having seen what is in it
     return finalText;
   }
 
@@ -704,12 +705,25 @@
     return entry;
   }
 
-  // The list the editor shows: each change without the section texts, and whether this person may undo or decide on it
+  // Which change a person has seen up to: version.seen = { name: highest change number seen }. The person who saves has seen everything in the draft.
+  function changeNumber(c) { return Number(String(c.id).slice(1)) || 0; }
+  function markChangesSeen(page, n, actor) {
+    requireActor(actor);
+    var version = versionOf(page, n);
+    var top = (version.changes || []).reduce(function (m, c) { return Math.max(m, changeNumber(c)); }, 0);
+    version.seen = version.seen || {};
+    if ((version.seen[actor.name] || 0) < top) { version.seen[actor.name] = top; return true; }
+    return false;
+  }
+
+  // The list the editor shows: each change without the section texts, whether this person may undo or decide on it, and whether it is new to them
   function changeList(page, n, actor, team) {
     var version = versionOf(page, n);
     var lead = isLead(actor, team);
+    var seen = (version.seen && actor && version.seen[actor.name]) || 0;
     return (version.changes || []).map(function (c) {
       return {
+        unseen: c.by !== (actor && actor.name) && changeNumber(c) > seen,
         id: c.id, by: c.by, byLead: !!c.byLead, at: c.at, note: c.note || '', op: c.op, label: c.label, status: c.status,
         canUndo: c.status === 'applied' && (lead || (c.by === (actor && actor.name) && !c.byLead)),
         canDecide: c.status === 'pending' && lead,
@@ -1610,6 +1624,7 @@
     undoChange: undoChange,
     resolveChange: resolveChange,
     changeList: changeList,
+    markChangesSeen: markChangesSeen,
     LOCK_SECONDS: LOCK_SECONDS,
     activeLock: activeLock,
     claimEditing: claimEditing,
