@@ -4,9 +4,9 @@ The current state of the wiki prototype: what it does, how it is built, what is 
 `docs/HANDOFF-history.md` (some of it is out of date; this file wins). Hosting notes for IT are in `README.md`.
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
-- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 336, private).
+- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 337, private).
 - **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 26).
-- **Tests:** `npm test`, 129 passing (rules, search, import, admin, photos, and the Node server's library routes).
+- **Tests:** `npm test`, 132 passing (rules, search, import, admin, photos, and the Node server's library routes).
 
 ## 1. What it is
 
@@ -40,6 +40,7 @@ and earlier is the only acceptable AutoMapper range (neither is used).
 | `library-ui.js` | The screens: library, live page, review view, editor wiring, top bar, bell, search page. |
 | `app.js`, `index.html`, `styles.css` | The editor (blocks, Page setup bar, footer, import, PDF export) and the shared styles. |
 | `outline.js` | "On this page": the outline, its scroll tracking and click behaviour (used by the live page and the editor). |
+| `auth.js` | Who is asking: the prototype's "Acting as", or the signed-in email from a trusted sign-in proxy. |
 | `library.js`, `server.js` | The Node server: library routes, trash, emails queue, housekeeping, AI and import routes. |
 | `search.cjs`, `search-log.cjs`, `search-review.js` | Search ranking, the search log, and the lead's Search review screen. |
 | `batch.js`, `batch-core.cjs`, `importer.js`, `ai.js` | Import (one document, or batch of several), AI calls. |
@@ -108,8 +109,8 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 
 ## 10. Open items and decisions
 
-**Sign-in (parked, "come back to this later").** Today the Department and "Acting as" dropdowns stand in for sign-in and the server trusts an `X-Acting-As` header. To build:
-- validate the Entra token on every request (replacing the header); match a person by Entra object ID as well as email; Admin from an Entra group or app role;
+**Sign-in.** For the alpha the server can sit behind the company's sign-in proxy: set `TRUSTED_EMAIL_HEADER` and it trusts the signed-in email the proxy sends (`auth.js`; the roster decides who has a library, anyone else signed in is a reader; `/api/me` tells the browser who it is, and the testing bar is hidden). The prototype's "Acting as" menu is still the default when the setting is off. Tested in `tests/auth-server.test.cjs`. Still to build for the real thing:
+- validate the Entra token on every request (replacing the trusted header); match a person by Entra object ID as well as email; Admin from an Entra group or app role;
 - a lock screen for anyone not signed in (public pages stay open); the "signed in, no team" access (section 4) then needs no switch: a verified email on no roster simply lands there;
 - team membership from the directory (pick an existing account, never free text) with invitations: an invited person cannot receive transferred pages until they accept.
 

@@ -4715,11 +4715,11 @@
   window.Store.start().then(function (roster) {
     if (!roster) {
       main.appendChild(el('h1', 'lib-title', 'Library'));
-      main.appendChild(el('p', 'lib-empty', 'The library needs the server (run npm start) or the single-file Claude artifact. This page was opened on its own, so there is nowhere to keep pages.'));
+      main.appendChild(el('p', 'lib-empty', window.Store.signInProblem || 'The library needs the server (run npm start) or the single-file Claude artifact. This page was opened on its own, so there is nowhere to keep pages.'));
       return;
     }
     team = roster;
-    var employeeMode = !!(window.Store.isEmployeeMode && window.Store.isEmployeeMode());   // someone signed in who is on no team stays that way
+    var employeeMode = !!(window.Store.isEmployeeMode && window.Store.isEmployeeMode()) || !!window.TRUSTED_SIGN_IN;   // someone signed in who is on no team stays that way; so does anyone the sign-in proxy identified
     if (!employeeMode && (!window.Store.getActor() || (window.Store.getActor().toLowerCase() !== 'admin' && !team.roles.some(function (r) { return r.person === window.Store.getActor(); })))) {
       // The first time: act as the first person who is not the lead, so a new page can be started at once
       var starter = team.roles.filter(function (r) { return r.title !== team.lead; })[0] || team.roles[0];

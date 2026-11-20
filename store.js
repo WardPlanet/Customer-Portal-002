@@ -1183,10 +1183,27 @@
       }
       try {
         var response = await fetch('/api/team');
+        if (response.status === 401 || response.status === 403) { this.signInProblem = response.status === 401 ? 'You are not signed in. Sign in with your Planet DDS account, then reload this page.' : 'This page can only be reached through the company sign-in.'; return null; }
         if (!response.ok) { return null; }
         team = await response.json();
         window.TEAM_ROSTER = team;
         this.backend = server;
+        // Behind the company sign-in the server says who this is: the "Acting as" menu is not used, and someone on no team's roster can only read
+        try {
+          var meResponse = await fetch('/api/me');
+          var me = meResponse.ok ? await meResponse.json() : { trusted: false };
+          if (me.trusted) {
+            window.TRUSTED_SIGN_IN = true;
+            document.documentElement.classList.add('trusted-sign-in');
+            this.signedInAs = me;
+            this.setActor(me.name);
+            if (!me.onTeam) {
+              window.EMPLOYEE_MODE = true;
+              document.documentElement.classList.add('employee-mode');
+              this.backend = employeeOnly(server);
+            }
+          }
+        } catch (error) { /* not behind a sign-in proxy: the prototype's "Acting as" menu is used */ }
         return team;
       } catch (error) {
         return null;

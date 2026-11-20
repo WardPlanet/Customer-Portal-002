@@ -3185,3 +3185,6 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .changes-notice-list { margin: 0 0 10px; padding-left: 18px; }
 .changes-notice-list li { margin: 2px 0; }
 .changes-notice { width: calc(100% - 64px); max-width: calc(var(--content-max) - 64px); }
+
+/* Behind the company sign-in the server knows who is signed in, so the testing bar (the stand-in for signing in) is not shown */
+.trusted-sign-in .demo-bar { display: none; }

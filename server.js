@@ -16,6 +16,7 @@ import { importDocument } from './importer.js';
 import { readStyleGuide, stylePreamble } from './guidelines.js';
 import { readTeam } from './teams.js';
 import { migrateFlatDrafts, registerLibraryRoutes, purgeTrash, queueExpiryEmails, queueTrashWarnings } from './library.js';
+import { identify, isTrustedMode, requireSignIn } from './auth.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -31,6 +32,22 @@ const app = express();
 app.use('/api/library/restore', express.json({ limit: '50mb' }));
 app.use('/api/ai/json', express.json({ limit: '10mb' }));   // a picture to describe travels as base64
 app.use(express.json({ limit: '1mb' }));
+
+/* ---------- Sign-in ----------
+   Behind a sign-in proxy (TRUSTED_EMAIL_HEADER, see auth.js) every route except the public site needs a signed-in person. */
+app.use(['/api/team', '/api/me', '/api/ai', '/api/import', '/api/search-log'], requireSignIn);
+
+// Who the browser is: in trusted mode the person the proxy signed in (and whether they have a library); otherwise { trusted: false }
+app.get('/api/me', async function (req, res) {
+  try {
+    if (!isTrustedMode()) { return res.json({ trusted: false }); }
+    var team = await readTeam();
+    var who = identify(req, team);
+    res.json({ trusted: true, name: who.actor.name, email: who.email, onTeam: who.onTeam, lead: who.onTeam && who.actor.roles.indexOf(team.lead) >= 0 });
+  } catch (error) {
+    sendError(res, error.httpStatus || 401, error.code || 'not_signed_in', error.message);
+  }
+});
 
 /* ---------- Team ----------
    The team and who holds each role. Pages name roles; this says who they are today. */

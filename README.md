@@ -33,6 +33,9 @@ variables take priority). `.env.example` documents each one.
 | `PORT` | `3000` | Port to listen on. |
 | `DRAFTS_DIR` | `./drafts` | Where saved drafts are stored. |
 | `AI_MODEL`, `AI_MODEL_QUICK` | `claude-opus-5-5` | Models for suggestions and for search keywords. |
+| `TRUSTED_EMAIL_HEADER` | none | Turns on sign-in through your proxy: the header that carries the signed-in email (for example `X-Forwarded-Email`). See "Sign-in" below. |
+| `TRUSTED_NAME_HEADER` | none | Optional: a header with the person's display name, shown for people who are on no team. |
+| `TRUSTED_PROXY_IPS` | none | Optional: the address(es) of the proxy. A request from anywhere else is refused. |
 
 ## Files
 
@@ -71,9 +74,23 @@ variables take priority). `.env.example` documents each one.
 | `/api/library/backup`, `/api/library/restore` | Download every page and version as one file; restore from one (team lead only). |
 | `/api/public/pages`, `/api/public/pages/:id` | The public side: no login, only live Client-Safe pages, no ownership details. |
 
+## Sign-in (for the alpha)
+
+The server has two ways of knowing who is asking:
+
+- **Prototype (the default):** the browser's "Acting as" menu. Anyone who can reach the server can act as anyone, so use it only on a machine nobody else can reach.
+- **Behind your sign-in proxy (set `TRUSTED_EMAIL_HEADER`):** put the wiki behind your single sign-on (for example Microsoft Entra ID through an application proxy, or App Service authentication). The proxy adds the signed-in person's email to every request in the header you name. The server then ignores "Acting as" completely and:
+  - finds the person on the team roster (`teams/<team>.json`, the `email` of each role). People listed there have a library, with the rights of their role;
+  - treats anyone else who is signed in as a **reader**: they can search and read every live page, public and internal, but have no library and cannot change anything. Adding their email to the roster is what gives them a library;
+  - refuses every request with no email (401), including the AI and import routes. The public site (`/api/public/...`), the health check and the page files stay open.
+
+Two things must be true for this to be safe: the server can be reached **only** through the proxy (bind it to a private address or firewall it), and the proxy **removes any copy of that header** the browser sends. Set `TRUSTED_PROXY_IPS` to the proxy's address to have the server check it too.
+
+What it does not do yet: check an Entra token itself, or take Admin from a group. The email header is the whole mechanism.
+
 ## Things to decide before going live
 
-- **No real login.** The "Acting as" menu is a stand-in: anyone who can reach the server can act as any team
+- **No real login unless you turn on the trusted proxy (see "Sign-in").** Without it the "Acting as" menu is a stand-in: anyone who can reach the server can act as any team
   member, including the team lead who approves pages, and can use the AI (which spends the API budget). The
   public routes (`/api/public/...`) are safe by design (live Client-Safe pages only) but everything else needs
   real sign-in, for example Microsoft Entra ID, before this is hosted. Put it behind your single sign-on or an

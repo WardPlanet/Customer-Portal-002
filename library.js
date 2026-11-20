@@ -17,6 +17,7 @@ import crypto from 'node:crypto';
 import express from 'express';
 import { createRequire } from 'node:module';
 import { readTeam, writeRoles } from './teams.js';
+import { identify } from './auth.js';
 
 const Workflow = createRequire(import.meta.url)('./workflow.cjs');
 const Search = createRequire(import.meta.url)('./search.cjs');
@@ -319,9 +320,10 @@ export function registerLibraryRoutes(app, draftsDir) {
     return async function (req, res) {
       try {
         var team = await readTeam();
-        var actor = Workflow.actorFor(decodeURIComponent(req.get('X-Acting-As') || ''), team);
-        if (!actor.name) { throw new Workflow.WorkflowError('no_actor', 'Choose who you are acting as first.', 401); }
-        var onTeam = actor.roles.length > 0;
+        // Who is asking: the name the browser claims (prototype), or the email the sign-in proxy vouches for (see auth.js)
+        var who = identify(req, team);
+        var actor = who.actor;
+        var onTeam = who.onTeam;
         if (!onTeam && !(options && options.anyone)) { throw new Workflow.WorkflowError('not_on_team', actor.name + ' is not on the team roster.', 403); }
         await handler(req, res, { team: team, actor: actor, onTeam: onTeam, now: new Date().toISOString() });
       } catch (error) {
