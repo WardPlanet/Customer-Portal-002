@@ -1618,13 +1618,13 @@
   .batch-working { color: var(--text-muted); }
   .batch-problem { padding: 12px 16px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; color: var(--text); }
   .batch-note { padding: 8px 12px; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 8px; color: var(--text); font-size: 13px; }
-  .batch-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
-  .batch-doc { display: flex; align-items: flex-start; gap: 12px; padding: 16px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
-  .batch-doc input[type="checkbox"] { margin-top: 8px; width: 18px; height: 18px; }
+  .batch-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+  .batch-doc { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .batch-doc input[type="checkbox"] { margin-top: 7px; width: 18px; height: 18px; }
   .batch-doc-body { flex: 1; min-width: 0; }
-  .batch-title { width: 100%; padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-weight: 600; }
+  .batch-title { width: 100%; max-width: 460px; padding: 6px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-weight: 600; }
   .batch-preview { margin: 4px 0 0; color: var(--text-muted); font-size: 13px; }
-  .batch-dupe { margin: 4px 0 0; color: var(--warn-icon); font-size: 12px; font-weight: 600; }
+  .batch-dupe { color: var(--warn-icon); font-weight: 600; }
   .batch-skipped { display: flex; align-items: center; gap: 12px; padding: 8px 12px; margin-bottom: 8px; border: 1px dashed var(--border-strong); border-radius: 12px; color: var(--text-muted); font-size: 13px; }
   .batch-skipped-text { flex: 1; min-width: 0; }
   .batch-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
@@ -3309,3 +3309,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .lib-row.is-build-failed td { opacity: 1; }
 .build-failed { color: var(--danger); font-weight: 600; font-size: 13px; }
 .build-check { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 8px; vertical-align: middle; border-radius: 50%; background: var(--success); color: #fff; }
+
+/* Documents that come from one file are joined by a dotted line between their cards */
+.batch-doc.is-joined::before { content: ''; position: absolute; left: 23px; top: -15px; height: 14px; border-left: 2px dotted var(--border-strong); }
+.batch-doc .lib-row-sub { margin: 4px 0 0; }

@@ -807,16 +807,20 @@
       body.appendChild(ownerRow);
 
       var words = Core.wordCount(session.segments, doc.first, doc.last);
-      var meta = el('p', 'lib-row-sub', 'Sections ' + doc.first + '–' + doc.last + ' · about ' + words.toLocaleString() + ' words');
-      body.appendChild(meta);
+      // One short line: where it is in the file, how long it is, and a warning when the library already has a page with this title
+      var meta = el('p', 'lib-row-sub', 'Sections ' + doc.first + '\u2013' + doc.last + ' \u00B7 about ' + words.toLocaleString() + ' words');
       if (existingTitles[String(doc.title).toLowerCase()]) {
-        body.appendChild(el('p', 'batch-dupe', 'A page with this title is already in the library. A new draft will be added, not replaced.'));
+        meta.appendChild(document.createTextNode(' \u00B7 '));
+        var dupe = el('span', 'batch-dupe', 'A page with this title is already in the library: a new draft will be added, not replaced');
+        meta.appendChild(dupe);
       }
-      var preview = session.segments.slice(doc.first - 1, Math.min(doc.last, doc.first + 1)).map(function (s) { return s.text; }).join(' — ');
-      body.appendChild(el('p', 'batch-preview', preview.length > 220 ? preview.slice(0, 219) + '…' : preview));
+      body.appendChild(meta);
       row.appendChild(body);
 
-      if (index > 0) {
+      // Only for one file that holds several documents: the parts are joined (a dotted line connects them) and can be merged back together.
+      // Separate files are separate documents, so there is nothing to merge.
+      if (index > 0 && !session.multiFile) {
+        row.classList.add('is-joined');
         row.appendChild(ui.button('Merge with the one above', 'row-btn', function () {
           session.plan = Core.mergeIntoPrevious(session.plan, index);
           review();
