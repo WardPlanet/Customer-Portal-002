@@ -3336,7 +3336,6 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .landing-hero.is-results .landing-search::placeholder { color: var(--text-faint); }
 .landing-hero.is-results .search-go { width: 30px; height: 30px; right: 5px; }
 .landing-hero.is-results .landing-filters { display: contents; }   /* its two parts are laid out by the header: the filters on a full-width line, the chosen ones as pills below */
-.landing-hero.is-results .landing-filters-toggle { display: none; }   /* no Filter pages button: the filters are always shown */
 .landing-hero.is-results .landing-filter-panel { order: 2; flex: 1 1 100%; }
 .landing-hero.is-results .landing-filters-top { order: 3; flex: 1 1 100%; }
 .landing-hero.is-results .landing-filters-top:not(:has(.landing-filter-chip)) { display: none; }
@@ -3353,7 +3352,6 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 @media (max-width: 640px) { .landing-hero.is-results { padding: 12px 16px; position: static; } }
 
 /* Filters work the same on the start page and on a results page: always shown on one line, the chosen ones as pills below, no Filter pages button */
-.landing-filters-toggle { display: none; }
 .landing-filter-panel { order: 1; }
 .landing-filters-top { order: 2; }
 .landing-filters-top:not(:has(.landing-filter-chip)) { display: none; }
@@ -3366,3 +3364,16 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .landing-hero.is-results .landing-filter-panel { flex: 1 1 calc(100% - 170px); margin-left: 170px; }
 .landing-hero.is-results .landing-filters-top { margin-left: 170px; flex: 1 1 calc(100% - 170px); }
 @media (max-width: 760px) { .landing-hero.is-results .landing-filter-panel, .landing-hero.is-results .landing-filters-top { margin-left: 0; flex-basis: 100%; } }
+
+/* The Filters pill: inside the search box, just left of the search button. The filters stay hidden until it is used. */
+.landing-search-wrap .landing-filters-toggle { position: absolute; top: 50%; right: 56px; transform: translateY(-50%); z-index: 2; padding: 6px 14px; font-size: 13px; color: var(--text); background: var(--surface-muted); border: 1px solid var(--border-strong); }
+.landing-search-wrap .landing-filters-toggle:hover:not([aria-expanded="true"]) { background: var(--brand-tint); }
+.landing-search-wrap .landing-filters-toggle[aria-expanded="true"] { color: var(--white); background: var(--icon-blue); border-color: var(--icon-blue); }
+.landing-search-wrap .landing-search { padding-right: 160px; }
+.landing-hero.is-results .landing-search-wrap .landing-filters-toggle { right: 42px; padding: 4px 12px; }
+
+/* Like Google: the start page is only the search box. Filters belong to a results page, behind the Filters pill. */
+.landing-hero:not(.is-results) .landing-filters, .landing-hero:not(.is-results) .landing-filters-toggle, .landing-bar .landing-filters-toggle { display: none; }
+.landing-hero:not(.is-results) .landing-search-wrap .landing-search { padding-right: 64px; }
+.landing-hero:not(.is-results) .landing-search-slot { margin-bottom: 0; }
+.landing-hero .landing-search-wrap .landing-filters-toggle[aria-expanded="true"], .landing-hero .landing-search-wrap .landing-filters-toggle[aria-expanded="true"]:hover { color: var(--white); background: var(--icon-blue); border-color: var(--icon-blue); }

@@ -3380,7 +3380,7 @@
     filterToggle.setAttribute('aria-expanded', 'false');
     var filterChips = el('span', 'landing-filter-chips');
     var filterTop = el('div', 'landing-filters-top');
-    filterTop.appendChild(filterToggle);
+    searchWrap.appendChild(filterToggle);   // the pill sits inside the search box, beside the search button
     filterTop.appendChild(filterChips);
     filterBox.appendChild(filterTop);
     var filterPanel = el('div', 'landing-filter-panel');
@@ -3420,7 +3420,9 @@
     function updateFilterUi() {
       var keys = activeKeys();
       Object.keys(filterSelects).forEach(function (key) { filterSelects[key].value = filters[key]; });
-      filterToggle.textContent = 'Filter pages' + (keys.length ? ' (' + keys.length + ')' : '');
+      filterToggle.textContent = 'Filters' + (keys.length ? ' (' + keys.length + ')' : '');
+      if (keys.length) { filterPanel.hidden = false; }   // chosen filters are never hidden
+      filterToggle.setAttribute('aria-expanded', String(!filterPanel.hidden));
       filterChips.textContent = '';
       keys.forEach(function (key) {
         var chip = el('button', 'landing-filter-chip', FILTER_LABELS[key] + ': ' + filterText(key) + ' \u00D7');
@@ -3439,7 +3441,7 @@
     });
     updateFilterUi();
     hero.appendChild(filterBox);
-    filterPanel.hidden = false;   // the filters are always shown, on the start page and on a results page (no Filter pages button)
+    // The filters stay hidden until the Filters pill beside the search box is used (or filters are already chosen)
     // The teams and places that exist, from the live pages
     Promise.resolve(backend().list('', true)).then(function (result) {
       var live = result.pages.filter(function (p) { return p.liveVersion; });
