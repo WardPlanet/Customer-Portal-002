@@ -3438,6 +3438,7 @@
     });
     updateFilterUi();
     hero.appendChild(filterBox);
+    if (routeQuery !== null) { filterPanel.hidden = false; }   // on a results page the filters are always shown (no Filter pages button)
     // The teams and places that exist, from the live pages
     Promise.resolve(backend().list('', true)).then(function (result) {
       var live = result.pages.filter(function (p) { return p.liveVersion; });
@@ -3696,12 +3697,11 @@
       });
       if (index < 0) { search.removeAttribute('aria-activedescendant'); }
     }
-    // Choosing a suggestion only fills the search box. The search itself starts with Enter or the search button.
+    // Choosing a suggestion searches for it: it opens the results page for those words (not the article itself)
     function chooseSuggestion(item) {
       cancelSuggestions();
       search.value = item.text;
-      search.focus({ preventScroll: true });
-      try { search.setSelectionRange(search.value.length, search.value.length); } catch (error) { /* the caret stays where it was */ }
+      goToResults(item.text);
     }
     // A search is its own page: #/search/<words>. Nothing is searched while typing; only Enter, the search button or a suggestion starts one.
     function goToResults(words) {
@@ -3903,10 +3903,8 @@
       close();
       location.hash = '#/search/' + encodeURIComponent(q);
     }
-    // Choosing a suggestion only fills the box; Enter or the search button starts the search
     function open(item) {
-      close();
-      input.value = item.text;
+      go(item.text);   // choosing a suggestion searches for those words: the results page
     }
     var items = [];
     var active = -1;
