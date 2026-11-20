@@ -787,7 +787,7 @@
         var problem = el('span', 'batch-problem', missingText);
         problem.setAttribute('role', 'alert');
         bar.appendChild(problem);
-      } else if (count) { bar.appendChild(el('span', 'lib-hint', 'Uses ' + count + ' short AI request' + (count === 1 ? '' : 's') + ' to read the layout. The text is copied, never rewritten.')); }
+      }
       root.appendChild(bar);
     }
 
