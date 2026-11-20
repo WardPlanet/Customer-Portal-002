@@ -3278,3 +3278,15 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .ask-email-body { display: block; min-height: 190px; box-sizing: border-box; padding: 8px 12px; font-size: 14px; line-height: 1.5; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; max-height: 420px; }
 .ask-email-body:focus-visible { outline: 2px solid var(--icon-blue); outline-offset: 1px; }
 .ask-email-body a { color: var(--accent-text, var(--accent)); text-decoration: underline; }
+
+/* Everything greyed out in Page setup looks like Team: a faint label, faint text, a muted fill and a light border, with a chevron on the boxes */
+.prop-reviewer .field-label, .prop-ownerpub.is-na .field-label { color: var(--text-faint); }
+.prop-reviewer .setup-reviewer.is-na { position: relative; padding-right: 36px; font-size: 14px; line-height: 1.4; }
+.prop-reviewer .setup-reviewer.is-na strong { color: var(--text-faint); font-weight: 400; }
+.prop-reviewer .setup-reviewer.is-na::after { content: ''; position: absolute; right: 12px; top: 50%; width: 14px; height: 14px; transform: translateY(-50%); background: var(--text-faint); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat; }
+.prop-team.is-na .select-field { font-weight: 400; }
+.prop-ownerpub.is-na .toggle-check { opacity: .7; color: var(--text-faint); }
+.prop-ownerpub.is-na .toggle-track, .prop-ownerpub.is-na .toggle-check input:checked + .toggle-track { background: var(--surface-muted); box-shadow: inset 0 0 0 1px var(--border); }
+.prop-ownerpub.is-na .toggle-track::after { background: var(--border-strong); }
+.prop-reviewer .setup-reviewer.is-na strong { opacity: .7; }   /* the same fade as the text in Team's greyed select; its chevron stays dark like Team's */
+.prop-reviewer .setup-reviewer.is-na::after { background: var(--text); }

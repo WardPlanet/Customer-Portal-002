@@ -5306,6 +5306,7 @@
       byId('ownerpub').disabled = !config.editable;
       byId('ownerpub-toggle').title = config.note || '';
       byId('ownerpub-toggle').classList.toggle('is-disabled', !config.editable);
+      byId('ownerpub-field').classList.toggle('is-na', !config.editable);   // greyed out like Team
       byId('ownerpub-text').textContent = config.text || (config.value ? 'Allow' : 'Requires review');
     }
     byId('ownerpub').addEventListener('change', async function () {
