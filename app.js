@@ -4053,7 +4053,9 @@
           var about = row.proposed.slice(0, 60);
           var doLabel = row.action === 'remove' ? 'Remove' : row.action === 'add' ? 'Add' : 'Replace';   // the button says what approving does
           if (!row.decision) {
-            choices.appendChild(plainButton(doLabel, doLabel + ': ' + about, function () { decide('approved'); }));
+            var doButton = plainButton(doLabel, doLabel + ': ' + about, function () { decide('approved'); });
+            doButton.classList.add('is-' + doLabel.toLowerCase());   // colour-coded: Add blue, Replace amber, Remove red
+            choices.appendChild(doButton);
             choices.appendChild(plainButton('Deny', 'Deny this suggestion: ' + about, function () { decide('denied'); }));
           } else {
             var status = document.createElement('span');
@@ -4068,7 +4070,8 @@
           }
           // The X takes the suggestion off the list altogether
           var remove = plainButton('\u00D7', 'Dismiss this suggestion: ' + about, function () { row.removed = true; item.remove(); changed(); if (!list.children.length) { box.hidden = true; } });
-          remove.classList.add('import-suggestion-remove');
+          remove.className = 'import-suggestion-remove';   // a plain black x, no circle
+          remove.innerHTML = CLOSE_ICON;
           remove.title = 'Dismiss this suggestion';
           choices.appendChild(remove);
         }
