@@ -30,7 +30,7 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
 - Kinds: a **format** suggestion keeps every word and only adds layout inside the text (bold, italic, a bullet or numbered
   list, a link written as [text](address)). A **copy** suggestion changes words: typos, unclear wording, and above all copy that is
   especially jarring against the style guide (say which rule in the reason). Never mix the two: if any word changes, it is "copy".
-- **Add a description** when the page has none: one or two sentences saying what the page is for, using only what the document says.
+- **Add a title or a description whenever the page has none**, and always list these first (the title, then the description), before any other suggestion. A title is one short plain line; a description is one or two sentences saying what the page is for and when to use it. Use only what the document says.
 - **Remove** what looks ancillary or left over from an older system or process: a document date or "last updated" line, an
   owner or author line, a version or revision table, page numbers, a confidentiality banner, a table of contents. Never remove
   steps or anything a reader needs to do the work.

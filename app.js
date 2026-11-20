@@ -3436,7 +3436,8 @@
 
       var label = document.createElement('div');
       label.className = 'ai-suggestion-label';
-      label.textContent = 'Suggested replacement';
+      var emptyTarget = host.querySelector('[contenteditable]') && !readText(host.querySelector('[contenteditable]')) && !host.classList.contains('step-block');
+      label.textContent = emptyTarget ? 'Suggested ' + (host === titleEl.closest('.text-block') ? 'title' : host === descriptionEl.closest('.text-block') ? 'description' : 'text') : 'Suggested replacement';
       body.appendChild(label);
 
       if (suggestion.reason) {
@@ -3679,6 +3680,44 @@
       return 'block ' + (contentBlocks().indexOf(host) + 1);
     }
 
+    // A page of this many words (not counting the title and description) has enough in it for the AI to write an empty title or description from
+    var WRITE_FROM_PAGE_WORDS = 150;
+
+    function plainBlockText(block) {
+      var copy = block.cloneNode(true);
+      Array.prototype.forEach.call(copy.querySelectorAll('.block-tag, button, .block-handle, .required-mark, .section-ai'), function (node) { node.remove(); });
+      Array.prototype.forEach.call(copy.querySelectorAll('*'), function (node) { node.append(' '); });
+      return (copy.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+    function pageWordCount() {
+      return contentBlocks().reduce(function (total, block) {
+        var text = plainBlockText(block);
+        return total + (text ? text.split(' ').length : 0);
+      }, 0);
+    }
+    // The empty title or description of a page that has enough in it to write one from
+    function canWriteFromPage(host) {
+      var isOpener = host === titleEl.closest('.text-block') || host === descriptionEl.closest('.text-block');
+      return isOpener && !isSectionFilled(host) && pageWordCount() >= WRITE_FROM_PAGE_WORDS;
+    }
+
+    function buildWritePrompt(target) {
+      return [
+        'You are an editor writing the ' + target + ' of a draft process-documentation page, which does not have one yet. Write it from what the rest of the page says.',
+        '',
+        'Rules:',
+        '- Use only what the page says. Do not invent facts, numbers, names, systems or policies.',
+        target === 'title' ? '- The title is one short plain-text line that names what the page is about.' : '- The description is one or two sentences saying what the page is for and when to use it. It may use **bold** and _italic_.',
+        '- Follow the style guide above (names, capitalization, quotation marks, formatting).',
+        '- If Visibility is Client-Safe, avoid wording that only makes sense for internal staff.',
+        '',
+        'Reply with ONLY a JSON object: {"text": "the ' + target + '", "reason": "under 120 characters, what it is based on"}.',
+        '',
+        'The whole page, for context:',
+        describePageForAi()
+      ].join(NL);
+    }
+
     function buildSectionPrompt(target) {
       return [
         'You are an editor improving ONE section of a draft process-documentation page. Rewrite just that section so it is clearer and easier to follow.',
@@ -3723,7 +3762,8 @@
           return;
         }
         var target = targetNameFor(host);
-        var result = await sample.json(buildSectionPrompt(target), { modelTier: 'default', signal: controller.signal });
+        var writing = canWriteFromPage(host);   // an empty title or description: write one from the rest of the page
+        var result = await sample.json(writing ? buildWritePrompt(target) : buildSectionPrompt(target), { modelTier: 'default', signal: controller.signal });
         var item = Array.isArray(result) ? result[0] : result;
         var suggestion = item && typeof item === 'object' ? cleanSuggestion(Object.assign({}, item, { target: target, action: 'edit' })) : null;
 
@@ -3732,7 +3772,7 @@
           return;
         }
         attachSuggestion(suggestion, host);
-        showNotice('AI assist has a suggestion for this section. Use + to replace the text or x to dismiss it.');
+        showNotice(writing ? 'AI assist wrote a ' + target + ' from the page. Use + to add it or x to dismiss it.' : 'AI assist has a suggestion for this section. Use + to replace the text or x to dismiss it.');
       } catch (error) {
         handleAiError(error);
       } finally {
@@ -3750,7 +3790,8 @@
       button.innerHTML = SPARKLE_ICON;
       button.addEventListener('click', function () {
         if (button.getAttribute('aria-disabled') === 'true') {
-          showNotice('Add some text to this section first, then AI assist can improve it.');
+          var opener = host === titleEl.closest('.text-block') || host === descriptionEl.closest('.text-block');
+          showNotice(opener ? 'Add some text here, or write about ' + WRITE_FROM_PAGE_WORDS + ' words on the page, and AI assist can write this for you.' : 'Add some text to this section first, then AI assist can improve it.');
           return;
         }
         runSectionAssist(host, button);
@@ -3769,8 +3810,9 @@
           host.appendChild(button);
         }
         var hasText = isSectionFilled(host);
-        button.setAttribute('aria-disabled', String(!hasText));
-        button.title = hasText ? 'AI assist: suggest an improvement for this section' : 'Add some text to use AI assist on this section';
+        var writable = canWriteFromPage(host);   // empty title or description, but the page has enough in it to write one
+        button.setAttribute('aria-disabled', String(!hasText && !writable));
+        button.title = hasText ? 'AI assist: suggest an improvement for this section' : writable ? 'AI assist: write this from the rest of the page' : (host === titleEl.closest('.text-block') || host === descriptionEl.closest('.text-block')) ? 'Add some text, or about ' + WRITE_FROM_PAGE_WORDS + ' words to the page, to use AI assist here' : 'Add some text to use AI assist on this section';
       });
     }
 
@@ -3980,11 +4022,13 @@
         }
 
         if (action === 'add') {
-          // Only a description, and only when the page has none
+          // Only a title or a description, and only when the page has none
+          var addTarget = String(raw.target || '').toLowerCase().trim();
           var addText = typeof raw.text === 'string' ? raw.text.trim().slice(0, 2000) : '';
-          var descriptionHost = descriptionEl.closest('.text-block');
-          if (String(raw.target || '').toLowerCase().trim() !== 'description' || !addText || readText(descriptionEl)) { return; }
-          rows.push({ action: 'add', suggestion: { target: 'description', title: '', text: addText, reason: reason }, host: descriptionHost, now: '', proposed: addText, kind: 'Add', decision: '' });
+          if (addTarget === 'title') { addText = oneLine(addText, 300); }
+          var addField = addTarget === 'title' ? titleEl : addTarget === 'description' ? descriptionEl : null;
+          if (!addField || !addText || readText(addField)) { return; }
+          rows.push({ action: 'add', suggestion: { target: addTarget, title: '', text: addText, reason: reason }, host: addField.closest('.text-block'), now: '', proposed: addText, kind: 'Add', decision: '' });
           return;
         }
 
@@ -3997,6 +4041,9 @@
         rows.push({ action: 'replace', suggestion: suggestion, host: host, now: now, proposed: proposed, kind: layoutOnly ? 'Format' : 'Copy', decision: '' });
       });
 
+      // A missing title, then a missing description, always come first
+      function rank(row) { return row.action === 'add' && row.suggestion.target === 'title' ? 0 : row.action === 'add' ? 1 : 2; }
+      rows = rows.map(function (row, i) { return { row: row, i: i }; }).sort(function (a, b) { return rank(a.row) - rank(b.row) || a.i - b.i; }).map(function (pair) { return pair.row; });
       if (!rows.length) { box.hidden = true; pendingSuggestions = []; return 0; }
       // The import record gets one entry per suggestion, kept up to date as each is applied or dismissed
       rows.forEach(function (row) {
@@ -4047,7 +4094,7 @@
         }
         body.appendChild(head);
 
-        [['Now', row.action === 'add' ? '(no description)' : row.now], ['Suggested', row.proposed]].forEach(function (pair) {
+        [['Now', row.action === 'add' ? '(no ' + row.suggestion.target + ')' : row.now], ['Suggested', row.proposed]].forEach(function (pair) {
           var line = document.createElement('div');
           line.className = 'import-suggestion-line';
           var label = document.createElement('span');
@@ -4395,6 +4442,35 @@
       return 'The import failed. Try again.';
     }
 
+    // The import should always suggest a title and a description when the page has none. The AI is told to; if it left one out, ask once more here
+    // (from the imported content only) and put the suggestion at the front of the list.
+    async function addMissingOpeners(result, sample) {
+      function has(target) {
+        return (result.suggestions || []).some(function (item) { return item && String(item.action || '').toLowerCase() === 'add' && String(item.target || '').toLowerCase() === target && item.text; });
+      }
+      var needTitle = !result.title && !has('title');
+      var needDescription = !result.description && !has('description');
+      if (!needTitle && !needDescription) { return; }
+      var body = (result.blocks || []).map(function (block) { return [block.title, block.text].filter(Boolean).join(' '); }).filter(Boolean).join(NL).slice(0, 8000);
+      if (!body) { return; }
+      var prompt = [
+        'Write ' + [needTitle ? 'a title' : '', needDescription ? 'a description' : ''].filter(Boolean).join(' and ') + ' for a wiki page, using only what the page says below. Do not invent facts.',
+        needTitle ? '- The title is one short plain-text line.' : '',
+        needDescription ? '- The description is one or two sentences saying what the page is for and when to use it.' : '',
+        'Reply with ONLY a JSON object: {' + [needTitle ? '"title": "..."' : '', needDescription ? '"description": "..."' : ''].filter(Boolean).join(', ') + '}',
+        '',
+        'The page:',
+        body
+      ].filter(function (line, i) { return line !== '' || i > 3; }).join(NL);
+      try {
+        var reply = await sample.json(prompt, { modelTier: 'default' });
+        var list = (result.suggestions || []).slice();
+        if (needDescription && reply && typeof reply.description === 'string' && reply.description.trim()) { list.unshift({ action: 'add', target: 'description', text: reply.description.trim(), reason: 'The page has no description' }); }
+        if (needTitle && reply && typeof reply.title === 'string' && reply.title.trim()) { list.unshift({ action: 'add', target: 'title', text: reply.title.trim(), reason: 'The page has no title' }); }
+        result.suggestions = list;
+      } catch (error) { /* the import still works without it */ }
+    }
+
     // Resolves to true when the page was filled in, false when nothing changed
     async function importDocumentFile(file) {
       if (isImporting) { return false; }
@@ -4415,6 +4491,7 @@
       byId('import-loading').scrollIntoView({ block: 'center' });
       try {
         var result = aiMode === 'server' ? await importViaServer(file) : await importViaClaude(file, sample);
+        await addMissingOpeners(result, sample);
         applyDraft(importResultToSections(result));
         setStatus('Imported, not saved yet', false);
         importRecord = { source: result.source || file.name, importedAt: new Date().toISOString(), points: (result.review_notes || []).map(function (note) { return { text: note }; }), suggestions: [] };
