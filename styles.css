@@ -3244,3 +3244,10 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .import-bar-top { display: flex; align-items: center; padding-right: 8px; }
 .import-bar-top .lib-bar-head { flex: 1; justify-content: flex-start; gap: 12px; }
 .import-bar-close { flex: none; }
+
+/* Import record on the review view */
+.lib-bar.import-record { margin: 0 0 16px; background: var(--surface-muted); border-color: var(--border-strong, var(--border)); color: var(--text); }
+.lib-bar.import-record .lib-bar-head { justify-content: flex-start; gap: 12px; }
+.import-record-heading { margin: 12px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.import-record-text { margin-top: 2px; color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
+.preview-flag-standing { align-self: center; font-size: 13px; color: var(--text-muted); }

@@ -915,6 +915,8 @@
       if (session.imageCount) { notes.push('Images in the original file were not imported.'); }
       var note = ('Imported from ' + source + '.' + (notes.length ? ' Check: ' + notes.join(' • ') : '')).slice(0, 2000);
       var created = await ui.backend().create(text, note, ownerTeam ? ownerTeam.slug : '');
+      // The points the AI flagged are also kept on the page as its import record, where the team lead can approve or deny each
+      try { await ui.backend().saveImportRecord(created.page.id, { source: source, importedAt: new Date().toISOString(), points: notes.map(function (text) { return { text: text }; }), suggestions: [] }); } catch (recordError) { /* the note on the draft still lists them */ }
       return { id: created.page.id, title: result.title, notes: notes };
     }
 

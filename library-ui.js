@@ -4347,13 +4347,19 @@
     main.appendChild(bar);
     // Points the AI flagged when the document was imported are shown ON the draft, while it is not live (they are in its version note)
     var shownNote = ((detail.history || []).filter(function (h) { return h.n === shownVersion; })[0] || {}).note || '';
-    var flagged = !detail.page.liveVersion && /Check:/.test(shownNote) ? shownNote.slice(shownNote.indexOf('Check:') + 6).split(' \u2022 ').map(function (s) { return s.trim(); }).filter(Boolean) : [];
+    // The points the AI flagged at import come from the page's import record; a draft imported before the record existed has them in its version note
+    var importRecord = detail.page.importRecord || null;
+    var recordPoints = importRecord && importRecord.points.length ? importRecord.points : null;
+    var legacyPoints = /Check:/.test(shownNote) ? shownNote.slice(shownNote.indexOf('Check:') + 6).split(' \u2022 ').map(function (s) { return s.trim(); }).filter(Boolean) : [];
+    var flagged = detail.page.liveVersion ? [] : (recordPoints ? recordPoints.map(function (p) { return p.text; }) : legacyPoints);
+    var mayDecide = actorIsLead() || actingAsAdmin();   // the team lead decides on a record's points
     if (flagged.length) {
       // Each flagged point is approved (it is fine as it is) or denied (it has to be fixed before this goes live). The choices are kept in this browser.
       var DECISIONS_KEY = 'pageEditor.flagDecisions.v1';
       var decisionKey = id + ':' + shownVersion;
       var decisions = {};
-      try { decisions = (JSON.parse(localStorage.getItem(DECISIONS_KEY) || '{}') || {})[decisionKey] || {}; } catch (storeError) { decisions = {}; }
+      if (recordPoints) { recordPoints.forEach(function (p, k) { decisions[k] = p.decision; }); }
+      else { try { decisions = (JSON.parse(localStorage.getItem(DECISIONS_KEY) || '{}') || {})[decisionKey] || {}; } catch (storeError) { decisions = {}; } }
       function saveDecisions() {
         try { var all = JSON.parse(localStorage.getItem(DECISIONS_KEY) || '{}') || {}; all[decisionKey] = decisions; localStorage.setItem(DECISIONS_KEY, JSON.stringify(all)); } catch (storeError) { /* the choices just are not kept */ }
       }
@@ -4380,13 +4386,26 @@
         var item = el('li', 'preview-flag');
         item.appendChild(el('span', 'preview-flag-text', point));
         var choices = el('span', 'preview-flag-choices');
-        function choose(value) { decisions[i] = decisions[i] === value ? '' : value; saveDecisions(); updateFlags(); }
+        function choose(value) {
+          var next = decisions[i] === value ? '' : value;
+          if (!recordPoints) { decisions[i] = next; saveDecisions(); updateFlags(); return; }
+          // A point on an import record: the decision is kept on the page, so everyone sees it
+          attempt(backend().decideImportPoint(id, i, next)).then(function (reply) {
+            if (reply && reply.page && reply.page.importRecord) { reply.page.importRecord.points.forEach(function (p, k) { decisions[k] = p.decision; }); updateFlags(); }
+          });
+        }
         var approve = button('Approve', 'row-btn', function () { choose('approved'); });
         var deny = button('Deny', 'row-btn', function () { choose('denied'); });
         approve.setAttribute('aria-label', 'Approve: ' + point);
         deny.setAttribute('aria-label', 'Deny: ' + point);
-        choices.appendChild(approve);
-        choices.appendChild(deny);
+        if (recordPoints && !mayDecide) {
+          // Everyone else sees where the point stands, not the buttons
+          var standing = recordPoints[i].decision === 'approved' ? 'Approved' : recordPoints[i].decision === 'denied' ? 'Denied: needs fixing' : 'Not reviewed yet';
+          choices.appendChild(el('span', 'preview-flag-standing', standing + (recordPoints[i].by ? ' by ' + recordPoints[i].by : '')));
+        } else {
+          choices.appendChild(approve);
+          choices.appendChild(deny);
+        }
         item.appendChild(choices);
         flagList.appendChild(item);
         flagRows.push({ item: item, approve: approve, deny: deny });
@@ -4394,6 +4413,58 @@
       flags.appendChild(flagList);
       updateFlags();
       main.appendChild(flags);
+    }
+    // The import record: what the AI did when this page was imported. Collapsed; for the page's team only (never the public view).
+    if (importRecord && fromLibrary && !publicMode && (importRecord.points.length || importRecord.suggestions.length)) {
+      var counts = { applied: 0, dismissed: 0, open: 0 };
+      importRecord.suggestions.forEach(function (item) { counts[item.outcome] = (counts[item.outcome] || 0) + 1; });
+      var recordOpen = false;
+      var recordBar = el('div', 'lib-bar import-record');
+      var recordHead = el('button', 'lib-bar-head');
+      recordHead.type = 'button';
+      recordHead.setAttribute('aria-expanded', 'false');
+      var recordChevron = el('span', 'lib-bar-chevron', '\u25BE');
+      recordChevron.setAttribute('aria-hidden', 'true');
+      recordHead.appendChild(recordChevron);
+      var summaryParts = [];
+      if (importRecord.points.length) { summaryParts.push(importRecord.points.length + (importRecord.points.length === 1 ? ' point' : ' points') + ' flagged'); }
+      if (importRecord.suggestions.length) { summaryParts.push(importRecord.suggestions.length + (importRecord.suggestions.length === 1 ? ' suggestion' : ' suggestions') + ' (' + counts.applied + ' applied, ' + counts.dismissed + ' dismissed' + (counts.open ? ', ' + counts.open + ' not decided' : '') + ')'); }
+      recordHead.appendChild(el('span', 'lib-bar-text', 'Import record \u00B7 ' + (importRecord.source || 'imported document') + ' \u00B7 ' + summaryParts.join(', ')));
+      recordBar.appendChild(recordHead);
+      var recordBody = el('div', 'import-bar-body');
+      recordBody.hidden = true;
+      recordBody.appendChild(el('p', 'import-suggestions-hint', 'Imported' + (importRecord.importedBy ? ' by ' + importRecord.importedBy : '') + (importRecord.importedAt ? ' on ' + formatDate(importRecord.importedAt) : '') + '. This is a record of what the AI flagged and suggested; the page keeps the document\u2019s own wording unless a suggestion was applied.'));
+      // While the page is a draft the flagged points are listed above, with their buttons; the record lists them once the page is live
+      if (importRecord.points.length && !flagged.length) {
+        recordBody.appendChild(el('h3', 'import-record-heading', 'Points the AI flagged'));
+        var pointList = el('ul', 'import-points-list');
+        importRecord.points.forEach(function (p) {
+          var standing = p.decision === 'approved' ? 'approved' : p.decision === 'denied' ? 'denied, needs fixing' : 'not reviewed';
+          pointList.appendChild(el('li', '', p.text + ' \u2014 ' + standing + (p.by ? ' (' + p.by + (p.at ? ', ' + formatDate(p.at) : '') + ')' : '')));
+        });
+        recordBody.appendChild(pointList);
+      }
+      if (importRecord.suggestions.length) {
+        recordBody.appendChild(el('h3', 'import-record-heading', 'Suggestions'));
+        var suggestionList = el('ul', 'import-points-list');
+        importRecord.suggestions.forEach(function (item) {
+          var what = item.action === 'add' ? 'Add to ' + item.section : item.action === 'remove' ? 'Remove from ' + item.section : 'Replace in ' + item.section;
+          var outcome = item.outcome === 'applied' ? 'applied' : item.outcome === 'dismissed' ? 'dismissed' : 'not decided';
+          var li = el('li', '', what + (item.reason ? ' (' + item.reason + ')' : '') + ' \u2014 ' + outcome + (item.by ? ' (' + item.by + (item.at ? ', ' + formatDate(item.at) : '') + ')' : ''));
+          if (item.before) { li.appendChild(el('div', 'import-record-text', 'Was: ' + item.before)); }
+          if (item.after) { li.appendChild(el('div', 'import-record-text', 'Suggested: ' + item.after)); }
+          suggestionList.appendChild(li);
+        });
+        recordBody.appendChild(suggestionList);
+      }
+      recordBar.appendChild(recordBody);
+      recordHead.addEventListener('click', function () {
+        recordOpen = !recordOpen;
+        recordHead.setAttribute('aria-expanded', String(recordOpen));
+        recordChevron.textContent = recordOpen ? '\u25B4' : '\u25BE';
+        recordBody.hidden = !recordOpen;
+      });
+      main.appendChild(recordBar);
     }
     var isClientSafe = detail.page.visibility === 'Client-Safe';
     var layout = el('div', 'preview-layout');
@@ -4571,6 +4642,14 @@
 
   /* ---------- What app.js calls when someone saves, submits or leaves ---------- */
   window.PageHost = {
+    // Keeps the import record (what the AI flagged and suggested) with the page. Quietly skipped if it has not changed or cannot be saved.
+    keepImportRecord: async function () {
+      var record = window.PageEditor.getImportRecord && window.PageEditor.getImportRecord();
+      if (!record || current.id === null) { return; }
+      var json = JSON.stringify(record);
+      if (json === current.importRecordSaved) { return; }
+      try { await backend().saveImportRecord(current.id, record); current.importRecordSaved = json; } catch (error) { /* the draft itself is saved; the record is tried again at the next save */ }
+    },
     save: async function (text) {
       if (current.lockLost) { throw new Error(current.lockLost + ' Your changes can no longer be saved here.'); }
       if (current.id === null) {
@@ -4591,6 +4670,7 @@
         }
       }
       window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
+      await this.keepImportRecord();
       return 'Draft saved. It is in the library.';
     },
     submit: async function (text) {
@@ -4631,6 +4711,7 @@
       if (current.id === null || current.liveEdit || current.lockLost) { return false; }
       await backend().save(current.id, current.n, text);
       window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
+      await this.keepImportRecord();
       return true;
     },
     publish: async function (text) {

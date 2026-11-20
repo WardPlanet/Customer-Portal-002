@@ -3479,6 +3479,7 @@
       return panel;
     }
 
+    var importRecord = null;   // what the AI did at this import: source, flagged points, suggestions and their outcomes. The library keeps it with the page (PageEditor.getImportRecord)
     var pendingSuggestions = [];   // import suggestions not yet decided (they live only in the editor session of the first import and are never saved with the draft)
     function clearSuggestions() {
       document.querySelectorAll('.ai-suggestion').forEach(function (panel) { panel.remove(); });
@@ -3486,6 +3487,7 @@
     // The import's suggestions belong to the page that was imported, not to the next one that is opened
     function clearImportSuggestions() {
       pendingSuggestions = [];
+      importRecord = null;
       var importBox = byId('import-suggestions');
       if (importBox) { importBox.hidden = true; byId('import-suggestions-list').textContent = ''; }
       var pointsBox = byId('import-points');
@@ -3900,6 +3902,7 @@
       box.hidden = true;
       byId('import-suggestions-list').textContent = '';
       pendingSuggestions = [];
+      if (importRecord) { importRecord.suggestions.forEach(function (entry) { if (entry.outcome === 'open') { entry.outcome = 'dismissed'; } }); }   // removing the bar dismisses what was left
     });
     byId('import-points-close').addEventListener('click', function () {
       byId('import-points').hidden = true;
@@ -3989,6 +3992,20 @@
       });
 
       if (!rows.length) { box.hidden = true; pendingSuggestions = []; return 0; }
+      // The import record gets one entry per suggestion, kept up to date as each is applied or dismissed
+      rows.forEach(function (row) {
+        var tag = row.host.querySelector('.block-tag');
+        row.entry = {
+          action: row.action,
+          kind: row.kind.toLowerCase(),
+          section: tag && tag.textContent.trim() ? tag.textContent.trim() : 'Section',
+          before: row.action === 'add' ? '' : row.now,
+          after: row.action === 'remove' ? '' : row.proposed,
+          reason: row.suggestion.reason || '',
+          outcome: 'open'
+        };
+        if (importRecord) { importRecord.suggestions.push(row.entry); }
+      });
       function syncPending() {
         pendingSuggestions = rows.filter(function (row) { return !row.decision; }).map(function (row) {
           return { action: row.action, target: row.action === 'remove' ? 'block ' + (contentBlocks().indexOf(row.host) + 1) : row.suggestion.target, original: row.action === 'add' ? '' : row.now, title: row.suggestion.title, text: row.suggestion.text, kind: row.kind.toLowerCase(), reason: row.suggestion.reason };
@@ -4081,7 +4098,7 @@
         }
         function decide(value) {
           if (value === 'approved') {
-            if (!document.body.contains(row.host)) { row.decision = 'denied'; showChoices(); changed(); return; }
+            if (!document.body.contains(row.host)) { row.decision = 'denied'; row.entry.outcome = 'dismissed'; showChoices(); changed(); return; }
             if (row.action === 'remove') {
               // Keep every node of the editor as it was, so Undo can put the block back where it was
               row.snapshot = Array.prototype.slice.call(contentEl.children);
@@ -4097,6 +4114,7 @@
             }
           }
           row.decision = value;
+          row.entry.outcome = value === 'approved' ? 'applied' : 'dismissed';
           showChoices();
           changed();
         }
@@ -4120,6 +4138,7 @@
           }
           if (row.decision === 'approved') { markDirty(); }
           row.decision = '';
+          row.entry.outcome = 'open';
           showChoices();
           changed();
         }
@@ -4392,6 +4411,7 @@
         var result = aiMode === 'server' ? await importViaServer(file) : await importViaClaude(file, sample);
         applyDraft(importResultToSections(result));
         setStatus('Imported, not saved yet', false);
+        importRecord = { source: result.source || file.name, importedAt: new Date().toISOString(), points: (result.review_notes || []).map(function (note) { return { text: note }; }), suggestions: [] };
         showImportSuggestions(result);
         showImportPoints(result.review_notes);
         return true;
@@ -5287,6 +5307,8 @@
         if (readOnly) { lockEditing(true); }
       },
       getText: serializeDraft,
+      // What the AI did at the import that started this editor session (null for any other page): the library keeps it with the page
+      getImportRecord: function () { return importRecord ? JSON.parse(JSON.stringify(importRecord)) : null; },
       refresh: function () { renderOwner(); updateSaveState(); },   // after "Acting as" changes: who may choose the owner, and whether Publish shows
       isDirty: function () { return byId('save-status').classList.contains('is-unsaved') && pageHasContent(); },
       setStatus: setStatus,

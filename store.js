@@ -233,6 +233,8 @@
     // The owner is a person's email. opts.asDefault: the team lead has the page as a fallback, marked "(Default)" until it is reassigned.
     claimEdit: function (id, session, takeOver) { return this.call('POST', '/api/library/pages/' + id + '/editing', { session: session, takeOver: !!takeOver }); },
     releaseEdit: function (id, session) { return this.call('POST', '/api/library/pages/' + id + '/editing/release', { session: session }); },
+    saveImportRecord: function (id, record) { return this.call('POST', '/api/library/pages/' + id + '/import-record', { record: record }); },
+    decideImportPoint: function (id, index, decision) { return this.call('POST', '/api/library/pages/' + id + '/import-record/points/' + index, { decision: decision }); },
     saveSetup: function (id, changes) { return this.call('POST', '/api/library/pages/' + id + '/setup', changes); },
     setOwnerPublishes: function (id, on) { return this.call('POST', '/api/library/pages/' + id + '/owner-publishes', { on: !!on }); },
     setVisibility: function (id, visibility) { return this.call('POST', '/api/library/pages/' + id + '/visibility', { visibility: visibility }); },
@@ -391,7 +393,7 @@
     function detail(page) {
       var t = teamOf(page);
       var who = actorIn(t);
-      return { page: W.summary(page), history: W.history(page, who, t), actions: W.pageActions(page, who, t) };
+      return { page: Object.assign(W.summary(page), { importRecord: page.importRecord || null }), history: W.history(page, who, t), actions: W.pageActions(page, who, t) };
     }
 
     // Loads, changes and stores one page
@@ -659,6 +661,21 @@
         return detail(page);
       },
       // Saves changes to a page's setup (owner, linked people, visibility, owner republishing) in place, without a new version or a republish
+      saveImportRecord: async function (id, record) {
+        var data = readAll();
+        var page = find(data, id);
+        var t = teamOf(page);
+        if (guard(function () { return W.setImportRecord(page, record, actorIn(t), t, now()); })) { writeAll(data); }
+        return detail(page);
+      },
+      decideImportPoint: async function (id, index, decision) {
+        var data = readAll();
+        var page = find(data, id);
+        var t = teamOf(page);
+        guard(function () { W.decideImportPoint(page, Number(index), decision, actorIn(t), t, now()); });
+        writeAll(data);
+        return detail(page);
+      },
       saveSetup: async function (id, changes) {
         var data = readAll();
         var page = find(data, id);

@@ -334,7 +334,7 @@ export function registerLibraryRoutes(app, draftsDir) {
 
   function detail(page, ctx) {
     return {
-      page: Workflow.summary(page),
+      page: Object.assign(Workflow.summary(page), { importRecord: page.importRecord || null }),   // the import record is for the page's team only (not the public routes)
       history: Workflow.history(page, ctx.actor, ctx.team),
       actions: Workflow.pageActions(page, ctx.actor, ctx.team)
     };
@@ -717,6 +717,19 @@ export function registerLibraryRoutes(app, draftsDir) {
   app.post('/api/library/pages/:id/setup', staff(async function (req, res, ctx) {
     var page = await openMine(req, ctx);
     Workflow.updateSetup(page, req.body || {}, ctx.actor, ctx.team, ctx.now);
+    await savePage(draftsDir, ctx.team, page);
+    res.json(detail(page, ctx));
+  }));
+
+  // What the AI did when a document was imported (kept by the editor); the lead's decisions on its flagged points
+  app.post('/api/library/pages/:id/import-record', staff(async function (req, res, ctx) {
+    var page = await openMine(req, ctx);
+    if (Workflow.setImportRecord(page, req.body && req.body.record, ctx.actor, ctx.team, ctx.now)) { await savePage(draftsDir, ctx.team, page); }
+    res.json(detail(page, ctx));
+  }));
+  app.post('/api/library/pages/:id/import-record/points/:index', staff(async function (req, res, ctx) {
+    var page = await open(req, ctx);
+    Workflow.decideImportPoint(page, Number(req.params.index), String((req.body && req.body.decision) || ''), ctx.actor, ctx.team, ctx.now);
     await savePage(draftsDir, ctx.team, page);
     res.json(detail(page, ctx));
   }));
