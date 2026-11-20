@@ -1382,7 +1382,7 @@
       var mapped = resolveKey(team, key);
       if (mapped && !seen[mapped]) { seen[mapped] = true; linked.push(mapped); }
     });
-    if (linked.length > MAX_ROLES) { throw new WorkflowError('too_many', 'That is more people than a page can link.', 400); }
+    if (linked.length > 1) { throw new WorkflowError('too_many', 'A page can link only one person besides its owner.', 400); }
     var changed = false;
     currentVersions(page).forEach(function (version) {
       var f = fields(version.text);

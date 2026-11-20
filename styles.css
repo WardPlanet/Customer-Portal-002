@@ -3219,3 +3219,6 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .import-suggestion-text.is-rich > :first-child { margin-top: 0; }
 .import-suggestion-text.is-rich > :last-child { margin-bottom: 0; }
 .import-suggestion-text.is-rich ul, .import-suggestion-text.is-rich ol { margin: 0; padding-left: 1.4em; }
+.import-suggestion-choices { align-items: flex-start; }
+.import-suggestion-status { align-self: center; }
+.import-suggestion-remove { min-width: 32px; padding-left: 0; padding-right: 0; font-size: 18px; line-height: 1; }

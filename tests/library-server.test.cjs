@@ -87,6 +87,8 @@ test('server: opt-in republish, soft delete, restore, review routes and emails',
     assert.equal((await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/setup', { visibility: 'Client-Safe' })).status, 403);
     const linked = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/setup', { linked: ['mataya.arnold@planetdds.com'] });
     assert.deepEqual(linked.body.page.linkedRoles, ['mataya.arnold@planetdds.com']);
+    const tooMany = await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/setup', { linked: ['mataya.arnold@planetdds.com', 'micah@planetdds.com'] });
+    assert.equal(tooMany.status, 400);
     const leadSetup = await s.call('Micah', 'POST', '/api/library/pages/' + id + '/setup', { linked: [], ownerPublishes: false });
     assert.deepEqual(leadSetup.body.page.linkedRoles, []);
     assert.equal(leadSetup.body.history.length, versionsBefore);

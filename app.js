@@ -2284,7 +2284,7 @@
         var key = window.Workflow.keyFor(role);
         if (state.roles.indexOf(key) < 0 && key !== state.owner && key !== state.secondaryOwner) { addOption(addSelect, key, roleLabel(key)); }
       });
-      byId('role-add-wrap').hidden = addSelect.options.length < 2;
+      byId('role-add-wrap').hidden = addSelect.options.length < 2 || state.roles.length >= 1;   // one linked member: once chosen, it takes the place of the menu
     }
 
     function renderReviewer() {
@@ -2394,6 +2394,8 @@
       section('REVIEWER', textLines(leadRole() || state.reviewer));
       section('VISIBILITY', textLines(state.visibility));
       if (state.source) { section('SOURCE FILE', [state.source]); }
+      // Import suggestions nobody has approved or denied yet, one JSON line each, so they are still there when the draft is opened again
+      if (pendingSuggestions.length) { section('AI SUGGESTIONS', pendingSuggestions.map(function (item) { return JSON.stringify(item); })); }
 
       return out.join(NL);
     }
@@ -2515,7 +2517,14 @@
       var aboveButton = parseInt(body('ADD BLOCK BUTTON'), 10);
       layoutContent(blocks, isNaN(aboveButton) ? blocks.length : aboveButton);
       clearSuggestions();
+      clearImportSuggestions();
       resetRichSelection();
+      // Suggestions saved with the draft come back, still waiting for a decision
+      if (sections['AI SUGGESTIONS']) {
+        var saved = [];
+        sections['AI SUGGESTIONS'].forEach(function (line) { try { saved.push(JSON.parse(line)); } catch (parseError) { /* a damaged line is skipped */ } });
+        showImportSuggestions({ suggestions: saved });
+      }
 
       // The page type is not offered for now: every page is saved as Process Documentation
       state.pageType = 'Process Documentation';
@@ -3478,9 +3487,13 @@
       return panel;
     }
 
+    var pendingSuggestions = [];   // import suggestions not yet decided: [{ target, original, title, text, kind, reason }], saved with the draft
     function clearSuggestions() {
       document.querySelectorAll('.ai-suggestion').forEach(function (panel) { panel.remove(); });
-      // The import's suggestions belong to the page that was imported, not to the next one that is opened
+    }
+    // The import's suggestions belong to the page that was imported, not to the next one that is opened
+    function clearImportSuggestions() {
+      pendingSuggestions = [];
       var importBox = byId('import-suggestions');
       if (importBox) { importBox.hidden = true; byId('import-suggestions-list').textContent = ''; }
     }
@@ -3922,14 +3935,21 @@
         rows.push({ suggestion: suggestion, host: host, now: now, proposed: proposed, kind: layoutOnly ? 'Format' : 'Copy', decision: '' });
       });
 
-      if (!rows.length) { box.hidden = true; return 0; }
+      if (!rows.length) { box.hidden = true; pendingSuggestions = []; return 0; }
+      function syncPending() {
+        pendingSuggestions = rows.filter(function (row) { return !row.decision && !row.removed; }).map(function (row) {
+          return { target: row.suggestion.target, original: row.now, title: row.suggestion.title, text: row.suggestion.text, kind: row.kind.toLowerCase(), reason: row.suggestion.reason };
+        });
+      }
+      syncPending();
 
       var title = byId('import-suggestions-title');
       function updateTitle() {
-        var open = rows.filter(function (row) { return !row.decision; }).length;
+        var live = rows.filter(function (row) { return !row.removed; });
+        var open = live.filter(function (row) { return !row.decision; }).length;
         title.textContent = open
           ? 'AI suggestions \u00B7 ' + open + ' to review'
-          : 'AI suggestions \u00B7 all ' + rows.length + ' reviewed';
+          : 'AI suggestions \u00B7 all ' + live.length + ' reviewed';
       }
 
       rows.forEach(function (row) {
@@ -3973,30 +3993,65 @@
 
         var choices = document.createElement('span');
         choices.className = 'import-suggestion-choices';
-        function decide(value) {
-          row.decision = value;
-          if (value === 'approved') {
-            if (document.body.contains(row.host)) { applySuggestion(row.suggestion, row.host); } else { row.decision = 'denied'; }
-          }
+        function plainButton(label, ariaLabel, onClick) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'row-btn';
+          b.textContent = label;
+          b.setAttribute('aria-label', ariaLabel);
+          b.addEventListener('click', onClick);
+          return b;
+        }
+        function changed() { syncPending(); markDirty(); updateTitle(); }   // the waiting list is part of the draft, so every decision is an unsaved change
+        function showChoices() {
+          choices.textContent = '';
           item.classList.toggle('is-approved', row.decision === 'approved');
           item.classList.toggle('is-denied', row.decision === 'denied');
-          choices.textContent = row.decision === 'approved' ? 'Approved, applied' : value === 'approved' ? 'That section is gone' : 'Denied, text kept';
-          updateTitle();
+          var about = row.proposed.slice(0, 60);
+          if (!row.decision) {
+            choices.appendChild(plainButton('Approve', 'Approve this suggestion: ' + about, function () { decide('approved'); }));
+            choices.appendChild(plainButton('Deny', 'Deny this suggestion: ' + about, function () { decide('denied'); }));
+          } else {
+            var status = document.createElement('span');
+            status.className = 'import-suggestion-status';
+            status.textContent = row.decision === 'approved' ? 'Approved, applied' : 'Denied, text kept';
+            choices.appendChild(status);
+            choices.appendChild(plainButton('Undo', 'Undo: ' + about, undo));
+          }
+          // The X takes the suggestion off the list altogether
+          var remove = plainButton('\u00D7', 'Remove this suggestion: ' + about, function () { row.removed = true; item.remove(); changed(); if (!list.children.length) { box.hidden = true; } });
+          remove.classList.add('import-suggestion-remove');
+          remove.title = 'Remove this suggestion';
+          choices.appendChild(remove);
         }
-        var approve = document.createElement('button');
-        approve.type = 'button';
-        approve.className = 'row-btn';
-        approve.textContent = 'Approve';
-        approve.setAttribute('aria-label', 'Approve this suggestion: ' + row.proposed.slice(0, 60));
-        approve.addEventListener('click', function () { decide('approved'); });
-        var deny = document.createElement('button');
-        deny.type = 'button';
-        deny.className = 'row-btn';
-        deny.textContent = 'Deny';
-        deny.setAttribute('aria-label', 'Deny this suggestion: ' + row.proposed.slice(0, 60));
-        deny.addEventListener('click', function () { decide('denied'); });
-        choices.appendChild(approve);
-        choices.appendChild(deny);
+        function decide(value) {
+          if (value === 'approved') {
+            if (!document.body.contains(row.host)) { row.decision = 'denied'; showChoices(); changed(); return; }
+            // What the section said before, so Undo can put it back
+            row.before = row.host.classList.contains('step-block')
+              ? { title: readText(row.host.querySelector('.step-title')), text: readText(row.host.querySelector('.step-text')) }
+              : { text: readText(row.host.querySelector('[contenteditable]')) };
+            applySuggestion(row.suggestion, row.host);
+          }
+          row.decision = value;
+          showChoices();
+          changed();
+        }
+        function undo() {
+          if (row.decision === 'approved' && row.before && document.body.contains(row.host)) {
+            if (row.host.classList.contains('step-block')) {
+              setFieldText(row.host.querySelector('.step-title'), row.before.title);
+              setFieldText(row.host.querySelector('.step-text'), row.before.text);
+            } else {
+              setFieldText(row.host.querySelector('[contenteditable]'), row.before.text);
+            }
+            refreshOutline();
+          }
+          row.decision = '';
+          showChoices();
+          changed();
+        }
+        showChoices();
 
         item.appendChild(body);
         item.appendChild(choices);
@@ -5079,6 +5134,7 @@
       state.source = '';
       layoutContent([], 0);   // a new page starts with no blocks: the person adds what they need
       clearSuggestions();
+      clearImportSuggestions();
       resetRichSelection();
       renderSidebar();
       refreshOutline();
