@@ -1474,7 +1474,8 @@
         var lockedInReview = !lead && !actingAsAdmin() && p.workingVersion && p.workingVersion.status === 'submitted';
         if (lockedInReview) { row.classList.add('is-locked'); }   // grey: it cannot be acted on until the lead decides
         // Someone who is not the team lead sends their own draft to the lead from here. Once sent, the page is locked and reads "In Review".
-        if (!lead && !actingAsAdmin() && p.workingVersion && (p.workingVersion.status === 'draft' || p.workingVersion.status === 'sent_back')) {
+        // A live page's draft counts only once it has saved changes: opening Edit and leaving without saving leaves a copy of the live text, which is not worth sending
+        if (!lead && !actingAsAdmin() && p.workingVersion && (p.workingVersion.status === 'draft' || p.workingVersion.status === 'sent_back') && (!p.liveVersion || p.workingVersion.changed)) {
           var submitButton = button('Submit for review', 'row-btn row-btn-publish', async function () {
             if (!(await confirmSubmit(p.title))) { return; }
             if (await attempt(backend().act(p.id, p.workingVersion.n, 'submit'))) {
@@ -2130,7 +2131,8 @@
       if (can('send_back')) { row.appendChild(button('Request changes', 'row-btn', function () { sendBackWithComment(id, Number(n)); })); }
     } else {
       // The owner: Submit (to the team lead) and Edit. Once it is sent, the page is locked and reads "In Review" until the lead publishes it or asks for changes.
-      if (can('submit')) { row.appendChild(button('Submit for review', 'row-btn row-btn-main', async function () { if (!(await confirmSubmit(data.version.title))) { return; } runAction(id, Number(n), 'submit', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); })); }
+      var untouchedCopy = !!(detail && detail.page && detail.page.liveVersion && detail.page.workingVersion && detail.page.workingVersion.changed === false);   // Edit was opened on a live page and nothing was saved
+      if (can('submit') && !untouchedCopy) { row.appendChild(button('Submit for review', 'row-btn row-btn-main', async function () { if (!(await confirmSubmit(data.version.title))) { return; } runAction(id, Number(n), 'submit', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); })); }
       if (can('edit')) { row.appendChild(button('Edit', 'row-btn', function () { location.hash = '#/edit/' + id + '/' + n; })); }
       if (waiting) {
         var inReview = el('span', 'row-locked');
