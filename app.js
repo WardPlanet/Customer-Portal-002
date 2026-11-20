@@ -275,9 +275,10 @@
     function touchSetup(field) {
       if (setupTrack && setupTrack.fields.indexOf(field) >= 0) { refreshSetupActions(); } else { markDirty(); }
     }
-    byId('setup-save').addEventListener('click', async function () {
+    // Saves the pending page setup changes in place; resolves to true when saved (or when there was nothing to save)
+    async function saveSetupChanges() {
       var changes = setupDiff();
-      if (!changes || !setupTrack) { return; }   // greyed out: nothing to save
+      if (!changes || !setupTrack) { return true; }
       var button = byId('setup-save');
       button.setAttribute('aria-disabled', 'true');
       var ok = false;
@@ -287,6 +288,11 @@
         refreshSetupActions();
         showNotice('Page setup saved. The page was not republished.');
       }
+      return ok;
+    }
+    byId('setup-save').addEventListener('click', function () {
+      if (!setupDiff() || !setupTrack) { return; }   // greyed out: nothing to save
+      saveSetupChanges();
     });
     byId('setup-cancel').addEventListener('click', function () {
       if (!setupTrack || !setupDiff()) { return; }   // greyed out: nothing to cancel
@@ -5450,6 +5456,8 @@
         if (readOnly) { lockEditing(true); }
       },
       getText: serializeDraft,
+      hasPendingSetup: function () { return !!setupDiff(); },   // page setup changes not yet saved with Save changes
+      saveSetupNow: saveSetupChanges,
       // What the AI did at the import that started this editor session (null for any other page): the library keeps it with the page
       getImportRecord: function () { return importRecord ? JSON.parse(JSON.stringify(importRecord)) : null; },
       refresh: function () { renderOwner(); updateSaveState(); },   // after "Acting as" changes: who may choose the owner, and whether Publish shows

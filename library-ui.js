@@ -1729,6 +1729,7 @@
     else if (page.visibility !== 'Internal-Only' && !page.ownerPublishes) { note = 'A public page always needs review.'; }
     else if (!lead) { note = 'The team lead sets this.'; }
     else if (!editable) { note = 'Open the page to edit to change it.'; }
+    else if (page.ownerPending) { note = 'Save or cancel the change of owner first, then you can allow the new owner to republish.'; }
     else { canChange = true; }
     window.PageEditor.setOwnerPublish({
       value: leadOwns && live ? true : !!(page && page.ownerPublishes),   // a page the lead owns reads Allow (greyed): the lead publishes without review
@@ -1745,7 +1746,9 @@
   // The editor's Owner was changed (not saved yet): a new owner starts as "not allowed", and the toggle is available when that owner is not the team lead
   function ownerPublishOwnerChanged(ownerKey, value) {
     if (!ownerPubContext || !ownerPubContext.detail) { return; }
-    showOwnerPublishField(ownerPubContext.id, ownerPubContext.detail, ownerPubContext.editable, { owner: ownerKey, ownerDefault: false, ownerPublishes: !!value });
+    var saved = ownerPubContext.detail.page;
+    var pending = String(ownerKey || '') !== String(saved.owner || '');   // a different owner chosen but not saved yet
+    showOwnerPublishField(ownerPubContext.id, ownerPubContext.detail, ownerPubContext.editable, { owner: ownerKey, ownerDefault: false, ownerPublishes: !!value, ownerPending: pending });
   }
 
   async function updateVersionLink(id) {
@@ -1966,8 +1969,12 @@
     // On a live page the setup (owner, linked people, visibility, republishing) is saved in place with Save changes, not by republishing. The team
     // lead changes all four; an owner only who is linked (their visibility choice is part of the draft they submit).
     if (current.liveEdit) {
-      var setupFields = (actorIsLead() || actingAsAdmin()) ? ['owner', 'linked', 'visibility', 'ownerPublishes'] : ['linked'];
-      window.PageEditor.trackSetup({ fields: setupFields, onSave: async function (changes) { return !!(await attempt(backend().saveSetup(id, changes))); } });
+      var setupFields = (actorIsLead() || actingAsAdmin()) ? ['owner', 'linked', 'visibility'] : ['linked'];   // Allow owner to republish is not here: it asks Allow / Cancel and applies at once
+      window.PageEditor.trackSetup({ fields: setupFields, onSave: async function (changes) {
+        var reply = await attempt(backend().saveSetup(id, changes));
+        if (reply) { showOwnerPublishField(id, reply, true); }   // a new owner starts as Requires review; the toggle is redrawn from the saved page
+        return !!reply;
+      } });
     }
 
     // The banner appears only when there is something to act on: a sent-back note, or the points flagged by an import
@@ -2094,9 +2101,40 @@
     });
   }
 
+  // Asked on leaving the editor with page setup changes (owner, linked member, visibility) that were not saved with Save changes
+  function askSaveSetup() {
+    return new Promise(function (resolve) {
+      var dialog = el('dialog', 'draft-dialog import-kind-dialog');
+      dialog.setAttribute('aria-label', 'Save your page setup changes?');
+      dialog.appendChild(el('h2', 'dialog-title', 'Save your page setup changes?'));
+      dialog.appendChild(el('p', 'dialog-hint', 'You changed the page setup. Those changes are only kept when you save them.'));
+      var answer = null;
+      var choices = el('div', 'import-kind-choices');
+      function choice(title, text, value) {
+        var b = el('button', 'import-kind-choice');
+        b.type = 'button';
+        b.appendChild(el('strong', '', title));
+        b.appendChild(el('span', '', text));
+        b.addEventListener('click', function () { answer = value; dialog.close(); });
+        return b;
+      }
+      choices.appendChild(choice('Save changes', 'Applies the page setup changes now. The page is not republished.', 'save'));
+      choices.appendChild(choice('Don\u2019t save', 'The page setup changes are lost.', 'discard'));
+      dialog.appendChild(choices);
+      var actions = el('div', 'dialog-actions');
+      actions.appendChild(button('Cancel', 'secondary-link', function () { dialog.close(); }));
+      dialog.appendChild(actions);
+      dialog.addEventListener('close', function () { dialog.remove(); resolve(answer); });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
   // Closing the tab or reloading with unsaved changes to a live page: the browser's own warning
   window.addEventListener('beforeunload', function (event) {
-    if (current.liveEdit && window.PageEditor && window.PageEditor.isDirty && window.PageEditor.isDirty()) { event.preventDefault(); event.returnValue = ''; }
+    var unsavedContent = current.liveEdit && window.PageEditor && window.PageEditor.isDirty && window.PageEditor.isDirty();
+    var unsavedSetup = window.PageEditor && window.PageEditor.hasPendingSetup && window.PageEditor.hasPendingSetup();
+    if (unsavedContent || unsavedSetup) { event.preventDefault(); event.returnValue = ''; }
   });
 
   // The top bar's Import document(s) button: asks one document or several
@@ -4891,6 +4929,12 @@
       if (location.hash === '#/new') { route(); } else { location.hash = '#/new'; }
     },
     leave: async function () {
+      // Page setup changes (owner, linked member, visibility) are kept only with Save changes: ask before they are lost
+      if (window.PageEditor.hasPendingSetup && window.PageEditor.hasPendingSetup()) {
+        var setupChoice = await askSaveSetup();
+        if (!setupChoice) { return; }
+        if (setupChoice === 'save' && !(await window.PageEditor.saveSetupNow())) { return; }
+      }
       if (window.PageEditor.isDirty()) {
         if (current.liveEdit) {
           // Changes to a live page are never autosaved: save the draft, or leave without it
