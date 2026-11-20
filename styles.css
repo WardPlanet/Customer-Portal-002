@@ -3304,7 +3304,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .build-check { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 8px; vertical-align: middle; border-radius: 50%; background: var(--success); color: #fff; }
 
 /* Documents that come from one file are joined by a dotted line between their cards */
-.batch-doc.is-joined::before { content: ''; position: absolute; left: 23px; top: -15px; height: 14px; border-left: 2px dotted var(--border-strong); }
+.batch-doc.is-joined::before { content: ''; position: absolute; left: 22px; top: -16px; height: 16px; border-left: 4px dotted var(--icon-blue); }   /* joined to the card above: clearly visible */
 .batch-doc .lib-row-sub { margin: 4px 0 0; }
 
 /* Marking which files hold several documents, before anything is read */
@@ -3315,6 +3315,8 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .batch-file-text .lib-row-sub { margin: 2px 0 0; }
 .batch-file-split { display: inline-flex; align-items: center; gap: 8px; flex: none; font-size: 14px; cursor: pointer; }
 .batch-file-split input { width: 18px; height: 18px; }
-.batch-doc-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; margin-top: 6px; }
+.batch-doc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.batch-doc-head .batch-title { flex: 1 1 260px; width: auto; min-width: 220px; max-width: 420px; }
+.batch-doc-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
 .batch-doc-choices .batch-field { margin: 0; }
 .batch-file-choices { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 20px; }

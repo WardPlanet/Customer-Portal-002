@@ -437,16 +437,14 @@
     /* ----- 1b. Mark the files that hold several documents (before the AI looks at anything) ----- */
     function fileSize(bytes) { return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB'; }
 
-    var startVisibility = '';   // the visibility chosen for a single file that is scanned for documents
     function stepFiles(files) {
       self.stage = 'choose';
       clear();
       head('Batch import', files.length === 1 ? files[0].name : files.length + ' files');
       var card = el('section', 'batch-card');
-      card.appendChild(el('h2', 'lib-h2', '2. Check your files'));
-      card.appendChild(el('p', 'lib-hint', 'Choose who can see each file once it is a page. Every file is imported as one document, exactly as written; mark a file that holds several documents and the AI will find where each one starts. Nothing is read by the AI until you continue.'));
+      card.appendChild(el('h2', 'lib-h2', '2. Does any file hold several documents?'));
+      card.appendChild(el('p', 'lib-hint', 'Every file is imported as one document, exactly as written. Mark a file that holds several documents and the AI will find where each one starts. Nothing is read by the AI until you continue.'));
       var marked = files.map(function () { return false; });
-      var visibilities = files.map(function () { return 'Internal-Only'; });
       var list = el('div', 'batch-files');
       files.forEach(function (file, i) {
         var row = el('div', 'batch-file-row');
@@ -455,13 +453,6 @@
         text.appendChild(el('div', 'lib-row-sub', fileSize(file.size || 0)));
         row.appendChild(text);
         var choices = el('div', 'batch-file-choices');
-        var visLabel = el('label', 'batch-file-split', 'Visibility ');
-        var visSelect = el('select', 'acting-select');
-        visSelect.setAttribute('aria-label', 'Visibility of ' + file.name);
-        [['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; visSelect.appendChild(o); });
-        visSelect.addEventListener('change', function () { visibilities[i] = visSelect.value; });
-        visLabel.appendChild(visSelect);
-        choices.appendChild(visLabel);
         var split = el('label', 'batch-file-split');
         var box = el('input');
         box.type = 'checkbox';
@@ -476,9 +467,9 @@
       card.appendChild(list);
       var bar = el('div', 'batch-bar');
       bar.appendChild(ui.button('Continue', 'primary-btn', function () {
-        if (!marked.some(Boolean)) { loadSeveral(files, marked, visibilities); }
-        else if (files.length === 1) { startVisibility = visibilities[0]; load(files[0]); }   // one file with several documents: the usual scan
-        else { loadSeveral(files, marked, visibilities); }
+        if (!marked.some(Boolean)) { loadSeveral(files, marked); }
+        else if (files.length === 1) { load(files[0]); }   // one file with several documents: the usual scan
+        else { loadSeveral(files, marked); }
       }));
       bar.appendChild(ui.button('Choose other files', 'quiet-link', function () { stepChoose(); }));
       card.appendChild(bar);
@@ -554,9 +545,8 @@
     // Several files at once: every file is its own document, so there is nothing to scan for. They go
     // straight to the review.
     var MAX_FILES = 40;
-    async function loadSeveral(files, flags, visibilities) {
+    async function loadSeveral(files, flags) {
       flags = flags || [];
-      visibilities = visibilities || [];
       if (files.length > MAX_FILES) { stepChoose('That is ' + files.length + ' files. Choose up to ' + MAX_FILES + ' at a time.'); return; }
       clear();
       head('Batch import', files.length === 1 ? files[0].name : files.length + ' files');
@@ -590,7 +580,7 @@
           if (flags[i]) {
             // Marked as holding several documents: found by the AI (or the file's headings), kept in this file's range of sections
             var found = await planFor(read.segments, files[i].name);
-            found.plan.documents.forEach(function (d) { documents.push({ title: d.title, first: d.first + first - 1, last: d.last + first - 1, visibility: visibilities[i] || 'Internal-Only' }); });
+            found.plan.documents.forEach(function (d) { documents.push({ title: d.title, first: d.first + first - 1, last: d.last + first - 1 }); });
             (found.plan.skipped || []).forEach(function (g) { skipped.push({ first: g.first + first - 1, last: g.last + first - 1, reason: g.reason }); });
             if (found.note) { notes.push(found.note); }
             (found.plan.problems || []).forEach(function (p) { notes.push(p); });
@@ -599,7 +589,7 @@
             var fileLines = linesFromSegments(read.segments);
             var fileLabels = Core.labelByRules(fileLines);
             var titleLine = fileLines.filter(function (line, n) { return fileLabels[n].role === 'title'; })[0];
-            documents.push({ title: (titleLine ? titleLine.text : files[i].name.replace(/\.[^.]+$/, '')).slice(0, 150), first: first, last: segments.length, fileName: files[i].name, visibility: visibilities[i] || 'Internal-Only' });
+            documents.push({ title: (titleLine ? titleLine.text : files[i].name.replace(/\.[^.]+$/, '')).slice(0, 150), first: first, last: segments.length, fileName: files[i].name });
           }
           images += read.images;
           setMark(marks[i], 'done');
@@ -623,8 +613,7 @@
     async function loadSegments(fileName, segments, images) {
       if (!segments.length) { stepChoose('There is no text in that file.'); return; }
       if (segments.length > Core.MAX_SEGMENTS) { stepChoose('That file has ' + segments.length + ' sections, which is too many to scan at once. Split it into smaller files first.'); return; }
-      session = { fileName: fileName, segments: segments, imageCount: images, plan: null, notes: [], visibility: startVisibility || undefined };
-      startVisibility = '';
+      session = { fileName: fileName, segments: segments, imageCount: images, plan: null, notes: [] };
       var pages = await ui.backend().list('').catch(function () { return { pages: [] }; });
       existingTitles = {};
       pages.pages.forEach(function (p) { existingTitles[p.title.toLowerCase()] = true; });
@@ -827,7 +816,10 @@
       title.value = doc.title;
       title.setAttribute('aria-label', 'Title');
       title.addEventListener('input', function () { doc.title = title.value; doc.edited = true; });
-      body.appendChild(title);
+      // The title, the owner and the visibility share one line
+      var titleLine = el('div', 'batch-doc-head');
+      titleLine.appendChild(title);
+      body.appendChild(titleLine);
 
       var ownerRow = el('div', 'batch-field', 'Owner ');
       if (!needsOwner()) { ownerRow.hidden = true; }
@@ -846,7 +838,7 @@
       docVis.addEventListener('change', function () { doc.visibility = docVis.value; });
       visRow.appendChild(docVis);
       choices.appendChild(visRow);
-      body.appendChild(choices);
+      titleLine.appendChild(choices);
 
       var words = Core.wordCount(session.segments, doc.first, doc.last);
       // One short line: where it is in the file, how long it is, and a warning when the library already has a page with this title
