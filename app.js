@@ -3211,7 +3211,7 @@
           response = await fetch('/api/ai/json', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: prompt, modelTier: options.modelTier, skipStyleGuide: options.skipStyleGuide === true, image: picture }),
+            body: JSON.stringify({ prompt: prompt, modelTier: options.modelTier, skipStyleGuide: options.skipStyleGuide === true, guide: options.guide || '', image: picture }),
             signal: options.signal
           });
         } catch (error) {
@@ -3247,7 +3247,12 @@
           var addGuide = options.modelTier === 'default' && !options.skipStyleGuide && window.STYLE_PREAMBLE;
           var sampleOptions = { modelTier: options.modelTier, signal: options.signal };
           if (options.imageBlob) { sampleOptions.images = [options.imageBlob]; }
-          return sample.json(addGuide ? window.STYLE_PREAMBLE + prompt : prompt, sampleOptions);
+          var text = addGuide ? window.STYLE_PREAMBLE + prompt : prompt;
+          // A reply to a client is also written to the client reply guidelines (built into the artifact)
+          if (options.guide === 'client-reply' && window.CLIENT_REPLY_GUIDELINES) {
+            text = 'Write the reply following these client reply guidelines, which decide its tone and shape:\n\n' + window.CLIENT_REPLY_GUIDELINES.trim() + '\n\n---\n\n' + text;
+          }
+          return sample.json(text, sampleOptions);
         }
       };
     }
@@ -5404,10 +5409,10 @@
     window.PageEditor = {
       aiAvailable: async function () { return !!(await getSample()); },
       // One AI question that wants a JSON answer (no house style needed)
-      aiJson: async function (prompt) {
+      aiJson: async function (prompt, guide) {
         var sample = await getSample();
         if (!sample) { throw importProblem('The AI isn\u2019t available in this view.'); }
-        return sample.json(prompt, { modelTier: 'default', skipStyleGuide: true });
+        return sample.json(prompt, { modelTier: 'default', skipStyleGuide: true, guide: guide || '' });
       },
       wordToHtml: wordToHtml,
       extractPdfText: extractPdfText,

@@ -13,7 +13,7 @@ import express from 'express';
 import { here } from './config.js';
 import { AiError, askForJson, hasApiKey } from './ai.js';
 import { importDocument } from './importer.js';
-import { readStyleGuide, stylePreamble } from './guidelines.js';
+import { readStyleGuide, stylePreamble, readClientReplyGuidelines } from './guidelines.js';
 import { readTeam } from './teams.js';
 import { migrateFlatDrafts, registerLibraryRoutes, purgeTrash, queueExpiryEmails, queueTrashWarnings } from './library.js';
 import { identify, isTrustedMode, requireSignIn } from './auth.js';
@@ -148,6 +148,11 @@ app.post('/api/ai/json', async function (req, res) {
       });
       var team = await readTeam().catch(function () { return null; });
       if (styleGuide) { prompt = stylePreamble(styleGuide, team) + prompt; }
+    }
+    // A reply to a client is also written to the client reply guidelines (tone, words to avoid, shape), read fresh so edits apply at once
+    if (req.body.guide === 'client-reply') {
+      var replyGuide = await readClientReplyGuidelines();
+      prompt = 'Write the reply following these client reply guidelines, which decide its tone and shape:\n\n' + replyGuide.trim() + '\n\n---\n\n' + prompt;
     }
     // An optional picture (for describing it): { mediaType, data } with the bytes as base64. It is sent to the AI beside the prompt.
     var content = prompt;

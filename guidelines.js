@@ -1,6 +1,7 @@
 // The two plain-text rulebooks in guidelines/, read fresh on every request so edits apply at once:
 //   style-guide.md        - how all text is written (names, capitalization, quotes, punctuation...)
 //   import-guidelines.md  - how an uploaded document is turned into a page
+//   client-reply-guidelines.md - the tone and shape of the email replies drafted for clients
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -20,6 +21,11 @@ export function readStyleGuide() {
 
 export function readImportGuidelines() {
   return readGuideline('import-guidelines.md');
+}
+
+// How support's email replies to clients are worded (tone, words to avoid, shape)
+export function readClientReplyGuidelines() {
+  return readGuideline('client-reply-guidelines.md');
 }
 
 // Put in front of an AI prompt so the AI writes in house style. The team, when given, adds who holds

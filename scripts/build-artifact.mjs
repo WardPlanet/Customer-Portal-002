@@ -44,6 +44,7 @@ const store = await read('store.js');
 const libraryUi = await read('library-ui.js');
 const outline = await read('outline.js');
 const guidelines = await read('guidelines', 'import-guidelines.md');
+const clientReplyGuidelines = await read('guidelines', 'client-reply-guidelines.md');
 const styleGuide = await read('guidelines', 'style-guide.md');
 const team = await readTeam();
 const allTeams = await readTeams();   // every department, so the artifact can switch between them
@@ -69,6 +70,7 @@ const pdfLibrary =
 const instructions =
   'window.IMPORT_INSTRUCTIONS = ' + safeForScript(JSON.stringify(buildInstructions(guidelines, styleGuide, team))) + ';\n' +
   'window.STYLE_PREAMBLE = ' + safeForScript(JSON.stringify(stylePreamble(styleGuide, team))) + ';\n' +
+  'window.CLIENT_REPLY_GUIDELINES = ' + safeForScript(JSON.stringify(clientReplyGuidelines)) + ';\n' +
   // The team and who holds each role, for the Page Setup panel (the server serves this at /api/team)
   'window.TEAMS = ' + safeForScript(JSON.stringify(allTeams)) + ';\n' +
   'window.TEAM_ROSTER = ' + safeForScript(JSON.stringify(team)) + ';';

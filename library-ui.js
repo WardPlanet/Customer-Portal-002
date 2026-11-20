@@ -4249,7 +4249,7 @@
       'You help a support person write an email reply to a CLIENT, using only the page text below. The support person will read and edit it before sending.',
       'Rules:',
       '- Answer the client\u2019s question using only the page. Never invent facts, numbers, names, dates, links, promises or timelines.',
-      '- Write to the client in a friendly, clear, professional voice. Plain text, no markdown. Do not write a greeting, a sign-off or a subject line: the support person adds those. Start with the first sentence of the reply itself and end with its last sentence.',
+      '- Follow the client reply guidelines above for the tone and the shape of the reply, every time. Plain text, no markdown. Do not write a greeting, a sign-off or a subject line: the support person adds those.',
       '- Keep it short: a sentence of thanks or context, the answer (short steps as lines starting with "1. " if the page gives steps), and an offer to help further.',
       '- Leave out anything that is only for internal staff: internal tools, team or people names, internal procedures and links. If a part of the answer depends on that, leave it out of the reply and say in "check" what was left out.',
       '- The reply must be ready to send exactly as written: never use square brackets, placeholders or blanks. If something the client needs is not on the page, leave it out and say so in "check".',
@@ -4270,6 +4270,48 @@
     ].filter(function (line) { return line !== ''; }).join('\n');
   }
 
+  // The reply as plain text and as HTML for the clipboard: only text, line breaks and links are carried over, so nothing else can ride along
+  function replyAs(node, html) {
+    var out = '';
+    Array.prototype.forEach.call(node.childNodes, function (child) {
+      if (child.nodeType === 3) {
+        out += html ? child.nodeValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') : child.nodeValue;
+      } else if (child.nodeName === 'BR') {
+        out += html ? '<br>' : '\n';
+      } else if (child.nodeName === 'A') {
+        var linkText = child.textContent;
+        out += html ? '<a href="' + String(child.href).replace(/"/g, '%22') + '">' + linkText.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</a>' : linkText + ' (' + child.href + ')';
+      } else if (child.nodeName === 'DIV' || child.nodeName === 'P') {
+        out += (html ? '<div>' + replyAs(child, true) + '</div>' : (out && !/\n$/.test(out) ? '\n' : '') + replyAs(child, false) + '\n');
+      } else {
+        out += replyAs(child, html);
+      }
+    });
+    return out;
+  }
+  // Copies the reply so that pasting into an email keeps the link as words; falls back to plain text
+  async function copyReply(node) {
+    var plain = replyAs(node, false).replace(/\n{3,}/g, '\n\n').trim();
+    var html = '<div>' + replyAs(node, true) + '</div>';
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([plain], { type: 'text/plain' }) })]);
+        return true;
+      }
+    } catch (error) { /* try the next way */ }
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(node);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      var copied = document.execCommand('copy');
+      selection.removeAllRanges();
+      if (copied) { return true; }
+    } catch (error) { /* plain text next */ }
+    return copyText(plain);
+  }
+
   // The drafted reply: editable text, ready to send as written, with Copy, Draft again and a close button. Nothing is sent from here. What the support
   // person has to check is listed OUTSIDE the box, so it is never copied by accident. On a public page the reply ends with a sentence pointing to the article.
   function showClientDraft(area, draftButton, pageTitle, body, check, internalOnly, publicUrl) {
@@ -4279,8 +4321,6 @@
     var placeholders = [];
     body = String(body).replace(/[ \t]*\[[^\]\n]*\]/g, function (found) { placeholders.push(found.trim()); return ''; }).replace(/[ \t]+\n/g, '\n').trim();
     placeholders.forEach(function (found) { check.push('The draft had a placeholder, ' + found + ', which was taken out. Check that the sentence still reads right and add it if the client needs it.'); });
-    // A public page: point the client to the article
-    if (publicUrl) { body += '\n\nFor more information, please see our article, \u201C' + pageTitle + '\u201D: ' + publicUrl; }
 
     var box = el('div', 'ask-email');
     var top = el('div', 'ask-email-top');
@@ -4293,14 +4333,33 @@
     close.addEventListener('click', function () { area.textContent = ''; area.appendChild(draftButton); });
     top.appendChild(close);
     box.appendChild(top);
-    var bodyInput = el('textarea', 'ask-email-body');
-    bodyInput.value = body.slice(0, 4000);
-    bodyInput.rows = 8;
+    // The reply is edited in a box that can hold a link, so the article is a text link ("our article, Domain Policy"), not a raw address
+    var bodyInput = el('div', 'ask-email-body');
+    bodyInput.contentEditable = 'true';
+    bodyInput.setAttribute('role', 'textbox');
+    bodyInput.setAttribute('aria-multiline', 'true');
     bodyInput.setAttribute('aria-label', 'Reply text');
+    bodyInput.appendChild(document.createTextNode(body.slice(0, 4000)));
+    if (publicUrl) {
+      // A public page: point the client to the article
+      bodyInput.appendChild(document.createTextNode('\n\nFor more information, please see our article, \u201C'));
+      var articleLink = el('a', '', pageTitle);
+      articleLink.href = publicUrl;
+      articleLink.target = '_blank';
+      articleLink.rel = 'noopener';
+      bodyInput.appendChild(articleLink);
+      bodyInput.appendChild(document.createTextNode('\u201D.'));
+    }
+    // Only plain text can be pasted in
+    bodyInput.addEventListener('paste', function (event) {
+      event.preventDefault();
+      var pasted = (event.clipboardData && event.clipboardData.getData('text/plain')) || '';
+      document.execCommand('insertText', false, pasted);
+    });
     box.appendChild(bodyInput);
     var actions = el('div', 'ask-email-actions');
     actions.appendChild(button('Copy', 'row-btn row-btn-main', async function () {
-      var done = await copyText(bodyInput.value);
+      var done = await copyReply(bodyInput);
       notice(done ? 'Reply copied. Paste it into your email.' : 'Could not copy. Select the text and copy it yourself.');
     }));
     actions.appendChild(button('Draft again', 'row-btn', function () { area.textContent = ''; area.appendChild(draftButton); draftButton.click(); }));
@@ -4377,7 +4436,7 @@
               draftButton.setAttribute('aria-disabled', 'true');
               draftButton.textContent = 'Drafting\u2026';
               try {
-                var email = await window.PageEditor.aiJson(clientEmailPrompt(pageTitle, parts, question, raw.answer.trim(), !!internalOnly));
+                var email = await window.PageEditor.aiJson(clientEmailPrompt(pageTitle, parts, question, raw.answer.trim(), !!internalOnly), 'client-reply');
                 var body = email && typeof email.body === 'string' ? email.body.trim() : '';
                 if (!body) { draftArea.textContent = ''; draftArea.appendChild(draftButton); notice('The AI could not draft that this time. Try again.'); return; }
                 showClientDraft(draftArea, draftButton, pageTitle, body, email && Array.isArray(email.check) ? email.check : [], !!internalOnly, publicUrl);
