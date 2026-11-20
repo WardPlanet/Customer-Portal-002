@@ -440,6 +440,7 @@
   function showScreen(which, isPublic) {
     libraryScreen.hidden = which !== 'library';
     editorScreen.hidden = which !== 'editor';
+    document.getElementById('restore-version').hidden = true;   // only the read-only view of an older version offers it (openViewer)
     document.body.classList.toggle('is-public', !!isPublic);
     if (which === 'library') {
       document.getElementById('nav-library').classList.toggle('is-current', !isPublic);
@@ -1616,9 +1617,9 @@
       // by restoring something else, and nothing is kept until it is saved). Elsewhere it starts a new draft from it.
       var inEditor = current.id === id && !document.body.classList.contains('is-readonly') && !editorScreen.hidden;
       if (inEditor ? (v.release && !v.live) : v.actions.indexOf('restore') >= 0) {
-        actionCell.appendChild(button('Revert to this', 'row-btn', async function () {
+        actionCell.appendChild(button('Restore', 'row-btn', async function () {
           if (inEditor) {
-            if (!(await window.askConfirm('The draft you are editing will be replaced by ' + (v.release ? 'v' + v.release : 'this version') + '.', { title: 'Revert to this version?', ok: 'Revert' }))) { return; }
+            if (!(await window.askConfirm('The draft you are editing will be replaced by ' + (v.release ? 'v' + v.release : 'this version') + '.', { title: 'Restore this version?', ok: 'Restore' }))) { return; }
             var old = await attempt(backend().getVersion(id, v.n));
             if (!old) { return; }
             dialog.close();
@@ -1627,11 +1628,11 @@
             window.PageEditor.load(restoredText, false);
             window.PageEditor.setStatus('Unsaved changes', false);
             await updateVersionLink(id);
-            window.PageEditor.showNotice('Reverted to v' + v.release + ' in the editor. It is saved with your next save or autosave.');
+            window.PageEditor.showNotice('Restored v' + v.release + ' in the editor. It is saved with your next save or autosave.');
             return;
           }
           var result = await attempt(backend().act(id, v.n, 'restore'));
-          if (result) { dialog.close(); notice('Reverted: a new draft was started from that version. It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
+          if (result) { dialog.close(); notice('Restored: a new draft was started from that version. It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
         }));
       }
       notesCell.addEventListener('click', function (event) { if (event.target.closest('a')) { setTimeout(function () { dialog.close(); }, 0); } });
@@ -1756,9 +1757,9 @@
     if (can('withdraw')) { nodes.push(button('Withdraw', 'row-btn', function () { runAction(id, v.n, 'withdraw', 'Withdrawn. It is a draft again.'); })); }
     if (can('approve')) { nodes.push(button('Approve', 'row-btn row-btn-go', function () { runAction(id, v.n, 'approve', 'Approved. It is now live.'); })); }
     if (can('send_back')) { nodes.push(button('Send back', 'row-btn', function () { sendBackWithComment(id, v.n); })); }
-    if (can('restore')) { nodes.push(button('Revert to this', 'row-btn', async function () {
+    if (can('restore')) { nodes.push(button('Restore', 'row-btn', async function () {
       var result = await attempt(backend().act(id, v.n, 'restore'));
-      if (result) { notice('Reverted: a new draft was started from that version. It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
+      if (result) { notice('Restored: a new draft was started from that version. It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
     })); }
     return nodes;
   }
@@ -2143,6 +2144,16 @@
     var row = el('div', 'banner-actions');
     // (version history: hidden for now, see HANDOFF.md, open items)
     var can = function (action) { return data.actions.indexOf(action) >= 0; };
+    // Restore sits in the bottom bar of the read-only view of an older version (the version history list has it too)
+    var restoreButton = document.getElementById('restore-version');
+    if (can('restore')) {
+      restoreButton.hidden = false;
+      restoreButton.onclick = async function () {
+        if (!(await window.askConfirm('A new draft will be started from ' + (hist && hist.release ? 'version ' + hist.release : 'this version') + '. The live page stays as it is until that draft is published.', { title: 'Restore this version?', ok: 'Restore' }))) { return; }
+        var result = await attempt(backend().act(id, Number(n), 'restore'));
+        if (result) { notice('Restored: a new draft was started from that version. It needs approval like any edit.'); location.hash = '#/edit/' + id + '/' + result.version; }
+      };
+    }
     var waiting = data.version.status === 'submitted';
     // Reading the live version of a page that nobody is working on (how a page that is expiring or expired is reviewed)
     var liveReview = !!(detail && detail.page && detail.page.liveVersion === Number(n) && !detail.page.workingVersion);
