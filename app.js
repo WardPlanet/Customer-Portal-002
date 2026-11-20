@@ -254,11 +254,11 @@
       });
       return any ? changes : null;
     }
-    // On a live page the two buttons are always there; they are greyed out (like the blue bar's) until a setup change has been made, and again once it is saved
+    // The two buttons appear only while a setup change is waiting. Save changes applies it and Cancel puts it back; either way they disappear again
     function refreshSetupActions() {
       var box = byId('setup-actions');
-      box.hidden = !setupTrack || document.body.classList.contains('is-readonly');
       var pending = !!setupDiff();
+      box.hidden = !setupTrack || !pending || document.body.classList.contains('is-readonly');
       ['setup-save', 'setup-cancel'].forEach(function (id) {
         var button = byId(id);
         if (pending) { button.removeAttribute('aria-disabled'); button.title = ''; }
@@ -3480,6 +3480,9 @@
 
     function clearSuggestions() {
       document.querySelectorAll('.ai-suggestion').forEach(function (panel) { panel.remove(); });
+      // The import's suggestions belong to the page that was imported, not to the next one that is opened
+      var importBox = byId('import-suggestions');
+      if (importBox) { importBox.hidden = true; byId('import-suggestions-list').textContent = ''; }
     }
 
     // Shows one suggestion card inside its section, replacing any card that section already has
@@ -3871,6 +3874,140 @@
       importDialog.showModal();
     }
 
+    // ---------- AI suggestions after an import ----------
+    // The import never changes wording. Whatever the AI would improve comes back as suggestions, listed at the top of the page with Approve
+    // (applies it) and Deny (leaves the text alone). A "format" suggestion keeps every word; if the words differ it is shown as "copy".
+
+    // The words of a text with the formatting marks removed, to tell a layout-only change from a wording change
+    function wordsOf(text) {
+      return String(text || '')
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+        .replace(/^\s*(?:[-*]|\d+\.)\s+/gm, '')
+        .replace(/[*_\\]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function hostTexts(host) {
+      return host.classList.contains('step-block')
+        ? [readText(host.querySelector('.step-title')), readText(host.querySelector('.step-text'))]
+        : [readText(host.querySelector('[contenteditable]'))];
+    }
+
+    // The section a suggestion points at. The AI also quotes the section's current text, so a miscounted block number still finds the right one.
+    function importSuggestionHost(suggestion, original, blocks) {
+      var wanted = wordsOf(original);
+      function matches(candidate) { return !wanted || wordsOf(hostTexts(candidate).join(' ')) === wanted; }
+      var host = suggestionHost(suggestion.target, blocks);
+      if (host && matches(host)) { return host; }
+      if (!wanted) { return null; }
+      var candidates = [suggestionHost('title', blocks), suggestionHost('description', blocks)].concat(blocks.map(function (block, i) { return suggestionHost('block ' + (i + 1), blocks); }));
+      return candidates.filter(function (candidate) { return candidate && matches(candidate); })[0] || null;
+    }
+
+    function showImportSuggestions(result) {
+      var box = byId('import-suggestions');
+      var list = byId('import-suggestions-list');
+      list.textContent = '';
+      var blocks = contentBlocks();
+      var rows = [];
+
+      (result.suggestions || []).forEach(function (raw) {
+        var suggestion = cleanSuggestion(raw);
+        var host = suggestion ? importSuggestionHost(suggestion, typeof raw.original === 'string' ? raw.original : '', blocks) : null;
+        if (!host || changesNothing(suggestion, host)) { return; }
+        var now = hostTexts(host).join(NL);
+        var proposed = [suggestion.title, suggestion.text].filter(Boolean).join(NL);
+        var layoutOnly = raw.kind === 'format' && wordsOf(now) === wordsOf(proposed);
+        rows.push({ suggestion: suggestion, host: host, now: now, proposed: proposed, kind: layoutOnly ? 'Format' : 'Copy', decision: '' });
+      });
+
+      if (!rows.length) { box.hidden = true; return 0; }
+
+      var title = byId('import-suggestions-title');
+      function updateTitle() {
+        var open = rows.filter(function (row) { return !row.decision; }).length;
+        title.textContent = open
+          ? 'AI suggestions \u00B7 ' + open + ' to review'
+          : 'AI suggestions \u00B7 all ' + rows.length + ' reviewed';
+      }
+
+      rows.forEach(function (row) {
+        var item = document.createElement('li');
+        item.className = 'import-suggestion';
+
+        var body = document.createElement('div');
+        body.className = 'import-suggestion-body';
+        var head = document.createElement('div');
+        head.className = 'import-suggestion-head';
+        var kind = document.createElement('span');
+        kind.className = 'import-suggestion-kind is-' + row.kind.toLowerCase();
+        kind.textContent = row.kind;
+        var where = document.createElement('strong');
+        var tag = row.host.querySelector('.block-tag');
+        where.textContent = tag && tag.textContent.trim() ? tag.textContent.trim() : (row.host.classList.contains('step-block') ? 'Step' : 'Section');
+        head.appendChild(kind);
+        head.appendChild(where);
+        if (row.suggestion.reason) {
+          var why = document.createElement('span');
+          why.className = 'import-suggestion-reason';
+          why.textContent = row.suggestion.reason;
+          head.appendChild(why);
+        }
+        body.appendChild(head);
+
+        [['Now', row.now], ['Suggested', row.proposed]].forEach(function (pair) {
+          var line = document.createElement('div');
+          line.className = 'import-suggestion-line';
+          var label = document.createElement('span');
+          label.className = 'import-suggestion-label';
+          label.textContent = pair[0];
+          var text = document.createElement('span');
+          text.className = 'import-suggestion-text';
+          // Text that can carry formatting is shown formatted, so a "format" suggestion looks like what approving it will give
+          if (row.host.querySelector('[data-rich]')) { text.innerHTML = markdownToHtml(pair[1]); text.classList.add('is-rich'); } else { text.textContent = pair[1]; }
+          line.appendChild(label);
+          line.appendChild(text);
+          body.appendChild(line);
+        });
+
+        var choices = document.createElement('span');
+        choices.className = 'import-suggestion-choices';
+        function decide(value) {
+          row.decision = value;
+          if (value === 'approved') {
+            if (document.body.contains(row.host)) { applySuggestion(row.suggestion, row.host); } else { row.decision = 'denied'; }
+          }
+          item.classList.toggle('is-approved', row.decision === 'approved');
+          item.classList.toggle('is-denied', row.decision === 'denied');
+          choices.textContent = row.decision === 'approved' ? 'Approved, applied' : value === 'approved' ? 'That section is gone' : 'Denied, text kept';
+          updateTitle();
+        }
+        var approve = document.createElement('button');
+        approve.type = 'button';
+        approve.className = 'row-btn';
+        approve.textContent = 'Approve';
+        approve.setAttribute('aria-label', 'Approve this suggestion: ' + row.proposed.slice(0, 60));
+        approve.addEventListener('click', function () { decide('approved'); });
+        var deny = document.createElement('button');
+        deny.type = 'button';
+        deny.className = 'row-btn';
+        deny.textContent = 'Deny';
+        deny.setAttribute('aria-label', 'Deny this suggestion: ' + row.proposed.slice(0, 60));
+        deny.addEventListener('click', function () { decide('denied'); });
+        choices.appendChild(approve);
+        choices.appendChild(deny);
+
+        item.appendChild(body);
+        item.appendChild(choices);
+        list.appendChild(item);
+      });
+
+      updateTitle();
+      box.hidden = false;
+      return rows.length;
+    }
+
     function importProblem(message) {
       var error = new Error(message);
       error.userMessage = message;
@@ -3929,6 +4066,7 @@
         description: asText(raw && (raw.description || raw.summary)),
         blocks: blocks,
         review_notes: (Array.isArray(raw && raw.review_notes) ? raw.review_notes : []).map(asText).filter(Boolean),
+        suggestions: (Array.isArray(raw && raw.suggestions) ? raw.suggestions : []).filter(function (item) { return item && typeof item === 'object'; }).slice(0, 12),
         source: source
       };
     }
@@ -4121,6 +4259,8 @@
         var result = aiMode === 'server' ? await importViaServer(file) : await importViaClaude(file, sample);
         applyDraft(importResultToSections(result));
         setStatus('Imported, not saved yet', false);
+        var suggested = showImportSuggestions(result);
+        if (suggested) { result.review_notes.unshift(suggested + (suggested === 1 ? ' suggestion is' : ' suggestions are') + ' listed at the top of the page for you to approve or deny.'); }
         showImportReview(result);
         return true;
       } catch (error) {

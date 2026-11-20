@@ -240,6 +240,12 @@
 
         <!-- Canvas -->
         <article class="canvas">
+          <!-- AI suggestions after an import: each one is approved (applied) or denied (the text stays as it is) -->
+          <section class="import-suggestions" id="import-suggestions" aria-labelledby="import-suggestions-title" hidden>
+            <h2 class="import-suggestions-title" id="import-suggestions-title"></h2>
+            <p class="import-suggestions-hint">The page keeps the document’s own wording. These are the AI’s ideas for formatting and copy: approve one to apply it, or deny it to leave the text as it is.</p>
+            <ul class="import-suggestions-list" id="import-suggestions-list"></ul>
+          </section>
           <p class="required-legend"><span>*</span> Required to save a draft</p>
           <div class="blocks">
             <div class="text-block">

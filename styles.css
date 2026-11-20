@@ -3197,3 +3197,25 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 
 /* Behind the company sign-in the server knows who is signed in, so the testing bar (the stand-in for signing in) is not shown */
 .trusted-sign-in .demo-bar { display: none; }
+
+/* ---------- AI suggestions after an import: approve or deny each ---------- */
+.import-suggestions { margin: 0 0 24px; padding: 12px 16px; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 12px; }
+.import-suggestions-title { margin: 0 0 2px; font-size: 16px; }
+.import-suggestions-hint { margin: 0 0 8px; color: var(--text-muted); font-size: 13px; }
+.import-suggestions-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.import-suggestion { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.import-suggestion-body { flex: 1; min-width: 0; }
+.import-suggestion-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-bottom: 4px; font-size: 13px; }
+.import-suggestion-kind { padding: 0 8px; border-radius: 999px; background: var(--surface-muted); border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
+.import-suggestion-reason { color: var(--text-muted); }
+.import-suggestion-line { display: flex; gap: 8px; font-size: 14px; line-height: 1.45; }
+.import-suggestion-label { flex: none; width: 76px; color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding-top: 2px; }
+.import-suggestion-text { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.import-suggestion-choices { flex: none; display: inline-flex; gap: 8px; font-size: 13px; color: var(--text-muted); }
+.import-suggestion.is-approved { border-color: var(--icon-blue); }
+.import-suggestion.is-denied { background: var(--surface-muted); }
+@media (max-width: 640px) { .import-suggestion { flex-direction: column; } }
+.import-suggestion-text.is-rich { white-space: normal; }
+.import-suggestion-text.is-rich > :first-child { margin-top: 0; }
+.import-suggestion-text.is-rich > :last-child { margin-bottom: 0; }
+.import-suggestion-text.is-rich ul, .import-suggestion-text.is-rich ol { margin: 0; padding-left: 1.4em; }

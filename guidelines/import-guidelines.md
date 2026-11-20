@@ -22,6 +22,18 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
 - When something is unclear, contradictory, out of date or looks wrong, keep it exactly as it is and add a flagged
   point. A flagged point only describes what a person should look at. It never changes the page.
 
+## Suggestions (the only place wording may change)
+
+- Do the layout as well as you can in the page itself (next section), with the words untouched.
+- Anything you would improve beyond that goes in "suggestions", never in the page. A person sees each one at the top
+  of the editor and approves or denies it. Nothing changes until they approve.
+- A "format" suggestion keeps every word and only adds layout inside the text: bold, italic, a bullet or numbered
+  list, or a link written as [text](address). A "copy" suggestion changes words: unclear wording, typos, tone, missing
+  detail. Never mix the two: if any word changes, it is "copy".
+- Give the section's current text in "original" so it can be found, and a reason under 120 characters. Never suggest
+  changes to tables or code. Do not invent facts, numbers, names or policies. Keep the author's voice.
+- At most 12, the ones that help most. Nothing worth suggesting means an empty list.
+
 ## Layout (formatting only, never wording)
 
 - **Do not assume the source is structured correctly.** Heading styles, heading levels, bold lines, numbering and

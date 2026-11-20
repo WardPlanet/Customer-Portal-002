@@ -32,7 +32,8 @@ const OUTPUT_FORMAT = [
   '    { "type": "table", "rows": [["header 1", "header 2"], ["cell", "cell"]] },',
   '    { "type": "code", "text": "a command, query, file path list, configuration or code snippet, copied exactly with its line breaks and indentation" }',
   '  ],',
-  '  "review_notes": ["short notes for the person reviewing this import"]',
+  '  "review_notes": ["short notes for the person reviewing this import"],',
+  '  "suggestions": [{ "target": "title | description | block N", "original": "the section\u2019s text exactly as you put it in the page", "title": "step blocks only: the proposed step title", "text": "the proposed full text for that section", "kind": "format | copy", "reason": "under 120 characters: why" }]',
   '}',
   '',
   'Rules for the format:',
@@ -40,7 +41,8 @@ const OUTPUT_FORMAT = [
   '- Step numbers start at 1 for each separate procedure and go up by 1 within it.',
   '- A "table" block is for real rows and columns of data. The first row of "rows" is the header row. Every row has the same number of cells, and a cell is one line of plain text (no lists or line breaks inside a cell; use "; " between items). Keep an empty cell as an empty string.',
   '- If the text itself needs a literal * _ [ ] < > or backslash, put a backslash in front of it. Do not do this inside a "code" block: its text is plain and copied exactly.',
-  '- "review_notes" lists the flagged points: things a person should look at (gaps, contradictions, omitted images, personal contact details left as written, anything out of date, anything you were unsure how to lay out). A flagged point only describes; it never changes the page. Use an empty array only if there is genuinely nothing to check.'
+  '- "review_notes" lists the flagged points: things a person should look at (gaps, contradictions, omitted images, personal contact details left as written, anything out of date, anything you were unsure how to lay out). A flagged point only describes; it never changes the page. Use an empty array only if there is genuinely nothing to check.',
+  '- "suggestions" are the ONLY place wording may be improved. The page you build above must still contain the source text unchanged; a suggestion never changes the page until a person approves it. Use kind "format" when the proposal keeps every word and only adds layout inside the text (bold, italic, a bulleted or numbered list, a link written as [text](address)); use kind "copy" when any word would change (unclear wording, typos, tone, missing detail). Target only title, description or a paragraph, note, warning, header or step block (N is the block\u2019s position in "blocks", counting from 1), never a table or code. Do not invent facts. At most 12 suggestions; use an empty array if there is nothing worth suggesting.'
 ].join('\n');
 
 function extensionOf(filename) {
@@ -188,7 +190,9 @@ function cleanResult(raw) {
     title: asText(raw && raw.title),
     description: asText(raw && (raw.description || raw.summary)),
     blocks: blocks,
-    review_notes: (Array.isArray(raw && raw.review_notes) ? raw.review_notes : []).map(asText).filter(Boolean)
+    review_notes: (Array.isArray(raw && raw.review_notes) ? raw.review_notes : []).map(asText).filter(Boolean),
+    // Proposed changes, shown at the top of the editor for a person to approve or deny. Checked again in the browser (cleanSuggestion in app.js).
+    suggestions: (Array.isArray(raw && raw.suggestions) ? raw.suggestions : []).filter(function (item) { return item && typeof item === 'object'; }).slice(0, 12)
   };
 }
 

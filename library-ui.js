@@ -2087,12 +2087,24 @@
     var waiting = data.version.status === 'submitted';
     // Reading the live version of a page that nobody is working on (how a page that is expiring or expired is reviewed)
     var liveReview = !!(detail && detail.page && detail.page.liveVersion === Number(n) && !detail.page.workingVersion);
+    // Submit for review (owner) and Publish as it is (lead) are only for a live page that is expiring soon or has expired; a healthy live page can only be edited
+    var liveExpiry = liveReview ? W.expiryStatus(detail.page.updatedAt) : null;
+    var liveDue = !!(liveExpiry && liveExpiry.soon);
     var isOwner = !!(detail && detail.page && detail.page.owner && W.ownsKey(actor(), detail.page.owner)) || !!(detail && detail.page && detail.page.ownerDefault && actorIsLead());
     var editFromLive = async function () {
       var started = await attempt(backend().edit(id, editSession));
       if (started) { location.hash = '#/edit/' + id + '/' + started.version; }
     };
-    if (liveReview && (actorIsLead() || actingAsAdmin())) {
+    if (liveReview && !liveDue && (isOwner || actorIsLead() || actingAsAdmin())) {
+      // Live, not due for review, nothing in progress: edit it (the lead can also ask for changes)
+      row.appendChild(button('Edit', 'row-btn row-btn-main', editFromLive));
+      if (actorIsLead() || actingAsAdmin()) {
+        row.appendChild(button('Request changes', 'row-btn', async function () {
+          var comment = await askComment();
+          if (comment) { runAction(id, Number(n), 'request-changes-live', 'Asked the owner to update it, with your note.', { comment: comment }); }
+        }));
+      }
+    } else if (liveReview && (actorIsLead() || actingAsAdmin())) {
       // The team lead: Publish (the page is fine as it is: it stays live and its 180 days start again), Edit, Request changes (the owner is asked to update it)
       row.appendChild(button('Publish', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'renew-live', 'Reviewed. \u201c' + (data.version.title || 'The page') + '\u201d stays live and its 180 days start again.'); }));
       row.appendChild(button('Edit', 'row-btn', editFromLive));
