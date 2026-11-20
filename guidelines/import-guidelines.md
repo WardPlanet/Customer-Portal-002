@@ -34,6 +34,12 @@ Keep them short and concrete. Add a rule when you see the AI make the same mista
 - **Remove** what looks ancillary or left over from an older system or process: a document date or "last updated" line, an
   owner or author line, a version or revision table, page numbers, a confidentiality banner, a table of contents. Never remove
   steps or anything a reader needs to do the work.
+- **Combine** sections when one does another's job or they overlap. If the document has a "Scope", "Purpose", "Overview" or
+  "Summary" section, suggest using it as the page's description: target the description, list the section's blocks (its
+  heading and its paragraph) as sources, and give the description in the document's own words. Prefer this to a plain
+  "add" for the description. When blocks repeat each other, target the block to keep, list the repeats as sources, and
+  give the merged text. The sources are removed when a person approves it. Never invent facts.
+- **Remove** also covers redundant content: something that only repeats what another block already says.
 - Give the section's current text in "original" so it can be found, and a reason under 120 characters. Never suggest
   changes to code. Do not invent facts, numbers, names or policies. Keep the author's voice.
 - At most 12, the ones that help most. Nothing worth suggesting means an empty list.

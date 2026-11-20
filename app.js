@@ -3988,6 +3988,14 @@
       return candidates.filter(function (candidate) { return candidate && matches(candidate); })[0] || null;
     }
 
+    // A block's own words, without its label, buttons and handles
+    function blockPlainFor(block) {
+      var copy = block.cloneNode(true);
+      Array.prototype.forEach.call(copy.querySelectorAll('.block-tag, button, .block-handle, .required-mark, .section-ai'), function (node) { node.remove(); });
+      Array.prototype.forEach.call(copy.querySelectorAll('*'), function (node) { node.append(' '); });
+      return (copy.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
     function showImportSuggestions(result) {
       var box = byId('import-suggestions');
       var list = byId('import-suggestions-list');
@@ -3995,6 +4003,8 @@
       var blocks = contentBlocks();
       var rows = [];
 
+      // A combine into the title or description does that job, so an add for the same place is not shown as well
+      var combinedInto = (result.suggestions || []).filter(function (raw) { return raw && String(raw.action || '').toLowerCase() === 'combine'; }).map(function (raw) { return String(raw.target || '').toLowerCase().trim(); });
       (result.suggestions || []).forEach(function (raw) {
         var action = String(raw.action || 'replace').toLowerCase();
         var original = typeof raw.original === 'string' ? raw.original : '';
@@ -4021,13 +4031,41 @@
           return;
         }
 
+        if (action === 'combine') {
+          // Section(s) merged into one place: into the description or title, or into another block. The text is what ends up there; the source
+          // blocks are removed when the suggestion is used.
+          var combineTarget = String(raw.target || '').toLowerCase().trim();
+          var combineText = typeof raw.text === 'string' ? raw.text.trim().slice(0, 2000) : '';
+          var sourceNumbers = (Array.isArray(raw.sources) ? raw.sources : [raw.sources]).map(function (value) {
+            var match = /([0-9]+)/.exec(String(value || ''));
+            return match ? Number(match[1]) : 0;
+          }).filter(function (number, index, all) { return number >= 1 && number <= blocks.length && all.indexOf(number) === index; });
+          var targetBlockNumber = (/^block\s*#?\s*([0-9]+)\b/.exec(combineTarget) || [])[1];
+          var combineHost = combineTarget === 'title' ? titleEl.closest('.text-block') : combineTarget === 'description' ? descriptionEl.closest('.text-block') : targetBlockNumber ? blocks[Number(targetBlockNumber) - 1] : null;
+          if (targetBlockNumber) { sourceNumbers = sourceNumbers.filter(function (number) { return number !== Number(targetBlockNumber); }); }
+          if (combineTarget === 'title') { combineText = oneLine(combineText, 300); }
+          var sources = sourceNumbers.map(function (number) { return blocks[number - 1]; });
+          // The target takes text, so a code, table or photo block cannot be it
+          var targetTakesText = combineHost && combineHost.querySelector('[contenteditable]') && !combineHost.classList.contains('code-block') && !combineHost.classList.contains('table-block') && !combineHost.classList.contains('photo-block');
+          if (!combineText || !targetTakesText || !sources.length) { return; }
+          var currentTarget = hostTexts(combineHost).join(NL);
+          var fromText = sources.map(function (block) { return blockPlainFor(block); }).filter(Boolean).join(' / ');
+          rows.push({
+            action: 'combine',
+            suggestion: { target: combineTarget === 'title' || combineTarget === 'description' ? combineTarget : 'block ' + targetBlockNumber, title: '', text: combineText, reason: reason },
+            host: combineHost, removes: sources, now: (currentTarget ? currentTarget + NL : '') + 'From: ' + fromText,
+            proposed: combineText, kind: 'Combine', decision: ''
+          });
+          return;
+        }
+
         if (action === 'add') {
           // Only a title or a description, and only when the page has none
           var addTarget = String(raw.target || '').toLowerCase().trim();
           var addText = typeof raw.text === 'string' ? raw.text.trim().slice(0, 2000) : '';
           if (addTarget === 'title') { addText = oneLine(addText, 300); }
           var addField = addTarget === 'title' ? titleEl : addTarget === 'description' ? descriptionEl : null;
-          if (!addField || !addText || readText(addField)) { return; }
+          if (!addField || !addText || readText(addField) || combinedInto.indexOf(addTarget) >= 0) { return; }
           rows.push({ action: 'add', suggestion: { target: addTarget, title: '', text: addText, reason: reason }, host: addField.closest('.text-block'), now: '', proposed: addText, kind: 'Add', decision: '' });
           return;
         }
@@ -4042,7 +4080,10 @@
       });
 
       // A missing title, then a missing description, always come first
-      function rank(row) { return row.action === 'add' && row.suggestion.target === 'title' ? 0 : row.action === 'add' ? 1 : 2; }
+      function rank(row) {
+        var fills = row.action === 'add' || row.action === 'combine';
+        return fills && row.suggestion.target === 'title' ? 0 : fills && row.suggestion.target === 'description' ? 1 : 2;
+      }
       rows = rows.map(function (row, i) { return { row: row, i: i }; }).sort(function (a, b) { return rank(a.row) - rank(b.row) || a.i - b.i; }).map(function (pair) { return pair.row; });
       if (!rows.length) { box.hidden = true; pendingSuggestions = []; return 0; }
       // The import record gets one entry per suggestion, kept up to date as each is applied or dismissed
@@ -4126,7 +4167,7 @@
           item.classList.toggle('is-approved', row.decision === 'approved');
           item.classList.toggle('is-denied', row.decision === 'denied');
           var about = row.proposed.slice(0, 60);
-          var doLabel = row.action === 'remove' ? 'Remove' : row.action === 'add' ? 'Add' : 'Replace';   // the button says what approving does
+          var doLabel = row.action === 'remove' ? 'Remove' : row.action === 'add' ? 'Add' : row.action === 'combine' ? 'Combine' : 'Replace';   // the button says what approving does
           if (!row.decision) {
             var doButton = plainButton(doLabel, doLabel + ': ' + about, function () { decide('approved'); });
             doButton.classList.add('is-' + doLabel.toLowerCase());   // colour-coded: Add blue, Replace amber, Remove red
@@ -4152,18 +4193,20 @@
         function decide(value) {
           if (value === 'approved') {
             if (!document.body.contains(row.host)) { row.decision = 'denied'; row.entry.outcome = 'dismissed'; showChoices(); changed(); return; }
-            if (row.action === 'remove') {
-              // Keep every node of the editor as it was, so Undo can put the block back where it was
-              row.snapshot = Array.prototype.slice.call(contentEl.children);
-              removeBlockAndLines(row.host);
-              refreshBlocks();
-              markDirty();
-            } else {
+            // Keep every node of the editor as it was, so Undo can put removed blocks back where they were
+            var toRemove = row.action === 'remove' ? [row.host] : (row.removes || []);
+            if (toRemove.length) { row.snapshot = Array.prototype.slice.call(contentEl.children); }
+            if (row.action !== 'remove') {
               // What the section said before, so Undo can put it back
               row.before = row.host.classList.contains('step-block')
                 ? { title: readText(row.host.querySelector('.step-title')), text: readText(row.host.querySelector('.step-text')) }
                 : { text: readText(row.host.querySelector('[contenteditable]')) };
               applySuggestion(row.suggestion, row.host);
+            }
+            if (toRemove.length) {
+              toRemove.forEach(function (block) { if (block.isConnected) { removeBlockAndLines(block); } });
+              refreshBlocks();
+              markDirty();
             }
           }
           row.decision = value;
@@ -4172,7 +4215,7 @@
           changed();
         }
         function undo() {
-          if (row.decision === 'approved' && row.action === 'remove' && row.snapshot) {
+          if (row.decision === 'approved' && row.snapshot) {
             row.snapshot.forEach(function (node, i) {
               if (node.parentNode === contentEl) { return; }
               var before = null;
@@ -4180,7 +4223,8 @@
               if (before) { before.after(node); } else { contentEl.insertBefore(node, contentEl.firstChild); }
             });
             refreshBlocks();
-          } else if (row.decision === 'approved' && row.before && document.body.contains(row.host)) {
+          }
+          if (row.decision === 'approved' && row.before && document.body.contains(row.host)) {
             if (row.host.classList.contains('step-block')) {
               setFieldText(row.host.querySelector('.step-title'), row.before.title);
               setFieldText(row.host.querySelector('.step-text'), row.before.text);
@@ -4446,7 +4490,7 @@
     // (from the imported content only) and put the suggestion at the front of the list.
     async function addMissingOpeners(result, sample) {
       function has(target) {
-        return (result.suggestions || []).some(function (item) { return item && String(item.action || '').toLowerCase() === 'add' && String(item.target || '').toLowerCase() === target && item.text; });
+        return (result.suggestions || []).some(function (item) { return item && ['add', 'combine'].indexOf(String(item.action || '').toLowerCase()) >= 0 && String(item.target || '').toLowerCase() === target && item.text; });
       }
       var needTitle = !result.title && !has('title');
       var needDescription = !result.description && !has('description');

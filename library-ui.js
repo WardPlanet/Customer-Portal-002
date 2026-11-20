@@ -1688,7 +1688,7 @@
       record.suggestions.forEach(function (item) {
         var li = el('li', 'import-note-suggestion');
         var top = el('div', 'import-note-line');
-        top.appendChild(el('span', 'import-pill is-' + item.action, item.action === 'add' ? 'Add' : item.action === 'remove' ? 'Remove' : 'Replace'));
+        top.appendChild(el('span', 'import-pill is-' + item.action, item.action === 'add' ? 'Add' : item.action === 'remove' ? 'Remove' : item.action === 'combine' ? 'Combine' : 'Replace'));
         top.appendChild(el('strong', '', item.section));
         if (item.reason) { top.appendChild(el('span', 'import-record-text', item.reason)); }
         top.appendChild(el('span', 'import-note-outcome', (item.outcome === 'applied' ? 'Applied' : item.outcome === 'dismissed' ? 'Dismissed' : 'Not decided') + (item.by ? ' by ' + item.by : '') + (item.at ? ', ' + formatDate(item.at) : '')));

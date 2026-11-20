@@ -1252,7 +1252,7 @@
       suggestions: (Array.isArray(raw.suggestions) ? raw.suggestions : []).slice(0, 30).map(function (item) {
         item = item && typeof item === 'object' ? item : {};
         var outcome = IMPORT_OUTCOMES.indexOf(item.outcome) >= 0 ? item.outcome : 'open';
-        var action = item.action === 'add' || item.action === 'remove' ? item.action : 'replace';
+        var action = item.action === 'add' || item.action === 'remove' || item.action === 'combine' ? item.action : 'replace';
         return {
           action: action,
           kind: text(item.kind, 20),
