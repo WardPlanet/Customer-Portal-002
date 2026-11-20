@@ -4,7 +4,7 @@ The current state of the wiki prototype: what it does, how it is built, what is 
 `docs/HANDOFF-history.md` (some of it is out of date; this file wins). Hosting notes for IT are in `README.md`.
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
-- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 338, private).
+- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 337, private).
 - **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 26).
 - **Tests:** `npm test`, 132 passing (rules, search, import, admin, photos, and the Node server's library routes).
 
