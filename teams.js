@@ -10,20 +10,34 @@ import path from 'node:path';
 import { here } from './config.js';
 
 // Only one team exists for now. Drafts are stored under this team and new pages belong to it.
-const TEAM_FILE = path.join(here, 'teams', 'legwork-web-team.json');
+// TEAMS_DIR (optional) is where the live roster is kept, so roster edits survive replacing a container (point it at the data volume).
+// The teams/ folder shipped with the app is the seed: any team file missing from TEAMS_DIR is copied in from it.
+const SEED_DIR = path.join(here, 'teams');
+function teamsDir() { return process.env.TEAMS_DIR ? path.resolve(process.env.TEAMS_DIR) : SEED_DIR; }
+function teamFile() { return path.join(teamsDir(), 'legwork-web-team.json'); }
+
+async function seedTeams() {
+  var dir = teamsDir();
+  if (dir === SEED_DIR) { return; }
+  await fs.mkdir(dir, { recursive: true });
+  for (var name of (await fs.readdir(SEED_DIR)).filter(function (n) { return n.endsWith('.json'); })) {
+    try { await fs.access(path.join(dir, name)); } catch (error) { await fs.copyFile(path.join(SEED_DIR, name), path.join(dir, name)); }
+  }
+}
 
 // Every team file in teams/ (the single-file Claude artifact carries all of them so departments can be switched; the server
 // still uses just the first one, the Web Team, until it is made to work with several teams)
 export async function readTeams() {
-  var names = (await fs.readdir(path.join(here, 'teams'))).filter(function (name) { return name.endsWith('.json'); }).sort();
+  await seedTeams();
+  var names = (await fs.readdir(teamsDir())).filter(function (name) { return name.endsWith('.json'); }).sort();
   var teams = [];
-  for (var name of names) { teams.push(await readTeamFile(path.join(here, 'teams', name))); }
+  for (var name of names) { teams.push(await readTeamFile(path.join(teamsDir(), name))); }
   // The Web Team first: it is the default department
   teams.sort(function (a, b) { return (a.slug === 'legwork-web-team' ? 0 : 1) - (b.slug === 'legwork-web-team' ? 0 : 1) || a.name.localeCompare(b.name); });
   return teams;
 }
 
-export async function readTeam() { return readTeamFile(TEAM_FILE); }
+export async function readTeam() { await seedTeams(); return readTeamFile(teamFile()); }
 
 async function readTeamFile(file) {
   var team = JSON.parse(await fs.readFile(file, 'utf8'));
@@ -62,9 +76,11 @@ export function rosterNote(team) {
 // Saves a new list of roles and the people who hold them (the team lead's Team screen). Everything else in
 // the file stays as it is. Written to a temporary file first so a failed write cannot leave half a file.
 export async function writeRoles(roles) {
-  var team = JSON.parse(await fs.readFile(TEAM_FILE, 'utf8'));
+  await seedTeams();
+  var file = teamFile();
+  var team = JSON.parse(await fs.readFile(file, 'utf8'));
   team.roles = roles;
-  var temporary = TEAM_FILE + '.tmp';
+  var temporary = file + '.tmp';
   await fs.writeFile(temporary, JSON.stringify(team, null, 2) + '\n', 'utf8');
-  await fs.rename(temporary, TEAM_FILE);
+  await fs.rename(temporary, file);
 }

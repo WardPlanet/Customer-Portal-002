@@ -18,7 +18,7 @@ COPY . .
 # Pages and everything else the server writes live on the volume, not in the image
 ENV NODE_ENV=production \
     PORT=3000 \
-    DRAFTS_DIR=/data/drafts
+    DRAFTS_DIR=/data/drafts TEAMS_DIR=/data/teams
 RUN mkdir -p /data && chown -R node:node /data /app
 VOLUME /data
 

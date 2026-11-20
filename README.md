@@ -32,6 +32,7 @@ variables take priority). `.env.example` documents each one.
 | `ANTHROPIC_API_KEY` | none | Enables the AI features. Treat as a secret. |
 | `PORT` | `3000` | Port to listen on. |
 | `DRAFTS_DIR` | `./drafts` | Where saved drafts are stored. |
+| `TEAMS_DIR` | `./teams` | Where the live roster is kept. Roster edits (Team and roles) are written here; missing files are copied in from the bundled `teams/` on first use. In the container it is `/data/teams`. |
 | `AI_MODEL`, `AI_MODEL_QUICK` | `claude-opus-5-5` | Models for suggestions and for search keywords. |
 | `TRUSTED_EMAIL_HEADER` | none | Turns on sign-in through your proxy: the header that carries the signed-in email (for example `X-Forwarded-Email`). See "Sign-in" below. |
 | `TRUSTED_NAME_HEADER` | none | Optional: a header with the person's display name, shown for people who are on no team. |
@@ -83,7 +84,7 @@ docker build -t planetdds-wiki .
 docker run -d --name wiki -p 3000:3000 -v wiki-data:/data --env-file .env planetdds-wiki
 ```
 
-- Pages are files under `/data/drafts` (set by `DRAFTS_DIR`). **Mount a persistent, backed-up volume at `/data`**; without one, pages are lost when the container is replaced.
+- Pages are files under `/data/drafts` (set by `DRAFTS_DIR`). **Mount a persistent, backed-up volume at `/data`**; without one, pages and roster edits are lost when the container is replaced (the roster lives in `/data/teams`).
 - Run **exactly one** copy (pages are local files).
 - The image installs production packages only, runs as the non-root `node` user and has a health check on `/healthz`.
 - Put it behind the company's sign-in proxy and set `TRUSTED_EMAIL_HEADER` (see "Sign-in").
