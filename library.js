@@ -595,14 +595,25 @@ export function registerLibraryRoutes(app, draftsDir) {
     if (!Workflow.canReadVersion(page, version, ctx.actor, ctx.team)) {
       throw new Workflow.WorkflowError('not_yours', 'That version belongs to someone else.', 403);
     }
-    res.json({ version: { n: version.n, status: version.status, title: version.title }, text: version.text, actions: Workflow.history(page, ctx.actor, ctx.team).filter(function (h) { return h.n === version.n; })[0].actions });
+    res.json({ version: { n: version.n, status: version.status, title: version.title }, changes: Workflow.changeList(page, version.n, ctx.actor, ctx.team), text: version.text, actions: Workflow.history(page, ctx.actor, ctx.team).filter(function (h) { return h.n === version.n; })[0].actions });
   }, { anyone: true }));
 
   app.put('/api/library/pages/:id/versions/:n', staff(async function (req, res, ctx) {
     var page = await openMine(req, ctx);
-    Workflow.saveDraft(page, req.params.n, textBody(req), ctx.actor, ctx.now, ctx.team);
+    var saved = Workflow.saveDraft(page, req.params.n, textBody(req), ctx.actor, ctx.now, ctx.team, req.body && req.body.note);
     await savePage(draftsDir, ctx.team, page);
-    res.json(detail(page, ctx));
+    // savedText is what was really stored (a change to a section the team lead holds waits for the lead instead)
+    res.json(Object.assign(detail(page, ctx), { savedText: saved.text, changes: Workflow.changeList(page, saved.n, ctx.actor, ctx.team) }));
+  }));
+
+  // The change list of a draft of a live page: undo a change; approve, reject or withdraw one that is waiting
+  app.post('/api/library/pages/:id/versions/:n/changes/:cid/:action', staff(async function (req, res, ctx) {
+    var page = await openMine(req, ctx);
+    var n = req.params.n;
+    if (req.params.action === 'undo') { Workflow.undoChange(page, n, req.params.cid, ctx.actor, ctx.team, ctx.now); }
+    else { Workflow.resolveChange(page, n, req.params.cid, req.params.action, ctx.actor, ctx.team, ctx.now); }
+    await savePage(draftsDir, ctx.team, page);
+    res.json(Object.assign(detail(page, ctx), { savedText: Workflow.versionOf(page, n).text, changes: Workflow.changeList(page, n, ctx.actor, ctx.team) }));
   }));
 
   app.post('/api/library/pages/:id/edit', staff(async function (req, res, ctx) {

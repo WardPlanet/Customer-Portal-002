@@ -3154,3 +3154,26 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* The small note under a greyed-out Edit: who is editing the page right now */
 .row-lock-note { display: block; width: 100%; margin-top: 6px; font-size: 12px; font-weight: 500; color: var(--text-muted); text-align: right; }
 .lib-row-actions { flex-wrap: wrap; }
+
+/* Changes in this draft (live pages) and the note box beside Save draft */
+.changes-card { margin-top: 16px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.changes-card[hidden] { display: none; }
+.changes-title { margin: 0 0 12px; font-size: 14px; font-weight: 700; color: var(--text); }
+.changes-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.change-item { padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; }
+.change-item:first-child { padding-top: 0; border-top: 0; }
+.change-item.is-undone, .change-item.is-rejected, .change-item.is-withdrawn { opacity: 0.6; }
+.change-item strong { color: var(--text); word-break: break-word; }
+.change-meta { margin-top: 2px; color: var(--text-muted); }
+.change-note { margin-top: 4px; color: var(--text); font-style: italic; word-break: break-word; }
+.change-state { margin-top: 4px; font-weight: 600; color: var(--text-muted); }
+.change-item.is-pending .change-state { color: var(--warn-ink); }
+.change-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.save-note { flex: 0 1 280px; min-width: 160px; height: 36px; padding: 0 12px; font: inherit; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; }
+.save-note[hidden] { display: none; }
+/* Keep the note box and the buttons on one row: the note box gives way first */
+.footer { flex-wrap: nowrap; }
+.footer .footer-group { flex-wrap: nowrap; flex: 0 1 auto; min-width: 0; }
+.footer .footer-message { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.footer .save-note { flex: 1 1 160px; max-width: 280px; min-width: 120px; }
+.footer .footer-group .secondary-btn, .footer .footer-group .submit-btn { flex: none; white-space: nowrap; }

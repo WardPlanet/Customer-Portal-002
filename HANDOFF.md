@@ -4,9 +4,9 @@ The current state of the wiki prototype: what it does, how it is built, what is 
 `docs/HANDOFF-history.md` (some of it is out of date; this file wins). Hosting notes for IT are in `README.md`.
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
-- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 334, private).
+- **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 335, private).
 - **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 26).
-- **Tests:** `npm test`, 125 passing (rules, search, import, admin, photos, and the Node server's library routes).
+- **Tests:** `npm test`, 129 passing (rules, search, import, admin, photos, and the Node server's library routes).
 
 ## 1. What it is
 
@@ -62,8 +62,10 @@ and earlier is the only acceptable AutoMapper range (neither is used).
 
 - **Statuses:** Draft, In review, Sent back, Live, Unpublished. A page that is live and has an edit shows **Live** with **Draft** beneath
   (owner only), or **In review** over **Live** once the edit is submitted.
+- **Submitting:** every Submit button reads **Submit for review** and opens a pop-up with a tick box ("I have checked this page and it is ready for review") that must be ticked first. The lead's Publish has no such pop-up.
 - **Review:** the owner submits, the lead approves or sends back with a note. After submit the page is locked for the owner. The lead publishes their own work directly.
 - **Live pages:** an edit starts as a copy; it is **never autosaved**. Save draft and Submit for review (or Publish) both turn on with the first change (a draft does not have to be saved to be submitted), Delete draft turns on once a draft is saved, and leaving with unsaved changes asks Save draft / Leave without saving. Deleting a saved draft "reverts to the live page".
+- **Changes in a draft of a live page:** the owner and the team lead take turns on one draft, and each save is recorded section by section (title, description, each block) with who made it, when, and an optional note typed beside Save draft (`recordSave`, `diffContent`, `undoChange`, `resolveChange`, `changeList` in `workflow.cjs`). The editor's left column lists them under **Changes in this draft**. A person can **undo** their own changes (the lead anyone's); the lead's changes show "by Micah (team lead)" with no undo for the owner. **Sections the lead changed are protected:** if the owner changes one, the draft keeps the lead's version, the change waits as pending ("Waiting for the team lead", with Withdraw), and the lead sees **Approve** and **Reject**. The lead's own changes count as approved when the owner submits. Undo and approve reload the draft, so unsaved edits must be saved first. An undo that would clash with a later change to the same section is refused ("changed again afterwards"). Only pages that have been live are tracked. Node: `PUT versions/:n` returns `savedText` and `changes`; `POST versions/:n/changes/:id/(undo|approve|reject|withdraw)`.
 - **Edit lock:** one person, in one browser window, edits a page at a time. The editor claims the page when it opens and renews the claim every 30 seconds (`page.editing`, `claimEditing` in `workflow.cjs`, `LOCK_SECONDS` 120); a claim that is not renewed lapses, so a closed tab never locks a page for good. While someone else holds it, **Edit** is greyed out everywhere (library row, live page, review view) with a note underneath ("Scott Archer is editing", or "You are editing this in another window"); opening the editor by address shows the read-only view with the same note. The team lead can **Take over editing** ("..." menu, with a prompt); the other window is told at its next check and can no longer save. Leaving the editor releases the lock. Node routes: `POST pages/:id/editing` and `editing/release`; `POST pages/:id/edit` refuses a locked page.
 - **Owner republishing:** a lead can allow the owner of one live, internal page to republish without review (the **Allow owner to republish** toggle in Page setup, edit mode, lead and Admin only; also asked once when the lead first publishes an internal page). It never applies to public pages and the owner cannot change owner or visibility that way. The lead is told in the bell for a week.
 - **Expiry:** 180 days from going live. "Expiring soon" from day 165 (owner only), "Expired" for everyone. The lead can renew, or ask for changes.
@@ -111,7 +113,7 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 - a lock screen for anyone not signed in (public pages stay open); the "signed in, no team" access (section 4) then needs no switch: a verified email on no roster simply lands there;
 - team membership from the directory (pick an existing account, never free text) with invitations: an invited person cannot receive transferred pages until they accept.
 
-**Planned next, a shared-draft change list** (agreed in design, not built): each save records which sections changed and who changed them; a "Changes in this draft" list lets each person undo their own changes (the lead can undo anyone's); the owner sees the lead's changes marked "by <lead>" with no undo; an owner's change to a section the lead changed waits for the lead's approval before it replaces the lead's version; the lead's own changes count as already approved when the owner submits.
+**Changes in a shared draft:** built (see section 5).
 
 **Build next (suggested order):**
 1. Send the emails (connect the company mail account to `drafts/outbox/`); add the "owner kept" and "restored" ones if wanted.

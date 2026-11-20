@@ -820,6 +820,63 @@
     return true;
   }
 
+  // Sending a page for review asks first, with a tick box: the page goes to the team lead and the owner cannot edit it until it comes back
+  async function confirmSubmit(title) {
+    var lead = personFor(team.lead) || 'the team lead';
+    return window.askConfirm('\u201c' + (title || 'This page') + '\u201d goes to ' + lead + ' (' + team.lead + ') to review. You cannot edit it until it is published or sent back.',
+      { title: 'Submit for review?', ok: 'Submit for review', checkbox: 'I have checked this page and it is ready for review.' });
+  }
+
+  /* ---------- Changes in this draft ----------
+     A draft of a live page lists what changed, who changed it and when, with Undo for your own changes (the lead's for anyone's). A change to a section
+     the team lead changed waits for the lead: the lead sees Approve and Reject, the person who made it sees "Waiting for the team lead" and Withdraw. */
+  function changeTime(iso) {
+    var d = new Date(iso);
+    return isNaN(d.getTime()) ? '' : d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+  var OP_WORDS = { edit: 'Changed', add: 'Added', remove: 'Removed' };
+
+  function renderChanges(list, id, n) {
+    var card = document.getElementById('changes-card');
+    var ul = document.getElementById('changes-list');
+    ul.textContent = '';
+    list = list || [];
+    card.hidden = !list.length;
+    list.forEach(function (c) {
+      var li = el('li', 'change-item is-' + c.status);
+      var head = el('div', 'change-head');
+      head.appendChild(el('strong', '', (OP_WORDS[c.op] || 'Changed') + ': ' + c.label));
+      li.appendChild(head);
+      var who = c.by === actor().name ? 'you' : c.by;
+      li.appendChild(el('div', 'change-meta', 'by ' + who + (c.byLead ? ' (team lead)' : '') + ' \u00b7 ' + changeTime(c.at)));
+      if (c.note) { li.appendChild(el('div', 'change-note', '\u201c' + c.note + '\u201d')); }
+      var actions = el('div', 'change-actions');
+      if (c.status === 'pending') {
+        li.appendChild(el('div', 'change-state', c.canDecide ? 'Waiting for your decision' : 'Waiting for the team lead'));
+      } else if (c.status !== 'applied') {
+        li.appendChild(el('div', 'change-state', { undone: 'Undone', approved: 'Approved by the team lead', rejected: 'Rejected by the team lead', withdrawn: 'Withdrawn' }[c.status] || c.status));
+      }
+      function run(label, className, work) {
+        actions.appendChild(button(label, 'row-btn ' + className, async function () {
+          if (window.PageEditor.isDirty()) { notice('Save your draft first. Undoing or deciding on a change reloads the draft.'); return; }
+          var reply = await attempt(work());
+          if (!reply) { return; }
+          window.PageEditor.load(reply.savedText, false);
+          renderChanges(reply.changes, id, n);
+          window.PageEditor.refresh();
+        }));
+      }
+      if (c.canUndo) { run('Undo', '', function () { return backend().undoChange(id, n, c.id); }); }
+      if (c.canDecide) {
+        run('Approve', 'row-btn-main', function () { return backend().resolveChange(id, n, c.id, 'approve'); });
+        run('Reject', '', function () { return backend().resolveChange(id, n, c.id, 'reject'); });
+      }
+      if (c.canWithdraw && !c.canDecide) { run('Withdraw', '', function () { return backend().resolveChange(id, n, c.id, 'withdraw'); }); }
+      if (actions.childNodes.length) { li.appendChild(actions); }
+      ul.appendChild(li);
+    });
+  }
+
   /* ---------- The edit lock (see workflow.cjs) ----------
      Each browser window has its own id. The editor claims the page it opens under that id and renews the claim every 30 seconds; while someone else holds
      it, Edit is greyed out with a note saying who is editing. */
@@ -1394,7 +1451,8 @@
         if (lockedInReview) { row.classList.add('is-locked'); }   // grey: it cannot be acted on until the lead decides
         // Someone who is not the team lead sends their own draft to the lead from here. Once sent, the page is locked and reads "In Review".
         if (!lead && !actingAsAdmin() && p.workingVersion && (p.workingVersion.status === 'draft' || p.workingVersion.status === 'sent_back')) {
-          var submitButton = button('Submit', 'row-btn row-btn-publish', async function () {
+          var submitButton = button('Submit for review', 'row-btn row-btn-publish', async function () {
+            if (!(await confirmSubmit(p.title))) { return; }
             if (await attempt(backend().act(p.id, p.workingVersion.n, 'submit'))) {
               notice('Sent \u201c' + p.title + '\u201d to ' + (personFor(team.lead) || 'the team lead') + ' for review.');
               route();
@@ -1609,7 +1667,7 @@
     var can = function (action) { return v.actions.indexOf(action) >= 0; };
     nodes.push(link('View', '#/view/' + id + '/' + v.n, 'row-link'));
     if (can('edit')) { nodes.push(link('Edit', '#/edit/' + id + '/' + v.n, 'row-link')); }
-    if (can('submit')) { nodes.push(button('Submit', 'row-btn', function () { runAction(id, v.n, 'submit', 'Submitted for approval. ' + personFor(team.lead) + ' has been notified.'); })); }
+    if (can('submit')) { nodes.push(button('Submit for review', 'row-btn', async function () { if (!(await confirmSubmit())) { return; } runAction(id, v.n, 'submit', 'Submitted for approval. ' + personFor(team.lead) + ' has been notified.'); })); }
     if (can('publish')) { nodes.push(button('Publish', 'row-btn row-btn-go', function () { publishVersion(id, v.n); })); }
     if (can('withdraw')) { nodes.push(button('Withdraw', 'row-btn', function () { runAction(id, v.n, 'withdraw', 'Withdrawn. It is a draft again.'); })); }
     if (can('approve')) { nodes.push(button('Approve', 'row-btn row-btn-go', function () { runAction(id, v.n, 'approve', 'Approved. It is now live.'); })); }
@@ -1776,6 +1834,8 @@
     current.ownerPublishes = !!(detail && detail.page && detail.page.ownerPublishes && !actorIsLead() && !actingAsAdmin());
     current.liveEdit = !!(detail && detail.page && detail.page.liveVersion);   // changes to a live page are saved only by hand
     current.draftChanged = !!(current.liveEdit && detail.page.workingVersion && detail.page.workingVersion.changed);
+    renderChanges(current.liveEdit ? data.changes : [], id, Number(n));
+    document.getElementById('save-note').hidden = !current.liveEdit;
     setMainButtonLabel();          // Publish, when this person may publish this page without review
     window.PageEditor.refresh();   // greys Save draft and Delete draft until there is something to save or delete
     if (mine !== routing) { return; }
@@ -1957,6 +2017,8 @@
     showScreen('editor', false);
     setMainButtonLabel();
     document.getElementById('delete-draft').hidden = true;
+    document.getElementById('save-note').hidden = true;
+    renderChanges([], null, null);
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
     setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length >= 1);
@@ -2014,7 +2076,7 @@
       }));
     } else if (liveReview && isOwner) {
       // The owner: Submit (it is still correct: the team lead approves it again) and Edit
-      row.appendChild(button('Submit', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'submit-live', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); }));
+      row.appendChild(button('Submit for review', 'row-btn row-btn-main', async function () { if (!(await confirmSubmit(data.version.title))) { return; } runAction(id, Number(n), 'submit-live', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); }));
       row.appendChild(button('Edit', 'row-btn', editFromLive));
     } else if (actingAsAdmin()) {
       // Admin sees everything the review can do
@@ -2030,7 +2092,7 @@
       if (can('send_back')) { row.appendChild(button('Request changes', 'row-btn', function () { sendBackWithComment(id, Number(n)); })); }
     } else {
       // The owner: Submit (to the team lead) and Edit. Once it is sent, the page is locked and reads "In Review" until the lead publishes it or asks for changes.
-      if (can('submit')) { row.appendChild(button('Submit', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'submit', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); })); }
+      if (can('submit')) { row.appendChild(button('Submit for review', 'row-btn row-btn-main', async function () { if (!(await confirmSubmit(data.version.title))) { return; } runAction(id, Number(n), 'submit', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); })); }
       if (can('edit')) { row.appendChild(button('Edit', 'row-btn', function () { location.hash = '#/edit/' + id + '/' + n; })); }
       if (waiting) {
         var inReview = el('span', 'row-locked');
@@ -4421,7 +4483,8 @@
       if (liveLockNote) { liveLockNote.className = 'footer-message'; footerActions.appendChild(liveLockNote); }
       footerActions.appendChild(liveEditButton);
       if (canSend) {
-        footerActions.appendChild(button('Send for review', canPublishNow ? 'secondary-btn' : 'primary-btn', function () {
+        footerActions.appendChild(button('Submit for review', canPublishNow ? 'secondary-btn' : 'primary-btn', async function () {
+          if (!(await confirmSubmit(detail.page.title))) { return; }
           runAction(id, shownVersion, 'submit', 'Sent for review. ' + personFor(team.lead) + ' (' + team.lead + ') has been notified and can approve it or send it back.');
         }));
       }
@@ -4475,8 +4538,17 @@
         current = { id: created.page.id, n: created.version, backTo: '#/' };
         history.replaceState(null, '', '#/edit/' + current.id + '/' + current.n);   // no reload of the editor
       } else {
-        await backend().save(current.id, current.n, text);
-        if (current.liveEdit) { current.draftChanged = true; }   // there is now a saved draft that differs from the live page
+        var noteBox = document.getElementById('save-note');
+        var reply = await backend().save(current.id, current.n, text, current.liveEdit ? noteBox.value : '');
+        if (current.liveEdit) { current.draftChanged = true; noteBox.value = ''; }   // there is now a saved draft that differs from the live page
+        if (reply && reply.changes) { renderChanges(reply.changes, current.id, current.n); }
+        // A change to a section the team lead holds was not applied: the draft keeps the lead's version, which the editor now shows
+        if (reply && reply.savedText && reply.savedText !== text && current.liveEdit) {
+          window.PageEditor.load(reply.savedText, false);
+          window.PageEditor.setStatus('Saved just now', true);
+          notice('Some of your changes are in sections the team lead changed. They are waiting for the lead\u2019s approval and are listed under Changes in this draft.');
+          window.PageEditor.refresh();
+        }
       }
       window.PageEditor.setLabel(window.PageEditor.title() || 'Untitled page');
       return 'Draft saved. It is in the library.';
@@ -4484,6 +4556,7 @@
     submit: async function (text) {
       // The team lead (and Admin) do not send their own work for review: the main button publishes
       if (actorIsLead() || actingAsAdmin() || current.ownerPublishes) { return this.publish(text); }
+      if (!(await confirmSubmit(window.PageEditor.title()))) { throw new Error('Not submitted. Your changes are still here.'); }
       await this.save(text);
       await backend().act(current.id, current.n, 'submit');
       var id = current.id;

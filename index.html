@@ -172,6 +172,11 @@
         <input type="search" class="related-search" id="related-search" placeholder="Search pages" aria-label="Search for a related page" autocomplete="off" hidden>
         <ul class="related-suggestions" id="related-suggestions"></ul>
       </div>
+      <!-- Changes in this draft of a live page: who changed what, with Undo (see "Changes in a draft of a live page" in workflow.cjs) -->
+      <section class="changes-card" id="changes-card" aria-label="Changes in this draft" hidden>
+        <h2 class="changes-title">Changes in this draft</h2>
+        <ul class="changes-list" id="changes-list"></ul>
+      </section>
     </aside>
 
     <!-- Editor -->
@@ -265,6 +270,7 @@
   <footer class="footer">
     <span class="footer-message" id="footer-message" role="status"></span>
     <div class="footer-group">
+      <input type="text" class="save-note" id="save-note" maxlength="300" placeholder="Note about this change (optional)" aria-label="Note about this change (optional)" autocomplete="off" hidden>
       <button class="secondary-btn danger-btn" type="button" id="delete-draft" hidden>Delete draft</button>
       <button class="secondary-btn" type="button" id="save-draft" aria-disabled="true">Save draft</button>
       <button class="submit-btn" type="button" id="submit-draft" aria-disabled="true">Submit for review</button>

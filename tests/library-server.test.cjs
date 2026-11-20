@@ -190,3 +190,46 @@ test('server: a signed-in employee on no team can search and read live pages, bu
     assert.equal((await s.call('', 'GET', '/api/library/pages?live=1')).status, 401);
   } finally { await s.close(); await fs.rm(s.dir, { recursive: true, force: true }); }
 });
+
+test('server: the change list of a live page\'s draft records saves, protects the lead\'s sections and lets people undo', async () => {
+  const s = await start();
+  try {
+    const blockText = (titles) => {
+      const lines = ['PAGE EDITOR DRAFT', 'FORMAT: 2', 'SAVED: x', '', '[TITLE]', 'Refunds', '', '[DESCRIPTION]', 'A description.', ''];
+      titles.forEach((title, i) => { lines.push('[BLOCK ' + (i + 1) + ' STEP NUMBER]', String(i + 1), '', '[BLOCK ' + (i + 1) + ' STEP TITLE]', title, '', '[BLOCK ' + (i + 1) + ' STEP TEXT]', 'body of ' + title, ''); });
+      lines.push('[OWNER ROLE]', 'Website Editor', '', '[WHERE THIS LIVES]', 'Websites', '', '[VISIBILITY]', 'Internal-Only', '');
+      return lines.join('\n');
+    };
+    const made = await s.call('Scott Archer', 'POST', '/api/library/pages', { text: blockText(['Alpha', 'Beta']) });
+    const id = made.body.page.id;
+    await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/versions/1/submit');
+    await s.call('Micah', 'POST', '/api/library/pages/' + id + '/versions/1/approve');
+    const n = (await s.call('Scott Archer', 'POST', '/api/library/pages/' + id + '/edit')).body.version;
+    const url = '/api/library/pages/' + id + '/versions/' + n;
+    // Scott saves a change with a note; the lead saves a change to the other block
+    const save1 = await s.call('Scott Archer', 'PUT', url, { text: blockText(['Alpha edited', 'Beta']), note: 'fixed alpha' });
+    assert.equal(save1.body.changes.length, 1);
+    assert.equal(save1.body.changes[0].note, 'fixed alpha');
+    assert.equal(save1.body.changes[0].canUndo, true);
+    await s.call('Micah', 'PUT', url, { text: blockText(['Alpha edited', 'Beta by lead']) });
+    // Scott changes the lead's block: the lead's version is kept and the change waits
+    const save2 = await s.call('Scott Archer', 'PUT', url, { text: blockText(['Alpha edited', 'Beta by scott']) });
+    assert.ok(/Beta by lead/.test(save2.body.savedText) && !/Beta by scott/.test(save2.body.savedText));
+    const pending = save2.body.changes.filter((c) => c.status === 'pending');
+    assert.equal(pending.length, 1);
+    assert.equal(pending[0].canDecide, false);
+    // Only the lead decides; approving applies it
+    assert.equal((await s.call('Scott Archer', 'POST', url + '/changes/' + pending[0].id + '/approve')).status, 403);
+    const approved = await s.call('Micah', 'POST', url + '/changes/' + pending[0].id + '/approve');
+    assert.equal(approved.status, 200);
+    assert.ok(/Beta by scott/.test(approved.body.savedText));
+    // Scott undoes his own first change; he cannot undo the lead's
+    const leadChange = approved.body.changes.filter((c) => c.byLead)[0];
+    assert.equal((await s.call('Scott Archer', 'POST', url + '/changes/' + leadChange.id + '/undo')).status, 403);
+    const own = approved.body.changes.filter((c) => c.by === 'Scott Archer' && c.status === 'applied')[0];
+    const undone = await s.call('Scott Archer', 'POST', url + '/changes/' + own.id + '/undo');
+    assert.equal(undone.status, 200);
+    assert.ok(!/Alpha edited/.test(undone.body.savedText));
+    assert.equal((await s.call('Scott Archer', 'GET', url)).body.changes.length >= 3, true);
+  } finally { await s.close(); await fs.rm(s.dir, { recursive: true, force: true }); }
+});

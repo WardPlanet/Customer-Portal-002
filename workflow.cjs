@@ -458,7 +458,7 @@
   }
 
   // Save the editor's text into a version that is allowed to change (a draft, or one sent back)
-  function saveDraft(page, n, text, actor, now, team) {
+  function saveDraft(page, n, text, actor, now, team, note) {
     requireActor(actor);
     var version = versionOf(page, n);
     // A version waiting for review is locked for its owner; only the team lead can still change it (and it stays in review)
@@ -470,10 +470,252 @@
     if (!isLead(actor, team) && (resolveKey(team, fields(text).owner) !== resolveKey(team, fields(version.text).owner) || resolveKey(team, fields(text).secondaryOwner) !== resolveKey(team, fields(version.text).secondaryOwner))) {
       throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can change the owner.', 403);
     }
-    version.text = text;
+    version.text = recordSave(page, version, text, actor, team, now, note);
     copyFields(version);
     touch(page, version, actor, now);
     return version;
+  }
+
+
+  /* ---------- Changes in a draft of a live page ----------
+     A draft of a live page is shared: the owner and the team lead take turns editing it (the edit lock makes it one at a time). Each save records what
+     changed, section by section: version.changes = [{ id, by, byLead, at, note, op ('edit'|'add'|'remove'), label, unit ('title'|'description'|'block'),
+     before, after, anchor, status }]. The editor lists them. A person can undo their own changes (the team lead anyone's).
+     Sections the team lead changed are protected: when someone else changes one of them, the draft keeps the lead's version and the change waits as
+     'pending' for the lead to approve or reject. The lead's own changes count as approved when the owner submits the draft.
+     status: applied | pending | undone | approved | rejected | withdrawn. Only the page's content is tracked (title, description, blocks), not its setup. */
+
+  // The draft text split into its [SECTION] parts, in order; text before the first one is the head
+  function splitSections(text) {
+    var head = [];
+    var sections = [];
+    var current = null;
+    String(text || '').replace(/\r\n?/g, '\n').split('\n').forEach(function (line) {
+      var header = /^\[([A-Z0-9 \-]+)\]$/.exec(line);
+      if (header) { current = { name: header[1], lines: [line] }; sections.push(current); }
+      else if (current) { current.lines.push(line); }
+      else { head.push(line); }
+    });
+    return { head: head, sections: sections };
+  }
+
+  // The page's content as units: the title, the description and each block (a block is all the sections numbered the same). Everything else is kept
+  // in place but not tracked. items = the document in order.
+  function contentUnits(text) {
+    var parts = splitSections(text);
+    var items = [];
+    var byBlock = {};
+    parts.sections.forEach(function (section) {
+      var block = /^BLOCK (\d+) /.exec(section.name);
+      if (section.name === 'TITLE' || section.name === 'DESCRIPTION') {
+        items.push({ kind: section.name === 'TITLE' ? 'title' : 'description', sections: [section] });
+      } else if (block) {
+        if (!byBlock[block[1]]) { byBlock[block[1]] = { kind: 'block', sections: [] }; items.push(byBlock[block[1]]); }
+        byBlock[block[1]].sections.push(section);
+      } else {
+        items.push({ kind: 'other', sections: [section] });
+      }
+    });
+    items.forEach(function (item) { describeUnit(item); });
+    return { head: parts.head, items: items };
+  }
+
+  // Works out the unit's raw text, its comparison text (block numbers do not count, so moving blocks around is not a change) and a short label
+  function describeUnit(item) {
+    item.raw = item.sections.map(function (s) { return s.lines.join('\n'); }).join('\n');
+    item.norm = normOf(item.raw);
+    var first = item.sections.filter(function (s) { return /^(TITLE|DESCRIPTION|BLOCK \d+ (HEADER \d|STEP TITLE|STEP TEXT|TEXT|NOTE|WARNING|CODE|TABLE|IMAGE|PHOTO))/.test(s.name); })[0] || item.sections[0];
+    var line = first ? first.lines.slice(1).map(function (l) { return l.trim(); }).filter(Boolean)[0] || '' : '';
+    item.label = item.kind === 'title' ? 'Title' : item.kind === 'description' ? 'Description' : (line ? line.slice(0, 60) : 'A block');
+  }
+
+  // Block numbers do not count, and neither does a step's own number (the editor renumbers steps), so moving or inserting blocks is not a change to the rest
+  function normOf(raw) {
+    return String(raw || '').replace(/^\[BLOCK \d+ STEP NUMBER\]\n.*\n?/gm, '').replace(/^\[BLOCK \d+ /gm, '[BLOCK ').replace(/\s+$/, '');
+  }
+
+  function buildDraftText(head, items) {
+    var number = 0;
+    var lines = head.slice();
+    items.forEach(function (item) {
+      var raw = item.raw;
+      if (item.kind === 'block') { number += 1; raw = raw.replace(/^\[BLOCK \d+ /gm, '[BLOCK ' + number + ' '); }
+      lines.push(raw);
+    });
+    return lines.join('\n');
+  }
+
+  // A unit made from raw text (for a block that is put back or added)
+  function unitFromRaw(kind, raw) {
+    var item = { kind: kind, sections: [], raw: raw };
+    item.norm = normOf(raw);
+    item.label = kind;
+    return item;
+  }
+
+  // What changed between two saved texts: a list of { op, unit, label, before, after, anchor }
+  function diffContent(beforeText, afterText) {
+    var a = contentUnits(beforeText).items;
+    var b = contentUnits(afterText).items;
+    var ops = [];
+    ['title', 'description'].forEach(function (kind) {
+      var x = a.filter(function (i) { return i.kind === kind; })[0];
+      var y = b.filter(function (i) { return i.kind === kind; })[0];
+      if (x && y && x.norm !== y.norm) { ops.push({ op: 'edit', unit: kind, label: y.label, before: x.raw, after: y.raw, anchor: '' }); }
+    });
+    var xs = a.filter(function (i) { return i.kind === 'block'; });
+    var ys = b.filter(function (i) { return i.kind === 'block'; });
+    // The longest run of blocks that did not change; what sits between those runs was edited, added or removed
+    var lcs = [];
+    for (var i = 0; i <= xs.length; i++) { lcs[i] = []; for (var j = 0; j <= ys.length; j++) { lcs[i][j] = 0; } }
+    for (var p = xs.length - 1; p >= 0; p--) {
+      for (var q = ys.length - 1; q >= 0; q--) {
+        lcs[p][q] = xs[p].norm === ys[q].norm ? lcs[p + 1][q + 1] + 1 : Math.max(lcs[p + 1][q], lcs[p][q + 1]);
+      }
+    }
+    var x = 0;
+    var y = 0;
+    var gapX = [];
+    var gapY = [];
+    var lastKept = '';
+    function flush() {
+      var pairs = Math.min(gapX.length, gapY.length);
+      for (var k = 0; k < pairs; k++) { ops.push({ op: 'edit', unit: 'block', label: gapY[k].label, before: gapX[k].raw, after: gapY[k].raw, anchor: lastKept }); }
+      for (var m = pairs; m < gapY.length; m++) { ops.push({ op: 'add', unit: 'block', label: gapY[m].label, before: '', after: gapY[m].raw, anchor: lastKept }); }
+      for (var r = pairs; r < gapX.length; r++) { ops.push({ op: 'remove', unit: 'block', label: gapX[r].label, before: gapX[r].raw, after: '', anchor: lastKept }); }
+      gapX = [];
+      gapY = [];
+    }
+    while (x < xs.length || y < ys.length) {
+      if (x < xs.length && y < ys.length && xs[x].norm === ys[y].norm) { flush(); lastKept = xs[x].norm; x++; y++; }
+      else if (y < ys.length && (x >= xs.length || lcs[x][y + 1] >= lcs[x + 1][y])) { gapY.push(ys[y]); y++; }
+      else { gapX.push(xs[x]); x++; }
+    }
+    flush();
+    return ops;
+  }
+
+  function changeId(version) {
+    return 'c' + ((version.changes || []).reduce(function (m, c) { return Math.max(m, Number(String(c.id).slice(1)) || 0); }, 0) + 1);
+  }
+
+  // Is this unit still holding a team lead's change that has not been undone? Then it is protected from other people's changes.
+  function leadHolds(version, unitKind, normText) {
+    return (version.changes || []).some(function (c) { return c.byLead && c.status === 'applied' && c.op !== 'remove' && c.unit === unitKind && normOf(c.after) === normText; });
+  }
+
+  // Works out what a save changes and records it. A change by someone other than the lead to a section the lead holds is not applied: the draft
+  // keeps the lead's version and the change waits as 'pending'. Returns the text to store.
+  function recordSave(page, version, text, actor, team, now, note) {
+    if (!page.liveVersion) { return text; }   // a page that was never live is edited freely, there is nothing to compare with
+    var lead = isLead(actor, team);
+    var ops = diffContent(version.text, text);
+    if (!ops.length) { return text; }
+    version.changes = version.changes || [];
+    var finalText = text;
+    ops.forEach(function (op) {
+      var entry = { id: changeId(version), by: actor.name, byLead: lead, at: now, note: String(note || '').slice(0, 300), op: op.op, unit: op.unit, label: op.label, before: op.before, after: op.after, anchor: op.anchor, status: 'applied' };
+      if (!lead && op.op !== 'add' && leadHolds(version, op.unit, normOf(op.before))) {
+        // Put the lead's version back in the text that is stored, and keep the other person's version as a proposal
+        var doc = contentUnits(finalText);
+        if (op.op === 'edit') {
+          var theirs = doc.items.filter(function (i) { return i.kind === op.unit && (op.unit !== 'block' || i.norm === normOf(op.after)); })[0];
+          if (theirs) { theirs.raw = op.before; }
+        } else {
+          var at = -1;
+          doc.items.forEach(function (i, idx) { if (i.kind === 'block' && i.norm === op.anchor) { at = idx; } });
+          doc.items.splice(at + 1, 0, unitFromRaw('block', op.before));
+        }
+        finalText = buildDraftText(doc.head, doc.items);
+        entry.status = 'pending';
+      }
+      version.changes.push(entry);
+    });
+    return finalText;
+  }
+
+  // Throws away one change (the person's own, or anyone's for the team lead): the section goes back to how it was before that change
+  function undoChange(page, n, id, actor, team, now) {
+    requireActor(actor);
+    var version = versionOf(page, n);
+    var entry = (version.changes || []).filter(function (c) { return c.id === id; })[0];
+    if (!entry) { throw new WorkflowError('no_change', 'That change is not in this draft.', 404); }
+    if (entry.status !== 'applied') { throw new WorkflowError('not_applied', 'That change is not in the draft, so there is nothing to undo.', 409); }
+    if (!isLead(actor, team) && (entry.by !== actor.name || entry.byLead)) { throw new WorkflowError('not_yours', 'You can undo your own changes. The team lead can undo anyone\'s.', 403); }
+    var doc = contentUnits(version.text);
+    var changedSince = new WorkflowError('changed_since', 'That section was changed again afterwards, so this change cannot be undone on its own.', 409);
+    var current = doc.items.filter(function (i) { return i.kind === entry.unit && (entry.unit !== 'block' || i.norm === normOf(entry.after)); })[0];
+    if (entry.op === 'edit') {
+      if (!current) { throw changedSince; }
+      current.raw = entry.before;
+    } else if (entry.op === 'add') {
+      if (!current) { throw changedSince; }
+      doc.items.splice(doc.items.indexOf(current), 1);
+    } else {
+      var position = -1;
+      if (entry.anchor) {
+        doc.items.forEach(function (i, idx) { if (i.kind === 'block' && i.norm === entry.anchor) { position = idx; } });
+        if (position < 0) { throw changedSince; }
+      } else {
+        doc.items.forEach(function (i, idx) { if (i.kind === 'description') { position = idx; } });
+      }
+      doc.items.splice(position + 1, 0, unitFromRaw('block', entry.before));
+    }
+    version.text = buildDraftText(doc.head, doc.items);
+    copyFields(version);
+    entry.status = 'undone';
+    entry.resolvedBy = actor.name;
+    entry.resolvedAt = now;
+    page.updatedAt = now;
+    return entry;
+  }
+
+  // The team lead approves or rejects a change that was waiting (the person who made it may withdraw it)
+  function resolveChange(page, n, id, decision, actor, team, now) {
+    requireActor(actor);
+    var version = versionOf(page, n);
+    var entry = (version.changes || []).filter(function (c) { return c.id === id; })[0];
+    if (!entry) { throw new WorkflowError('no_change', 'That change is not in this draft.', 404); }
+    if (entry.status !== 'pending') { throw new WorkflowError('not_pending', 'That change is not waiting for a decision.', 409); }
+    if (decision === 'withdraw') {
+      if (entry.by !== actor.name && !isLead(actor, team)) { throw new WorkflowError('not_yours', 'Only the person who made the change can withdraw it.', 403); }
+      entry.status = 'withdrawn';
+    } else {
+      requireLead(actor, team, 'decide on a change to a section you changed');
+      if (decision === 'approve') {
+        var doc = contentUnits(version.text);
+        var heldNorm = normOf(entry.before);
+        var held = doc.items.filter(function (i) { return i.kind === entry.unit && (entry.unit !== 'block' || i.norm === heldNorm); })[0];
+        if (!held) { throw new WorkflowError('changed_since', 'The section was changed again, so this change cannot be applied as it is. Reject it and ask for it again.', 409); }
+        if (entry.op === 'edit') { held.raw = entry.after; }
+        else { doc.items.splice(doc.items.indexOf(held), 1); }
+        version.text = buildDraftText(doc.head, doc.items);
+        copyFields(version);
+        entry.status = 'approved';
+      } else if (decision === 'reject') {
+        entry.status = 'rejected';
+      } else {
+        throw new WorkflowError('bad_request', 'Choose approve, reject or withdraw.', 400);
+      }
+    }
+    entry.resolvedBy = actor.name;
+    entry.resolvedAt = now;
+    page.updatedAt = now;
+    return entry;
+  }
+
+  // The list the editor shows: each change without the section texts, and whether this person may undo or decide on it
+  function changeList(page, n, actor, team) {
+    var version = versionOf(page, n);
+    var lead = isLead(actor, team);
+    return (version.changes || []).map(function (c) {
+      return {
+        id: c.id, by: c.by, byLead: !!c.byLead, at: c.at, note: c.note || '', op: c.op, label: c.label, status: c.status,
+        canUndo: c.status === 'applied' && (lead || (c.by === (actor && actor.name) && !c.byLead)),
+        canDecide: c.status === 'pending' && lead,
+        canWithdraw: c.status === 'pending' && c.by === (actor && actor.name)
+      };
+    }).reverse();
   }
 
   // Edit a page: reuse the version being worked on, or make a new draft copy of the live (or latest) one
@@ -1364,6 +1606,10 @@
     ownerMayPublish: ownerMayPublish,
     setOwnerPublishes: setOwnerPublishes,
     setLinked: setLinked,
+    diffContent: diffContent,
+    undoChange: undoChange,
+    resolveChange: resolveChange,
+    changeList: changeList,
     LOCK_SECONDS: LOCK_SECONDS,
     activeLock: activeLock,
     claimEditing: claimEditing,

@@ -652,3 +652,102 @@ test('the edit lock: one window edits at a time, it lapses, and the lead can tak
   assert.equal(W.releaseEditing(page, 'tab-1'), true);
   assert.equal(W.activeLock(page, at(401)), null);
 });
+
+// A draft of a live page with several blocks, for the change list
+function multiText(titles) {
+  const lines = ['PAGE EDITOR DRAFT', 'FORMAT: 2', 'SAVED: x', '', '[TITLE]', 'Refunds', '', '[DESCRIPTION]', 'A description.', ''];
+  titles.forEach((title, i) => {
+    lines.push('[BLOCK ' + (i + 1) + ' STEP NUMBER]', String(i + 1), '', '[BLOCK ' + (i + 1) + ' STEP TITLE]', title, '', '[BLOCK ' + (i + 1) + ' STEP TEXT]', 'body of ' + title, '');
+  });
+  lines.push('[OWNER ROLE]', 'Website Editor', '', '[WHERE THIS LIVES]', 'Websites', '', '[VISIBILITY]', 'Internal-Only', '');
+  return lines.join('\n');
+}
+function liveMulti(titles) {
+  const page = W.createPage(team, multiText(titles), scott, t(1));
+  W.submit(page, 1, scott, team, t(2));
+  W.approve(page, 1, micah, team, t(3));
+  return page;
+}
+
+test('change list: each save records which sections changed and who changed them', () => {
+  const page = liveMulti(['Alpha', 'Beta', 'Gamma']);
+  const draft = W.startEdit(page, scott, t(4));
+  assert.deepEqual(W.diffContent(page.versions[0].text, page.versions[0].text), []);
+  // Moving nothing and changing one block
+  W.saveDraft(page, draft.n, multiText(['Alpha', 'Beta changed', 'Gamma']), scott, t(5), team, 'fixed the second step');
+  let list = W.changeList(page, draft.n, scott, team);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].op, 'edit');
+  assert.equal(list[0].by, 'Scott Archer');
+  assert.equal(list[0].note, 'fixed the second step');
+  assert.equal(list[0].canUndo, true);
+  // Adding and removing blocks
+  W.saveDraft(page, draft.n, multiText(['Alpha', 'Beta changed', 'Gamma', 'Delta']), scott, t(6), team);
+  W.saveDraft(page, draft.n, multiText(['Beta changed', 'Gamma', 'Delta']), scott, t(7), team);
+  list = W.changeList(page, draft.n, scott, team);
+  assert.deepEqual(list.map((c) => c.op), ['remove', 'add', 'edit']);
+  // A page that was never live is not tracked
+  const fresh = W.createPage(team, multiText(['One']), scott, t(1));
+  W.saveDraft(fresh, 1, multiText(['One', 'Two']), scott, t(2), team);
+  assert.equal(W.changeList(fresh, 1, scott, team).length, 0);
+});
+
+test('change list: undo your own changes, the lead undoes anyone\'s, and a changed-again section cannot be undone alone', () => {
+  const page = liveMulti(['Alpha', 'Beta', 'Gamma']);
+  const draft = W.startEdit(page, scott, t(4));
+  W.saveDraft(page, draft.n, multiText(['Alpha edited', 'Beta', 'Gamma']), scott, t(5), team);
+  W.saveDraft(page, draft.n, multiText(['Alpha edited', 'Beta', 'Gamma', 'Delta']), scott, t(6), team);
+  const [addId, editId] = W.changeList(page, draft.n, scott, team).map((c) => c.id);
+  assert.throws(() => W.undoChange(page, draft.n, editId, molly, team, t(7)), /your own changes/);
+  W.undoChange(page, draft.n, editId, scott, team, t(7));
+  assert.ok(/body of Alpha\b/.test(page.versions[1].text) && !/Alpha edited/.test(page.versions[1].text));
+  W.undoChange(page, draft.n, addId, micah, team, t(8));   // the lead undoes the owner's added block
+  assert.ok(!/Delta/.test(page.versions[1].text));
+  assert.deepEqual(W.changeList(page, draft.n, scott, team).map((c) => c.status), ['undone', 'undone']);
+  // A removed block comes back where it was
+  W.saveDraft(page, draft.n, multiText(['Alpha', 'Gamma']), scott, t(9), team);
+  const removed = W.changeList(page, draft.n, scott, team)[0];
+  assert.equal(removed.op, 'remove');
+  W.undoChange(page, draft.n, removed.id, scott, team, t(10));
+  assert.ok(page.versions[1].text.indexOf('Beta') > page.versions[1].text.indexOf('Alpha') && page.versions[1].text.indexOf('Beta') < page.versions[1].text.indexOf('Gamma'));
+  // Changed again afterwards: that change can no longer be undone on its own
+  W.saveDraft(page, draft.n, multiText(['Alpha v2', 'Beta', 'Gamma']), scott, t(11), team);
+  const first = W.changeList(page, draft.n, scott, team)[0];
+  W.saveDraft(page, draft.n, multiText(['Alpha v3', 'Beta', 'Gamma']), scott, t(12), team);
+  assert.throws(() => W.undoChange(page, draft.n, first.id, scott, team, t(13)), /changed again/);
+});
+
+test('change list: sections the lead changed are protected, and changes to them wait for the lead', () => {
+  const page = liveMulti(['Alpha', 'Beta']);
+  const draft = W.startEdit(page, micah, t(4));
+  // The lead changes Beta
+  W.saveDraft(page, draft.n, multiText(['Alpha', 'Beta by lead']), micah, t(5), team);
+  const leadEntry = W.changeList(page, draft.n, scott, team)[0];
+  assert.equal(leadEntry.byLead, true);
+  assert.equal(leadEntry.canUndo, false);   // the owner cannot undo the lead's change
+  // The owner changes Alpha (free) and Beta (protected) in one save
+  W.saveDraft(page, draft.n, multiText(['Alpha by owner', 'Beta by owner']), scott, t(6), team, 'my edits');
+  const text = page.versions[1].text;
+  assert.ok(/Alpha by owner/.test(text), 'the free section was saved');
+  assert.ok(/Beta by lead/.test(text) && !/Beta by owner/.test(text), 'the lead\'s version was kept');
+  const list = W.changeList(page, draft.n, scott, team);
+  const pending = list.filter((c) => c.status === 'pending');
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].canWithdraw, true);
+  assert.equal(pending[0].canDecide, false);
+  assert.equal(W.changeList(page, draft.n, micah, team).filter((c) => c.canDecide).length, 1);
+  assert.throws(() => W.resolveChange(page, draft.n, pending[0].id, 'approve', scott, team, t(7)), /team lead/);
+  // The lead approves: the owner's version replaces the lead's
+  W.resolveChange(page, draft.n, pending[0].id, 'approve', micah, team, t(8));
+  assert.ok(/Beta by owner/.test(page.versions[1].text));
+  // Another round: rejected, and withdrawn
+  W.saveDraft(page, draft.n, multiText(['Alpha by owner', 'Beta by lead again']), micah, t(9), team);
+  W.saveDraft(page, draft.n, multiText(['Alpha by owner', 'Beta owner again']), scott, t(10), team);
+  const again = W.changeList(page, draft.n, micah, team).filter((c) => c.status === 'pending')[0];
+  W.resolveChange(page, draft.n, again.id, 'reject', micah, team, t(11));
+  assert.ok(/Beta by lead again/.test(page.versions[1].text));
+  W.saveDraft(page, draft.n, multiText(['Alpha by owner', 'Beta owner third']), scott, t(12), team);
+  const third = W.changeList(page, draft.n, scott, team).filter((c) => c.status === 'pending')[0];
+  W.resolveChange(page, draft.n, third.id, 'withdraw', scott, team, t(13));
+  assert.equal(W.changeList(page, draft.n, scott, team)[0].status, 'withdrawn');
+});
