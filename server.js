@@ -17,6 +17,7 @@ import { readStyleGuide, stylePreamble, readClientReplyGuidelines } from './guid
 import { readTeam } from './teams.js';
 import { migrateFlatDrafts, registerLibraryRoutes, purgeTrash, queueExpiryEmails, queueTrashWarnings } from './library.js';
 import { identify, isTrustedMode, requireSignIn } from './auth.js';
+import { securityHeaders, rateLimit } from './security.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -28,6 +29,15 @@ const DRAFTS_DIR = path.resolve(process.env.DRAFTS_DIR || path.join(here, 'draft
 const DRAFT_NAME = /^[a-z0-9][a-z0-9-]{0,79}-draft\.txt$/;
 
 const app = express();
+app.disable('x-powered-by');
+app.use(securityHeaders);
+// The AI costs money: at most AI_RATE_LIMIT requests a minute per person (a batch import uses several for each document)
+const aiLimit = rateLimit({
+  max: Number(process.env.AI_RATE_LIMIT) || 60,
+  windowMs: 60 * 1000,
+  keyOf: function (req) { var header = process.env.TRUSTED_EMAIL_HEADER; return (header && req.get(header)) || req.ip || ''; }
+});
+app.use(['/api/ai/json', '/api/import'], aiLimit);
 // A backup file holds every page, so that one route accepts a much larger body
 app.use('/api/library/restore', express.json({ limit: '50mb' }));
 app.use('/api/ai/json', express.json({ limit: '10mb' }));   // a picture to describe travels as base64
