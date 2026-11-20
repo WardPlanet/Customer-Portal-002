@@ -3271,8 +3271,8 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .ask-email-close:hover { background: var(--surface-muted); }
 .ask-email-close:focus-visible { outline: 2px solid var(--icon-blue); outline-offset: 1px; }
 .ask-email-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.ask-email-wrap { position: relative; background: var(--surface); border-radius: 8px; }
-.ask-email-mirror, .ask-email-body { box-sizing: border-box; width: 100%; margin: 0; padding: 8px 12px; font: inherit; font-size: 14px; line-height: 1.5; border: 1px solid var(--border-strong); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.ask-email-mirror { position: absolute; inset: 0; overflow: hidden; color: transparent; border-color: transparent; pointer-events: none; }
-.ask-email-body { position: relative; display: block; min-height: 190px; color: var(--text); background: transparent; resize: vertical; }
-.ask-email-fill { color: transparent; background: var(--caution-tint); border-radius: 3px; box-shadow: 0 0 0 1px var(--warn-border); }
+.ask-email-body { display: block; width: 100%; min-height: 190px; box-sizing: border-box; padding: 8px 12px; font: inherit; font-size: 14px; line-height: 1.5; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; resize: vertical; }
+.ask-email-check { margin: 12px 0 0; padding: 8px 12px; background: var(--caution-tint); border: 1px solid var(--warn-border); border-radius: 8px; color: var(--warn-ink); font-size: 13px; }
+.ask-email-check-title { margin: 0 0 4px; font-weight: 700; }
+.ask-email-check-list { margin: 0; padding-left: 18px; }
+.ask-email-check-list li { margin: 2px 0; }
