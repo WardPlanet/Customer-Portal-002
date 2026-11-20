@@ -3321,13 +3321,27 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .batch-doc-choices .batch-field { margin: 0; }
 .batch-file-choices { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 20px; }
 
-/* A results page: not the big start page, but a slim header with the logo and the search box next to it, then the filters, then the results */
-.landing-hero.is-results { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 12px 28px; padding: 18px 32px; text-align: left; }
+/* A results page: not the big start page, but a slim light header like the page view's (the navy logo, a rounded search box beside it), then the
+   filters, then the results */
+.landing-hero.is-results { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 12px 28px; padding: 16px 32px; text-align: left; color: var(--text); background: var(--surface); background-image: none; border-bottom: 1px solid var(--border); }
 .landing-hero.is-results .landing-title { display: none; }
-.landing-hero.is-results .landing-logo { width: 130px; flex: none; }
+.landing-hero.is-results .landing-logo { width: 150px; flex: none; }
+.landing-hero.is-results .landing-logo svg, .lib-main.is-results .landing-bar-logo svg { filter: none; }
 .landing-hero.is-results .landing-logo.is-link { cursor: pointer; }
-.landing-hero.is-results .landing-search-slot { flex: 1 1 360px; max-width: 680px; justify-content: flex-start; }
-.landing-hero.is-results .landing-search-wrap { max-width: 640px; }
+.landing-hero.is-results .landing-search-slot { flex: 1 1 360px; max-width: 640px; justify-content: flex-start; }
+.landing-hero.is-results .landing-search-wrap { max-width: 600px; --sb-radius: 10px; }
+.landing-hero.is-results .landing-search, .lib-main.is-results .landing-bar .landing-search { height: 40px; padding: 0 48px 0 16px; font-size: 14px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: none; }
+.landing-hero.is-results .landing-search:focus, .lib-main.is-results .landing-bar .landing-search:focus { border-color: var(--icon-blue); box-shadow: 0 0 0 3px var(--accent-soft); }
+.landing-hero.is-results .landing-search::placeholder { color: var(--text-faint); }
+.landing-hero.is-results .search-go { width: 30px; height: 30px; right: 5px; }
 .landing-hero.is-results .landing-filters { flex: 1 1 100%; max-width: none; }
+.landing-hero.is-results .landing-filters-toggle, .landing-hero.is-results .landing-filter-chip { color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); }
+.landing-hero.is-results .landing-filters-toggle:hover, .landing-hero.is-results .landing-filter-chip:hover { background: var(--surface-muted); }
+.landing-hero.is-results .landing-filter-panel { background: var(--surface-muted); border-color: var(--border); }
+.landing-hero.is-results .landing-filter-label { color: var(--text-muted); }
+.landing-hero.is-results .landing-filter-select { color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); }
+.lib-main.is-results .landing-bar { background: var(--surface); background-image: none; box-shadow: 0 1px 0 var(--border), 0 6px 18px rgba(0, 0, 0, 0.08); }
 .lib-main.is-results .landing-bar-slot { justify-content: flex-start; }
-@media (max-width: 640px) { .landing-hero.is-results { padding: 14px 16px; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .landing-hero.is-results .landing-logo, :root:not([data-theme="light"]) .lib-main.is-results .landing-bar-logo { background: #fff; border-radius: 8px; padding: 6px 8px; box-sizing: content-box; } }
+:root[data-theme="dark"] .landing-hero.is-results .landing-logo, :root[data-theme="dark"] .lib-main.is-results .landing-bar-logo { background: #fff; border-radius: 8px; padding: 6px 8px; box-sizing: content-box; }
+@media (max-width: 640px) { .landing-hero.is-results { padding: 12px 16px; } }

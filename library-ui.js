@@ -3896,8 +3896,10 @@
       close();
       location.hash = '#/search/' + encodeURIComponent(q);
     }
+    // Choosing a suggestion only fills the box; Enter or the search button starts the search
     function open(item) {
-      go(item.text);   // a suggestion searches for those words: the results page
+      close();
+      input.value = item.text;
     }
     var items = [];
     var active = -1;
@@ -3933,9 +3935,9 @@
     input.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         event.preventDefault();
-        if (active >= 0 && items[active]) { open(items[active]); } else { go(input.value); }
-      } else if (event.key === 'ArrowDown' && !list.hidden) { event.preventDefault(); mark((active + 1) % items.length); }
-      else if (event.key === 'ArrowUp' && !list.hidden) { event.preventDefault(); mark(active <= 0 ? items.length - 1 : active - 1); }
+        go(input.value);   // what is in the box
+      } else if (event.key === 'ArrowDown' && !list.hidden) { event.preventDefault(); mark((active + 1) % items.length); input.value = items[active].text; }
+      else if (event.key === 'ArrowUp' && !list.hidden) { event.preventDefault(); mark(active <= 0 ? items.length - 1 : active - 1); input.value = items[active].text; }
       else if (event.key === 'Escape') { close(); }
     });
     input.addEventListener('blur', close);
