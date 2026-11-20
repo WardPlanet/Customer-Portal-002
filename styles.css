@@ -3388,3 +3388,6 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .landing-filter-panel { grid-auto-flow: row; grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .landing-filter-check { grid-column: 1 / -1; margin-top: 0; }
 @media (max-width: 760px) { .landing-filter-panel { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+
+.landing-filter-panel { grid-template-columns: repeat(var(--filter-cols, 5), minmax(0, 1fr)); }
+@media (max-width: 760px) { .landing-filter-panel { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }

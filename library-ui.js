@@ -3389,8 +3389,8 @@
        A "Filters" button under the box opens a row of choices (team, where it lives, visibility, how recently updated, and the
        order of the results). What is chosen shows as removable chips. With nothing typed, choosing a filter lists the pages that
        match it. */
-    var filters = { team: '', location: '', visibility: '', updated: '', sort: 'best', hideExpired: false };
-    var FILTER_LABELS = { team: 'Team', location: 'Where it lives', visibility: 'Visibility', updated: 'Updated', sort: 'Order', hideExpired: 'Exclude expired pages' };
+    var filters = { team: '', owner: '', visibility: '', updated: '', sort: 'best', hideExpired: false };
+    var FILTER_LABELS = { team: 'Team', owner: 'Owner', visibility: 'Visibility', updated: 'Updated', sort: 'Order', hideExpired: 'Exclude expired pages' };
     var filterBox = el('div', 'landing-filters');
     var filterToggle = el('button', 'landing-filters-toggle');
     filterToggle.type = 'button';
@@ -3425,7 +3425,8 @@
       return option ? option.textContent : filters[key];
     }
     addFilterSelect('team', [['', 'Any team']]);
-    addFilterSelect('location', [['', 'Anywhere']]);
+    var showOwnerFilter = !(window.Store.isPublicMode && window.Store.isPublicMode());   // owners are for people who are signed in
+    if (showOwnerFilter) { addFilterSelect('owner', [['', 'Anyone']]); }
     if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { addFilterSelect('visibility', [['', 'Any'], ['Internal-Only', 'Internal-Only'], ['Client-Safe', 'Client-Safe']]); }
     addFilterSelect('updated', [['', 'Any time'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90 days'], ['365', 'Last year']]);
     addFilterSelect('sort', [['best', 'Best match'], ['newest', 'Newest'], ['opened', 'Most opened'], ['az', 'A to Z']]);
@@ -3437,9 +3438,10 @@
     expiredWrap.appendChild(expiredBox);
     expiredWrap.appendChild(el('span', '', 'Exclude expired pages'));
     filterPanel.appendChild(expiredWrap);
-    function hasFilters() { return !!(filters.team || filters.location || filters.visibility || filters.updated || filters.hideExpired); }
+    filterPanel.style.setProperty('--filter-cols', String(Object.keys(filterSelects).length));
+    function hasFilters() { return !!(filters.team || filters.owner || filters.visibility || filters.updated || filters.hideExpired); }
     function activeKeys() {
-      return ['team', 'location', 'visibility', 'updated', 'hideExpired', 'sort'].filter(function (key) { return filters[key] && !(key === 'sort' && filters.sort === 'best'); });
+      return ['team', 'owner', 'visibility', 'updated', 'hideExpired', 'sort'].filter(function (key) { return filters[key] && !(key === 'sort' && filters.sort === 'best'); });
     }
     function updateFilterUi() {
       var keys = activeKeys();
@@ -3460,7 +3462,7 @@
     }
     // On the start page the filters belong to the search that has not been run yet: they only take effect when it is. On a results page they re-run it.
     function filtersChanged() { updateFilterUi(); if (routeQuery !== null) { refresh(); } }
-    function clearFilters() { filters = { team: '', location: '', visibility: '', updated: '', sort: 'best', hideExpired: false }; filtersChanged(); }
+    function clearFilters() { filters = { team: '', owner: '', visibility: '', updated: '', sort: 'best', hideExpired: false }; filtersChanged(); }
     filterToggle.addEventListener('click', function () {
       filterPanel.hidden = !filterPanel.hidden;
       filterToggle.setAttribute('aria-expanded', String(!filterPanel.hidden));
@@ -3473,10 +3475,10 @@
     Promise.resolve(backend().list('', true)).then(function (result) {
       var live = result.pages.filter(function (p) { return p.liveVersion; });
       var teams = {};
-      var places = {};
-      live.forEach(function (p) { if (p.team) { teams[p.team] = true; } if (p.location) { places[p.location] = true; } });
+      var owners = {};
+      live.forEach(function (p) { if (p.team) { teams[p.team] = true; } if (showOwnerFilter) { var who = ownerShown(p, teamFor(p.team) || team); if (who.entry) { owners[W.keyFor(who.entry)] = who.name; } } });
       setFilterOptions('team', [['', 'Any team']].concat(Object.keys(teams).sort().map(function (slug) { var named = teamFor(slug); return [slug, named ? named.name : slug]; })));
-      setFilterOptions('location', [['', 'Anywhere']].concat(Object.keys(places).sort().map(function (name) { return [name, name]; })));
+      if (showOwnerFilter) { setFilterOptions('owner', [['', 'Anyone']].concat(Object.keys(owners).sort(function (a, b) { return owners[a].localeCompare(owners[b]); }).map(function (key) { return [key, owners[key]]; }))); }
       updateFilterUi();
     }).catch(function () { /* the filters still work with what is chosen */ });
     main.appendChild(hero);
@@ -3610,6 +3612,7 @@
       var found = result.pages.filter(function (p) { return p.liveVersion; });
       if (q && !(options && options.restoring)) { queueSearchLog(q, found); }   // what the words found, before any filter; and an earlier search shown again is not a new search
       var live = window.Search.filterPages(found, filters);
+      if (filters.owner && showOwnerFilter) { live = live.filter(function (p) { var who = ownerShown(p, teamFor(p.team) || team); return !!who.entry && W.keyFor(who.entry) === filters.owner; }); }
       if (filters.hideExpired) { live = live.filter(function (p) { var e = W.expiryStatus(p.updatedAt); return !(e && e.expired); }); }
       var order = filters.sort === 'best' && !q ? 'newest' : filters.sort;
       var views = null;
@@ -3854,7 +3857,7 @@
       search.value = routeQuery;
       var back = savedSearch && savedSearch.q === routeQuery ? savedSearch : null;
       savedSearch = null;
-      if (back && back.filters) { filters = Object.assign({ team: '', location: '', visibility: '', updated: '', sort: 'best' }, back.filters); updateFilterUi(); }
+      if (back && back.filters) { filters = Object.assign({ team: '', owner: '', visibility: '', updated: '', sort: 'best' }, back.filters); updateFilterUi(); }
       refresh({ restoring: !!back && !back.fresh }).then(function () {
         if (mine !== routing) { return; }
         if (back && !back.fresh) { window.scrollTo(0, back.y); }
@@ -3866,7 +3869,7 @@
       var saved = savedSearch;
       savedSearch = null;
       search.value = saved.q;
-      if (saved.filters) { filters = Object.assign({ team: '', location: '', visibility: '', updated: '', sort: 'best' }, saved.filters); updateFilterUi(); }
+      if (saved.filters) { filters = Object.assign({ team: '', owner: '', visibility: '', updated: '', sort: 'best' }, saved.filters); updateFilterUi(); }
       refresh({ restoring: !saved.fresh }).then(function () {
         if (mine !== routing) { return; }
         if (saved.toResults) {
