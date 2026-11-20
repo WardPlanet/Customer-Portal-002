@@ -3430,7 +3430,8 @@
         filterChips.appendChild(chip);
       });
     }
-    function filtersChanged() { updateFilterUi(); refresh(); }
+    // On the start page the filters belong to the search that has not been run yet: they only take effect when it is. On a results page they re-run it.
+    function filtersChanged() { updateFilterUi(); if (routeQuery !== null) { refresh(); } }
     function clearFilters() { filters = { team: '', location: '', visibility: '', updated: '', sort: 'best' }; filtersChanged(); }
     filterToggle.addEventListener('click', function () {
       filterPanel.hidden = !filterPanel.hidden;
@@ -3706,6 +3707,7 @@
     // A search is its own page: #/search/<words>. Nothing is searched while typing; only Enter, the search button or a suggestion starts one.
     function goToResults(words) {
       var target = '#/search/' + encodeURIComponent(String(words).trim());
+      savedSearch = { q: String(words).trim(), filters: Object.assign({}, filters), y: 0, fresh: true };   // the chosen filters go with the search
       if (location.hash === target) { refresh(); } else { location.hash = target; }
     }
     // Stops the list: closes it and throws away any answer still on its way, so it cannot pop open again after a search
@@ -3823,9 +3825,9 @@
       var back = savedSearch && savedSearch.q === routeQuery ? savedSearch : null;
       savedSearch = null;
       if (back && back.filters) { filters = Object.assign({ team: '', location: '', visibility: '', updated: '', sort: 'best' }, back.filters); updateFilterUi(); }
-      refresh({ restoring: !!back }).then(function () {
+      refresh({ restoring: !!back && !back.fresh }).then(function () {
         if (mine !== routing) { return; }
-        if (back) { window.scrollTo(0, back.y); }
+        if (back && !back.fresh) { window.scrollTo(0, back.y); }
         updateBar();
       });
     } else

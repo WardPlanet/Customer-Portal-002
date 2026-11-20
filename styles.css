@@ -2031,7 +2031,7 @@ mark.search-hit { background: var(--mark-bg); color: inherit; border-radius: 3px
 .landing-title { margin: 0; font-size: 56px; line-height: 1.08; font-weight: 700; color: var(--white); text-wrap: balance; }
 .landing-title span { color: var(--blue-bright); }
 .landing-search-slot { width: 100%; display: flex; justify-content: center; }
-.landing-search-wrap { width: 100%; max-width: 680px; text-align: left; }
+.landing-search-wrap { width: 100%; max-width: 960px; text-align: left; }   /* the same width as the filters under it */
 .landing-search { width: 100%; height: 58px; padding: 0 32px; font: inherit; font-size: 18px; color: var(--navy); background: var(--white); border: 0; border-radius: var(--sb-radius); box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4); }
 .landing-search:focus { outline: none; box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4), 0 0 0 3px rgba(77, 163, 255, 0.55); }
 .landing-search::placeholder { color: #8A8EA8; }
@@ -3357,3 +3357,12 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .landing-filter-panel { order: 1; }
 .landing-filters-top { order: 2; }
 .landing-filters-top:not(:has(.landing-filter-chip)) { display: none; }
+
+/* The search box and the filters are one block: the same width, close together */
+.landing-hero:not(.is-results) { gap: 24px; }
+.landing-hero:not(.is-results) .landing-search-slot { margin-bottom: -10px; }
+/* Results page: the filters sit directly under the search box, the same width (they start where the search box starts, not under the logo) */
+.landing-hero.is-results { row-gap: 8px; }
+.landing-hero.is-results .landing-filter-panel { flex: 1 1 calc(100% - 170px); margin-left: 170px; }
+.landing-hero.is-results .landing-filters-top { margin-left: 170px; flex: 1 1 calc(100% - 170px); }
+@media (max-width: 760px) { .landing-hero.is-results .landing-filter-panel, .landing-hero.is-results .landing-filters-top { margin-left: 0; flex-basis: 100%; } }
