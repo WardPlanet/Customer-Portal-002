@@ -1712,26 +1712,28 @@
 
   // The Page setup field "Owner publishes edits" for a saved page: shown on a live page. The team lead (and Admin) change it in edit mode;
   // in the review view, and for an owner, it is read-only. A public page cannot have it on.
-  function showOwnerPublishField(id, detail, editable) {
+  var ownerPubContext = null;   // what the field was last drawn from, so it can be redrawn when the owner is changed in the editor
+  function showOwnerPublishField(id, detail, editable, override) {
+    ownerPubContext = { id: id, detail: detail, editable: editable };
     var page = detail && detail.page;
+    if (page && override) { page = Object.assign({}, page, override); }
     var lead = actorIsLead() || actingAsAdmin();
     var live = !!(page && page.liveVersion);
-    // The team lead owns the page (or it has no owner yet and the lead is the default): there is nobody to allow
+    // The team lead owns the page (or it has no owner yet and the lead is the default): there is nobody to allow, so the toggle is greyed out. It
+    // becomes available as soon as the owner is someone else.
     var leadOwns = !!(page && ((page.owner && personFor(page.owner) && personFor(page.owner) === personFor(team.lead)) || (!page.owner && page.ownerDefault)));
     var note = '';
-    var text = '';
     var canChange = false;
     if (!live) { note = 'Available once the page is live. The team lead is asked when first publishing an internal page.'; }
-    else if (leadOwns) { note = 'Not needed: the team lead owns this page and publishes without review.'; text = 'Not needed'; }
+    else if (leadOwns) { note = 'The team lead owns this page, so there is nobody to allow. This becomes available when the page has another owner.'; }
     else if (page.visibility !== 'Internal-Only' && !page.ownerPublishes) { note = 'A public page always needs review.'; }
     else if (!lead) { note = 'The team lead sets this.'; }
     else if (!editable) { note = 'Open the page to edit to change it.'; }
     else { canChange = true; }
     window.PageEditor.setOwnerPublish({
-      value: !!(page && page.ownerPublishes) && !leadOwns,
+      value: !!(page && page.ownerPublishes),
       editable: canChange,
       note: note,
-      text: text,
       onChange: async function (on) {
         var done = await attempt(backend().setOwnerPublishes(id, on));
         if (!done) { return false; }
@@ -1739,6 +1741,11 @@
         return true;
       }
     });
+  }
+  // The editor's Owner was changed (not saved yet): a new owner starts as "not allowed", and the toggle is available when that owner is not the team lead
+  function ownerPublishOwnerChanged(ownerKey, value) {
+    if (!ownerPubContext || !ownerPubContext.detail) { return; }
+    showOwnerPublishField(ownerPubContext.id, ownerPubContext.detail, ownerPubContext.editable, { owner: ownerKey, ownerDefault: false, ownerPublishes: !!value });
   }
 
   async function updateVersionLink(id) {
@@ -4833,6 +4840,7 @@
     // Called by the editor on a timer. Saves the draft quietly when the page already exists in the library;
     // a brand-new page is only kept once the person has saved it themselves. Resolves to true when it saved.
     isLiveEdit: function () { return !!current.liveEdit; },
+    onOwnerChange: ownerPublishOwnerChanged,
     isSavedPage: function () { return current.id !== null; },   // the page exists in the library (Delete draft needs that)
     hasSavedDraftChanges: function () { return !!current.draftChanged; },   // the saved draft of this live page differs from the live version
     autosaveEnabled: function () { return !current.liveEdit; },   // a draft of a live page is saved only when the editor clicks Save draft

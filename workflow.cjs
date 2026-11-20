@@ -1172,9 +1172,11 @@
     var toEntry = findPerson(team, to);
     var toKey = toEntry ? keyFor(toEntry) : to;
     var changed = false;
+    var ownerMoved = false;
     currentVersions(page).forEach(function (version) {
       var next = replacePersonInText(version.text, team, from, toKey);
       if (next === null) { return; }
+      if (fields(version.text).owner && resolveKey(team, fields(version.text).owner) === resolveKey(team, from)) { ownerMoved = true; }
       if (opts && opts.asDefault && fields(version.text).owner && resolveKey(team, fields(version.text).owner) === resolveKey(team, from)) { next = setOwnerInText(next, toKey, true); }
       version.text = next;
       copyFields(version);
@@ -1183,6 +1185,7 @@
       changed = true;
     });
     if (changed) { page.updatedAt = now; }
+    if (ownerMoved) { page.ownerPublishes = false; }   // the new owner starts without the right to republish
     return changed;
   }
 
@@ -1202,9 +1205,11 @@
     var key = keyFor(entry);
     var asDefault = !!(opts && opts.asDefault);
     var changed = false;
+    var ownerChanged = false;
     currentVersions(page).forEach(function (version) {
       var f = fields(version.text);
       if (f.owner && resolveKey(team, f.owner) === key && f.ownerDefault === asDefault) { return; }
+      if (!f.owner || resolveKey(team, f.owner) !== key) { ownerChanged = true; }
       version.text = setOwnerInText(version.text, key, asDefault);
       copyFields(version);
       version.updatedAt = now;
@@ -1212,6 +1217,7 @@
       changed = true;
     });
     if (changed) { page.updatedAt = now; }
+    if (ownerChanged) { page.ownerPublishes = false; }   // a new owner starts without the right to republish: the team lead allows it again
     return changed;
   }
 
@@ -1365,15 +1371,18 @@
     var changed = [];
     pages.forEach(function (page) {
       var did = false;
+      var ownerMoved = false;
       currentVersions(page).forEach(function (version) {
         var rewritten = replacePersonInText(version.text, team, fromKey, toKey);
         if (rewritten === null) { return; }
+        if (fields(version.text).owner && resolveKey(team, fields(version.text).owner) === resolveKey(team, fromKey)) { ownerMoved = true; }
         version.text = rewritten;
         copyFields(version);
         version.updatedAt = now;
         version.updatedBy = actor.name;
         did = true;
       });
+      if (ownerMoved) { page.ownerPublishes = false; }   // the new person starts without the right to republish
       if (did) { page.updatedAt = now; changed.push(page); }
     });
     return { roles: roles, pages: changed, count: changed.length };

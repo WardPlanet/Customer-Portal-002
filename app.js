@@ -296,6 +296,7 @@
       state.visibility = base.visibility;
       byId('ownerpub').checked = base.ownerPublishes;
       byId('ownerpub-text').textContent = base.ownerPublishes ? 'Allow' : 'Requires review';
+      if (window.PageHost && window.PageHost.onOwnerChange) { window.PageHost.onOwnerChange(base.owner, base.ownerPublishes); }   // the toggle follows the owner that is back
       renderOwner();
       renderRoles();
       renderVisibility();
@@ -5266,6 +5267,8 @@
     byId('owner').addEventListener('change', function (event) {
       state.owner = event.target.value;
       state.ownerDefault = false;   // chosen by the team lead, so no longer the fallback
+      // A new owner starts as "not allowed" to republish; the toggle is available when that owner is not the team lead
+      if (window.PageHost && window.PageHost.onOwnerChange) { window.PageHost.onOwnerChange(state.owner, false); }
       markOwnerUnassigned();
       clearBlockError(byId('owner-field'));
       touchSetup('owner');
@@ -5307,7 +5310,8 @@
       byId('ownerpub-toggle').title = config.note || '';
       byId('ownerpub-toggle').classList.toggle('is-disabled', !config.editable);
       byId('ownerpub-field').classList.toggle('is-na', !config.editable);   // greyed out like Team
-      byId('ownerpub-text').textContent = config.text || (config.value ? 'Allow' : 'Requires review');
+      byId('ownerpub-text').textContent = config.value ? 'Allow' : 'Requires review';
+      if (setupTrack) { refreshSetupActions(); }   // an owner change that reset the toggle is part of the pending changes
     }
     byId('ownerpub').addEventListener('change', async function () {
       var box = byId('ownerpub');

@@ -2871,8 +2871,6 @@ body.is-public .prop-bar { display: none; }
 .footer-message { text-align: left; padding: 0 8px; }
 
 /* Import document sits in the toolbar next to AI assist */
-.import-chip { margin-left: auto; }
-.import-chip + input + .ai-chip, .import-chip ~ .ai-chip { margin-left: 4px; }
 
 /* On this page (editor): more room, and Related pages quiet underneath */
 .outline .toc-card { padding: 20px 20px 12px; }
