@@ -1721,17 +1721,17 @@
     var live = !!(page && page.liveVersion);
     // The team lead owns the page (or it has no owner yet and the lead is the default): there is nobody to allow, so the toggle is greyed out. It
     // becomes available as soon as the owner is someone else.
-    var leadOwns = !!(page && ((page.owner && personFor(page.owner) && personFor(page.owner) === personFor(team.lead)) || (!page.owner && page.ownerDefault)));
+    var leadOwns = pageOwnedByLead(page);
     var note = '';
     var canChange = false;
     if (!live) { note = 'Available once the page is live. The team lead is asked when first publishing an internal page.'; }
-    else if (leadOwns) { note = 'The team lead owns this page, so there is nobody to allow. This becomes available when the page has another owner.'; }
+    else if (leadOwns) { note = 'The team lead owns this page and publishes without review. When another person owns it, this starts as Requires review and the team lead can allow it.'; }
     else if (page.visibility !== 'Internal-Only' && !page.ownerPublishes) { note = 'A public page always needs review.'; }
     else if (!lead) { note = 'The team lead sets this.'; }
     else if (!editable) { note = 'Open the page to edit to change it.'; }
     else { canChange = true; }
     window.PageEditor.setOwnerPublish({
-      value: !!(page && page.ownerPublishes),
+      value: leadOwns && live ? true : !!(page && page.ownerPublishes),   // a page the lead owns reads Allow (greyed): the lead publishes without review
       editable: canChange,
       note: note,
       onChange: async function (on) {
@@ -1812,12 +1812,24 @@
     if (/^#\/view\//.test(location.hash)) { location.hash = '#/'; } else { route(); }
   }
 
+  // The team lead owns this page (or it has no owner yet and the lead is the default owner): the owner already publishes without review
+  function pageOwnedByLead(page) {
+    return !!(page && ((page.owner && personFor(page.owner) && personFor(page.owner) === personFor(team.lead)) || (!page.owner && page.ownerDefault)));
+  }
+
+  // The question asked before an owner is allowed to republish a page without review. Resolves to true when the lead allows it.
+  async function askAllowOwnerRepublish(ownerName, title) {
+    var question = 'Once it is live, ' + ownerName + ' can republish changes to \u201c' + (title || 'this document') + '\u201d without your review. Every version stays in the history, and you can turn it off any time in the page\u2019s setup.';
+    return !!(await window.askConfirm(question, { title: 'Allow ' + ownerName + ' to republish this document?', ok: 'Allow', cancel: 'Cancel', checkbox: 'I understand ' + ownerName + ' will be able to publish changes to this document without my review.' }));
+  }
+
   // The first time the team lead (or Admin) publishes an internal-only page, ask whether the owner may publish later edits without review
+  // (not when the team lead owns the page: there is nobody to allow)
   async function isFirstInternalPublish(id) {
     if (!actorIsLead() && !actingAsAdmin()) { return false; }
     try {
       var d = await backend().get(id);
-      return !!d && !d.page.liveVersion && d.page.visibility === 'Internal-Only' && !d.page.ownerPublishes;
+      return !!d && !d.page.liveVersion && d.page.visibility === 'Internal-Only' && !d.page.ownerPublishes && !pageOwnedByLead(d.page);
     } catch (error) { return false; }
   }
   async function offerOwnerPublishing(id, title) {
@@ -1828,8 +1840,7 @@
       var who = ownerShown(d.page, teamFor(d.page.team) || team);
       if (who && who.name && who.name !== 'No owner' && who.name !== 'Unassigned') { ownerName = who.name; }
     } catch (error) { /* the generic wording is used */ }
-    var question = 'Once it is live, ' + ownerName + ' can republish changes to \u201c' + (title || 'this document') + '\u201d without your review. Every version stays in the history, and you can turn it off any time in the page\u2019s setup.';
-    if (!(await window.askConfirm(question, { title: 'Allow ' + ownerName + ' to republish this document?', ok: 'Allow', cancel: 'Requires review', checkbox: 'I understand ' + ownerName + ' will be able to publish changes to this document without my review.' }))) { return; }
+    if (!(await askAllowOwnerRepublish(ownerName, title))) { return; }
     await attempt(backend().setOwnerPublishes(id, true));
   }
 
@@ -4841,6 +4852,11 @@
     // a brand-new page is only kept once the person has saved it themselves. Resolves to true when it saved.
     isLiveEdit: function () { return !!current.liveEdit; },
     onOwnerChange: ownerPublishOwnerChanged,
+    // The lead switched Allow owner to republish on in the editor: ask first, naming the owner
+    confirmAllowOwnerPublish: function (ownerKey) {
+      var name = (ownerKey && personFor(ownerKey)) || 'the owner';
+      return askAllowOwnerRepublish(name, window.PageEditor.title());
+    },
     isSavedPage: function () { return current.id !== null; },   // the page exists in the library (Delete draft needs that)
     hasSavedDraftChanges: function () { return !!current.draftChanged; },   // the saved draft of this live page differs from the live version
     autosaveEnabled: function () { return !current.liveEdit; },   // a draft of a live page is saved only when the editor clicks Save draft

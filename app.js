@@ -5316,6 +5316,12 @@
     byId('ownerpub').addEventListener('change', async function () {
       var box = byId('ownerpub');
       var wanted = box.checked;
+      // Switching it on lets the owner publish without the lead's review, so the lead is asked first
+      if (wanted && window.PageHost && window.PageHost.confirmAllowOwnerPublish && !(await window.PageHost.confirmAllowOwnerPublish(state.owner))) {
+        box.checked = false;
+        byId('ownerpub-text').textContent = 'Requires review';
+        return;
+      }
       if (setupTrack && setupTrack.fields.indexOf('ownerPublishes') >= 0) {   // part of the pending Page setup changes: saved with Save changes
         byId('ownerpub-text').textContent = box.checked ? 'Allow' : 'Requires review';
         refreshSetupActions();
