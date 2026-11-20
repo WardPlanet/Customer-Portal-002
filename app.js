@@ -2394,8 +2394,6 @@
       section('REVIEWER', textLines(leadRole() || state.reviewer));
       section('VISIBILITY', textLines(state.visibility));
       if (state.source) { section('SOURCE FILE', [state.source]); }
-      // Import suggestions nobody has approved or denied yet, one JSON line each, so they are still there when the draft is opened again
-      if (pendingSuggestions.length) { section('AI SUGGESTIONS', pendingSuggestions.map(function (item) { return JSON.stringify(item); })); }
 
       return out.join(NL);
     }
@@ -2519,12 +2517,6 @@
       clearSuggestions();
       clearImportSuggestions();
       resetRichSelection();
-      // Suggestions saved with the draft come back, still waiting for a decision
-      if (sections['AI SUGGESTIONS']) {
-        var saved = [];
-        sections['AI SUGGESTIONS'].forEach(function (line) { try { saved.push(JSON.parse(line)); } catch (parseError) { /* a damaged line is skipped */ } });
-        showImportSuggestions({ suggestions: saved });
-      }
 
       // The page type is not offered for now: every page is saved as Process Documentation
       state.pageType = 'Process Documentation';
@@ -3487,7 +3479,7 @@
       return panel;
     }
 
-    var pendingSuggestions = [];   // import suggestions not yet decided: [{ target, original, title, text, kind, reason }], saved with the draft
+    var pendingSuggestions = [];   // import suggestions not yet decided (they live only in the editor session of the first import and are never saved with the draft)
     function clearSuggestions() {
       document.querySelectorAll('.ai-suggestion').forEach(function (panel) { panel.remove(); });
     }
@@ -3898,6 +3890,20 @@
     }
     ['import-suggestions', 'import-points'].forEach(function (id) {
       byId(id + '-head').addEventListener('click', function () { setBarOpen(id, byId(id + '-head').getAttribute('aria-expanded') !== 'true'); });
+      byId(id + '-close').innerHTML = CLOSE_ICON;
+    });
+    // The x on the right removes a whole bar. Suggestions nobody has used or dismissed are asked about first; once all are handled it just goes.
+    byId('import-suggestions-close').addEventListener('click', async function () {
+      var waiting = pendingSuggestions.length;
+      if (waiting && !(await window.askConfirm(waiting + (waiting === 1 ? ' suggestion has' : ' suggestions have') + ' not been used or dismissed yet. They will be removed from this draft.', { title: 'Remove the AI suggestions?', ok: 'Remove them' }))) { return; }
+      var box = byId('import-suggestions');
+      box.hidden = true;
+      byId('import-suggestions-list').textContent = '';
+      pendingSuggestions = [];
+    });
+    byId('import-points-close').addEventListener('click', function () {
+      byId('import-points').hidden = true;
+      byId('import-points-list').textContent = '';
     });
 
     // ---------- AI suggestions after an import ----------
@@ -4044,7 +4050,7 @@
           b.addEventListener('click', onClick);
           return b;
         }
-        function changed() { syncPending(); markDirty(); updateTitle(); }   // the waiting list is part of the draft, so every decision is an unsaved change
+        function changed() { syncPending(); updateTitle(); }
         function showChoices() {
           choices.textContent = '';
           item.classList.toggle('is-approved', row.decision === 'approved');
@@ -4112,6 +4118,7 @@
             }
             refreshOutline();
           }
+          if (row.decision === 'approved') { markDirty(); }
           row.decision = '';
           showChoices();
           changed();

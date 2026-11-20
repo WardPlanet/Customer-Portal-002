@@ -248,19 +248,25 @@
           <!-- After an import: two expandable bars at the top. AI suggestions (each approved or denied) and the points the AI flagged to check. -->
           <div class="import-bars">
             <div class="lib-bar is-blue" id="import-suggestions" hidden>
-              <button type="button" class="lib-bar-head" id="import-suggestions-head" aria-expanded="true" aria-controls="import-suggestions-body">
-                <span class="lib-bar-text" id="import-suggestions-title"></span><span class="lib-bar-chevron" aria-hidden="true">▴</span>
-              </button>
-              <div class="import-bar-body" id="import-suggestions-body">
+              <div class="import-bar-top">
+                <button type="button" class="lib-bar-head" id="import-suggestions-head" aria-expanded="false" aria-controls="import-suggestions-body">
+                  <span class="lib-bar-chevron" aria-hidden="true">▾</span><span class="lib-bar-text" id="import-suggestions-title"></span>
+                </button>
+                <button type="button" class="import-bar-close" id="import-suggestions-close" aria-label="Remove the AI suggestions" title="Remove the AI suggestions"></button>
+              </div>
+              <div class="import-bar-body" id="import-suggestions-body" hidden>
                 <p class="import-suggestions-hint">The page keeps the document’s own wording. These are the AI’s ideas: formatting, copy, a missing description, or leftovers to remove. Use the button to apply one, or the × to dismiss it and leave the page as it is.</p>
                 <ul class="import-suggestions-list" id="import-suggestions-list"></ul>
               </div>
             </div>
             <div class="lib-bar is-yellow" id="import-points" hidden>
-              <button type="button" class="lib-bar-head" id="import-points-head" aria-expanded="true" aria-controls="import-points-body">
-                <span class="lib-bar-text" id="import-points-title"></span><span class="lib-bar-chevron" aria-hidden="true">▴</span>
-              </button>
-              <div class="import-bar-body" id="import-points-body">
+              <div class="import-bar-top">
+                <button type="button" class="lib-bar-head" id="import-points-head" aria-expanded="false" aria-controls="import-points-body">
+                  <span class="lib-bar-chevron" aria-hidden="true">▾</span><span class="lib-bar-text" id="import-points-title"></span>
+                </button>
+                <button type="button" class="import-bar-close" id="import-points-close" aria-label="Remove the points to check" title="Remove the points to check"></button>
+              </div>
+              <div class="import-bar-body" id="import-points-body" hidden>
                 <ul class="import-points-list" id="import-points-list"></ul>
               </div>
             </div>
