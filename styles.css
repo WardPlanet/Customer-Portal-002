@@ -3288,3 +3288,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .prop-ownerpub.is-na .toggle-track::after { background: var(--border-strong); }
 .prop-reviewer .setup-reviewer.is-na strong { opacity: .7; }   /* the same fade as the text in Team's greyed select; its chevron stays dark like Team's */
 .prop-reviewer .setup-reviewer.is-na::after { background: var(--text); }
+
+/* The testing bar's demo pages button (prototype only) */
+.demo-btn { margin-left: 12px; padding: 2px 12px; font: inherit; font-size: 12px; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 999px; cursor: pointer; opacity: .9; }
+.demo-btn:hover { opacity: 1; background: rgba(255,255,255,.12); }

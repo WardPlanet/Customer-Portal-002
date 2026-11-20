@@ -320,6 +320,29 @@
       });
       label.appendChild(select);
       slot.appendChild(label);
+      // For testing expiry: pages that are expiring soon or expired (the local prototype only; the server keeps real dates)
+      var testing = window.Store.backend;
+      if (testing && testing.addDemoPages && testing.hasDemoPages && !(window.Store.isEmployeeMode && window.Store.isEmployeeMode()) && !(window.Store.isAdminMode && window.Store.isAdminMode())) {
+        var demoButton = el('button', 'demo-btn', 'Add demo pages');
+        demoButton.type = 'button';
+        demoButton.title = 'Adds pages that are expiring soon and expired, to try the warnings and the review';
+        testing.hasDemoPages().then(function (present) {
+          demoButton.textContent = present ? 'Remove demo pages' : 'Add demo pages';
+          demoButton.setAttribute('data-present', present ? '1' : '');
+        });
+        demoButton.addEventListener('click', async function () {
+          var present = demoButton.getAttribute('data-present') === '1';
+          if (present) { await attempt(testing.removeDemoPages()); notice('The demo pages were removed.'); }
+          else {
+            var count = await attempt(testing.addDemoPages());
+            if (count) { notice(count + ' demo pages added: some expiring soon, some expired, one healthy. Look in the library as the owner and as the team lead.'); }
+          }
+          mountActing();
+          route();
+          refreshNotifications();
+        });
+        slot.appendChild(demoButton);
+      }
     });
   }
 

@@ -653,6 +653,63 @@
         if (guard(function () { return W.setImportRecord(page, record, actorIn(t), t, now()); })) { writeAll(data); }
         return detail(page);
       },
+      // Demo pages for trying expiry (the testing bar's "Add demo pages"): live pages whose last update was long enough ago to be expiring soon or
+      // expired, plus a healthy one. Added with old dates through the same rules as any page. Adding again replaces the earlier demo pages.
+      hasDemoPages: async function () {
+        return readAll().pages.some(function (page) { return page.versions.some(function (v) { return /^Demo: /.test(v.title || ''); }); });
+      },
+      removeDemoPages: async function () {
+        var data = readAll();
+        data.pages = data.pages.filter(function (page) { return !page.versions.some(function (v) { return /^Demo: /.test(v.title || ''); }); });
+        writeAll(data);
+        return true;
+      },
+      addDemoPages: async function () {
+        var t = team;
+        var people = t.roles.filter(function (role) { return role.person && role.status !== 'invited'; });
+        var leadRole = people.filter(function (role) { return role.title === t.lead; })[0];
+        var others = people.filter(function (role) { return role !== leadRole; });
+        if (!leadRole || !others.length) { throw fail('no_team', 'The team needs a lead and at least one other person to make demo pages.'); }
+        var lead = W.actorFor(leadRole.person, t);
+        var data = readAll();
+        data.pages = data.pages.filter(function (page) { return !page.versions.some(function (v) { return /^Demo: /.test(v.title || ''); }); });
+        function ago(days) { return new Date(Date.now() - days * 86400000).toISOString(); }
+        var live = W.REVIEW_DAYS;   // a live page runs out this many days after it was last updated
+        var demos = [
+          { title: 'Demo: Expires in 14 days (soon)', left: 14, owner: others[0], visibility: 'Internal-Only' },
+          { title: 'Demo: Expires in 5 days (soon, public)', left: 5, owner: others[others.length > 1 ? 1 : 0], visibility: 'Client-Safe' },
+          { title: 'Demo: Expires today', left: 0, owner: others[0], visibility: 'Internal-Only' },
+          { title: 'Demo: Expired 12 days ago (public)', left: -12, owner: others[others.length > 1 ? 1 : 0], visibility: 'Client-Safe' },
+          { title: 'Demo: Expired 45 days ago', left: -45, owner: others[0], visibility: 'Internal-Only' },
+          { title: 'Demo: Owned by the team lead, expires in 3 days', left: 3, owner: leadRole, visibility: 'Internal-Only' },
+          { title: 'Demo: Healthy, updated 60 days ago', left: live - 60, owner: others[0], visibility: 'Internal-Only' }
+        ];
+        demos.forEach(function (demo) {
+          var made = ago(live - demo.left);
+          var text = window.PageEditor.draftTextFromResult({
+            title: demo.title,
+            description: 'A demo page for trying expiry. Its last update was ' + (live - demo.left) + ' days ago.',
+            blocks: [
+              { type: 'header', level: 1, text: 'Overview' },
+              { type: 'paragraph', text: 'This is a demo page. Open it, try Ask a question, or review it from the library.' },
+              { type: 'header', level: 1, text: 'Steps' },
+              { type: 'step', number: 1, title: 'Open the page', text: '', items: [] },
+              { type: 'step', number: 2, title: 'Check that the information is still right', text: '', items: [] }
+            ]
+          }, { owner: W.keyFor(demo.owner), visibility: demo.visibility, source: 'demo' });
+          var author = W.actorFor(demo.owner.person, t);
+          var page = demo.owner === leadRole ? W.createPage(t, text, lead, made) : W.createPage(t, text, author, made);
+          if (demo.owner === leadRole) {
+            W.publish(page, 1, lead, t, made);
+          } else {
+            W.submit(page, 1, author, t, made);
+            W.approve(page, 1, lead, t, made);
+          }
+          data.pages.push(page);
+        });
+        writeAll(data);
+        return demos.length;
+      },
       saveSetup: async function (id, changes) {
         var data = readAll();
         var page = find(data, id);
