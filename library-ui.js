@@ -3367,20 +3367,20 @@
     var searchSlot = el('div', 'landing-search-slot');
     searchSlot.appendChild(searchWrap);
     hero.appendChild(searchSlot);
+    var slotToggleAdded = false;   // the Filters pill sits beside the search box, outside it, on the right
 
     /* ---------- Filters ----------
        A "Filters" button under the box opens a row of choices (team, where it lives, visibility, how recently updated, and the
        order of the results). What is chosen shows as removable chips. With nothing typed, choosing a filter lists the pages that
        match it. */
-    var filters = { team: '', location: '', visibility: '', updated: '', sort: 'best' };
-    var FILTER_LABELS = { team: 'Team', location: 'Where it lives', visibility: 'Visibility', updated: 'Updated', sort: 'Order' };
+    var filters = { team: '', location: '', visibility: '', updated: '', sort: 'best', hideExpired: false };
+    var FILTER_LABELS = { team: 'Team', location: 'Where it lives', visibility: 'Visibility', updated: 'Updated', sort: 'Order', hideExpired: 'Exclude expired pages' };
     var filterBox = el('div', 'landing-filters');
     var filterToggle = el('button', 'landing-filters-toggle');
     filterToggle.type = 'button';
     filterToggle.setAttribute('aria-expanded', 'false');
     var filterChips = el('span', 'landing-filter-chips');
     var filterTop = el('div', 'landing-filters-top');
-    searchWrap.appendChild(filterToggle);   // the pill sits inside the search box, beside the search button
     filterTop.appendChild(filterChips);
     filterBox.appendChild(filterTop);
     var filterPanel = el('div', 'landing-filter-panel');
@@ -3413,34 +3413,45 @@
     if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { addFilterSelect('visibility', [['', 'Any'], ['Internal-Only', 'Internal-Only'], ['Client-Safe', 'Client-Safe']]); }
     addFilterSelect('updated', [['', 'Any time'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90 days'], ['365', 'Last year']]);
     addFilterSelect('sort', [['best', 'Best match'], ['newest', 'Newest'], ['opened', 'Most opened'], ['az', 'A to Z']]);
-    function hasFilters() { return !!(filters.team || filters.location || filters.visibility || filters.updated); }
+    // "Exclude expired pages": a tick box at the end of the filter row
+    var expiredWrap = el('label', 'landing-filter-check');
+    var expiredBox = el('input');
+    expiredBox.type = 'checkbox';
+    expiredBox.addEventListener('change', function () { filters.hideExpired = expiredBox.checked; filtersChanged(); });
+    expiredWrap.appendChild(expiredBox);
+    expiredWrap.appendChild(el('span', '', 'Exclude expired pages'));
+    filterPanel.appendChild(expiredWrap);
+    function hasFilters() { return !!(filters.team || filters.location || filters.visibility || filters.updated || filters.hideExpired); }
     function activeKeys() {
-      return ['team', 'location', 'visibility', 'updated', 'sort'].filter(function (key) { return filters[key] && !(key === 'sort' && filters.sort === 'best'); });
+      return ['team', 'location', 'visibility', 'updated', 'hideExpired', 'sort'].filter(function (key) { return filters[key] && !(key === 'sort' && filters.sort === 'best'); });
     }
     function updateFilterUi() {
       var keys = activeKeys();
       Object.keys(filterSelects).forEach(function (key) { filterSelects[key].value = filters[key]; });
+      expiredBox.checked = !!filters.hideExpired;
       filterToggle.textContent = 'Filters' + (keys.length ? ' (' + keys.length + ')' : '');
       if (keys.length) { filterPanel.hidden = false; }   // chosen filters are never hidden
       filterToggle.setAttribute('aria-expanded', String(!filterPanel.hidden));
       filterChips.textContent = '';
       keys.forEach(function (key) {
-        var chip = el('button', 'landing-filter-chip', FILTER_LABELS[key] + ': ' + filterText(key) + ' \u00D7');
+        var chipText = key === 'hideExpired' ? FILTER_LABELS[key] : FILTER_LABELS[key] + ': ' + filterText(key);
+        var chip = el('button', 'landing-filter-chip', chipText + ' \u00D7');
         chip.type = 'button';
-        chip.setAttribute('aria-label', 'Remove the filter ' + FILTER_LABELS[key] + ': ' + filterText(key));
-        chip.addEventListener('click', function () { filters[key] = key === 'sort' ? 'best' : ''; filtersChanged(); });
+        chip.setAttribute('aria-label', 'Remove the filter ' + (key === 'hideExpired' ? FILTER_LABELS[key] : FILTER_LABELS[key] + ': ' + filterText(key)));
+        chip.addEventListener('click', function () { filters[key] = key === 'sort' ? 'best' : (key === 'hideExpired' ? false : ''); filtersChanged(); });
         filterChips.appendChild(chip);
       });
     }
     // On the start page the filters belong to the search that has not been run yet: they only take effect when it is. On a results page they re-run it.
     function filtersChanged() { updateFilterUi(); if (routeQuery !== null) { refresh(); } }
-    function clearFilters() { filters = { team: '', location: '', visibility: '', updated: '', sort: 'best' }; filtersChanged(); }
+    function clearFilters() { filters = { team: '', location: '', visibility: '', updated: '', sort: 'best', hideExpired: false }; filtersChanged(); }
     filterToggle.addEventListener('click', function () {
       filterPanel.hidden = !filterPanel.hidden;
       filterToggle.setAttribute('aria-expanded', String(!filterPanel.hidden));
     });
     updateFilterUi();
     hero.appendChild(filterBox);
+    searchSlot.appendChild(filterToggle);
     // The filters stay hidden until the Filters pill beside the search box is used (or filters are already chosen)
     // The teams and places that exist, from the live pages
     Promise.resolve(backend().list('', true)).then(function (result) {
@@ -3583,6 +3594,7 @@
       var found = result.pages.filter(function (p) { return p.liveVersion; });
       if (q && !(options && options.restoring)) { queueSearchLog(q, found); }   // what the words found, before any filter; and an earlier search shown again is not a new search
       var live = window.Search.filterPages(found, filters);
+      if (filters.hideExpired) { live = live.filter(function (p) { var e = W.expiryStatus(p.updatedAt); return !(e && e.expired); }); }
       var order = filters.sort === 'best' && !q ? 'newest' : filters.sort;
       var views = null;
       if (order === 'opened') { try { views = (await backend().viewCounts()).views; } catch (error) { views = {}; } }

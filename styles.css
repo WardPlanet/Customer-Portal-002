@@ -3377,3 +3377,14 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .landing-hero:not(.is-results) .landing-search-wrap .landing-search { padding-right: 64px; }
 .landing-hero:not(.is-results) .landing-search-slot { margin-bottom: 0; }
 .landing-hero .landing-search-wrap .landing-filters-toggle[aria-expanded="true"], .landing-hero .landing-search-wrap .landing-filters-toggle[aria-expanded="true"]:hover { color: var(--white); background: var(--icon-blue); border-color: var(--icon-blue); }
+
+/* The Filters pill is outside the search box, on its right; the panel ends with the "Exclude expired pages" tick box */
+.landing-search-wrap .landing-search, .landing-hero.is-results .landing-search-wrap .landing-search { padding-right: 48px; }
+.landing-hero.is-results .landing-search-slot .landing-filters-toggle { position: static; transform: none; flex: none; margin-left: 8px; height: 40px; padding: 0 16px; font-size: 14px; }
+.landing-hero.is-results .landing-search-slot .landing-search-wrap { flex: 1 1 auto; width: auto; min-width: 0; }
+.landing-hero.is-results .landing-search-slot { align-items: center; }
+.landing-filter-check { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex: 1 1 100%; font-size: 14px; color: var(--text); cursor: pointer; }
+.landing-filter-check input { width: 16px; height: 16px; accent-color: var(--icon-blue); }
+.landing-filter-panel { grid-auto-flow: row; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.landing-filter-check { grid-column: 1 / -1; margin-top: 0; }
+@media (max-width: 760px) { .landing-filter-panel { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
