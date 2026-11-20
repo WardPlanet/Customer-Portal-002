@@ -4,8 +4,8 @@ The current state of the wiki prototype: what it does, how it is built, what is 
 
 - **Branch:** `claude/lucid-heisenberg-urrlnj` (everything is committed and pushed).
 - **Wiki artifact (the clickable prototype):** https://claude.ai/artifact/EUELV7Cyms7pydZGRPsX7W (version 337, private).
-- **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 26).
-- **Tests:** `npm test`, 132 passing (rules, search, import, admin, photos, and the Node server's library routes).
+- **Style guide artifact:** https://claude.ai/artifact/9KMppsTLNtGRWkL3pECWCf (version 27).
+- **Tests:** `npm test`, 133 passing (rules, search, import, admin, photos, and the Node server's library routes).
 
 ## 1. What it is
 
@@ -94,6 +94,7 @@ and earlier is the only acceptable AutoMapper range (neither is used).
 The server has the same rules and routes as the browser version, because both use `workflow.cjs`: library, versions, review, live-page review actions, owner republishing, soft delete and trash, the "signed in, no team" read-only access, search log, public routes, import and AI.
 
 - **Housekeeping** (start-up and every 6 hours): removes trash older than 30 days, queues a warning to the lead 3 days before a page leaves the trash, queues expiry emails (owner at 15 days, owner and lead at expiry), each once.
+- **Roster:** edits on the Team and roles screen are saved to `TEAMS_DIR` (`/data/teams` in the container, seeded from the bundled `teams/` on first use), so they survive replacing the container.
 - **Emails** are written to `drafts/outbox/` as JSON (to, subject, text, kind, pageId). Nothing is sent.
 - **Not on the server yet:** several departments (it uses one team), Admin creating a draft in another department, import example outlines, flag decisions, and backups that include the trash.
 
@@ -135,6 +136,6 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 
 **Unverified:** the AI paths (import labelling, Ask a question, assist) were only tested with stand-in answers because no AI is available in the preview. Dark mode and narrow windows were checked on the main screens only. The Node server's `X-Acting-As` header is unauthenticated.
 
-**Ideas noted for later** (none built): review reminders and "still accurate", search that learns, Teams integration, one source for staff and customers, policy acknowledgement and audit trail, guided page types, change notes and follow a page, health checks, context help from the products.
+**Ideas noted for later** (none built): review reminders and "still accurate", search that learns, Teams integration, one source for staff and customers, policy acknowledgement and audit trail, guided page types, change notes and follow a page, context help from the products.
 
 **Documents:** the management summary (`Planet DDS Wiki - what has been built.docx`) predates ownership by person, soft delete, the owner-republish setting and the no-team access; it needs a refresh.
