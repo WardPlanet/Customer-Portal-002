@@ -489,6 +489,7 @@
     libraryScreen.hidden = which !== 'library';
     editorScreen.hidden = which !== 'editor';
     document.getElementById('restore-version').hidden = true;   // only the read-only view of an older version offers it (openViewer)
+    document.getElementById('viewer-actions').textContent = '';   // the review buttons of a page that is due for review (openViewer)
     document.body.classList.toggle('is-public', !!isPublic);
     if (which === 'library') {
       document.getElementById('nav-library').classList.toggle('is-current', !isPublic);
@@ -1494,7 +1495,7 @@
         var rowLockNote = lockEditButton(editButton, p);
         // Review is the main button for an expired page, and for a page just submitted (the team lead's to approve or send back)
         var submittedForLead = lead && p.workingVersion && isWaitingForReview(p);
-        if (submittedForLead || (expiry && expiry.expired)) {
+        if (submittedForLead || (expiry && expiry.soon)) {   // Review: for a page just submitted, and for one that is expiring soon or has expired
           var reviewButton = button('Review', 'row-btn row-btn-main', function () {
             // Always the review view (the page as it was submitted, with the review actions), for a submitted page and an expired live one alike
             var reviewNumber = submittedForLead ? p.workingVersion.n : (p.liveVersion && p.liveVersion.n ? p.liveVersion.n : p.liveVersion);
@@ -2274,18 +2275,26 @@
           if (comment) { runAction(id, Number(n), 'request-changes-live', 'Asked the owner to update it, with your note.', { comment: comment }); }
         }));
       }
-    } else if (liveReview && (actorIsLead() || actingAsAdmin())) {
-      // The team lead: Publish (the page is fine as it is: it stays live and its 180 days start again), Edit, Request changes (the owner is asked to update it)
-      row.appendChild(button('Publish', 'row-btn row-btn-main', function () { runAction(id, Number(n), 'renew-live', 'Reviewed. \u201c' + (data.version.title || 'The page') + '\u201d stays live and its 180 days start again.'); }));
-      row.appendChild(button('Edit', 'row-btn', editFromLive));
-      row.appendChild(button('Request changes', 'row-btn', async function () {
-        var comment = await askComment();
-        if (comment) { runAction(id, Number(n), 'request-changes-live', 'Asked the owner to update it, with your note.', { comment: comment }); }
-      }));
-    } else if (liveReview && isOwner) {
-      // The owner: Submit (it is still correct: the team lead approves it again) and Edit
-      row.appendChild(button('Submit for review', 'row-btn row-btn-main', async function () { if (!(await confirmSubmit(data.version.title))) { return; } runAction(id, Number(n), 'submit-live', 'Sent for review. ' + personFor(team.lead) + ' has been notified.'); }));
-      row.appendChild(button('Edit', 'row-btn', editFromLive));
+    } else if (liveReview && (actorIsLead() || actingAsAdmin() || isOwner)) {
+      // Due for review (expiring soon or expired): the buttons are in the bottom bar. Approve (no changes needed) keeps the page as it is and starts its
+      // 180 days again, with no approval from the team lead (the owner can do it for their own page). The lead can also ask the owner for changes.
+      var viewerBar = document.getElementById('viewer-actions');
+      var asLead = actorIsLead() || actingAsAdmin();
+      // The same buttons, in the blue bar at the top and in the bottom bar
+      function addReviewButtons(container, plain, main) {
+        if (asLead) {
+          container.appendChild(button('Request changes', plain, async function () {
+            var comment = await askComment();
+            if (comment) { runAction(id, Number(n), 'request-changes-live', 'Asked the owner to update it, with your note.', { comment: comment }); }
+          }));
+        }
+        container.appendChild(button('Edit', plain, editFromLive));
+        container.appendChild(button('Approve (no changes needed)', main, function () {
+          runAction(id, Number(n), 'renew-live', 'Approved with no changes. \u201c' + (data.version.title || 'The page') + '\u201d stays live and its 180 days start again.' + (asLead ? '' : ' The team lead does not need to approve it.'));
+        }));
+      }
+      addReviewButtons(row, 'row-btn', 'row-btn row-btn-main');
+      addReviewButtons(viewerBar, 'secondary-btn', 'submit-btn');
     } else if (actingAsAdmin()) {
       // Admin sees everything the review can do
       versionButtons(id, { n: Number(n), actions: data.actions }).filter(function (node) { return node.textContent !== 'View'; }).forEach(function (node) { row.appendChild(node); });
@@ -2315,7 +2324,7 @@
     var viewerNote = detail && detail.page ? lockNote(detail.page) : '';
     if (viewerNote) {
       // Someone is editing this page right now: Edit is greyed out, and the bar says who
-      Array.prototype.forEach.call(row.querySelectorAll('button'), function (b) {
+      Array.prototype.forEach.call(document.querySelectorAll('#viewer-actions button, .banner-actions button'), function (b) {
         if (b.textContent !== 'Edit') { return; }
         b.setAttribute('aria-disabled', 'true');
         b.title = viewerNote;

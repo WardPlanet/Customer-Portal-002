@@ -807,12 +807,34 @@
     if (workingVersion(page)) { throw new WorkflowError('edit_in_progress', 'There is already a version being edited or reviewed. Finish that first.', 409); }
     return live;
   }
+  // "Approve, no changes" on a page that is expiring soon or has expired: it stays as it is and its 180 days start again. The team lead can do it
+  // for any page. The page's owner can do it for their own page once it is due, with no approval from the team lead (the lead is told).
   function renewLive(page, actor, team, now) {
-    requireLead(actor, team, 'renew a page');
-    liveFor(page);
+    requireActor(actor);
+    var lead = isLead(actor, team);
+    var live = liveFor(page);
+    if (!lead) {
+      if (!isMine(page, actor)) { throw new WorkflowError('not_yours', 'Only the page\u2019s owner or the team lead can approve it without changes.', 403); }
+      var status = expiryStatus(live.updatedAt, Date.parse(now) || undefined);
+      if (!status || !status.soon) { throw new WorkflowError('not_due', 'This page is not due for review yet.', 409); }
+    }
     var v = startEdit(page, actor, now);
     v.note = 'Reviewed by ' + actor.name + ': no changes needed';
-    return publish(page, v.n, actor, team, now);
+    if (lead) { return publish(page, v.n, actor, team, now); }
+    // The owner's own approval: live at once, shown to the team lead for a week like any republish without review
+    var previous = liveVersion(page);
+    if (previous) { previous.status = STATUS.SUPERSEDED; }
+    v.status = STATUS.APPROVED;
+    v.submittedAt = now;
+    v.submittedBy = actor.name;
+    v.decidedBy = actor.name;
+    v.decidedAt = now;
+    v.decisionComment = 'Reviewed by the owner: no changes needed.';
+    v.ownerPublished = true;
+    v.directPublish = true;
+    page.liveVersion = v.n;
+    touch(page, v, actor, now);
+    return v;
   }
   function submitLive(page, actor, team, now) {
     requireActor(actor);

@@ -540,7 +540,19 @@ test('reviewing a live page: the lead can renew it, the owner can send it back f
   W.renewLive(page, lee, team, at(200));
   assert.equal(page.versions.length, 2);
   assert.equal(page.liveVersion, 2);
-  assert.throws(() => W.renewLive(page, sam, team, at(201)), (e) => e.code === 'not_lead');
+  // The owner can approve it with no changes only once it is expiring soon or expired, and no approval from the lead is needed
+  assert.throws(() => W.renewLive(page, sam, team, at(201)), (e) => e.code === 'not_due');
+  const outsider = W.actorFor('Nobody', team);
+  assert.throws(() => W.renewLive(page, outsider, team, at(375)), (e) => e.code === 'not_yours' || e.code === 'no_actor');
+  const p3 = W.createPage(team, text, sam, at(1));
+  W.publish(p3, 1, lee, team, at(2));
+  const renewed = W.renewLive(p3, sam, team, at(200));   // 198 days later: expired
+  assert.equal(renewed.status, 'approved');
+  assert.equal(renewed.decidedBy, 'Sam');
+  assert.equal(renewed.ownerPublished, true);
+  assert.equal(p3.liveVersion, 2);
+  assert.equal(W.workingVersion(p3), null);
+  assert.equal(W.expiryStatus(W.liveVersion(p3).updatedAt, Date.parse(at(201))).soon, false);   // its 180 days started again
   W.submitLive(page, sam, team, at(300));
   assert.equal(W.workingVersion(page).status, 'submitted');
   const p2 = W.createPage(team, text, sam, at(1));

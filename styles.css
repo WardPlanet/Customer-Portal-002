@@ -3292,3 +3292,5 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* The testing bar's demo pages button (prototype only) */
 .demo-btn { margin-left: 12px; padding: 2px 12px; font: inherit; font-size: 12px; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 999px; cursor: pointer; opacity: .9; }
 .demo-btn:hover { opacity: 1; background: rgba(255,255,255,.12); }
+.viewer-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.viewer-actions:empty { display: none; }

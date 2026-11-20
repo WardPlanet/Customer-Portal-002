@@ -645,6 +645,9 @@ export function registerLibraryRoutes(app, draftsDir) {
         var note = String((req.body && req.body.comment) || '').trim();
         await queueEmail(draftsDir, emailTo(ownerOf(ctx.team, page), 'sent-back', '\u201c' + shown.title + '\u201d needs changes.', ctx.actor.name + ' sent \u201c' + shown.title + '\u201d back with this note: \u201c' + note + '\u201d.', page, ctx.now));
       }
+      if (action === 'renew-live' && !Workflow.isLead(ctx.actor, ctx.team)) {
+        await queueEmail(draftsDir, emailTo(leadOf(ctx.team), 'owner-republished', ctx.actor.name + ' reviewed \u201c' + shown.title + '\u201d and kept it as it is.', 'The page was due for review. ' + ctx.actor.name + ' approved it with no changes, so it stays live and its 180 days start again. No approval was needed.', page, ctx.now));
+      }
       if (action === 'publish' && page.versions.filter(function (v) { return String(v.n) === String(n); }).some(function (v) { return v.ownerPublished; })) {
         await queueEmail(draftsDir, emailTo(leadOf(ctx.team), 'owner-republished', ctx.actor.name + ' republished \u201c' + shown.title + '\u201d without review.', 'You allowed this page to be republished by its owner without review. Every version is in the history. You can require review again from the page\u2019s menu.', page, ctx.now));
       }
