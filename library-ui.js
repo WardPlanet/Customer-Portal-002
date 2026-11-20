@@ -3438,7 +3438,7 @@
     });
     updateFilterUi();
     hero.appendChild(filterBox);
-    if (routeQuery !== null) { filterPanel.hidden = false; }   // on a results page the filters are always shown (no Filter pages button)
+    filterPanel.hidden = false;   // the filters are always shown, on the start page and on a results page (no Filter pages button)
     // The teams and places that exist, from the live pages
     Promise.resolve(backend().list('', true)).then(function (result) {
       var live = result.pages.filter(function (p) { return p.liveVersion; });
