@@ -467,7 +467,7 @@
     var result = null;
     try { result = await backend().list(''); } catch (error) { result = null; }
     if (!result) { return; }
-    var waiting = (actorIsLead() ? result.pages : []).filter(function (p) { return p.workingVersion && p.workingVersion.status === 'submitted'; })
+    var waiting = result.pages.filter(function (p) { return (actorIsLead() || (p.reviewer && W.ownsKey(actor(), p.reviewer))) && p.workingVersion && p.workingVersion.status === 'submitted'; })
       .sort(function (a, b) { return String(a.workingVersion.submittedAt).localeCompare(String(b.workingVersion.submittedAt)); });
     // The owner is told when a live page is within 15 days of expiring (the library lists a person's own pages; the team lead sees the team's)
     // Pages the team lead sent back to this person, with the lead's note
@@ -5022,6 +5022,8 @@
     // Skips review: saves, makes it live, and downloads the text. (Who may do this is the team's
     // "directPublish" setting; the server and store both enforce it.)
     // Who may choose a page's owner: the team lead. Anyone else owns what they create, shown greyed out in Page Setup.
+    // Only Admin changes a page's reviewer (the team lead unless Admin chose someone else)
+    reviewerLock: function () { return { locked: !actingAsAdmin() }; },
     ownerLock: function () {
       var who = actor();
       // The team lead starts a new page as its owner (Admin has to choose, shown in red)

@@ -2302,12 +2302,20 @@
     }
 
     function renderReviewer() {
-      // Locked to the team lead: the only choice, and the select cannot be changed
-      state.reviewer = leadRole();
+      // The team lead unless Admin chose someone else. Only Admin can change it; everyone else sees it greyed out.
+      var rlock = window.PageHost && window.PageHost.reviewerLock ? window.PageHost.reviewerLock() : { locked: true };
+      if (!state.reviewer) { state.reviewer = leadRole(); }
       var select = byId('reviewer');
       select.textContent = '';
-      addOption(select, state.reviewer, state.reviewer ? roleLabel(state.reviewer) : 'No team lead set');
+      if (rlock.locked) { addOption(select, state.reviewer, state.reviewer ? roleLabel(state.reviewer) : 'No team lead set'); }
+      else {
+        if (leadRole()) { addOption(select, leadRole(), roleLabel(leadRole())); }
+        choosablePeople('').forEach(function (role) { var k = window.Workflow.keyFor(role); if (k !== leadRole()) { addOption(select, k, roleLabel(k)); } });
+        if (state.reviewer && !Array.prototype.some.call(select.options, function (o) { return o.value === state.reviewer; })) { addOption(select, state.reviewer, roleLabel(state.reviewer)); }
+      }
       select.value = state.reviewer;
+      select.disabled = !!rlock.locked;
+      byId('reviewer-field').classList.toggle('is-na', !!rlock.locked);
 
       var person = personFor(state.reviewer);
       var avatar = byId('reviewer-avatar');
@@ -2315,6 +2323,7 @@
       avatar.textContent = person ? initials(person) : '?';
       avatar.className = 'avatar avatar-small avatar-blue';
       byId('reviewer-name').textContent = state.reviewer ? roleLabel(state.reviewer) : 'no team lead set';
+
     }
 
     /* ---------- Page Setup: visibility ---------- */
@@ -2406,7 +2415,7 @@
       if (state.ownerDefault) { section('OWNER DEFAULT', ['yes']); }
       section('WHERE THIS LIVES', textLines(state.location));
       section('LINKED PEOPLE', state.roles);
-      section('REVIEWER', textLines(leadRole() || state.reviewer));
+      section('REVIEWER', textLines(state.reviewer || leadRole()));
       section('VISIBILITY', textLines(state.visibility));
       if (state.source) { section('SOURCE FILE', [state.source]); }
 
@@ -2548,7 +2557,7 @@
       state.roles = list('LINKED PEOPLE').concat(list('LINKED ROLES')).concat(list('LINKED TEAM MEMBERS')).map(personKeyFromValue).filter(function (key, index, all) {
         return key && all.indexOf(key) === index;
       });
-      state.reviewer = leadRole();   // always the team lead, whatever an older draft says
+      state.reviewer = body('REVIEWER') || leadRole();   // the team lead unless Admin chose someone else
       state.related = list('RELATED PAGES').map(function (line) {
         var parts = line.split(' | ');
         return { id: parts[0].trim(), title: parts.slice(1).join(' | ').trim() };
@@ -5289,6 +5298,11 @@
         renderRoles();
         touchSetup('linked');
       }
+    });
+    byId('reviewer').addEventListener('change', function (event) {
+      state.reviewer = event.target.value;   // only Admin can (the select is disabled for everyone else)
+      touchSetup('reviewer');
+      updateSaveState();
     });
     byId('visibility').addEventListener('change', async function () {
       var select = byId('visibility');

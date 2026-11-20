@@ -728,3 +728,25 @@ test('a draft saved by someone else is flagged until the person has seen it, and
   assert.equal(W.unseenSave(page, draft.n, scott), null);
   assert.ok(/Alpha edited by scott/.test(page.versions[draft.n - 1].text));   // nobody's change is held back
 });
+
+test('the team lead reviews every page; only Admin can name another reviewer, who can then review it', () => {
+  const t3 = Object.assign({}, team, { roles: team.roles.concat([{ title: 'Web Designer', person: 'Molly', email: 'molly@x.com' }]) });
+  const owner = W.actorFor('Scott Archer', t3);
+  const molly = W.actorFor('Molly', t3);
+  const admin = Object.assign({}, W.actorFor('Micah', t3), { admin: true });
+  const withReviewer = draftText('Refunds').replace(/\n*$/, '\n') + '\n[REVIEWER]\nmolly@x.com\n';
+  // An owner cannot name a reviewer; Admin can
+  assert.throws(() => W.createPage(t3, withReviewer, owner, t(1)), /Only Admin/);
+  const page = W.createPage(t3, withReviewer, admin, t(1));
+  W.submit(page, 1, admin, t3, t(2));
+  // Molly is not the lead, but she is this page's reviewer
+  assert.equal(W.isReviewerOf(page, molly, t3), true);
+  assert.equal(W.isReviewerOf(page, owner, t3), false);
+  assert.ok(W.history(page, molly, t3).find((h) => h.n === 1).actions.includes('approve'));
+  assert.throws(() => W.approve(page, 1, owner, t3, t(3)), /reviewer/);
+  W.approve(page, 1, molly, t3, t(3));
+  assert.equal(page.liveVersion, 1);
+  // The owner cannot change the reviewer when saving an edit
+  const v = W.startEdit(page, owner, t(4));
+  assert.throws(() => W.saveDraft(page, v.n, draftText('Refunds'), owner, t(5), t3), /Only Admin/);
+});

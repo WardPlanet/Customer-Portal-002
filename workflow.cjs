@@ -82,6 +82,7 @@
       visibility: first(sections, 'VISIBILITY') === 'Client-Safe' ? 'Client-Safe' : first(sections, 'VISIBILITY') === 'Internal-Only' ? 'Internal-Only' : (sections['VISIBILITY'] ? '' : 'Internal-Only'),
       // The owner is a person, named by the email address of their sign-in account (older pages named a role title: see findPerson)
       owner: first(sections, 'OWNER') || first(sections, 'OWNER ROLE'),
+      reviewer: first(sections, 'REVIEWER'),   // who reviews this page: the team lead unless Admin chose someone else
       secondaryOwner: first(sections, 'SECONDARY OWNER'),   // a second owner (a person's email), optional
       ownerDefault: first(sections, 'OWNER DEFAULT').toLowerCase() === 'yes',   // given to the team lead as a fallback, to be reassigned later
       linkedRoles: (sections['LINKED PEOPLE'] || []).concat(sections['LINKED ROLES'] || []).map(function (line) { return line.trim(); }).filter(Boolean),   // people (emails)
@@ -377,6 +378,26 @@
     return !!(actor && team && team.lead && actor.roles.indexOf(team.lead) >= 0);
   }
 
+  // The reviewer a page names (a role title or email), or '' when it is the team lead
+  function pageReviewerKey(page, team) {
+    var v = page && (liveVersion(page) || workingVersion(page) || latestVersion(page));
+    var key = v ? fields(v.text).reviewer : '';
+    if (!key) { return ''; }
+    return resolveKey(team, key) === resolveKey(team, team && team.lead) ? '' : key;
+  }
+  // The team lead always reviews; so does the person Admin chose as this page's reviewer
+  function isReviewerOf(page, actor, team) {
+    if (isLead(actor, team)) { return true; }
+    var key = pageReviewerKey(page, team);
+    return !!key && ownsKey(actor, key);
+  }
+  function requireReviewer(page, actor, team, what) {
+    requireActor(actor);
+    if (!isReviewerOf(page, actor, team)) {
+      throw new WorkflowError('not_lead', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') or the page\u2019s reviewer can ' + what + '.', 403);
+    }
+  }
+
   function requireLead(actor, team, what) {
     requireActor(actor);
     if (!isLead(actor, team)) {
@@ -452,6 +473,9 @@
     if (chosenOwner && !isLead(actor, team) && !ownsKey(actor, chosenOwner)) {
       throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can make someone else the owner.', 403);
     }
+    if (!(actor && actor.admin) && fields(text).reviewer && resolveKey(team, fields(text).reviewer) !== resolveKey(team, team && team.lead)) {
+      throw new WorkflowError('reviewer_locked', 'Only Admin can change a page\u2019s reviewer.', 403);
+    }
     var page = { id: newId(Date.parse(now) || Date.now()), team: team.slug, createdAt: now, updatedAt: now, liveVersion: null, versions: [] };
     newVersion(page, text, actor, now, note || '');
     return page;
@@ -469,6 +493,10 @@
     // Only the team lead changes who owns a page
     if (!isLead(actor, team) && (resolveKey(team, fields(text).owner) !== resolveKey(team, fields(version.text).owner) || resolveKey(team, fields(text).secondaryOwner) !== resolveKey(team, fields(version.text).secondaryOwner))) {
       throw new WorkflowError('owner_locked', 'Only the team lead (' + (team && team.lead ? team.lead : 'no lead set') + ') can change the owner.', 403);
+    }
+    // Only Admin changes who reviews a page (an empty reviewer means the team lead)
+    if (!(actor && actor.admin) && (resolveKey(team, fields(text).reviewer || (team && team.lead)) !== resolveKey(team, fields(version.text).reviewer || (team && team.lead)))) {
+      throw new WorkflowError('reviewer_locked', 'Only Admin can change a page\u2019s reviewer.', 403);
     }
     version.text = text;
     copyFields(version);
@@ -764,7 +792,7 @@
   }
 
   function approve(page, n, actor, team, now) {
-    requireLead(actor, team, 'approve a page');
+    requireReviewer(page, actor, team, 'approve a page');
     var version = versionOf(page, n);
     if (version.status !== STATUS.SUBMITTED) {
       throw new WorkflowError('not_submitted', 'Only a version waiting for review can be approved.', 409);
@@ -781,7 +809,7 @@
   }
 
   function sendBack(page, n, comment, actor, team, now) {
-    requireLead(actor, team, 'send a page back');
+    requireReviewer(page, actor, team, 'send a page back');
     var version = versionOf(page, n);
     if (version.status !== STATUS.SUBMITTED) {
       throw new WorkflowError('not_submitted', 'Only a version waiting for review can be sent back.', 409);
@@ -852,7 +880,7 @@
     return submit(page, v.n, actor, team, now);
   }
   function requestChangesOnLive(page, comment, actor, team, now) {
-    requireLead(actor, team, 'ask for changes to a page');
+    requireReviewer(page, actor, team, 'ask for changes to a page');
     liveFor(page);
     if (!String(comment || '').trim()) { throw new WorkflowError('comment_needed', 'Say what needs to change, so the owner knows what to fix.', 422); }
     var v = startEdit(page, actor, now);
@@ -909,7 +937,7 @@
   // their own, and may read any page that is live
   function canSeeInLibrary(page, actor, team) {
     if (isMine(page, actor)) { return true; }
-    return isLead(actor, team) && !isUnsubmittedDraft(page);
+    return (isLead(actor, team) || isReviewerOf(page, actor, team)) && !isUnsubmittedDraft(page);
   }
 
   function canReadVersion(page, version, actor, team) {
@@ -992,6 +1020,7 @@
       visibility: shown.visibility,
       owner: shown.owner,
       ownerDefault: fields(shown.text).ownerDefault,
+      reviewer: fields(shown.text).reviewer || '',
       linkedRoles: fields(shown.text).linkedRoles,
       state: state,
       deleteRequest: page.deleteRequest ? { by: page.deleteRequest.by, at: page.deleteRequest.at } : null,
@@ -1024,6 +1053,7 @@
     if (v.status === STATUS.SUBMITTED) {
       // Locked for its owner until the team lead decides: no edit, no withdraw. The lead can still edit it, take it back, publish it or send it back.
       if (lead) { actions.push('edit', 'withdraw', 'approve', 'send_back'); }
+      else if (isReviewerOf(page, actor, team)) { actions.push('approve', 'send_back'); }
     }
     var restorable = v.status === STATUS.SUPERSEDED || v.status === STATUS.UNPUBLISHED;
     if (restorable && !workingVersion(page)) { actions.push('restore'); }
@@ -1564,6 +1594,8 @@
     actorFor: actorFor,
     ADMIN_NAME: ADMIN_NAME,
     isLead: isLead,
+    isReviewerOf: isReviewerOf,
+    pageReviewerKey: pageReviewerKey,
     versionOf: versionOf,
     liveVersion: liveVersion,
     workingVersion: workingVersion,

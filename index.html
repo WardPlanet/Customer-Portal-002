@@ -82,10 +82,11 @@
         <div class="chips" id="chips"></div>
       </div>
 
-      <!-- Not a field: the team lead always reviews (the select is hidden and only kept so the page can still read it) -->
-      <div class="prop prop-reviewer">
+      <!-- The team lead reviews every page; only Admin can choose someone else (greyed out for everyone else) -->
+      <div class="prop prop-reviewer" id="reviewer-field">
         <span class="field-label">Reviewer</span>
-        <p class="setup-reviewer is-na" title="The team lead always reviews, so this can&rsquo;t be changed."><strong id="reviewer-name"></strong></p>
+        <select class="select-field" id="reviewer" aria-label="Reviewer" title="The team lead reviews every page. Only Admin can change this." disabled></select>
+        <strong id="reviewer-name" hidden></strong>
       </div>
       <div class="prop prop-owner" id="owner-field">
         <div class="owner-label-row">
@@ -148,7 +149,6 @@
 
       <div hidden>
         <span class="avatar avatar-blue avatar-small" id="reviewer-avatar" hidden></span>
-        <select class="reviewer-select" id="reviewer" disabled></select>
         <!-- Export PDF and Publish: not shown in the editor for now. The team lead's Publish in the blue bar uses the publish button. -->
         <button class="secondary-btn" type="button" id="export-pdf">Export PDF</button>
         <button class="submit-btn" type="button" id="publish-draft" aria-disabled="true">Publish page</button>
