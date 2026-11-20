@@ -3335,6 +3335,13 @@
       main.classList.add('is-results');
       logo.classList.add('is-link');
       logo.addEventListener('click', function () { location.hash = '#/public'; });
+      // The header sticks just under the Wiki bar, however tall that bar is at this width
+      var stickBelow = function () {
+        var top = document.querySelector('.lib-top');
+        main.style.setProperty('--results-top', (top ? top.offsetHeight : 72) + 'px');
+      };
+      stickBelow();
+      window.addEventListener('resize', stickBelow);
     }
     logo.setAttribute('role', 'img');
     logo.setAttribute('aria-label', 'Planet DDS');
