@@ -381,6 +381,13 @@
     Array.prototype.forEach.call(document.querySelectorAll('.bell'), function (b) { b.setAttribute('aria-expanded', 'false'); });
   }
 
+  // The "republished by the owner" notice goes after a week, or once the lead clicks it (remembered in this browser for this person)
+  function republishKey(p) { return 'wiki-republish-seen:' + (window.Store.getActor ? window.Store.getActor() : '') ; }
+  function republishSeen() { try { return JSON.parse(localStorage.getItem(republishKey()) || '{}'); } catch (error) { return {}; } }
+  function dismissRepublished(p) {
+    try { var seen = republishSeen(); seen[p.id] = p.ownerRepublished.at; localStorage.setItem(republishKey(), JSON.stringify(seen)); } catch (error) { /* it comes back next time */ }
+    refreshNotifications();
+  }
   function renderBell(slot, waiting, expiring, sentBack, deletions, republished) {
     expiring = expiring || [];
     sentBack = sentBack || [];
@@ -432,7 +439,7 @@
         var item = link('', previewUrl(p.id), 'notify-item');
         item.appendChild(el('strong', '', p.title));
         item.appendChild(el('span', 'notify-sub', p.ownerRepublished.by + ' published an edit without review \u00b7 ' + W.daysAgo(p.ownerRepublished.at)));
-        item.addEventListener('click', closeNotifyPops);
+        item.addEventListener('click', function () { dismissRepublished(p); closeNotifyPops(); });   // clicking it clears the notice
         pop.appendChild(item);
       });
     }
@@ -477,7 +484,7 @@
       .sort(function (a, b) { return String(a.updatedAt).localeCompare(String(b.updatedAt)); });
     // The team lead is also told when someone asks to delete a page, and for a week when an owner republished a page without review
     var deletions = actorIsLead() ? result.pages.filter(function (p) { return !!p.deleteRequest; }) : [];
-    var republished = actorIsLead() ? result.pages.filter(function (p) { return p.ownerRepublished && (Date.now() - Date.parse(p.ownerRepublished.at)) < 7 * 86400000; }) : [];
+    var republished = actorIsLead() ? result.pages.filter(function (p) { return p.ownerRepublished && (Date.now() - Date.parse(p.ownerRepublished.at)) < 7 * 86400000 && republishSeen()[p.id] !== p.ownerRepublished.at; }) : [];
     slots.forEach(function (slot) { renderBell(slot, waiting, expiring, sentBack, deletions, republished); });
   }
 
