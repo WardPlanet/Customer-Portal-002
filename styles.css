@@ -2801,7 +2801,7 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 /* The editor's left column follows the live page: the same card, the highlight on the heading in view */
 .outline-sticky .toc-card { margin: 0; }
 /* Not needed for now: "where this lives" (Library) and version history */
-#location-field, #version-field { display: none !important; }
+#location-field { display: none !important; }
 
 /* ---------- Page setup: required first, optional folded away, room to breathe ---------- */
 .setup { gap: 24px; }
@@ -3260,3 +3260,9 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .import-note-point .row-btn[data-value="approved"][aria-pressed="true"] { background: var(--icon-blue); }
 .import-note-point .row-btn[data-value="denied"][aria-pressed="true"] { background: var(--danger, #B42318); }
 .import-notes { margin: 8px 0; }
+
+/* The Page setup heading row: the title on the left, Version history on the right */
+.prop-head { flex-basis: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.prop-head .prop-title { flex-basis: auto; }
+#version-field[hidden] { display: none; }
+#version-link { color: var(--accent-text, var(--accent)); text-decoration: underline; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; font-size: 13px; font-weight: 600; }

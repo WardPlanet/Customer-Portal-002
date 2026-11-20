@@ -4569,10 +4569,7 @@
     });
     railTools.appendChild(copyButton);   // Copy link above Export PDF
     railTools.appendChild(exportButton);
-    // The page's team can open its version history (and revert) from here; the public cannot
-    if (fromLibrary && !publicMode) {
-      railTools.appendChild(button('Version history', 'secondary-btn', function () { openVersionsDialog(id); }));
-    }
+
 
     await draw(asPublicNow);
   }

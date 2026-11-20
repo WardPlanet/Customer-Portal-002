@@ -61,18 +61,19 @@
   <div class="prop-bar" role="region" aria-label="Page setup">
     <!-- The page's properties live here: what has to be set to submit -->
     <div class="prop-strip" id="editor-setup" aria-label="Page setup">
-      <h2 class="prop-title">Page setup</h2>
+      <div class="prop-head">
+        <h2 class="prop-title">Page setup</h2>
+        <!-- Opens the version history (and revert); shown once the page is saved -->
+        <div id="version-field" hidden>
+          <button type="button" class="link-btn" id="version-link" aria-haspopup="dialog"></button>
+        </div>
+      </div>
 
       <div class="prop prop-team" id="team-field">   <!-- Admin can choose it; for everyone else it is shown greyed out -->
         <span class="field-label">Team</span>
         <p class="team-name" id="team-name" hidden></p>
         <div id="team-picker"></div>
         <p class="field-hint" id="team-hint" hidden></p>
-      </div>
-
-      <div id="version-field" hidden>
-        <span class="field-label">Version</span>
-        <button type="button" class="link-btn" id="version-link" aria-haspopup="dialog"></button>
       </div>
 
       <div id="location-field" hidden>   <!-- "Where this lives": not needed for now (see docs/HANDOFF-history.md) -->
