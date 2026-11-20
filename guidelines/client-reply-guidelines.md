@@ -30,6 +30,14 @@ Keep them short and concrete. When a draft sounds wrong, add a rule or an exampl
 - Short: about 80 to 140 words. Short paragraphs, plain words, no headings, no bold, no bullets.
 - No greeting, no sign-off and no subject line: the support person adds those.
 
+## The "check before you send" list
+
+- Not part of the reply. It holds only what would otherwise have been written in square brackets: a sentence or paragraph in the reply that the
+  support person must confirm because it applies to some clients and not others (for example "Confirm whether this client\u2019s domain is hosted
+  by Firefly; remove the Firefly paragraph if it does not apply").
+- Never use it to describe what was left out, what else the page says, how complete the page is, or optional extras. Usually it is empty, and it is
+  never more than two short lines.
+
 ## Example of the tone (not to be copied word for word)
 
 Question: "Who owns our domain?"
