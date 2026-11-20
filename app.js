@@ -3984,7 +3984,7 @@
 
       if (!rows.length) { box.hidden = true; pendingSuggestions = []; return 0; }
       function syncPending() {
-        pendingSuggestions = rows.filter(function (row) { return !row.decision && !row.removed; }).map(function (row) {
+        pendingSuggestions = rows.filter(function (row) { return !row.decision; }).map(function (row) {
           return { action: row.action, target: row.action === 'remove' ? 'block ' + (contentBlocks().indexOf(row.host) + 1) : row.suggestion.target, original: row.action === 'add' ? '' : row.now, title: row.suggestion.title, text: row.suggestion.text, kind: row.kind.toLowerCase(), reason: row.suggestion.reason };
         });
       }
@@ -3992,11 +3992,10 @@
 
       var title = byId('import-suggestions-title');
       function updateTitle() {
-        var live = rows.filter(function (row) { return !row.removed; });
-        var open = live.filter(function (row) { return !row.decision; }).length;
+        var open = rows.filter(function (row) { return !row.decision; }).length;
         title.textContent = open
           ? 'AI suggestions \u00B7 ' + open + ' to review'
-          : 'AI suggestions \u00B7 all ' + live.length + ' reviewed';
+          : 'AI suggestions \u00B7 all ' + rows.length + ' reviewed';
       }
 
       rows.forEach(function (row) {
@@ -4056,11 +4055,16 @@
             var doButton = plainButton(doLabel, doLabel + ': ' + about, function () { decide('approved'); });
             doButton.classList.add('is-' + doLabel.toLowerCase());   // colour-coded: Add blue, Replace amber, Remove red
             choices.appendChild(doButton);
-            choices.appendChild(plainButton('Deny', 'Deny this suggestion: ' + about, function () { decide('denied'); }));
+            // The x dismisses the suggestion: the page stays as it is and the row greys out, with Undo
+            var dismiss = plainButton('', 'Dismiss this suggestion: ' + about, function () { decide('denied'); });
+            dismiss.className = 'import-suggestion-remove';   // a plain black x, no circle
+            dismiss.innerHTML = CLOSE_ICON;
+            dismiss.title = 'Dismiss this suggestion';
+            choices.appendChild(dismiss);
           } else {
             var status = document.createElement('span');
             status.className = 'import-suggestion-status';
-            status.textContent = row.decision === 'approved' ? 'Approved, applied' : 'Denied, text kept';
+            status.textContent = row.decision === 'approved' ? 'Applied' : 'Dismissed';
             choices.appendChild(status);
             var undoButton = plainButton('', 'Undo: ' + about, undo);
             undoButton.classList.add('import-suggestion-undo');
@@ -4068,12 +4072,6 @@
             undoButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
             choices.appendChild(undoButton);
           }
-          // The X takes the suggestion off the list altogether
-          var remove = plainButton('\u00D7', 'Dismiss this suggestion: ' + about, function () { row.removed = true; item.remove(); changed(); if (!list.children.length) { box.hidden = true; } });
-          remove.className = 'import-suggestion-remove';   // a plain black x, no circle
-          remove.innerHTML = CLOSE_ICON;
-          remove.title = 'Dismiss this suggestion';
-          choices.appendChild(remove);
         }
         function decide(value) {
           if (value === 'approved') {
