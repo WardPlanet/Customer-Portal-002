@@ -3887,7 +3887,7 @@
         ? notes.length + (notes.length === 1 ? ' point' : ' points') + ' to check, flagged by the AI'
         : '';
       bar.hidden = !(notes && notes.length);
-      setBarOpen('import-points', true);
+      setBarOpen('import-points', false);   // both bars start closed
     }
 
     // Opens or closes one of the bars (an accordion, like the library's)
@@ -4007,13 +4007,9 @@
         body.className = 'import-suggestion-body';
         var head = document.createElement('div');
         head.className = 'import-suggestion-head';
-        var kind = document.createElement('span');
-        kind.className = 'import-suggestion-kind is-' + row.kind.toLowerCase();
-        kind.textContent = row.kind;
         var where = document.createElement('strong');
         var tag = row.host.querySelector('.block-tag');
         where.textContent = tag && tag.textContent.trim() ? tag.textContent.trim() : (row.host.classList.contains('step-block') ? 'Step' : 'Section');
-        head.appendChild(kind);
         head.appendChild(where);
         if (row.suggestion.reason) {
           var why = document.createElement('span');
@@ -4055,20 +4051,25 @@
           item.classList.toggle('is-approved', row.decision === 'approved');
           item.classList.toggle('is-denied', row.decision === 'denied');
           var about = row.proposed.slice(0, 60);
+          var doLabel = row.action === 'remove' ? 'Remove' : row.action === 'add' ? 'Add' : 'Replace';   // the button says what approving does
           if (!row.decision) {
-            choices.appendChild(plainButton('Approve', 'Approve this suggestion: ' + about, function () { decide('approved'); }));
+            choices.appendChild(plainButton(doLabel, doLabel + ': ' + about, function () { decide('approved'); }));
             choices.appendChild(plainButton('Deny', 'Deny this suggestion: ' + about, function () { decide('denied'); }));
           } else {
             var status = document.createElement('span');
             status.className = 'import-suggestion-status';
             status.textContent = row.decision === 'approved' ? 'Approved, applied' : 'Denied, text kept';
             choices.appendChild(status);
-            choices.appendChild(plainButton('Undo', 'Undo: ' + about, undo));
+            var undoButton = plainButton('', 'Undo: ' + about, undo);
+            undoButton.classList.add('import-suggestion-undo');
+            undoButton.title = 'Undo';
+            undoButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+            choices.appendChild(undoButton);
           }
           // The X takes the suggestion off the list altogether
-          var remove = plainButton('\u00D7', 'Remove this suggestion: ' + about, function () { row.removed = true; item.remove(); changed(); if (!list.children.length) { box.hidden = true; } });
+          var remove = plainButton('\u00D7', 'Dismiss this suggestion: ' + about, function () { row.removed = true; item.remove(); changed(); if (!list.children.length) { box.hidden = true; } });
           remove.classList.add('import-suggestion-remove');
-          remove.title = 'Remove this suggestion';
+          remove.title = 'Dismiss this suggestion';
           choices.appendChild(remove);
         }
         function decide(value) {
@@ -4123,7 +4124,7 @@
 
       updateTitle();
       box.hidden = false;
-      setBarOpen('import-suggestions', true);
+      setBarOpen('import-suggestions', false);
       return rows.length;
     }
 
