@@ -1406,7 +1406,8 @@
       nameCell.appendChild(titleLink);
       if (window.Batch && window.Batch.isChecked && window.Batch.isChecked(p.id)) {
         // Built by the batch import that has just run; the mark goes when the library page is left
-        var built = el('span', 'build-check', '\u2713');
+        var built = el('span', 'build-check');
+        built.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';   // a white check in a green circle (fixed markup)
         built.title = 'Built from your import';
         built.setAttribute('aria-label', 'Built from your import');
         nameCell.appendChild(built);

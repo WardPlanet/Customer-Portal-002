@@ -3308,4 +3308,4 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .lib-row.is-building .build-track .bar-fill { background: var(--success); }
 .lib-row.is-build-failed td { opacity: 1; }
 .build-failed { color: var(--danger); font-weight: 600; font-size: 13px; }
-.build-check { margin-left: 8px; color: var(--success); font-weight: 700; }
+.build-check { display: inline-grid; place-items: center; width: 18px; height: 18px; margin-left: 8px; vertical-align: middle; border-radius: 50%; background: var(--success); color: #fff; }
