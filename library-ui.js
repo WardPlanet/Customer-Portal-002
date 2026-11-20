@@ -1721,12 +1721,24 @@
   // in the review view, and for an owner, it is read-only. A public page cannot have it on.
   function showOwnerPublishField(id, detail, editable) {
     var page = detail && detail.page;
-    if (!page || !page.liveVersion) { window.PageEditor.setOwnerPublish(null); return; }
-    var canChange = editable && (actorIsLead() || actingAsAdmin()) && (page.visibility === 'Internal-Only' || page.ownerPublishes);
+    var lead = actorIsLead() || actingAsAdmin();
+    var live = !!(page && page.liveVersion);
+    // The team lead owns the page (or it has no owner yet and the lead is the default): there is nobody to allow
+    var leadOwns = !!(page && ((page.owner && personFor(page.owner) && personFor(page.owner) === personFor(team.lead)) || (!page.owner && page.ownerDefault)));
+    var note = '';
+    var text = '';
+    var canChange = false;
+    if (!live) { note = 'Available once the page is live. The team lead is asked when first publishing an internal page.'; }
+    else if (leadOwns) { note = 'Not needed: the team lead owns this page and publishes without review.'; text = 'Not needed'; }
+    else if (page.visibility !== 'Internal-Only' && !page.ownerPublishes) { note = 'A public page always needs review.'; }
+    else if (!lead) { note = 'The team lead sets this.'; }
+    else if (!editable) { note = 'Open the page to edit to change it.'; }
+    else { canChange = true; }
     window.PageEditor.setOwnerPublish({
-      value: !!page.ownerPublishes,
+      value: !!(page && page.ownerPublishes) && !leadOwns,
       editable: canChange,
-      note: page.visibility !== 'Internal-Only' ? 'A public page always needs review.' : (canChange ? '' : 'The team lead sets this. Open the page to edit to change it.'),
+      note: note,
+      text: text,
       onChange: async function (on) {
         var done = await attempt(backend().setOwnerPublishes(id, on));
         if (!done) { return false; }
@@ -1877,6 +1889,18 @@
     return true;
   }
 
+  // Delete draft on a page that was never live: the whole draft goes to Recently deleted (a draft of a live page is thrown away instead and the page
+  // goes back to the live version). Greyed out until the draft has been saved (app.js: updateLiveEditButtonsNow).
+  function wireDeleteDraft() {
+    var button = document.getElementById('delete-draft');
+    button.hidden = false;
+    button.onclick = async function () {
+      if (button.getAttribute('aria-disabled') === 'true' || current.id === null) { return; }
+      var detail = await attempt(backend().get(current.id));
+      if (detail && await confirmAndDelete(detail.page)) { location.hash = '#/'; }
+    };
+  }
+
   async function openEditor(id, n) {
     var mine = routing;
     if (!(await inPageDepartment(id))) { return; }
@@ -1968,6 +1992,11 @@
       var discardNow = async function () { if (document.getElementById('delete-draft').getAttribute('aria-disabled') === 'true') { return; } if (await confirmAndDiscardDraft(id, Number(n), discardTitle)) { location.hash = '#/'; } };
       footerDelete.hidden = false;
       footerDelete.onclick = discardNow;
+    } else if (!current.liveEdit) {
+      wireDeleteDraft();   // a draft of a page that was never live
+    } else {
+      footerDelete.hidden = false;   // every editing page has Delete draft; here there is nothing this person may throw away
+      footerDelete.onclick = null;
     }
     if (leadView && status === 'submitted') { actionsRow.appendChild(button('Request changes', 'row-btn', function () { sendBackWithComment(id, Number(n)); })); }
     box.appendChild(actionsRow);
@@ -2100,11 +2129,13 @@
   function openNewPage() {
     showScreen('editor', false);
     setMainButtonLabel();
-    document.getElementById('delete-draft').hidden = true;
+    document.getElementById('delete-draft').hidden = false;   // greyed out until the page is saved
+    document.getElementById('delete-draft').onclick = null;
     document.getElementById('save-note').hidden = true;
     renderChanges([], null, null);
     window.PageEditor.reset();
     window.PageEditor.setLabel('New page');
+    showOwnerPublishField(null, null, true);   // greyed out: it needs a live page
     setTeamPicker(window.Store.isAdminMode && window.Store.isAdminMode() && window.Store.teams().length >= 1);
     current = { id: null, n: null, backTo: '#/' };
     setBanner(null);
@@ -4607,6 +4638,8 @@
         current = { id: created.page.id, n: created.version, backTo: '#/' };
         history.replaceState(null, '', '#/edit/' + current.id + '/' + current.n);   // no reload of the editor
         updateVersionLink(current.id);   // the Version history link appears now that the page is saved
+        wireDeleteDraft();               // and Delete draft works
+        window.PageEditor.refresh();
       } else {
         var noteBox = document.getElementById('save-note');
         var reply = await backend().save(current.id, current.n, text, current.liveEdit ? noteBox.value : '');
@@ -4656,6 +4689,7 @@
     // Called by the editor on a timer. Saves the draft quietly when the page already exists in the library;
     // a brand-new page is only kept once the person has saved it themselves. Resolves to true when it saved.
     isLiveEdit: function () { return !!current.liveEdit; },
+    isSavedPage: function () { return current.id !== null; },   // the page exists in the library (Delete draft needs that)
     hasSavedDraftChanges: function () { return !!current.draftChanged; },   // the saved draft of this live page differs from the live version
     autosaveEnabled: function () { return !current.liveEdit; },   // a draft of a live page is saved only when the editor clicks Save draft
     autosave: async function (text) {

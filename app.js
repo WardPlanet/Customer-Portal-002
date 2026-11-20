@@ -200,7 +200,13 @@
       var main = byId('submit-draft');
       save.removeAttribute('data-nochange');
       main.removeAttribute('data-nochange');
-      if (!live) { del.removeAttribute('aria-disabled'); return; }
+      if (!live) {
+        // A draft of a page that was never live: Delete draft needs the draft to be saved first (a new page has nothing to delete yet)
+        var savedPage = !!(host && host.isSavedPage && host.isSavedPage());
+        del.setAttribute('aria-disabled', String(!savedPage));
+        del.title = savedPage ? '' : 'Save the draft first. There is nothing to delete yet';
+        return;
+      }
       var changed = byId('save-status').classList.contains('is-unsaved') && pageHasContent();
       if (!changed) {
         save.setAttribute('aria-disabled', 'true');
@@ -5174,7 +5180,7 @@
       byId('ownerpub').disabled = !config.editable;
       byId('ownerpub-toggle').title = config.note || '';
       byId('ownerpub-toggle').classList.toggle('is-disabled', !config.editable);
-      byId('ownerpub-text').textContent = config.value ? 'Allow' : 'Requires review';
+      byId('ownerpub-text').textContent = config.text || (config.value ? 'Allow' : 'Requires review');
     }
     byId('ownerpub').addEventListener('change', async function () {
       var box = byId('ownerpub');
