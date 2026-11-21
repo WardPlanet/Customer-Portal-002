@@ -236,7 +236,7 @@
     submitted: ['In review', 'review'],
     sent_back: ['Sent back', 'sent-back'],
     approved: ['Live', 'live'],
-    superseded: ['Replaced', 'unpublished'],
+    superseded: ['Archived', 'unpublished'],   // a version that is no longer in use
     unpublished: ['Unpublished', 'unpublished']
   };
 
@@ -1687,7 +1687,12 @@
     thead.appendChild(headRow);
     table.appendChild(thead);
     var body = el('tbody');
-    data.history.forEach(function (v) {
+    // The history is the versions that were released. A draft, a version in review or one sent back is work in progress, not history yet: it
+    // has its own place (Edit, or the review), so it is only mentioned here.
+    var released = data.history.filter(function (v) { return !!v.release; });
+    var inProgress = data.history.some(function (v) { return !v.release; });
+    if (inProgress) { dialog.appendChild(el('p', 'dialog-hint', released.length ? 'A newer draft is in progress. It joins this history when it is published.' : 'Nothing has been released yet. The draft joins this history when it is published.')); }
+    released.forEach(function (v) {
       var row = el('tr', 'lib-row');
       var versionCell = el('td');
       var isImport = !!(data.page.importRecord && v.n === 1);   // the version an import created reads "Import", never "Draft"
@@ -1755,7 +1760,7 @@
       body.appendChild(notesRow);
     });
     table.appendChild(body);
-    dialog.appendChild(table);
+    if (released.length) { dialog.appendChild(table); }
     var actions = el('div', 'dialog-actions');
     actions.appendChild(button('Close', 'primary-btn', function () { dialog.close(); }));
     dialog.appendChild(actions);

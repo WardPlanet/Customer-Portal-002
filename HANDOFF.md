@@ -179,3 +179,5 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 5. Several teams on one server is not supported yet (one team for the alpha).
 
 **Security basics (server):** `security.js` adds a content security policy (own files only, no framing), nosniff and similar headers to every response, and limits AI use to `AI_RATE_LIMIT` requests a minute per person (default 60; answers 429). Checked against the running server: library and editor load with no policy violations. Not yet exercised under the policy: PDF export and Word import (they load their libraries from the server, so they should be fine). Remaining for hosting: backups of `/data`, an activity log, an accessibility check with a screen reader.
+
+**Version history:** lists only released versions (live and archived); a draft, a version in review or one sent back is not history yet, so the dialog just says a newer draft is in progress. A version that is no longer in use says **Archived** (it used to say Replaced).
