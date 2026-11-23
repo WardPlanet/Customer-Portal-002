@@ -3677,7 +3677,8 @@
       }
       if (note) { listBox.appendChild(note); }
       live.forEach(function (p, position) {
-        var card = el('div', 'public-card');
+        var card = el('div', 'public-card' + (options && options.restoring ? '' : ' is-arriving'));   // a new search fades in, one after another
+        card.style.setProperty('--i', String(Math.min(position, 12)));
         var icon = filters.team ? null : teamIcon(p);   // with one department chosen the icon says nothing new
         if (icon) { card.appendChild(icon); }
         var body = el('div', 'public-card-body');
