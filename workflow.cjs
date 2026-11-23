@@ -985,7 +985,7 @@
       submitted: 'waiting for review',
       sent_back: 'sent back',
       approved: 'live',
-      superseded: 'replaced by a newer version',
+      superseded: 'archived (a newer version is live)',
       unpublished: 'unpublished'
     }[status] || status;
   }
