@@ -3406,5 +3406,5 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 
 /* The results of a search fade in one after another, very quickly (not for someone coming back to a search, and not with reduced motion) */
 @keyframes result-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.public-card.is-arriving { animation: result-arrive 180ms ease-out both; animation-delay: calc(var(--i, 0) * 35ms); }
+.public-card.is-arriving { animation: result-arrive 250ms ease-out both; animation-delay: calc(var(--i, 0) * 35ms); }
 @media (prefers-reduced-motion: reduce) { .public-card.is-arriving { animation: none; } }
