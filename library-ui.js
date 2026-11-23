@@ -455,7 +455,7 @@
       pop.appendChild(el('h2', 'notify-title', expiring.every(function (p) { return expiryOf(p).expired; }) ? 'Expired' : 'Expiring or expired'));
       expiring.forEach(function (p) {
         var info = expiryOf(p);
-        var item = link('', '#/', 'notify-item');
+        var item = link('', '#/', 'notify-item ' + (info.expired ? 'is-expired' : 'is-expiring'));   // red for expired, yellow for expiring soon
         var line = el('strong', '');
         line.appendChild(cautionIcon(info.expired));
         line.appendChild(document.createTextNode(p.title));
