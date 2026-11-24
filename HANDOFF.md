@@ -204,3 +204,5 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 
 **Internal only / Public (option B):** the pill has an icon, a tint and plain words: the same dark-on-white pill as Internal only for Public (blue looked like a button, green like Live, teal was tried); a globe or a lock and the words are the only difference, so colour never separates them, a lock on a white pill with dark text and a dark outline for Internal only (it used to say just "Internal"; grey was dropped because it looked switched off). One function, `visibilityPill`, draws it everywhere (library, search results, live page header). A public page also shows a blue banner at the top for staff ("Public: clients can read this page on the support site."), never to a visitor.
 Also fixed: in dark mode the start-page search suggestions were white with pale text and unreadable; the list now keeps dark text next to the white box and follows the theme elsewhere.
+
+**Draft grey:** the Draft badge's outline and the draft row's side bar share one setting, `--draft-line` (the text colour at 28% over the surface: a little darker than the standard border).
