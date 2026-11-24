@@ -3445,6 +3445,3 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 :root { --public-bg: var(--surface); --public-ink: var(--text); --public-border: color-mix(in srgb, var(--text) 45%, var(--surface)); }
 .pill-public { background: var(--public-bg); color: var(--public-ink); border-color: var(--public-border); }
 .public-banner { background: var(--public-bg); color: var(--public-ink); border-color: var(--public-border); }
-
-/* The globe on Public is the icon blue (the text and outline stay neutral) */
-.pill-public .pill-icon, .public-banner .pill-icon { color: var(--icon-blue); }
