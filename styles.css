@@ -3425,3 +3425,14 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .toc-head .side-title { text-transform: none; letter-spacing: 0; font-size: 13px; }
 /* Text inputs share one corner radius (the Ask box was 12px) */
 .ask-input { border-radius: 8px; }
+
+/* Internal only / Public: an icon, a tint and plain words. Public is the blue tint with a globe; Internal only is the grey tint with a lock. */
+.pill { display: inline-flex; align-items: center; gap: 6px; }
+.pill-icon { display: inline-grid; place-items: center; line-height: 0; }
+.pill-public { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent-border); font-weight: 600; }
+.pill-internal { background: var(--table-alt); color: var(--text-muted); border-color: var(--border-strong); font-weight: 600; }
+
+/* Search suggestions: the list is white next to the white start-page box, so its text stays dark even in dark mode. Where the box follows the theme
+   (the results header, the sticky bar, a live page's side search) the list follows the theme too. */
+.suggest-list { --text: #18181b; --text-faint: #6b6b75; --border: #e4e4e7; --surface-muted: #f2f2f2; }
+.landing-hero.is-results .suggest-list, .landing-bar .suggest-list, .side-head .suggest-list { background: var(--surface); --text: unset; --text-faint: unset; --border: unset; --surface-muted: unset; }

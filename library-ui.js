@@ -244,10 +244,18 @@
     return el('span', 'badge badge-' + labels[1], labels[0]);
   }
 
+  // A globe for Public, a lock for Internal only: the difference is never colour alone (fixed markup, no page text)
+  var GLOBE_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>';
+  var LOCK_PILL_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
   function visibilityPill(visibility) {
-    // "Internal-Only" is shortened to "Internal" so it stays on one line in the table
     if (!visibility) { return el('span', 'pill pill-nowrap pill-internal', 'Not set'); }   // a draft whose visibility has not been chosen yet
-    return el('span', 'pill pill-nowrap ' + (visibility === 'Client-Safe' ? 'pill-public' : 'pill-internal'), visibility === 'Client-Safe' ? 'Public' : 'Internal');
+    var isPublic = visibility === 'Client-Safe';
+    var pill = el('span', 'pill pill-nowrap ' + (isPublic ? 'pill-public' : 'pill-internal'));
+    var icon = el('span', 'pill-icon');
+    icon.innerHTML = isPublic ? GLOBE_SVG : LOCK_PILL_SVG;
+    pill.appendChild(icon);
+    pill.appendChild(document.createTextNode(isPublic ? 'Public' : 'Internal only'));
+    return pill;
   }
 
   // Runs an action and reports a problem in plain words instead of failing silently
