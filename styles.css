@@ -495,7 +495,7 @@
   .setup .has-error .field-error { margin-top: 8px; }
   .reviewer-field.is-locked { background: var(--surface-muted); cursor: default; }
   .reviewer-select:disabled { opacity: 1; color: var(--text); cursor: default; }
-  #owner, #reviewer, #role-add { font-size: 13px; }
+  #owner, #reviewer, #role-add { font-size: 14px; }   /* the same size as the other Page setup selects */
   .team-name { margin: 0; font-size: 14px; font-weight: 600; }
   .role-list { display: flex; flex-direction: column; gap: 8px; margin: 0 0 8px; padding: 0; list-style: none; }
   .role-list:empty { display: none; }
@@ -3081,7 +3081,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 #confirm-dialog-ok:disabled { opacity: .5; cursor: not-allowed; }
 
 /* A deletion request: its own dark red (a maroon), with a bin icon, so it is not read as "expired" */
-:root { --delete-ink: #7a1220; --delete-bg: #f7e1e4; --delete-border: color-mix(in srgb, var(--delete-ink) 35%, var(--delete-bg)); --delete-bar: var(--delete-ink); }   /* two colours: strong and tint */
+:root { --delete-ink: #7a1220; --delete-bg: #f7e1e4; --delete-border: color-mix(in srgb, var(--delete-ink) 45%, var(--delete-bg)); --delete-bar: var(--delete-ink); }   /* two colours: strong and tint */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --delete-ink: #f3a3ae; --delete-bg: #3a141a; } }
 :root[data-theme="dark"] { --delete-ink: #f3a3ae; --delete-bg: #3a141a; }
 .badge-delete { display: inline-flex; align-items: center; gap: 5px; color: var(--delete-ink); background: var(--delete-bg); border-color: var(--delete-border); font-weight: 700; }
@@ -3416,3 +3416,12 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* The grey avatar uses the faint text grey; in dark mode that is a light grey, so its initials turn dark to stay readable */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .avatar-grey { color: var(--bg); } }
 :root[data-theme="dark"] .avatar-grey { color: var(--bg); }
+
+/* ---------- Uniformity pass ---------- */
+/* Pill buttons: the same type in the same row (Save draft beside Publish), and the same height (a border on both) */
+.secondary-btn { font-size: 14px; font-weight: 600; }
+.submit-btn { border: 1px solid transparent; }
+/* "On this page" reads the same on a live page as in the editor: 13px, sentence case */
+.toc-head .side-title { text-transform: none; letter-spacing: 0; font-size: 13px; }
+/* Text inputs share one corner radius (the Ask box was 12px) */
+.ask-input { border-radius: 8px; }
