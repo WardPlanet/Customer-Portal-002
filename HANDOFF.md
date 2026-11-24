@@ -191,3 +191,5 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 **Reds:** the four stray reds (print warning, admin error toast, a fallback colour, a red text) now use the main red (`--danger`, `--danger-soft`). The deletion burgundy is two colours, `--delete-ink` (strong) and `--delete-bg` (tint); its border and side bar are made from them. Light mode: main red 3 + burgundy 2 = 5 reds.
 
 **Red border:** `--danger-border` is now the main red mixed 45% into its tint (same recipe as the yellow border), used by every red box. Light mode reds: main red, its tint, burgundy strong and tint = 4 (the red border and the burgundy border are mixed from these).
+
+**Greens:** removed the unused "go" greens; the Admin Active badge uses the Live pair; the Live border and the live row's side bar are the same green as the Live text (`--live-ink`, #14703a). Light mode greens: that green, the Live tint (#e3f6ea), and the bright success green (#1fa65a, progress bar and check) = 3.
