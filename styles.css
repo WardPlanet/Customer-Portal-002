@@ -3430,9 +3430,12 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; }
 .pill-icon { display: inline-grid; place-items: center; line-height: 0; }
 .pill-public { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent-border); font-weight: 600; }
-.pill-internal { background: var(--table-alt); color: var(--text-muted); border-color: var(--border-strong); font-weight: 600; }
+.pill-internal { background: var(--surface); color: var(--text); border-color: color-mix(in srgb, var(--text) 45%, var(--surface)); font-weight: 600; }   /* dark on white, not grey: it must not look switched off */
 
 /* Search suggestions: the list is white next to the white start-page box, so its text stays dark even in dark mode. Where the box follows the theme
    (the results header, the sticky bar, a live page's side search) the list follows the theme too. */
 .suggest-list { --text: #18181b; --text-faint: #6b6b75; --border: #e4e4e7; --surface-muted: #f2f2f2; }
 .landing-hero.is-results .suggest-list, .landing-bar .suggest-list, .side-head .suggest-list { background: var(--surface); --text: unset; --text-faint: unset; --border: unset; --surface-muted: unset; }
+
+/* The banner at the top of a public page, for staff */
+.public-banner { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 16px; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 8px; color: var(--accent-strong); font-size: 13px; font-weight: 600; }

@@ -4880,6 +4880,15 @@
           eyebrowRow.appendChild(eyebrowDetails);
         }
         pageTitle.parentNode.insertBefore(eyebrowRow, pageTitle);
+        // A public page tells staff who can read it (a visitor never sees this line): the cost of a mistake is highest here
+        if (!publicMode && detail.page.visibility === 'Client-Safe') {
+          var publicBanner = el('div', 'public-banner');
+          var bannerIcon = el('span', 'pill-icon');
+          bannerIcon.innerHTML = GLOBE_SVG;   // fixed markup, no page text
+          publicBanner.appendChild(bannerIcon);
+          publicBanner.appendChild(el('span', '', 'Public: clients can read this page on the support site.'));
+          pageTitle.parentNode.insertBefore(publicBanner, pageTitle);
+        }
       }
       // Who to ask, as a quiet byline under the title (staff; a visitor sees the support link in the column instead)
       if (pageTitle && !asPublic) {
