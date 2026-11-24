@@ -219,3 +219,5 @@ Also fixed: in dark mode the start-page search suggestions were white with pale 
 - The coloured bar on a library row is drawn by one rule (`--row-bar`); each status only picks the colour.
 - 40 rules and 3 selector lists for classes nothing uses any more were deleted (about 4.6 KB).
 - Still to do if wanted: merge the 220 or so selectors defined more than once, snap the odd spacing values (6, 10, 14px) to the 4px pattern, and use `light-dark()` so each colour is written once instead of three times.
+
+**Spacing snap:** the odd spacing values 3, 5, 10 and 14px (21 declarations) moved to the 4px pattern (4, 4, 12, 16). The 6px values were left alone on purpose: snapping them to 8px stretched "On this page" on a live page, which had been tuned to match the editor. Before/after screenshots differ only by 2px nudges (the Ask card title, the toggle and its label). Remaining spacing values not on the 4px grid: 1px and 2px hairlines, and 6px.
