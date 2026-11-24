@@ -3415,3 +3415,4 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 
 /* The names in the byline a little larger */
 .contact-byline .byline-name { font-size: 15px; }
+.contact-byline .byline-role { font-size: 14px; }
