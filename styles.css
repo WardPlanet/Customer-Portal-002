@@ -3446,7 +3446,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .pill-public { background: var(--public-bg); color: var(--public-ink); border-color: var(--public-border); }
 .public-banner { background: var(--public-bg); color: var(--public-ink); border-color: var(--public-border); }
 
-/* Drafts: one grey for the Draft badge's outline and the row's side bar, a little darker than the standard border */
-:root { --draft-line: color-mix(in srgb, var(--text) 28%, var(--surface)); }
+/* Drafts: one grey for the Draft badge's text, its outline and the row's side bar */
+:root { --draft-line: var(--text-muted); }   /* the same grey as the word Draft */
 .badge-draft { border-color: var(--draft-line); }
 .lib-row.is-draft td:first-child { box-shadow: inset 4px 0 0 var(--draft-line); }
