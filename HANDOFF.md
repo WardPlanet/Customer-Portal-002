@@ -187,3 +187,5 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 **One yellow:** the three yellow tints (notes, expiring bars, linked section) are now one (`--warn-bg`, #fff4cc). The warning triangle and the text on yellow share one colour (`--warn-ink`: dark gold #876500 in light mode, gold #f2c230 in dark). Other yellows left separate: the search highlight, the border, and the orange used for "sent back".
 
 **Yellow border:** `--warn-border` is now the yellow text colour mixed 45% into the tint (`color-mix`), so it is built from the same brown (gold in dark mode) instead of being its own colour. Yellows in light mode: tint, search highlight, the dark gold ink #876500 (text, triangle, border), and the orange for "sent back".
+
+**Reds:** the four stray reds (print warning, admin error toast, a fallback colour, a red text) now use the main red (`--danger`, `--danger-soft`). The deletion burgundy is two colours, `--delete-ink` (strong) and `--delete-bg` (tint); its border and side bar are made from them. Light mode: main red 3 + burgundy 2 = 5 reds.

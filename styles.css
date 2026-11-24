@@ -27,7 +27,7 @@
     --blue-bright: #4da3ff;   /* the light blue used on dark surfaces */
     --live-bg: #e3f6ea; --live-ink: #14703a; --live-border: #b6e3c6;   /* the Live status */
     --warn-ink: #876500;      /* text, triangle and border on the warning tint: a dark gold */
-    --danger-ink: #9b2c23;    /* text on the danger tint */
+    --danger-ink: var(--danger);    /* text on the danger tint: the main red */
     --mark-bg: #fff1a8;       /* a search hit */
     --brand-tint: #d3e6f5;   /* the third brand colour: a pale sky blue */
     --accent-soft: #d3e6f5;  /* soft fills (selected chips, the Back link, selected rows) use the brand tint */
@@ -1412,7 +1412,7 @@
     .print-callout { margin: 0 0 12pt; padding: 8pt 10pt; border-left: 4pt solid; border-radius: 4px; break-inside: avoid; }
     .print-callout strong { display: block; margin-bottom: 2pt; }
     .print-note { background: #eaf2fd; border-color: #0069dc; }
-    .print-warning { background: #fdecea; border-color: #c62828; }
+    .print-warning { background: var(--danger-soft); border-color: var(--danger); }
     .print-code {
       margin: 0 0 12pt;
       padding: 8pt 10pt;
@@ -2210,7 +2210,7 @@ mark.search-hit { background: var(--mark-bg); color: inherit; border-radius: 4px
 
 /* The message with Undo, bottom left */
 .admin-toast { position: fixed; left: 20px; bottom: 20px; z-index: 80; display: flex; align-items: center; gap: 16px; max-width: min(520px, calc(100vw - 40px)); padding: 12px 16px; color: var(--white); background: #1B1F45; border-radius: 12px; box-shadow: var(--shadow-popover); animation: admin-slide-in 0.2s ease; }
-.admin-toast.is-error { background: #8A1C1C; }
+.admin-toast.is-error { background: var(--danger); }
 .admin-toast-text { font-size: 14px; }
 .admin-toast-undo { padding: 4px 12px; font: inherit; font-size: 14px; font-weight: 700; color: var(--brand-tint); background: none; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 8px; cursor: pointer; }
 .admin-toast-undo:hover { background: rgba(255, 255, 255, 0.12); }
@@ -2745,8 +2745,8 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .preview-flag-choices .row-btn[aria-pressed="true"] { color: #fff; border-color: transparent; }
 .preview-flag.is-approved { border-color: var(--icon-blue); }
 .preview-flag-choices .row-btn[aria-pressed="true"]:first-child { background: var(--icon-blue); }
-.preview-flag.is-denied { border-color: var(--danger, #B42318); background: var(--surface-muted); }
-.preview-flag-choices .row-btn[aria-pressed="true"]:last-child { background: var(--danger, #B42318); }
+.preview-flag.is-denied { border-color: var(--danger); background: var(--surface-muted); }
+.preview-flag-choices .row-btn[aria-pressed="true"]:last-child { background: var(--danger); }
 
 /* Library rows: a person's own drafts are light grey and stay on top; a page close to expiring is light yellow with a caution triangle */
 
@@ -3087,9 +3087,9 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 #confirm-dialog-ok:disabled { opacity: .5; cursor: not-allowed; }
 
 /* A deletion request: its own dark red (a maroon), with a bin icon, so it is not read as "expired" */
-:root { --delete-ink: #7a1220; --delete-bg: #f7e1e4; --delete-border: #d99aa3; --delete-bar: #8f1a2b; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --delete-ink: #f3a3ae; --delete-bg: #3a141a; --delete-border: #7e3440; --delete-bar: #d9697a; } }
-:root[data-theme="dark"] { --delete-ink: #f3a3ae; --delete-bg: #3a141a; --delete-border: #7e3440; --delete-bar: #d9697a; }
+:root { --delete-ink: #7a1220; --delete-bg: #f7e1e4; --delete-border: color-mix(in srgb, var(--delete-ink) 35%, var(--delete-bg)); --delete-bar: var(--delete-ink); }   /* two colours: strong and tint */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --delete-ink: #f3a3ae; --delete-bg: #3a141a; } }
+:root[data-theme="dark"] { --delete-ink: #f3a3ae; --delete-bg: #3a141a; }
 .badge-delete { display: inline-flex; align-items: center; gap: 5px; color: var(--delete-ink); background: var(--delete-bg); border-color: var(--delete-border); font-weight: 700; }
 .badge-delete-icon { display: inline-grid; }
 .lib-row.is-delete-requested td:first-child { box-shadow: inset 4px 0 0 var(--delete-bar); }
