@@ -193,3 +193,5 @@ axe-core (WCAG 2 A and AA plus best practice) found and we fixed contrast proble
 **Red border:** `--danger-border` is now the main red mixed 45% into its tint (same recipe as the yellow border), used by every red box. Light mode reds: main red, its tint, burgundy strong and tint = 4 (the red border and the burgundy border are mixed from these).
 
 **Greens:** removed the unused "go" greens; the Admin Active badge uses the Live pair; the Live text is the dark green (#14703a, readable on the tint); the Live border and the live row side bar are the bright success green (#1fa65a). Light mode greens: that green, the Live tint (#e3f6ea), and the bright success green (#1fa65a, progress bar and check) = 3.
+
+**Blues:** light mode has one main blue, the logo blue #0069dc (`--accent`, `--accent-text`; it was #0a66d8 and #0a5bc4). The blue border is that blue mixed 45% into the tint (`--accent-border`, light and dark). The landing tile text uses the navy. Kept: the tint #d3e6f5, the navy #000f60, the deeper #0a4fb0 for the In review badge text, and the AI purple family. Note: #0069dc on the pale tint is 4.1:1 (just under the 4.5:1 guideline for small text).

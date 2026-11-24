@@ -21,7 +21,7 @@
     --text: #18181b;
     --text-muted: #52525b;
     --text-faint: #6b6b75;   /* 4.5:1 on the page greys */
-    --accent: #0a66d8;
+    --accent: #0069dc;   /* the logo blue: the one main blue */
     --white: #ffffff;
     --navy: #000f60;          /* the logo letters: headings, table headers */
     --blue-bright: #4da3ff;   /* the light blue used on dark surfaces */
@@ -33,8 +33,8 @@
     --accent-soft: #d3e6f5;  /* soft fills (selected chips, the Back link, selected rows) use the brand tint */
     --code-bg: #f4f5f9;
     --code-text: #1b1b3a;
-    --accent-border: #9cc4f5;
-    --accent-text: #0a66d8;
+    --accent-border: color-mix(in srgb, var(--accent) 45%, var(--accent-soft));
+    --accent-text: #0069dc;
     --warn-bg: #fff4cc;   /* the one yellow tint: notes, expiring bars, linked section */
     --warn-border: color-mix(in srgb, var(--warn-ink) 45%, var(--warn-bg));   /* the yellow text colour, softened */
     --warn-icon: #d9640a;
@@ -73,7 +73,7 @@
       --accent-soft: #14304f;
       --code-bg: #0d0e11;
       --code-text: #e6e6ee;
-      --accent-border: #2c5a94;
+      --accent-border: color-mix(in srgb, var(--accent) 45%, var(--accent-soft));
       --accent-text: #8dbcf7;
       --warn-bg: #2f2a10;
       --warn-ink: #f2c230;
@@ -104,7 +104,7 @@
     --accent-soft: #14304f;
     --code-bg: #0d0e11;
     --code-text: #e6e6ee;
-    --accent-border: #2c5a94;
+    --accent-border: color-mix(in srgb, var(--accent) 45%, var(--accent-soft));
     --accent-text: #8dbcf7;
     --warn-bg: #2f2a10;
     --warn-ink: #f2c230;
@@ -2045,7 +2045,7 @@ mark.search-hit { background: var(--mark-bg); color: inherit; border-radius: 4px
 /* The tiles follow the theme: pale blue in light mode (as before), dark surfaces in dark mode. The description shows up to three lines and
    ends with an ellipsis; the tile grows to fit, with a "View page" line at the bottom. */
 .landing-tile {
-  --tile-bg: var(--surface); --tile-hover: var(--surface-muted); --tile-border: var(--border); --tile-title: var(--navy); --tile-text: #2A3F6B; --tile-link: #0A5BC4; --tile-icon: var(--icon-blue);
+  --tile-bg: var(--surface); --tile-hover: var(--surface-muted); --tile-border: var(--border); --tile-title: var(--navy); --tile-text: var(--navy); --tile-link: var(--accent-text); --tile-icon: var(--icon-blue);
   display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; min-height: 200px; padding: 24px 24px; box-sizing: border-box;
   background: var(--tile-bg); border: 1px solid var(--tile-border); border-radius: 12px; color: var(--tile-title); text-decoration: none;
 }
