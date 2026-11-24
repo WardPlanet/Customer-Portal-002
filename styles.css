@@ -36,7 +36,7 @@
     --accent-border: #9cc4f5;
     --accent-text: #0a66d8;
     --warn-bg: #fff4cc;   /* the one yellow tint: notes, expiring bars, linked section */
-    --warn-border: #f5d77a;
+    --warn-border: color-mix(in srgb, var(--warn-ink) 45%, var(--warn-bg));   /* the yellow text colour, softened */
     --warn-icon: #d9640a;
     --linked-bg: var(--warn-bg);
     --success: #1fa65a;
@@ -77,7 +77,7 @@
       --accent-text: #8dbcf7;
       --warn-bg: #2f2a10;
       --warn-ink: #f2c230;
-      --warn-border: #6b5a1c;
+      --warn-border: color-mix(in srgb, var(--warn-ink) 45%, var(--warn-bg));   /* the yellow text colour, softened */
       --warn-icon: #f09a4a;
       --linked-bg: var(--warn-bg);
       color-scheme: dark;
@@ -108,7 +108,7 @@
     --accent-text: #8dbcf7;
     --warn-bg: #2f2a10;
     --warn-ink: #f2c230;
-    --warn-border: #6b5a1c;
+    --warn-border: color-mix(in srgb, var(--warn-ink) 45%, var(--warn-bg));   /* the yellow text colour, softened */
     --warn-icon: #f09a4a;
     --linked-bg: var(--warn-bg);
     color-scheme: dark;
