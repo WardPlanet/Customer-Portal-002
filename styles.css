@@ -3095,7 +3095,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Accessibility pass: contrast fixes */
-:root { --accent-strong: #0a4fb0; }
+:root { --accent-strong: var(--navy); }   /* light mode: the navy (dark mode has its own light blue) */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent-strong: #8dbcf7; } }
 :root[data-theme="dark"] { --accent-strong: #8dbcf7; }
 .badge-review { color: var(--accent-strong); }
