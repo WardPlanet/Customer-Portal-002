@@ -4859,6 +4859,14 @@
             var eyebrowUpdated = el('span', 'preview-updated', 'Updated ' + W.daysAgo(detail.page.updatedAt));
             eyebrowUpdated.title = formatDate(detail.page.updatedAt);
             eyebrowDetails.appendChild(eyebrowUpdated);
+            // A page past its review date says so beside "Updated", in red (staff only: a visitor never sees this line)
+            var pageExpiry = detail.page.liveVersion ? W.expiryStatus(detail.page.updatedAt) : null;
+            if (pageExpiry && pageExpiry.expired) {
+              eyebrowUpdated.classList.add('is-expired');
+              eyebrowUpdated.appendChild(document.createTextNode(' \u00B7 '));
+              eyebrowUpdated.appendChild(cautionIcon(true));
+              eyebrowUpdated.appendChild(el('strong', '', pageExpiry.text));
+            }
           }
           eyebrowDetails.appendChild(visibilityPill(detail.page.visibility));   // "Updated ..." first, then Public / Internal at the far right
           eyebrowRow.appendChild(eyebrowDetails);

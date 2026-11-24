@@ -3408,3 +3408,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 @keyframes result-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .public-card.is-arriving { animation: result-arrive 250ms ease-out both; animation-delay: calc(var(--i, 0) * 35ms); }
 @media (prefers-reduced-motion: reduce) { .public-card.is-arriving { animation: none; } }
+
+/* An expired page says so beside "Updated" on the live page, in red */
+.preview-updated.is-expired, .eyebrow-details .preview-updated.is-expired { color: var(--danger); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.preview-updated.is-expired strong { font-weight: 700; }
