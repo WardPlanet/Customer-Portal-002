@@ -15,7 +15,7 @@
     --icon-blue: #0069DC;    /* every icon: the light blue of the logo bars */
     --table-head: #d3e6f5;   /* header row of a table in a page: the light blue (brand tint), with dark blue text */
     --table-alt: #f2f2f2;    /* every second row: a plain grey (no blue or purple in it) */
-    --table-line: #e2e2e2;   /* the lines between rows and columns */
+    --table-line: var(--border);   /* the lines between rows and columns */
     --border: #e4e4e7;
     --border-strong: #d4d4d8;
     --text: #18181b;
@@ -63,7 +63,7 @@
       --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
       --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.4);
       --table-alt: #1e2024;
-      --table-line: #34363d;
+      --table-line: var(--border);
       --border: #2d2f35;
       --border-strong: #3d4048;
       --text: #f2f2f4;
@@ -94,7 +94,7 @@
     --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5);
     --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.4);
     --table-alt: #1e2024;
-    --table-line: #34363d;
+    --table-line: var(--border);
     --border: #2d2f35;
     --border-strong: #3d4048;
     --text: #f2f2f4;
@@ -537,7 +537,7 @@
     margin-right: -8px;
   }
   .avatar-blue { background: var(--icon-blue); }
-  .avatar-grey { background: #6b6e76; }
+  .avatar-grey { background: var(--text-faint); }
   .avatar-add {
     background: var(--surface);
     border: 1px dashed var(--accent);
@@ -2036,7 +2036,7 @@ mark.search-hit { background: var(--mark-bg); color: inherit; border-radius: 4px
 .landing-search-wrap { width: 100%; max-width: 960px; text-align: left; }   /* the same width as the filters under it */
 .landing-search { width: 100%; height: 58px; padding: 0 32px; font: inherit; font-size: 18px; color: var(--navy); background: var(--white); border: 0; border-radius: var(--sb-radius); box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4); }
 .landing-search:focus { outline: none; box-shadow: 0 10px 40px rgba(0, 105, 220, 0.4), 0 0 0 3px rgba(77, 163, 255, 0.55); }
-.landing-search::placeholder { color: #8A8EA8; }
+.landing-search::placeholder { color: var(--text-faint); }
 .landing-results { width: 100%; max-width: var(--content-max); margin: 0 auto; padding: 32px 32px 32px; box-sizing: border-box; }
 .landing-top-title { margin: 0 0 16px; font-size: 22px; font-weight: 700; color: var(--text); }
 .landing-top { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }   /* the three tiles share the full width */
@@ -2764,9 +2764,6 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 
 
 
-:root { --draft-tint: #ECEDF0; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --draft-tint: #2b2d34; } }
-:root[data-theme="dark"] { --draft-tint: #2b2d34; }
 
 /* Expired: the same warning triangle, in red, with the row and the words red too */
 .lib-row.is-expired td { background: var(--danger-soft); }
@@ -3415,3 +3412,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* The names in the byline a little larger */
 .contact-byline .byline-name { font-size: 15px; }
 .contact-byline .byline-role { font-size: 14px; }
+
+/* The grey avatar uses the faint text grey; in dark mode that is a light grey, so its initials turn dark to stay readable */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .avatar-grey { color: var(--bg); } }
+:root[data-theme="dark"] .avatar-grey { color: var(--bg); }
