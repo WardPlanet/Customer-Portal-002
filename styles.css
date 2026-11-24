@@ -3439,3 +3439,10 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 
 /* The banner at the top of a public page, for staff */
 .public-banner { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 16px; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 8px; color: var(--accent-strong); font-size: 13px; font-weight: 600; }
+
+/* Public: teal. A colour that means nothing else here (blue is for links and buttons), so the pill never looks clickable. */
+:root { --public-bg: #d9f1ef; --public-ink: #0a5a5a; --public-border: color-mix(in srgb, var(--public-ink) 45%, var(--public-bg)); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --public-bg: #0f2e2c; --public-ink: #6fd6cf; } }
+:root[data-theme="dark"] { --public-bg: #0f2e2c; --public-ink: #6fd6cf; }
+.pill-public { background: var(--public-bg); color: var(--public-ink); border-color: var(--public-border); }
+.public-banner { background: var(--public-bg); color: var(--public-ink); border-color: var(--public-border); }
