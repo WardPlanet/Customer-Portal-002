@@ -3087,7 +3087,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 #confirm-dialog-ok:disabled { opacity: .5; cursor: not-allowed; }
 
 /* A deletion request: its own dark red (a maroon), with a bin icon, so it is not read as "expired" */
-:root { --delete-ink: #7a1220; --delete-bg: #f7e1e4; --delete-border: color-mix(in srgb, var(--delete-ink) 35%, var(--delete-bg)); --delete-bar: var(--delete-ink); }   /* two colours: strong and tint */
+:root { --delete-ink: #7a1220; --delete-bg: #f7e1e4; --delete-border: color-mix(in srgb, var(--delete-ink) 35%, var(--delete-bg)); --delete-bar: var(--danger); }   /* strong and tint; the bar and its outline use the main red */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --delete-ink: #f3a3ae; --delete-bg: #3a141a; } }
 :root[data-theme="dark"] { --delete-ink: #f3a3ae; --delete-bg: #3a141a; }
 .badge-delete { display: inline-flex; align-items: center; gap: 5px; color: var(--delete-ink); background: var(--delete-bg); border-color: var(--delete-border); font-weight: 700; }
