@@ -3412,3 +3412,6 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* An expired page says so beside "Updated" on the live page, in red */
 .preview-updated.is-expired, .eyebrow-details .preview-updated.is-expired { color: var(--danger); display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .preview-updated.is-expired strong { font-weight: 700; }
+
+/* The names in the byline a little larger */
+.contact-byline .byline-name { font-size: 15px; }
