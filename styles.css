@@ -1227,11 +1227,11 @@
   .link-popover .link-apply { background: var(--accent); border-color: var(--accent); color: var(--white); }
 
   /* ---------- AI assist ---------- */
-  :root { --ai: #6d3fd9; --ai-soft: #f4effe; --ai-border: #cdb8f6; --ai-contrast: #ffffff; }
+  :root { --ai: #6d3fd9; --ai-soft: #f4effe; --ai-border: color-mix(in srgb, var(--ai) 45%, var(--ai-soft)); --ai-contrast: #ffffff; }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --ai: #b79af5; --ai-soft: #25193d; --ai-border: #5b3f94; --ai-contrast: #1b1230; }
+    :root:not([data-theme="light"]) { --ai: #b79af5; --ai-soft: #25193d; --ai-border: color-mix(in srgb, var(--ai) 45%, var(--ai-soft)); --ai-contrast: #1b1230; }
   }
-  :root[data-theme="dark"] { --ai: #b79af5; --ai-soft: #25193d; --ai-border: #5b3f94; --ai-contrast: #1b1230; }
+  :root[data-theme="dark"] { --ai: #b79af5; --ai-soft: #25193d; --ai-border: color-mix(in srgb, var(--ai) 45%, var(--ai-soft)); --ai-contrast: #1b1230; }
 
   .ai-chip { margin-left: auto; color: var(--ai); background: var(--ai-soft); border-color: var(--ai-border); }
   .ai-chip:hover { border-color: var(--ai); }
