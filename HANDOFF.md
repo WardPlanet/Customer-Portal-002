@@ -211,3 +211,11 @@ Also fixed: in dark mode the start-page search suggestions were white with pale 
 - **Internal vs Public pill.** Kept as it is for now: both are the same dark-on-white pill with a lock ("Internal") or a globe ("Public"), plus a neutral banner at the top of a public page for staff. Tried and dropped: blue (looks like a button), green (looks like the Live status), teal (new colour). Ask: should Public be visibly stronger than Internal (a thicker outline, or a solid dark pill) so a public page is never missed? And is the label "Internal" clear enough without "only"?
 - **Draft grey.** The Draft badge outline and the draft row's side bar use the standard border grey. Ask whether drafts should be a little stronger next to the other status colours.
 - **Colour recipe.** Every coloured box is the strong colour mixed 45% into its tint (deletion burgundy too). Ask whether 45% is the right strength across red, yellow, green, blue and purple.
+
+**Style sheet consolidation (no visual change; 18 before/after screenshots at three widths are pixel-identical):**
+- Stacking layers are named (`--z-header` 20 up to `--z-toast` 80); 1 to 5 stay local to a component.
+- One monospace stack (`--font-mono`; inline code now uses it instead of Courier New).
+- The type scale has names (`--fs-xs` 12px up to `--fs-6xl` 56px); all 345 plain pixel font sizes use them.
+- The coloured bar on a library row is drawn by one rule (`--row-bar`); each status only picks the colour.
+- 40 rules and 3 selector lists for classes nothing uses any more were deleted (about 4.6 KB).
+- Still to do if wanted: merge the 220 or so selectors defined more than once, snap the odd spacing values (6, 10, 14px) to the 4px pattern, and use `light-dark()` so each colour is written once instead of three times.
