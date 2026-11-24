@@ -3440,7 +3440,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 /* The banner at the top of a public page, for staff */
 .public-banner { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 8px 16px; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: 8px; color: var(--accent-strong); font-size: 13px; font-weight: 600; }
 
-/* Public: blue, softened. The fill is the blue at 22% over the page surface (not the old pale tint), the text the navy, the border the blue at 45%. */
-:root { --public-bg: color-mix(in srgb, var(--accent) 12%, var(--surface)); --public-ink: var(--accent-strong); --public-border: color-mix(in srgb, var(--accent) 45%, var(--public-bg)); }
+/* Public: green, from the Live greens (blue is for buttons and links, so a blue pill looked clickable). No new colour. */
+:root { --public-bg: var(--live-bg); --public-ink: var(--live-ink); --public-border: color-mix(in srgb, var(--live-ink) 45%, var(--live-bg)); }
 .pill-public { background: var(--public-bg); color: var(--public-ink); border-color: var(--public-border); }
 .public-banner { background: var(--public-bg); color: var(--public-ink); border-color: var(--public-border); }
