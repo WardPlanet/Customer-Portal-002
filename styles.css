@@ -26,7 +26,7 @@
     --navy: #000f60;          /* the logo letters: headings, table headers */
     --blue-bright: #4da3ff;   /* the light blue used on dark surfaces */
     --live-bg: #e3f6ea; --live-ink: #14703a; --live-border: #b6e3c6;   /* the Live status */
-    --warn-ink: #8a5a00;      /* text on the warning tint */
+    --warn-ink: #806400;      /* text, triangle and border on the warning tint: a dark gold */
     --danger-ink: #9b2c23;    /* text on the danger tint */
     --mark-bg: #fff1a8;       /* a search hit */
     --brand-tint: #d3e6f5;   /* the third brand colour: a pale sky blue */
