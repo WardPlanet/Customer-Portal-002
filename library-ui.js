@@ -244,7 +244,7 @@
     return el('span', 'badge badge-' + labels[1], labels[0]);
   }
 
-  // A globe for Public, a lock for Internal only: the difference is never colour alone (fixed markup, no page text)
+  // A globe for Public, a lock for Internal: the difference is never colour alone (fixed markup, no page text)
   var GLOBE_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>';
   var LOCK_PILL_SVG = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
   function visibilityPill(visibility) {
@@ -254,7 +254,7 @@
     var icon = el('span', 'pill-icon');
     icon.innerHTML = isPublic ? GLOBE_SVG : LOCK_PILL_SVG;
     pill.appendChild(icon);
-    pill.appendChild(document.createTextNode(isPublic ? 'Public' : 'Internal only'));
+    pill.appendChild(document.createTextNode(isPublic ? 'Public' : 'Internal'));
     return pill;
   }
 
@@ -1119,8 +1119,8 @@
   async function bulkSetVisibility(list, visibility) {
     var pub = visibility === 'Client-Safe';
     var many = list.length + (list.length === 1 ? ' page' : ' pages');
-    var question = pub ? 'Make ' + many + ' public? Any that are live will appear on the public site.' : 'Make ' + many + ' internal only? Any that are live will disappear from the public site.';
-    if (!(await window.askConfirm(question, { title: pub ? 'Make public?' : 'Make internal only?', ok: pub ? 'Make public' : 'Make internal' }))) { return; }
+    var question = pub ? 'Make ' + many + ' public? Any that are live will appear on the public site.' : 'Make ' + many + ' internal? Any that are live will disappear from the public site.';
+    if (!(await window.askConfirm(question, { title: pub ? 'Make public?' : 'Make internal?', ok: pub ? 'Make public' : 'Make internal' }))) { return; }
     await runBulk(list, function (p) { return backend().setVisibility(p.id, visibility); }, 'Changed the visibility of', 'could not be changed');
   }
 
@@ -1142,7 +1142,7 @@
     // different columns narrow each other)
     var pick = libraryFilters.pick = libraryFilters.pick || {};
     var pickDefs = [
-      { key: 'visibility', title: 'Visibility', valueOf: function (p) { return p.visibility === 'Client-Safe' ? 'Public' : 'Internal only'; } },
+      { key: 'visibility', title: 'Visibility', valueOf: function (p) { return p.visibility === 'Client-Safe' ? 'Public' : 'Internal'; } },
       { key: 'status', title: 'Status', valueOf: function (p) { return STATE_LABELS[p.state][0]; } },
       { key: 'owner', title: 'Owner', valueOf: function (p) { return ownerShown(p, teamFor(p.team) || team).label; } }
     ];
@@ -1191,7 +1191,7 @@
       bulkBar.appendChild(ownerPick);
       var visibilityPick = el('select', 'acting-select');
       visibilityPick.setAttribute('aria-label', 'Change the visibility of the selected pages');
-      [['', 'Change visibility\u2026'], ['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (pair) {
+      [['', 'Change visibility\u2026'], ['Internal-Only', 'Internal'], ['Client-Safe', 'Public']].forEach(function (pair) {
         var option = el('option', '', pair[1]);
         option.value = pair[0];
         visibilityPick.appendChild(option);
@@ -1212,7 +1212,7 @@
       pickDefs.forEach(function (def) {
         var counts = {};
         var order = [];
-        // The counts follow the other ticks: with Internal only ticked, each owner shows how many internal pages they own, and an owner
+        // The counts follow the other ticks: with Internal ticked, each owner shows how many internal pages they own, and an owner
         // with none is not offered. (This column's own ticks are left out, so choices in one column can still be added together.)
         var others = activeDefs.filter(function (d) { return d.key !== def.key; });
         pool.forEach(function (p) {
@@ -1544,7 +1544,7 @@
         visCell.textContent = '';
         var visibilitySelect = el('select', 'acting-select owner-select');
         visibilitySelect.setAttribute('aria-label', 'Visibility of ' + p.title);
-        [['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (pair) {
+        [['Internal-Only', 'Internal'], ['Client-Safe', 'Public']].forEach(function (pair) {
           var option = el('option', '', pair[1]);
           option.value = pair[0];
           visibilitySelect.appendChild(option);
@@ -1554,7 +1554,7 @@
         visibilitySelect.addEventListener('change', async function () {
           if (visibilitySelect.value === p.visibility) { showVisibility(); return; }
           savingVisibility = true;
-          if (await attempt(backend().setVisibility(p.id, visibilitySelect.value))) { notice('\u201c' + p.title + '\u201d is now ' + (visibilitySelect.value === 'Client-Safe' ? 'public' : 'internal only') + '.'); route(); }
+          if (await attempt(backend().setVisibility(p.id, visibilitySelect.value))) { notice('\u201c' + p.title + '\u201d is now ' + (visibilitySelect.value === 'Client-Safe' ? 'public' : 'internal') + '.'); route(); }
           else { savingVisibility = false; showVisibility(); }
         });
         visibilitySelect.addEventListener('blur', function () { if (!savingVisibility) { showVisibility(); } });
@@ -3455,7 +3455,7 @@
     addFilterSelect('team', [['', 'Any team']]);
     var showOwnerFilter = !(window.Store.isPublicMode && window.Store.isPublicMode());   // owners are for people who are signed in
     if (showOwnerFilter) { addFilterSelect('owner', [['', 'Anyone']]); }
-    if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { addFilterSelect('visibility', [['', 'Any'], ['Internal-Only', 'Internal-Only'], ['Client-Safe', 'Client-Safe']]); }
+    if (!(window.Store.isPublicMode && window.Store.isPublicMode())) { addFilterSelect('visibility', [['', 'Any'], ['Internal-Only', 'Internal'], ['Client-Safe', 'Client-Safe']]); }
     addFilterSelect('updated', [['', 'Any time'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90 days'], ['365', 'Last year']]);
     addFilterSelect('sort', [['best', 'Best match'], ['newest', 'Newest'], ['opened', 'Most opened'], ['az', 'A to Z']]);
     // "Exclude expired pages": a tick box at the end of the filter row

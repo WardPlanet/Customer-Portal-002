@@ -747,7 +747,7 @@
       // A shortcut, like the owner one: sets every document at once. Each document can still be changed on its own card.
       var visLabel = el('label', 'batch-field', 'Set the visibility of every document to ');
       var vis = el('select', 'acting-select');
-      [['', '-'], ['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; vis.appendChild(o); });
+      [['', '-'], ['Internal-Only', 'Internal'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; vis.appendChild(o); });
       vis.value = session.visibility || '';
       vis.addEventListener('change', function () {
         session.visibility = vis.value;
@@ -838,7 +838,7 @@
       var visRow = el('label', 'batch-field', 'Visibility ');
       var docVis = el('select', 'acting-select');
       docVis.setAttribute('aria-label', 'Visibility of ' + doc.title);
-      [['', '-'], ['Internal-Only', 'Internal only'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; docVis.appendChild(o); });
+      [['', '-'], ['Internal-Only', 'Internal'], ['Client-Safe', 'Public']].forEach(function (v) { var o = el('option', '', v[1]); o.value = v[0]; docVis.appendChild(o); });
       docVis.value = doc.visibility || session.visibility || '';
       docVis.addEventListener('change', function () { doc.visibility = docVis.value; });
       visRow.appendChild(docVis);
