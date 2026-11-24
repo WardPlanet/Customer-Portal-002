@@ -777,11 +777,11 @@
   .draft-list .draft-meta { color: var(--text-faint); font-size: 12px; }
 
   /* ---------- Required fields + insert lines ---------- */
-  :root { --danger: #c62828; --danger-soft: #fdf0ef; --danger-border: #f0b4b0; }
+  :root { --danger: #c62828; --danger-soft: #fdf0ef; --danger-border: color-mix(in srgb, var(--danger) 45%, var(--danger-soft)); }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --danger: #f2766f; --danger-soft: #2e1816; --danger-border: #7a3330; }
+    :root:not([data-theme="light"]) { --danger: #f2766f; --danger-soft: #2e1816; --danger-border: color-mix(in srgb, var(--danger) 45%, var(--danger-soft)); }
   }
-  :root[data-theme="dark"] { --danger: #f2766f; --danger-soft: #2e1816; --danger-border: #7a3330; }
+  :root[data-theme="dark"] { --danger: #f2766f; --danger-soft: #2e1816; --danger-border: color-mix(in srgb, var(--danger) 45%, var(--danger-soft)); }
 
   .text-block.has-error,
   .step-block.has-error { border-color: var(--danger); background: var(--danger-soft); }
@@ -2773,7 +2773,7 @@ a.preview-eyebrow:hover span:last-child { text-decoration: underline; }
 .caution-icon.is-expired { color: var(--danger); }
 .expiry-line.is-expired, .notify-sub.is-expired { color: var(--danger); font-weight: 700; }
 
-.lib-expiry-bar.is-expired { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 45%, var(--danger-soft)); color: var(--danger); }
+.lib-expiry-bar.is-expired { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 
 /* The main button of a row that needs a look: filled blue */
 .row-btn.row-btn-main { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }   /* the main action is the standard primary blue */
@@ -3024,7 +3024,7 @@ body.is-readonly .outline-related .related-add { cursor: not-allowed; border-col
 .lib-bar.is-green { background: var(--live-bg); border-color: var(--live-border); color: var(--live-ink); }
 .lib-bar.is-orange { background: var(--caution-tint); border-color: var(--warn-icon); color: var(--warn-ink); }
 .lib-bar.is-yellow { background: var(--caution-tint); border-color: var(--warn-border); color: var(--warn-ink); }
-.lib-bar.is-red { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 45%, var(--danger-soft)); color: var(--danger); }
+.lib-bar.is-red { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 .lib-bar-head { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: none; border: 0; font: inherit; font-size: 14px; font-weight: 700; color: inherit; cursor: pointer; text-align: left; }
 .lib-bar-list { list-style: none; margin: 0; padding: 0 16px 8px; }
 .lib-bar-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(0,0,0,.08); }
@@ -3395,7 +3395,7 @@ td > .lib-row-sub:has(> .badge) { margin-top: 8px; }
 @media (max-width: 860px) { .landing-filter-panel { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
 
 /* Expired notices are red, expiring-soon notices yellow (the same colours as the library bars) */
-.notify-item.is-expired { background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--danger-soft)); }
+.notify-item.is-expired { background: var(--danger-soft); border: 1px solid var(--danger-border); }
 .notify-item.is-expiring { background: var(--warn-bg); border: 1px solid var(--warn-border); }
 .notify-item.is-expired:hover { background: var(--danger-soft); filter: brightness(0.97); }
 .notify-item.is-expiring:hover { background: var(--warn-bg); filter: brightness(0.97); }
